@@ -15,6 +15,12 @@
     "customer_has_linked_documents": "Impossible de supprimer ce client : des documents y sont associés",
     "product_not_found": "Produit introuvable",
     "product_in_use": "Impossible de supprimer ce produit : il est utilisé dans des bons de livraison ou factures",
+    "purchase_order_not_found": "Bon de commande introuvable",
+    "po_cannot_delete": "Seuls les bons de commande en brouillon ou annulés peuvent être supprimés",
+    "po_has_reception": "Impossible d'annuler : un bon de réception existe déjà",
+    "po_wrong_status_for_reception": "Le bon de commande doit être en statut envoyé ou brouillon pour créer une réception",
+    "invalid_status_transition": "Transition de statut non autorisée",
+    "reception_bl_not_found": "Bon de réception introuvable",
     "duplicate_entry": "Cette valeur existe déjà",
     "foreign_key_violation": "Référence invalide"
   },
