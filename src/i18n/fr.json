@@ -8,6 +8,9 @@
     "user_not_found": "Utilisateur introuvable",
     "forbidden": "Accès refusé",
     "not_found": "Ressource introuvable",
+    "supplier_not_found": "Fournisseur introuvable",
+    "supplier_has_purchase_orders": "Impossible de supprimer ce fournisseur : des commandes d'achat y sont associées",
+    "raw_material_not_found": "Matière première introuvable",
     "duplicate_entry": "Cette valeur existe déjà",
     "foreign_key_violation": "Référence invalide"
   },
