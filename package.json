@@ -10,7 +10,8 @@
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "migration:run": "typeorm migration:run -d dist/config/database.config.js",
     "migration:revert": "typeorm migration:revert -d dist/config/database.config.js",
-    "migration:generate": "typeorm migration:generate -d dist/config/database.config.js"
+    "migration:generate": "typeorm migration:generate -d dist/config/database.config.js",
+    "dev": "concurrently --names API,CLIENT --prefix-colors blue,green \"npm run start:dev\" \"npm --prefix client run dev\""
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
@@ -47,6 +48,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "concurrently": "^10.0.3",
     "eslint": "^9.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.0"
