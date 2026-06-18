@@ -11,7 +11,7 @@
     "migration:run": "typeorm migration:run -d dist/config/database.config.js",
     "migration:revert": "typeorm migration:revert -d dist/config/database.config.js",
     "migration:generate": "typeorm migration:generate -d dist/config/database.config.js",
-    "dev": "concurrently --names API,CLIENT --prefix-colors blue,green \"npm run start:dev\" \"npm --prefix client run dev\""
+    "dev": "npx concurrently --names API,CLIENT --prefix-colors blue,green \"npm run start:dev\" \"npm --prefix client run dev\""
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
