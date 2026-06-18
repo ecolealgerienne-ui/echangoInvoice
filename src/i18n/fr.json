@@ -26,7 +26,11 @@
     "quote_not_found": "Devis introuvable",
     "quote_not_editable": "Seuls les devis en brouillon peuvent être modifiés",
     "quote_not_accepted": "Seul un devis accepté peut être converti en facture",
-    "quote_cannot_delete": "Seuls les devis en brouillon ou rejetés peuvent être supprimés"
+    "quote_cannot_delete": "Seuls les devis en brouillon ou rejetés peuvent être supprimés",
+    "delivery_note_not_found": "Bon de livraison introuvable",
+    "delivery_note_not_signable": "Seuls les BL en statut brouillon ou envoyé peuvent être signés",
+    "delivery_note_cannot_delete": "Seuls les bons de livraison en brouillon peuvent être supprimés",
+    "insufficient_stock": "Stock insuffisant pour un ou plusieurs produits"
   },
   "auth": {
     "register_success": "Compte créé avec succès",

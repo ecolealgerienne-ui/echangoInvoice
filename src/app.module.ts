@@ -13,6 +13,8 @@ import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { QuotesModule } from './quotes/quotes.module';
 
+import { DeliveriesModule } from './deliveries/deliveries.module';
+
 @Module({
   imports: [
     TypeOrmModule.forRoot(getDatabaseConfig()),
@@ -27,6 +29,7 @@ import { QuotesModule } from './quotes/quotes.module';
     ProductsModule,
     PurchasesModule,
     QuotesModule,
+    DeliveriesModule,
   ],
 })
 export class AppModule {}
