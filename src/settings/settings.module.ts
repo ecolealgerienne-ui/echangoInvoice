@@ -1,0 +1,14 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Setting } from './setting.entity';
+import { TaxRateConfig } from './tax-rate-config.entity';
+import { SettingsService } from './settings.service';
+import { SettingsController } from './settings.controller';
+
+@Module({
+  imports: [TypeOrmModule.forFeature([Setting, TaxRateConfig])],
+  controllers: [SettingsController],
+  providers: [SettingsService],
+  exports: [SettingsService],
+})
+export class SettingsModule {}

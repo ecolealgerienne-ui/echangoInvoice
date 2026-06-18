@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, Index,
+  CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Index,
 } from 'typeorm';
 
 @Index('IDX_stock_entries_tenant_id', ['tenantId'])
@@ -21,6 +21,12 @@ export class StockEntry {
 
   @Column({ type: 'uuid', nullable: true })
   receptionBlId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  finishedProductId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  reservedByDeliveryNoteId: string | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   quantity: number;
@@ -55,4 +61,7 @@ export class StockEntry {
 
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
+
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true })
+  deletedAt: Date | null;
 }

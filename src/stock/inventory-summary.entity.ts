@@ -28,6 +28,9 @@ export class InventorySummary {
   @Column({ type: 'timestamptz', nullable: true })
   earliestExpirationDate: Date | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  alertThreshold: number | null;
+
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

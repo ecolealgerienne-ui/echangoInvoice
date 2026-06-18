@@ -41,7 +41,9 @@
     "payment_not_found": "Paiement introuvable",
     "expense_not_found": "Dépense introuvable",
     "expense_already_approved": "Cette dépense est déjà approuvée et ne peut plus être modifiée",
-    "expense_approved_cannot_delete": "Une dépense approuvée ne peut pas être supprimée"
+    "expense_approved_cannot_delete": "Une dépense approuvée ne peut pas être supprimée",
+    "inventory_summary_not_found": "Résumé d'inventaire introuvable pour cette matière",
+    "settings_multiple_default_tax": "Une seule configuration de taxe peut être définie comme taxe par défaut"
   },
   "auth": {
     "register_success": "Compte créé avec succès",

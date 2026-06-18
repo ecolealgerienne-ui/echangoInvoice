@@ -16,6 +16,9 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { StockModule } from './stock/stock.module';
+import { ReportsModule } from './reports/reports.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -35,6 +38,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     InvoicesModule,
     ExpensesModule,
     DashboardModule,
+    StockModule,
+    ReportsModule,
+    SettingsModule,
   ],
 })
 export class AppModule {}
