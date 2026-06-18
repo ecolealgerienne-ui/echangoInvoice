@@ -38,7 +38,10 @@
     "invoice_limit_reached": "Limite de factures mensuelle atteinte (plan freemium)",
     "invoice_items_required": "Au moins un article est requis pour créer une facture",
     "delivery_note_already_invoiced": "Ce bon de livraison est déjà lié à une facture",
-    "payment_not_found": "Paiement introuvable"
+    "payment_not_found": "Paiement introuvable",
+    "expense_not_found": "Dépense introuvable",
+    "expense_already_approved": "Cette dépense est déjà approuvée et ne peut plus être modifiée",
+    "expense_approved_cannot_delete": "Une dépense approuvée ne peut pas être supprimée"
   },
   "auth": {
     "register_success": "Compte créé avec succès",
