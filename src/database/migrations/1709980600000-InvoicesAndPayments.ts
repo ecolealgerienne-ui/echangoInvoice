@@ -41,10 +41,18 @@ export class InvoicesAndPayments1709980600000 implements MigrationInterface {
       CREATE TYPE "sales_invoices_status_enum"
         AS ENUM ('draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled')
     `);
+    // Drop default before type change, re-add after (PG exige cette séquence)
+    await queryRunner.query(`
+      ALTER TABLE "sales_invoices" ALTER COLUMN "status" DROP DEFAULT
+    `);
     await queryRunner.query(`
       ALTER TABLE "sales_invoices"
         ALTER COLUMN "status" TYPE "sales_invoices_status_enum"
         USING "status"::"sales_invoices_status_enum"
+    `);
+    await queryRunner.query(`
+      ALTER TABLE "sales_invoices"
+        ALTER COLUMN "status" SET DEFAULT 'draft'
     `);
 
     // Indexes sales_invoices (complète ceux déjà créés dans le stub)
