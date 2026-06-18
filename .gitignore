@@ -1,0 +1,19 @@
+# Claude Code local settings
+.claude/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Node
+node_modules/
+dist/
+build/
+
+# Uploads & archives
+uploads/
+ARCHIVES/
+
+# OS
+.DS_Store
