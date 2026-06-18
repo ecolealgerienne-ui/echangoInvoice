@@ -49,25 +49,27 @@ export class DashboardService {
         ORDER BY total DESC LIMIT 5`,
         [tenantId, dateFrom, dateTo]),
 
-      // Achats (réceptions BL)
+      // Achats (réceptions BL) — coût calculé depuis les items de PO
       this.ds.query(`
-        SELECT COALESCE(SUM("totalAmount"),0) AS cost, COUNT(*) AS count
-        FROM reception_bls
-        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        SELECT COALESCE(SUM(poi.quantity * poi."unitPrice"),0) AS cost, COUNT(DISTINCT rbl.id) AS count
+        FROM reception_bls rbl
+        JOIN purchase_order_items poi ON poi."purchaseOrderId" = rbl."purchaseOrderId"
+        WHERE rbl."tenantId"=$1 AND rbl."receptionDate" BETWEEN $2 AND $3
+          AND rbl."deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
 
       // Valeur stock courant (available + reserved)
       this.ds.query(`
         SELECT COALESCE(SUM(quantity * "costPerUnit"),0) AS value, COUNT(*) AS entries
         FROM stock_entries
-        WHERE "tenantId"=$1 AND status IN ('available','reserved') AND "deletedAt" IS NULL`,
+        WHERE "tenantId"=$1 AND status IN ('available','reserved')`,
         [tenantId]),
 
       // Stock par statut
       this.ds.query(`
         SELECT status, COUNT(*) AS count, COALESCE(SUM(quantity * "costPerUnit"),0) AS value
         FROM stock_entries
-        WHERE "tenantId"=$1 AND "deletedAt" IS NULL
+        WHERE "tenantId"=$1
         GROUP BY status`,
         [tenantId]),
 
@@ -93,7 +95,7 @@ export class DashboardService {
       this.ds.query(`
         SELECT COUNT(*) AS count FROM stock_entries
         WHERE "tenantId"=$1 AND status='available' AND "expiresAt" IS NOT NULL
-          AND "expiresAt" <= NOW() + INTERVAL '5 days' AND "deletedAt" IS NULL`,
+          AND "expiresAt" <= NOW() + INTERVAL '5 days'`,
         [tenantId]),
 
       // Stock bas (via inventory_summary)
@@ -257,13 +259,13 @@ export class DashboardService {
                SUM(se.quantity * se."costPerUnit") AS value
         FROM stock_entries se
         JOIN raw_materials rm ON rm.id = se."rawMaterialId"
-        WHERE se."tenantId"=$1 AND se.status IN ('available','reserved') AND se."deletedAt" IS NULL
+        WHERE se."tenantId"=$1 AND se.status IN ('available','reserved')
         GROUP BY se."rawMaterialId", rm.name, rm.unit`,
         [tenantId]),
 
       this.ds.query(`
         SELECT status, COUNT(*) AS count, COALESCE(SUM(quantity * "costPerUnit"),0) AS value
-        FROM stock_entries WHERE "tenantId"=$1 AND "deletedAt" IS NULL GROUP BY status`,
+        FROM stock_entries WHERE "tenantId"=$1 GROUP BY status`,
         [tenantId]),
 
       this.ds.query(`
@@ -273,7 +275,7 @@ export class DashboardService {
         FROM stock_entries se
         JOIN raw_materials rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status='available' AND se."expiresAt" IS NOT NULL
-          AND se."expiresAt" <= NOW() + INTERVAL '30 days' AND se."deletedAt" IS NULL
+          AND se."expiresAt" <= NOW() + INTERVAL '30 days'
         ORDER BY se."expiresAt" ASC`,
         [tenantId]),
     ]);
