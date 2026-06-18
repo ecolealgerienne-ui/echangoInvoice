@@ -17,5 +17,4 @@ ARCHIVES/
 
 # OS
 .DS_Store
-client/tsconfig.app.tsbuildinfo
-client/tsconfig.node.tsbuildinfo
+*.tsbuildinfo
