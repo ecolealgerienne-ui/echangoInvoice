@@ -1,0 +1,172 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "loading": "Chargement...",
+    "confirm": "Confirmer",
+    "yes": "Oui",
+    "no": "Non",
+    "actions": "Actions",
+    "noData": "Aucun résultat",
+    "total": "Total",
+    "status": "Statut",
+    "date": "Date",
+    "amount": "Montant",
+    "back": "Retour",
+    "filter": "Filtrer",
+    "export": "Exporter",
+    "approve": "Approuver",
+    "close": "Fermer"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "customers": "Clients",
+    "suppliers": "Fournisseurs",
+    "rawMaterials": "Matières premières",
+    "stock": "Stock",
+    "invoices": "Factures",
+    "expenses": "Dépenses",
+    "reports": "Rapports",
+    "settings": "Paramètres"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "loginButton": "Se connecter",
+    "loginError": "Email ou mot de passe incorrect"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "revenue": "Chiffre d'affaires",
+    "invoiceCount": "Factures",
+    "grossMargin": "Marge brute",
+    "netProfit": "Résultat net",
+    "stockValue": "Valeur stock",
+    "expenses": "Dépenses",
+    "alerts": "Alertes",
+    "expiringSoon": "Lots expirant bientôt",
+    "unpaidInvoices": "Factures impayées",
+    "lowStock": "Stock bas",
+    "topCustomers": "Top clients",
+    "month": "Mois"
+  },
+  "customers": {
+    "title": "Clients",
+    "new": "Nouveau client",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "nif": "NIF",
+    "rc": "RC"
+  },
+  "suppliers": {
+    "title": "Fournisseurs",
+    "new": "Nouveau fournisseur",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "address": "Adresse"
+  },
+  "rawMaterials": {
+    "title": "Matières premières",
+    "new": "Nouvelle matière",
+    "name": "Nom",
+    "unit": "Unité",
+    "description": "Description"
+  },
+  "stock": {
+    "title": "Stock",
+    "inventory": "Inventaire",
+    "alerts": "Alertes",
+    "adjust": "Ajustement",
+    "quantity": "Quantité",
+    "value": "Valeur",
+    "threshold": "Seuil d'alerte",
+    "expiry": "Expiration",
+    "expiryAlert": "Alerte expiration",
+    "lowStockAlert": "Stock bas"
+  },
+  "invoices": {
+    "title": "Factures",
+    "new": "Nouvelle facture",
+    "number": "Numéro",
+    "customer": "Client",
+    "invoiceDate": "Date facture",
+    "dueDate": "Échéance",
+    "amount": "Montant TTC",
+    "paid": "Payé",
+    "due": "Solde dû",
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "partial": "Partiel",
+      "paid": "Payée",
+      "overdue": "En retard",
+      "cancelled": "Annulée"
+    }
+  },
+  "expenses": {
+    "title": "Dépenses",
+    "new": "Nouvelle dépense",
+    "description": "Description",
+    "category": "Catégorie",
+    "amount": "Montant",
+    "date": "Date",
+    "approved": "Approuvée",
+    "pending": "En attente",
+    "categories": {
+      "loyer": "Loyer",
+      "utilities": "Charges",
+      "transport": "Transport",
+      "rh": "RH",
+      "maintenance": "Maintenance",
+      "other": "Autre"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "sales": "Ventes",
+    "purchases": "Achats",
+    "expenses": "Dépenses",
+    "stock": "Stock",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "generate": "Générer"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "company": "Entreprise",
+    "companyName": "Raison sociale",
+    "taxRate": "Taux TVA (%)",
+    "currency": "Devise",
+    "numberFormats": "Formats de numérotation",
+    "blFormat": "Format BL",
+    "invoiceFormat": "Format Facture",
+    "quoteFormat": "Format Devis",
+    "poFormat": "Format Bon de commande",
+    "contact": "Contact",
+    "email": "Email",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "footerText": "Pied de page PDF",
+    "taxRates": "Configurations TVA",
+    "saved": "Paramètres enregistrés"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue",
+    "required": "Ce champ est requis",
+    "invalidEmail": "Email invalide",
+    "network": "Erreur de connexion au serveur"
+  },
+  "status": {
+    "active": "Actif",
+    "inactive": "Inactif"
+  }
+}
