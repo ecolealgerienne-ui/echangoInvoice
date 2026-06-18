@@ -11,6 +11,10 @@
     "supplier_not_found": "Fournisseur introuvable",
     "supplier_has_purchase_orders": "Impossible de supprimer ce fournisseur : des commandes d'achat y sont associées",
     "raw_material_not_found": "Matière première introuvable",
+    "customer_not_found": "Client introuvable",
+    "customer_has_linked_documents": "Impossible de supprimer ce client : des documents y sont associés",
+    "product_not_found": "Produit introuvable",
+    "product_in_use": "Impossible de supprimer ce produit : il est utilisé dans des bons de livraison ou factures",
     "duplicate_entry": "Cette valeur existe déjà",
     "foreign_key_violation": "Référence invalide"
   },
