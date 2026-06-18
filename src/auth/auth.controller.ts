@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   HttpCode,
   HttpStatus,
@@ -53,6 +54,22 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   async refresh(@Body() dto: RefreshDto) {
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Get('me')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiResponse({ status: 200, description: 'Current user' })
+  async me(@CurrentUser() user: JwtPayload) {
+    return {
+      data: {
+        id: user.sub,
+        tenantId: user.tenantId,
+        email: user.email,
+        role: user.role,
+      },
+    };
   }
 
   @Post('logout')

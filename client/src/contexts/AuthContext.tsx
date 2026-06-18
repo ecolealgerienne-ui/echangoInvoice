@@ -26,16 +26,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('accessToken');
     if (!token) { setLoading(false); return; }
     authApi.me()
-      .then(res => setUser(res.data))
-      .catch(() => { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken'); })
+      .then(data => setUser(data))
+      .catch(() => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      })
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email: string, password: string) {
-    const res = await authApi.login(email, password);
-    localStorage.setItem('accessToken', res.data.accessToken);
-    localStorage.setItem('refreshToken', res.data.refreshToken);
-    setUser(res.data.user);
+    const data = await authApi.login(email, password);
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    setUser(data.user);
   }
 
   async function logout() {
