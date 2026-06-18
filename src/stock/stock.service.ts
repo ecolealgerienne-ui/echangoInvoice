@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { StockEntry } from './stock-entry.entity';
 import { InventorySummary } from './inventory-summary.entity';
 import { ListInventoryDto } from './dto/list-inventory.dto';
@@ -86,7 +86,6 @@ export class StockService {
         WHERE se."tenantId"=$1 AND se.status='available'
           AND se."expiresAt" IS NOT NULL
           AND se."expiresAt" <= NOW() + INTERVAL '5 days'
-          AND se."deletedAt" IS NULL
         GROUP BY se."rawMaterialId", rm.name, se."expiresAt"
         ORDER BY se."expiresAt" ASC`,
         [tenantId]),
@@ -171,7 +170,6 @@ export class StockService {
         .where('se.tenantId = :tenantId', { tenantId })
         .andWhere('se.rawMaterialId = :mid', { mid: dto.rawMaterialId })
         .andWhere('se.status = :s', { s: 'available' })
-        .andWhere('se.deletedAt IS NULL')
         .getMany();
 
       const totalQty = avail.reduce((s, e) => s + parseFloat(e.quantity as any), 0);
@@ -225,7 +223,7 @@ export class StockService {
 
   async listEntries(tenantId: string, rawMaterialId: string, page = 1, limit = 20) {
     const [data, total] = await this.entryRepo.findAndCount({
-      where: { tenantId, rawMaterialId, deletedAt: IsNull() },
+      where: { tenantId, rawMaterialId },
       order: { enteredAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
