@@ -1,0 +1,41 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsArray, IsDateString, IsNotEmpty, IsNumber,
+  IsOptional, IsString, IsUUID, Min, ValidateNested,
+} from 'class-validator';
+
+export class CreateSalesInvoiceItemDto {
+  @ApiProperty() @IsUUID() finishedProductId: string;
+  @ApiProperty() @IsNumber() @Min(0.01) quantity: number;
+  @ApiProperty() @IsString() @IsNotEmpty() unit: string;
+  @ApiProperty() @IsNumber() @Min(0) unitPrice: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() taxName1?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) taxRate1?: number;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() taxName2?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) taxRate2?: number;
+}
+
+export class CreateSalesInvoiceDto {
+  @ApiProperty() @IsUUID() customerId: string;
+  @ApiProperty() @IsDateString() invoiceDate: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsDateString() dueDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+
+  // Mode BL : items copiés depuis le BL
+  @ApiPropertyOptional() @IsOptional() @IsUUID() deliveryNoteId?: string;
+
+  // Mode devis : items copiés depuis le devis
+  @ApiPropertyOptional() @IsOptional() @IsUUID() quoteId?: string;
+
+  // Mode standalone : items fournis manuellement
+  @ApiPropertyOptional({ type: [CreateSalesInvoiceItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSalesInvoiceItemDto)
+  items?: CreateSalesInvoiceItemDto[];
+}
