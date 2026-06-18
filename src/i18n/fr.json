@@ -22,7 +22,11 @@
     "invalid_status_transition": "Transition de statut non autorisée",
     "reception_bl_not_found": "Bon de réception introuvable",
     "duplicate_entry": "Cette valeur existe déjà",
-    "foreign_key_violation": "Référence invalide"
+    "foreign_key_violation": "Référence invalide",
+    "quote_not_found": "Devis introuvable",
+    "quote_not_editable": "Seuls les devis en brouillon peuvent être modifiés",
+    "quote_not_accepted": "Seul un devis accepté peut être converti en facture",
+    "quote_cannot_delete": "Seuls les devis en brouillon ou rejetés peuvent être supprimés"
   },
   "auth": {
     "register_success": "Compte créé avec succès",
