@@ -1,7 +1,7 @@
 # CLAUDE.md — Chambre Froide Djelfa · Invoicing SaaS
 
 > **Ce fichier = règles d'action uniquement.**
-> Specs complètes → `SPECS_PROJET_INVOICING.md`
+> Specs par module → `docs/specs/00-overview.md` … `docs/specs/14-settings.md`
 > Architecture descriptive → `docs/ARCHITECTURE.md`
 > Erreurs connues → `docs/ERREURS.md`
 > Statut features → `docs/STATUS.md`
@@ -12,7 +12,7 @@
 
 ```
 [ ] 1. Consulter docs/ERREURS.md — une erreur similaire existe peut-être déjà
-[ ] 2. Vérifier les invariants R001–R019 concernés par cette tâche
+[ ] 2. Vérifier les invariants R001–R020 concernés par cette tâche
 [ ] 3. Annoncer le modèle adapté (section 3)
 [ ] 4. Produire un /plan avant d'écrire du code sur toute tâche > 2 fichiers
 [ ] 5. Attendre validation du /plan avant d'implémenter
@@ -23,7 +23,7 @@ Mettre à jour `docs/STATUS.md` si le statut d'une feature change.
 
 ---
 
-## 1. INVARIANTS ABSOLUS (R001–R019) — Violations = rejet immédiat du code
+## 1. INVARIANTS ABSOLUS (R001–R020) — Violations = rejet immédiat du code
 
 ---
 
@@ -489,6 +489,48 @@ async create(@Body() dto: CreateDeliveryNoteDto) {
 
 ---
 
+### R020 — tenantId obligatoire sur toutes les queries — zéro fuite cross-tenant
+
+**Toute query sur une entité métier doit filtrer par `tenantId` extrait du JWT, jamais depuis l'URL.**
+
+```typescript
+// ✅ CORRECT — tenantId depuis le JWT via @CurrentUser()
+async findOne(id: string, tenantId: string) {
+  return this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
+}
+
+// ✅ CORRECT — QueryBuilder
+.where('c.id = :id AND c.tenantId = :tenantId', { id, tenantId })
+
+// ❌ INTERDIT — oubli du tenantId → un tenant peut lire les données d'un autre
+await this.repo.findOne({ where: { id } });
+
+// ❌ INTERDIT — tenantId depuis l'URL ou le body (falsifiable)
+async findOne(@Param('tenantId') tenantId: string, @Param('id') id: string) { ... }
+```
+
+**Auto-numérotation multi-tenant (R013) :**
+```typescript
+// Lock scopé par tenant pour éviter les doublons
+await queryRunner.query(
+  `SELECT pg_advisory_xact_lock(hashtext('quote_number_' || $1))`, [tenantId]
+);
+// Query last number WHERE tenantId = tenantId AND year = year
+```
+
+**Contraintes unique toutes composites :**
+```sql
+UNIQUE ("number", "tenantId")   -- pour BL, FAC, DEV, PO
+```
+
+**Vérification :**
+```bash
+# Toute query repo.findOne/find sans tenantId dans le where est une violation
+grep -rn "findOne\|find({" src/ | grep -v "tenantId"
+```
+
+---
+
 ## 2. SIDE EFFECTS OBLIGATOIRES (non-négociables)
 
 Ces effets doivent toujours se produire dans une transaction (R005) :
@@ -500,6 +542,7 @@ Ces effets doivent toujours se produire dans une transaction (R005) :
 | `POST /invoices/sales-invoices` | Auto-calcule TVA 19% |
 | `POST /invoices/sales-invoices/:id/send-email` | Génère PDF + attache + status → `sent` |
 | `POST /invoices/payments` | `amountPaid +=`, `amountDue -=`, si `amountDue = 0` → status `paid` + entries → `sold` |
+| `POST /quotes/:id/convert-to-invoice` | Crée `SalesInvoice` + `SalesInvoiceItems` + met à jour `Quote.status → invoiced` + vérifie quota freemium |
 
 ---
 
@@ -557,7 +600,7 @@ Obligatoire avant toute tâche impliquant > 2 fichiers créés ou modifiés.
 ```
 /plan
 
-1. Quels invariants R001–R019 sont concernés par cette implémentation ?
+1. Quels invariants R001–R020 sont concernés par cette implémentation ?
 2. Y a-t-il une entrée dans docs/ERREURS.md qui couvre un cas similaire ?
 3. Quels fichiers existants vais-je MODIFIER (pas créer) ?
 4. Y a-t-il un changement de schéma → migration requise (R002) ?
@@ -578,6 +621,8 @@ src/
 │
 ├─ auth/                      ← JWT, refresh token rotation, guards
 ├─ users/
+├─ tenants/                   ← Tenant entity, onboarding, TenantGuard
+├─ subscriptions/             ← Subscription entity, freemium quota check
 ├─ suppliers/
 ├─ raw-materials/
 ├─ purchases/
@@ -586,6 +631,9 @@ src/
 │  └─ reception-bls/
 ├─ stock/                     ← FIFO logic, alerts, InventorySummary
 ├─ customers/
+├─ quotes/                    ← Quote + QuoteItem, convert-to-invoice
+│  ├─ quotes/
+│  └─ quote-items/
 ├─ deliveries/
 │  ├─ delivery-notes/
 │  ├─ delivery-note-items/
@@ -599,17 +647,19 @@ src/
 ├─ expenses/
 ├─ dashboard/
 ├─ reports/
-├─ settings/
+├─ settings/                  ← Settings + TaxRateConfig entities
 │
 ├─ common/
 │  ├─ constants.ts            ← TVA_RATE, DATE_FORMAT, etc.
 │  ├─ decorators/
-│  │  └─ current-user.decorator.ts
+│  │  ├─ current-user.decorator.ts
+│  │  └─ roles.decorator.ts
 │  ├─ filters/
 │  │  └─ exception.filter.ts  ← AllExceptionsFilter global
 │  ├─ guards/
 │  │  ├─ jwt.guard.ts
-│  │  └─ roles.guard.ts
+│  │  ├─ roles.guard.ts
+│  │  └─ tenant.guard.ts      ← injecte tenantId dans req.user depuis JWT
 │  ├─ interceptors/
 │  │  └─ audit.interceptor.ts ← createdBy/updatedBy auto
 │  └─ pipes/
@@ -655,6 +705,7 @@ API & Frontend
 [ ] R010 — pagination uniforme { data, pagination } sur tous les GET liste
 [ ] R018 — zéro string hardcodée FR dans le JSX, clés i18n utilisées
 [ ] R019 — zéro logique métier dans les controllers
+[ ] R020 — tenantId présent dans toutes les queries WHERE, jamais depuis URL/body
 
 Code quality
 [ ] R004 — zéro console.* dans le code backend
