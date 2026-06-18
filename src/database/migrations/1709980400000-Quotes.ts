@@ -29,9 +29,16 @@ export class Quotes1709980400000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      ALTER TABLE "sales_invoices"
-        ADD CONSTRAINT IF NOT EXISTS "UQ_sales_invoices_number_tenant"
-        UNIQUE ("invoiceNumber", "tenantId")
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.table_constraints
+          WHERE constraint_name = 'UQ_sales_invoices_number_tenant'
+        ) THEN
+          ALTER TABLE "sales_invoices"
+            ADD CONSTRAINT "UQ_sales_invoices_number_tenant"
+            UNIQUE ("invoiceNumber", "tenantId");
+        END IF;
+      END $$;
     `);
 
     await queryRunner.query(`
