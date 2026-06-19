@@ -268,17 +268,21 @@ export class SalesInvoicesService {
 
   @Cron('1 0 * * *')
   async markOverdueInvoices(): Promise<void> {
-    const result = await this.dataSource
-      .createQueryBuilder()
-      .update(SalesInvoice)
-      .set({ status: 'overdue' })
-      .where('status IN (:...statuses)', { statuses: ['sent', 'partial'] })
-      .andWhere('dueDate < :today', { today: new Date() })
-      .andWhere('amountDue > 0')
-      .andWhere('deletedAt IS NULL')
-      .execute();
-    if (result.affected && result.affected > 0) {
-      this.logger.log(`Marked ${result.affected} invoice(s) as overdue`);
+    try {
+      const result = await this.dataSource
+        .createQueryBuilder()
+        .update(SalesInvoice)
+        .set({ status: 'overdue' })
+        .where('status IN (:...statuses)', { statuses: ['sent', 'partial'] })
+        .andWhere('dueDate < :today', { today: new Date() })
+        .andWhere('amountDue > 0')
+        .andWhere('deletedAt IS NULL')
+        .execute();
+      if (result.affected && result.affected > 0) {
+        this.logger.log(`Marked ${result.affected} invoice(s) as overdue`);
+      }
+    } catch (error) {
+      this.logger.error('Cron markOverdueInvoices failed', (error as Error).stack);
     }
   }
 }
