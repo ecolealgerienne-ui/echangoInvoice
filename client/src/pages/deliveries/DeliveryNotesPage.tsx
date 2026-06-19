@@ -49,7 +49,7 @@ export function DeliveryNotesPage() {
 
   const { data: customers } = useQuery({
     queryKey: ['customers', { limit: 200 }],
-    queryFn: () => customersApi.list({ limit: 200 }),
+    queryFn: () => customersApi.list({ page: 1, limit: 200 }),
   });
 
   const { data: materials } = useQuery({
