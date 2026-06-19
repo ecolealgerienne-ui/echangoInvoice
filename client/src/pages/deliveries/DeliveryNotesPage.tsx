@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { deliveriesApi, customersApi, rawMaterialsApi } from '@/lib/api';
+import { deliveriesApi, customersApi, productsApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -52,9 +52,9 @@ export function DeliveryNotesPage() {
     queryFn: () => customersApi.list({ page: 1, limit: 20, search: undefined }),
   });
 
-  const { data: materials } = useQuery({
-    queryKey: ['raw-materials', { limit: 200 }],
-    queryFn: () => rawMaterialsApi.list({ limit: 200 }),
+  const { data: productsForBL } = useQuery({
+    queryKey: ['products', 1, '', 'all'],
+    queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
@@ -184,7 +184,7 @@ export function DeliveryNotesPage() {
                 <div>
                   <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register(`items.${i}.rawMaterialId`)}>
                     <option value="">{t('common.select')}</option>
-                    {materials?.data?.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    {productsForBL?.data?.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
                 <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />

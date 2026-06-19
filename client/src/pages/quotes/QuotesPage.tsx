@@ -62,8 +62,8 @@ export function QuotesPage() {
   });
 
   const { data: products } = useQuery({
-    queryKey: ['products', { limit: 200 }],
-    queryFn: () => productsApi.list({ limit: 200 }),
+    queryKey: ['products', 1, '', 'all'],
+    queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({

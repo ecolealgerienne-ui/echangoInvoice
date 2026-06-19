@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { purchasesApi, suppliersApi, rawMaterialsApi } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -81,9 +81,9 @@ export function PurchasesPage() {
     queryKey: ['suppliers', { limit: 200 }],
     queryFn: () => suppliersApi.list({ limit: 200 }),
   });
-  const { data: rawMatsData } = useQuery({
-    queryKey: ['raw-materials', { limit: 200 }],
-    queryFn: () => rawMaterialsApi.list({ limit: 200 }),
+  const { data: productsForPO } = useQuery({
+    queryKey: ['products', 1, '', 'all'],
+    queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
   const { data: ordersForSelect } = useQuery({
     queryKey: ['purchase-orders-select'],
@@ -139,7 +139,7 @@ export function PurchasesPage() {
   const receptions = receptionsData?.data ?? [];
   const pagination = tab === 'orders' ? ordersData?.pagination : receptionsData?.pagination;
   const suppliers = suppliersData?.data ?? [];
-  const rawMats = rawMatsData?.data ?? [];
+  const rawMats = productsForPO?.data ?? [];
   const openOrders = ordersForSelect?.data ?? [];
 
   const isLoading = tab === 'orders' ? ordersLoading : receptionsLoading;
@@ -280,7 +280,7 @@ export function PurchasesPage() {
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
                     <Select {...poForm.register(`items.${i}.rawMaterialId`)} className="w-full text-xs">
-                      <option value="">{t('rawMaterials.title')}</option>
+                      <option value="">{t('common.select')}</option>
                       {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </Select>
                   </div>
@@ -350,7 +350,7 @@ export function PurchasesPage() {
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
                     <Select {...recForm.register(`items.${i}.rawMaterialId`)} className="w-full text-xs">
-                      <option value="">{t('rawMaterials.title')}</option>
+                      <option value="">{t('common.select')}</option>
                       {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </Select>
                   </div>

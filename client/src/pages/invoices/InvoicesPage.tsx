@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { invoicesApi, customersApi } from '@/lib/api';
+import { invoicesApi, customersApi, productsApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,7 +21,8 @@ const STATUS_VARIANT: Record<string, any> = {
 };
 
 const itemSchema = z.object({
-  description: z.string().min(1),
+  finishedProductId: z.string().uuid(),
+  description: z.string().optional(),
   quantity: z.coerce.number().positive(),
   unitPrice: z.coerce.number().min(0),
 });
@@ -68,9 +69,15 @@ export function InvoicesPage() {
     queryFn: () => customersApi.list({ page: 1, limit: 20, search: undefined }),
   });
 
+  const { data: productsData } = useQuery({
+    queryKey: ['products', 1, '', 'all'],
+    queryFn: () => productsApi.list({ page: 1, limit: 200 }),
+  });
+  const productList = productsData?.data ?? [];
+
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ description: '', quantity: 1, unitPrice: 0 }] },
+    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unitPrice: 0 }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
@@ -115,7 +122,7 @@ export function InvoicesPage() {
 
   function closeModal() {
     setModalOpen(false);
-    reset({ invoiceDate: today, dueDate: in30, items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unitPrice: 0 }] });
   }
 
   function downloadPdf(id: string, number: string) {
@@ -236,13 +243,18 @@ export function InvoicesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
-              <Button type="button" size="sm" variant="outline" onClick={() => append({ description: '', quantity: 1, unitPrice: 0 })}>
+              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unitPrice: 0 })}>
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
             {fields.map((field, i) => (
-              <div key={field.id} className="grid grid-cols-[1fr_80px_80px_32px] gap-2 items-end">
-                <Input placeholder={t('invoices.description')} {...register(`items.${i}.description`)} />
+              <div key={field.id} className="grid grid-cols-[2fr_70px_90px_32px] gap-2 items-center">
+                <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" {...register(`items.${i}.finishedProductId`)}>
+                  <option value="">{t('common.select')}</option>
+                  {productList.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
                 <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />
                 <Input type="number" step="0.01" placeholder={t('common.price')} {...register(`items.${i}.unitPrice`)} />
                 <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
