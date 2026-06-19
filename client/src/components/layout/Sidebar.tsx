@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Truck, Package, Layers,
   FileText, Receipt, BarChart2, Settings, LogOut, ClipboardList, Box,
+  FileSignature, ShoppingCart, FileMinus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,8 +15,11 @@ const navItems = [
   { to: '/raw-materials', icon: Package, key: 'nav.rawMaterials' },
   { to: '/products', icon: Box, key: 'nav.products' },
   { to: '/stock', icon: Layers, key: 'nav.stock' },
+  { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
   { to: '/deliveries', icon: ClipboardList, key: 'nav.deliveries' },
   { to: '/invoices', icon: FileText, key: 'nav.invoices' },
+  { to: '/quotes', icon: FileSignature, key: 'nav.quotes' },
+  { to: '/credit-notes', icon: FileMinus, key: 'nav.creditNotes' },
   { to: '/expenses', icon: Receipt, key: 'nav.expenses' },
   { to: '/reports', icon: BarChart2, key: 'nav.reports' },
   { to: '/settings', icon: Settings, key: 'nav.settings' },

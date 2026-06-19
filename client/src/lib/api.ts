@@ -156,3 +156,34 @@ export const settingsApi = {
   get: () => api.get('/settings').then(r => r.data),
   update: (body: unknown) => api.put('/settings', body).then(r => r.data),
 };
+
+export const quotesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/quotes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/quotes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/quotes', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/quotes/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/quotes/${id}/status`, body).then(r => r.data),
+  convert: (id: string) => api.post(`/quotes/${id}/convert`).then(r => r.data),
+  remove: (id: string) => api.delete(`/quotes/${id}`).then(r => r.data),
+  pdf: (id: string) => api.get(`/quotes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+};
+
+export const purchasesApi = {
+  listOrders: (params?: Record<string, unknown>) => api.get('/purchases/orders', { params }).then(r => r.data),
+  getOrder: (id: string) => api.get(`/purchases/orders/${id}`).then(r => r.data),
+  createOrder: (body: unknown) => api.post('/purchases/orders', body).then(r => r.data),
+  updateOrderStatus: (id: string, body: unknown) => api.patch(`/purchases/orders/${id}/status`, body).then(r => r.data),
+  removeOrder: (id: string) => api.delete(`/purchases/orders/${id}`).then(r => r.data),
+  listReceptions: (params?: Record<string, unknown>) => api.get('/purchases/reception-bls', { params }).then(r => r.data),
+  getReception: (id: string) => api.get(`/purchases/reception-bls/${id}`).then(r => r.data),
+  createReception: (body: unknown) => api.post('/purchases/reception-bls', body).then(r => r.data),
+};
+
+export const creditNotesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/invoices/credit-notes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/invoices/credit-notes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/invoices/credit-notes', body).then(r => r.data),
+  issue: (id: string) => api.patch(`/invoices/credit-notes/${id}/issue`).then(r => r.data),
+  cancel: (id: string) => api.patch(`/invoices/credit-notes/${id}/cancel`).then(r => r.data),
+  remove: (id: string) => api.delete(`/invoices/credit-notes/${id}`).then(r => r.data),
+};

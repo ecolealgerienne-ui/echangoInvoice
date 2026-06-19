@@ -1,11 +1,13 @@
 import {
   Body, Controller, Delete, Get, Param, ParseUUIDPipe,
-  Patch, Post, Put, Query, UseGuards,
+  Patch, Post, Put, Query, Res, UseGuards,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import {
   ApiBearerAuth, ApiOperation, ApiResponse, ApiTags,
 } from '@nestjs/swagger';
 import { QuotesService } from './quotes.service';
+import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
@@ -20,7 +22,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('quotes')
 export class QuotesController {
-  constructor(private readonly quotesService: QuotesService) {}
+  constructor(
+    private readonly quotesService: QuotesService,
+    private readonly pdfService: InvoicePdfService,
+  ) {}
 
   @Post()
   @Roles('owner', 'manager', 'agent')
@@ -79,5 +84,20 @@ export class QuotesController {
   @ApiOperation({ summary: 'Supprimer un devis (draft ou rejected)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.quotesService.remove(id, user.tenantId, user.id);
+  }
+
+  @Get(':id/pdf')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Générer le PDF du devis' })
+  async pdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateQuotePdf(id, user.tenantId);
+    void reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(buffer);
   }
 }

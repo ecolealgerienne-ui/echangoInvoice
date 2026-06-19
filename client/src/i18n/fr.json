@@ -28,7 +28,10 @@
     "notes": "Notes",
     "select": "Sélectionner...",
     "customer": "Client",
-    "description": "Description"
+    "description": "Description",
+    "add": "Ajouter",
+    "unit": "Unité",
+    "deleted": "Supprimé"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -41,7 +44,10 @@
     "reports": "Rapports",
     "settings": "Paramètres",
     "deliveries": "Bons de Livraison",
-    "products": "Produits"
+    "products": "Produits",
+    "quotes": "Devis",
+    "purchases": "Achats",
+    "creditNotes": "Avoirs"
   },
   "auth": {
     "login": "Connexion",
@@ -190,7 +196,25 @@
   },
   "status": {
     "active": "Actif",
-    "inactive": "Inactif"
+    "inactive": "Inactif",
+    "draft": "Brouillon",
+    "sent": "Envoyé",
+    "accepted": "Accepté",
+    "rejected": "Rejeté",
+    "expired": "Expiré",
+    "converted": "Converti",
+    "received": "Reçu",
+    "cancelled": "Annulé",
+    "partial": "Partiel",
+    "pending": "En attente",
+    "completed": "Complété",
+    "paid": "Payé",
+    "overdue": "En retard",
+    "issued": "Émis",
+    "applied": "Appliqué",
+    "reserved": "Réservé",
+    "delivered": "Livré",
+    "signed": "Signé"
   },
   "deliveries": {
     "title": "Bons de Livraison",
@@ -211,5 +235,47 @@
     "code": "Code",
     "unit": "Unité",
     "price": "Prix de vente"
+  },
+  "quotes": {
+    "title": "Devis",
+    "new": "Nouveau devis",
+    "created": "Devis créé",
+    "updated": "Devis mis à jour",
+    "deleted": "Devis supprimé",
+    "converted": "Converti en facture",
+    "quoteNumber": "N° Devis",
+    "quoteDate": "Date devis",
+    "expiryDate": "Date d'expiration",
+    "status": "Statut",
+    "notes": "Notes",
+    "convert": "Convertir en facture"
+  },
+  "purchases": {
+    "title": "Achats",
+    "ordersTitle": "Commandes fournisseurs",
+    "receptionsTitle": "Réceptions BL",
+    "newOrder": "Nouvelle commande",
+    "newReception": "Nouvelle réception",
+    "orderCreated": "Commande créée",
+    "receptionCreated": "Réception créée",
+    "poNumber": "N° Commande",
+    "orderDate": "Date commande",
+    "expectedDelivery": "Livraison prévue",
+    "blNumber": "N° BL Réception",
+    "receptionDate": "Date réception",
+    "totalReceived": "Qté reçue",
+    "supplier": "Fournisseur"
+  },
+  "creditNotes": {
+    "title": "Avoirs",
+    "new": "Nouvel avoir",
+    "created": "Avoir créé",
+    "issued": "Avoir émis",
+    "cancelled": "Avoir annulé",
+    "deleted": "Avoir supprimé",
+    "creditNoteNumber": "N° Avoir",
+    "reason": "Motif",
+    "issue": "Émettre",
+    "cancel": "Annuler"
   }
 }

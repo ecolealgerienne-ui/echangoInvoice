@@ -259,4 +259,100 @@ export class InvoicePdfService {
     });
     return { buffer, filename: `${dn.blNumber}.pdf` };
   }
+
+  async generateQuotePdf(quoteId: string, tenantId: string): Promise<{ buffer: Buffer; filename: string }> {
+    const rows = await this.ds.query(
+      `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
+              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
+              s.name AS company_name, s."companyAddress" AS company_address,
+              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai
+       FROM quotes q
+       JOIN customers c ON c.id = q."customerId"
+       LEFT JOIN settings s ON s."tenantId" = q."tenantId"
+       WHERE q.id = $1 AND q."tenantId" = $2 AND q."deletedAt" IS NULL`,
+      [quoteId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('quote_not_found');
+
+    const q = rows[0];
+    const items = await this.ds.query(
+      `SELECT qi.*, fp.name AS product_name FROM quote_items qi
+       LEFT JOIN finished_products fp ON fp.id = qi."finishedProductId"
+       WHERE qi."quoteId" = $1`,
+      [quoteId],
+    );
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
+      <div class="page">
+        <div class="header">
+          <div>
+            <div class="company-name">${q.company_name ?? 'Mon Entreprise'}</div>
+            <div class="company-info">${q.company_address ?? ''}</div>
+            <div class="company-info">NIF: ${q.company_nif ?? ''} | RC: ${q.company_rc ?? ''}</div>
+          </div>
+          <div class="doc-title">
+            <div class="doc-number">DEVIS N° ${q.quoteNumber}</div>
+            <div class="doc-date">Date : ${this.formatDate(q.quoteDate)}</div>
+            ${q.expiryDate ? `<div class="doc-date">Valide jusqu'au : ${this.formatDate(q.expiryDate)}</div>` : ''}
+          </div>
+        </div>
+
+        <div class="parties">
+          ${this.renderParty('Émetteur', q.company_name ?? '', q.company_address, q.company_nif, q.company_rc, q.company_ai)}
+          ${this.renderParty('Destinataire', q.customer_name, q.customer_address, q.customer_nif, q.customer_rc, q.customer_ai)}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45%">Produit / Description</th>
+              <th class="text-right" style="width:10%">Qté</th>
+              <th class="text-right" style="width:15%">P.U. HT</th>
+              <th class="text-right" style="width:10%">TVA</th>
+              <th class="text-right" style="width:20%">Total TTC</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item: any) => `
+              <tr>
+                <td>${item.product_name ?? item.finishedProductId ?? ''}</td>
+                <td class="text-right">${Number(item.quantity).toFixed(2)} ${item.unit ?? ''}</td>
+                <td class="text-right">${this.formatCurrency(item.unitPrice)}</td>
+                <td class="text-right">${item.taxRate1 ? Number(item.taxRate1).toFixed(0) + '%' : '—'}</td>
+                <td class="text-right">${this.formatCurrency(item.lineTotal)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div class="totals-box">
+            <div class="total-row"><span>Sous-total HT</span><span>${this.formatCurrency(q.subtotal)}</span></div>
+            <div class="total-row"><span>TVA</span><span>${this.formatCurrency(q.taxAmount)}</span></div>
+            <div class="total-row"><span>TOTAL TTC</span><span>${this.formatCurrency(q.totalAmount)}</span></div>
+          </div>
+        </div>
+
+        ${q.notes ? `<div class="notes"><strong>Notes :</strong> ${q.notes}</div>` : ''}
+
+        <div style="display:flex; justify-content:space-between; margin-top:30px;">
+          <div style="text-align:center; width:200px;">
+            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Signature émetteur</div>
+          </div>
+          <div style="text-align:center; width:200px;">
+            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Bon pour accord</div>
+          </div>
+        </div>
+
+        <div class="footer">Ce devis est valable 30 jours — Echango Invoice</div>
+      </div>
+    </body></html>`;
+
+    const { buffer } = await this.pdfService.generateAndArchive({
+      type: 'DEVIS' as any,
+      filename: q.quoteNumber,
+      html,
+    });
+    return { buffer, filename: `${q.quoteNumber}.pdf` };
+  }
 }
