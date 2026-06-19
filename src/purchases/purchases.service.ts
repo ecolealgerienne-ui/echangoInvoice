@@ -304,7 +304,7 @@ export class PurchasesService {
       .createQueryBuilder(PurchaseOrder, 'po')
       .where('po.tenantId = :tenantId', { tenantId })
       .andWhere(`EXTRACT(YEAR FROM po."createdAt") = :year`, { year })
-      .andWhere('po.deletedAt IS NULL')
+      .withDeleted()
       .orderBy('po.poNumber', 'DESC')
       .limit(1)
       .getOne();
@@ -322,7 +322,7 @@ export class PurchasesService {
       .createQueryBuilder(ReceptionBL, 'bl')
       .where('bl.tenantId = :tenantId', { tenantId })
       .andWhere(`EXTRACT(YEAR FROM bl."createdAt") = :year`, { year })
-      .andWhere('bl.deletedAt IS NULL')
+      .withDeleted()
       .orderBy('bl.blNumber', 'DESC')
       .limit(1)
       .getOne();
