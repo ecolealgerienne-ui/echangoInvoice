@@ -38,6 +38,10 @@ export class UpdateSettingsDto {
   @Matches(/#{3,4}/, { message: 'poNumberFormat must contain ### or ####' })
   poNumberFormat?: string;
 
+  @ApiPropertyOptional({ description: 'List of allowed measurement units' })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  units?: string[];
+
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;

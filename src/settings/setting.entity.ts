@@ -49,6 +49,9 @@ export class Setting {
   @Column({ type: 'text', nullable: true })
   footerText: string | null;
 
+  @Column({ type: 'simple-array', nullable: true })
+  units: string[];
+
   @Column({ type: 'varchar', nullable: true })
   updatedBy: string | null;
 

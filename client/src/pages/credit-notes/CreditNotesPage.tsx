@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { creditNotesApi, customersApi, invoicesApi } from '@/lib/api';
+import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -45,6 +46,7 @@ export function CreditNotesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const units = useUnits();
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -234,7 +236,10 @@ export function CreditNotesPage() {
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
                   </div>
                   <div className="col-span-2">
-                    <Input placeholder={t('common.unit')} {...register(`items.${i}.unit`)} className="text-xs" />
+                    <Select {...register(`items.${i}.unit`)} className="text-xs">
+                      <option value="">—</option>
+                      {units.map(u => <option key={u} value={u}>{u}</option>)}
+                    </Select>
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />

@@ -212,7 +212,20 @@
     "address": "Adresse",
     "footerText": "Pied de page PDF",
     "taxRates": "Configurations TVA",
-    "saved": "Paramètres enregistrés"
+    "saved": "Paramètres enregistrés",
+    "tabGeneral": "Général",
+    "tabTax": "TVA",
+    "tabUnits": "Unités",
+    "tabFormats": "Numérotation",
+    "taxRatesDescription": "Configurez les taux de TVA applicables à vos factures.",
+    "taxRateHint": "Taux par défaut appliqué lors de la création d'une facture.",
+    "additionalRates": "Taux supplémentaires",
+    "rateName": "Libellé (ex: TVA 9%)",
+    "default": "Par défaut",
+    "unitsDescription": "Définissez les unités de mesure disponibles dans tous les formulaires. La saisie libre est désactivée.",
+    "unitsHint": "Appuyez sur Entrée ou cliquez + pour ajouter. Cliquez × pour supprimer.",
+    "newUnit": "Nouvelle unité (ex: kg, L, pcs…)",
+    "formatsHint": "Utilisez ### pour 3 chiffres ou #### pour 4 chiffres. Ex : FAC-YY-### → FAC-26-001"
   },
   "errors": {
     "generic": "Une erreur est survenue",

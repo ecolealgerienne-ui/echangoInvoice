@@ -5,8 +5,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { rawMaterialsApi } from '@/lib/api';
+import { useUnits } from '@/lib/useUnits';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
@@ -23,6 +25,7 @@ type FormData = z.infer<typeof schema>;
 export function RawMaterialsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const units = useUnits();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -108,7 +111,10 @@ export function RawMaterialsPage() {
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('rawMaterials.unit')} *</label>
-            <Input {...register('unit')} placeholder="kg, L, pièce…" />
+            <Select {...register('unit')} className="w-full">
+              <option value="">{t('common.select')}</option>
+              {units.map(u => <option key={u} value={u}>{u}</option>)}
+            </Select>
             {errors.unit && <p className="text-xs text-destructive">{t('errors.required')}</p>}
           </div>
           <div className="space-y-1">

@@ -47,6 +47,7 @@ export class SettingsService {
       if (dto.phone !== undefined) setting.phone = dto.phone;
       if (dto.address !== undefined) setting.address = dto.address;
       if (dto.footerText !== undefined) setting.footerText = dto.footerText;
+      if (dto.units !== undefined) setting.units = dto.units;
       setting.updatedBy = userId;
 
       const saved = await qr.manager.save(Setting, setting);
@@ -93,6 +94,7 @@ export class SettingsService {
         invoiceNumberFormat: 'FAC-YY-###',
         quoteNumberFormat: 'DEV-YY-###',
         poNumberFormat: 'PO-YY-###',
+        units: ['kg', 'g', 'tonne', 'L', 'mL', 'pcs', 'm', 'm²', 'm³', 'boîte', 'palette', 'sac'],
       });
       const saved = await qr.manager.save(Setting, setting);
 

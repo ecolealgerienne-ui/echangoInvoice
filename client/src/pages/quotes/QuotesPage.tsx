@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { quotesApi, customersApi, productsApi } from '@/lib/api';
+import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -66,7 +67,8 @@ export function QuotesPage() {
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
 
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
+  const units = useUnits();
+  const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       quoteDate: today,
@@ -236,12 +238,21 @@ export function QuotesPage() {
               </Button>
             </div>
             <div className="space-y-2">
-              {fields.map((f, i) => (
+              {fields.map((f, i) => {
+                const selId = watchQ(`items.${i}.finishedProductId`);
+                const selProd = (productList as any[]).find((p: any) => p.id === selId);
+                return (
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
-                    <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs">
+                    <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs"
+                      onChange={e => {
+                        setQValue(`items.${i}.finishedProductId`, e.target.value);
+                        const prod = (productList as any[]).find((p: any) => p.id === e.target.value);
+                        if (prod?.unit) setQValue(`items.${i}.unit`, prod.unit);
+                        if (prod?.defaultSalesPrice) setQValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                      }}>
                       <option value="">{t('products.title')}</option>
-                      {productList.map((p: any) => (
+                      {(productList as any[]).map((p: any) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
                       ))}
                     </Select>
@@ -249,8 +260,11 @@ export function QuotesPage() {
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
                   </div>
-                  <div className="col-span-2">
-                    <Input placeholder={t('common.unit')} {...register(`items.${i}.unit`)} className="text-xs" />
+                  <div className="col-span-2 flex items-center">
+                    <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center truncate">
+                      {selProd?.unit ?? watchQ(`items.${i}.unit`) ?? '—'}
+                    </span>
+                    <input type="hidden" {...register(`items.${i}.unit`)} />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
@@ -266,7 +280,8 @@ export function QuotesPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
