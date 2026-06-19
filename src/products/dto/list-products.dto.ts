@@ -1,21 +1,25 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, IsInt, Min, Max, IsBoolean, IsEnum } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
 export class ListProductsDto {
-  @ApiProperty({ required: false, default: 1 })
+  @ApiPropertyOptional({ default: 1 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   page: number = 1;
 
-  @ApiProperty({ required: false, default: 20 })
+  @ApiPropertyOptional({ default: 20 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   limit: number = 20;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
   @IsOptional() @IsString()
   search?: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({ enum: ['product', 'material', 'both'] })
+  @IsOptional() @IsEnum(['product', 'material', 'both'])
+  type?: 'product' | 'material' | 'both';
+
+  @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => value === 'true')
   @IsBoolean()

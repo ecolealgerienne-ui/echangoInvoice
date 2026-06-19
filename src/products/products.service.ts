@@ -22,21 +22,24 @@ export class ProductsService {
   async create(dto: CreateProductDto, tenantId: string, userId: string) {
     const product = this.repo.create({
       ...dto,
+      type: dto.type ?? 'product',
       tenantId,
       isActive: dto.isActive ?? true,
+      lastCostPerUnit: dto.lastCostPerUnit ?? 0,
       createdBy: userId,
       updatedBy: userId,
     });
     await this.repo.save(product);
-    this.logger.log(`FinishedProduct created: ${product.id} for tenant ${tenantId}`);
+    this.logger.log(`Product created: ${product.id} (${product.type}) for tenant ${tenantId}`);
     return { data: product };
   }
 
   async findAll(query: ListProductsDto, tenantId: string) {
-    const { page, limit, search, isActive } = query;
+    const { page, limit, search, type, isActive } = query;
     const skip = (page - 1) * limit;
 
     const base: FindOptionsWhere<FinishedProduct> = { tenantId, deletedAt: IsNull() };
+    if (type !== undefined) base.type = type;
     if (isActive !== undefined) base.isActive = isActive;
 
     const where: FindOptionsWhere<FinishedProduct>[] = search
@@ -80,23 +83,22 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('errors.product_not_found');
 
-    // Cannot delete if used in active delivery notes or invoices
-    const [inBL, inInvoice] = await Promise.all([
+    const [inBL, inInvoice, inPO] = await Promise.all([
       this.dataSource.query(
-        `SELECT 1 FROM delivery_note_items dni
-         JOIN delivery_notes dn ON dn.id = dni."deliveryNoteId"
-         WHERE dni."finishedProductId" = $1 AND dn."deletedAt" IS NULL LIMIT 1`,
+        `SELECT 1 FROM delivery_note_items WHERE "finishedProductId" = $1 LIMIT 1`,
         [id],
       ),
       this.dataSource.query(
-        `SELECT 1 FROM sales_invoice_items sii
-         JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
-         WHERE sii."finishedProductId" = $1 AND si."deletedAt" IS NULL LIMIT 1`,
+        `SELECT 1 FROM sales_invoice_items WHERE "finishedProductId" = $1 LIMIT 1`,
+        [id],
+      ),
+      this.dataSource.query(
+        `SELECT 1 FROM purchase_order_items WHERE "rawMaterialId" = $1 LIMIT 1`,
         [id],
       ),
     ]);
 
-    if (inBL.length > 0 || inInvoice.length > 0) {
+    if (inBL.length > 0 || inInvoice.length > 0 || inPO.length > 0) {
       throw new UnprocessableEntityException('errors.product_in_use');
     }
 

@@ -91,11 +91,11 @@ export const suppliersApi = {
 };
 
 export const rawMaterialsApi = {
-  list: (params?: Record<string, unknown>) => api.get('/raw-materials', { params }).then(r => r.data),
-  get: (id: string) => api.get(`/raw-materials/${id}`).then(r => r.data),
-  create: (body: unknown) => api.post('/raw-materials', body).then(r => r.data),
-  update: (id: string, body: unknown) => api.put(`/raw-materials/${id}`, body).then(r => r.data),
-  remove: (id: string) => api.delete(`/raw-materials/${id}`).then(r => r.data),
+  list: (params?: Record<string, unknown>) => api.get('/products', { params: { ...params, type: 'material' } }).then(r => r.data),
+  get: (id: string) => api.get(`/products/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/products', { ...body as object, type: 'material' }).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then(r => r.data),
+  remove: (id: string) => api.delete(`/products/${id}`).then(r => r.data),
 };
 
 export const stockApi = {

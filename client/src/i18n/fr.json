@@ -37,17 +37,22 @@
     "dashboard": "Tableau de bord",
     "customers": "Clients",
     "suppliers": "Fournisseurs",
-    "rawMaterials": "Matières premières",
     "stock": "Stock",
     "invoices": "Factures",
     "expenses": "Dépenses",
     "reports": "Rapports",
     "settings": "Paramètres",
-    "deliveries": "Bons de Livraison",
-    "products": "Produits",
+    "deliveries": "Bons de livraison",
+    "products": "Catalogue",
     "quotes": "Devis",
     "purchases": "Achats",
-    "creditNotes": "Avoirs"
+    "creditNotes": "Avoirs",
+    "group": {
+      "sales": "Ventes",
+      "catalog": "Catalogue",
+      "purchases": "Achats",
+      "finance": "Finance"
+    }
   },
   "auth": {
     "login": "Connexion",
@@ -250,12 +255,20 @@
     }
   },
   "products": {
-    "title": "Produits finis",
-    "new": "Nouveau produit",
+    "title": "Catalogue",
+    "new": "Nouvel article",
     "name": "Nom",
-    "code": "Code",
+    "code": "Référence",
     "unit": "Unité",
-    "price": "Prix de vente"
+    "price": "Prix de vente",
+    "costPerUnit": "Coût d'achat",
+    "type": {
+      "label": "Type",
+      "all": "Tous",
+      "product": "Produit",
+      "material": "Matière",
+      "both": "Les deux"
+    }
   },
   "quotes": {
     "title": "Devis",
