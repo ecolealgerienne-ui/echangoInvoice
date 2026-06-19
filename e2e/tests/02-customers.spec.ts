@@ -25,7 +25,7 @@ test.describe('Clients', () => {
     await waitForLoaded(page);
 
     await page.getByRole('button', { name: /nouveau client/i }).click();
-    await page.getByLabel(/nom/i).fill(`Client Test ${Date.now()}`);
+    await page.locator('[role="dialog"] input[name="name"]').fill(`Client Test ${Date.now()}`);
     await page.getByRole('button', { name: /enregistrer/i }).click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });

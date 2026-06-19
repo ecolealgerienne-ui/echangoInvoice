@@ -15,7 +15,7 @@ export class ListSuppliersDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
+  @Max(500)
   limit: number = 20;
 
   @ApiProperty({ required: false })

@@ -78,8 +78,8 @@ export function PurchasesPage() {
     enabled: tab === 'receptions',
   });
   const { data: suppliersData } = useQuery({
-    queryKey: ['suppliers', { limit: 200 }],
-    queryFn: () => suppliersApi.list({ limit: 200 }),
+    queryKey: ['suppliers', 1, ''],
+    queryFn: () => suppliersApi.list({ page: 1, limit: 200 }),
   });
   const { data: productsForPO } = useQuery({
     queryKey: ['products', 1, '', 'all'],

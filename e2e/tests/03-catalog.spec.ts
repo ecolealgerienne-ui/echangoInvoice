@@ -32,8 +32,8 @@ test.describe('Catalogue produits', () => {
     await page.getByRole('button', { name: /nouvel article/i }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.getByLabel(/nom/i).fill(`Produit Test ${Date.now()}`);
-    await page.getByLabel(/unité/i).fill('pcs');
+    await page.locator('[role="dialog"] input[name="name"]').fill(`Produit Test ${Date.now()}`);
+    await page.locator('[role="dialog"] input[name="unit"]').fill('pcs');
     await page.getByRole('button', { name: /enregistrer/i }).click();
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
