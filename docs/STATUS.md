@@ -128,7 +128,7 @@
 | PATCH /quotes/:id/status | ✅ | |
 | DELETE /quotes/:id | ✅ | |
 | POST /quotes/:id/convert-to-invoice | ✅ | |
-| GET /quotes/:id/pdf | ❌ | PDF non implémenté (service PDF disponible, template à créer) |
+| GET /quotes/:id/pdf | ✅ | Puppeteer A4, NIF/RC, zones signature, archivage ARCHIVES/DEVIS/ |
 | POST /quotes/:id/send-email | ❌ | Email non implémenté |
 | Cron expired | ✅ | 00:05 quotidien |
 
@@ -183,10 +183,10 @@
 | Expenses | ✅ | CRUD complet |
 | Reports | ✅ | 5 onglets : Ventes / Achats / Dépenses / Stock / Résumé TVA |
 | Settings | ✅ | |
-| Credit Notes (Avoirs) | ❌ | Backend prêt, page frontend manquante |
-| Purchase Orders | ❌ | Manquant — nécessaire pour remplir le stock |
-| Reception BLs | ❌ | Manquant — nécessaire pour remplir le stock |
-| Quotes | ❌ | Manquant |
+| Credit Notes (Avoirs) | ✅ | Création + liste + émettre + annuler |
+| Purchase Orders | ✅ | Création + liste (onglet Achats) |
+| Reception BLs | ✅ | Création + liste (onglet Achats) |
+| Quotes | ✅ | Création + liste + PDF + convertir en facture |
 
 ---
 
@@ -218,18 +218,14 @@
 ### 🟠 Fort
 | # | Gap | Notes |
 |---|-----|-------|
-| 1 | **Page frontend Avoirs** | Backend 100% prêt, juste la page React à créer |
-| 2 | **Type de paiement** (virement/chèque/espèces) | Champ `paymentType` + `reference` sur Payment |
-| 3 | **Envoi email** | SMTP configuré, templates + service à créer |
-| 4 | **Rappels email automatiques** | Cron J+7/J+14/J+21 sur factures impayées |
+| 1 | **Type de paiement** (virement/chèque/espèces) | Champ `paymentType` + `reference` sur Payment |
+| 2 | **Envoi email** | SMTP configuré, templates + service à créer |
+| 3 | **Rappels email automatiques** | Cron J+7/J+14/J+21 sur factures impayées |
 
 ### 🟡 Moyen
 | # | Gap | Notes |
 |---|-----|-------|
-| 5 | **Pages frontend Achats** | Purchase Orders + Reception BL — pour alimenter le stock |
-| 6 | **Page frontend Devis** | Quotes — backend prêt |
-| 7 | **PDF Devis** | `InvoicePdfService.generateQuotePdf()` à ajouter |
-| 8 | **Invitation collaborateurs** | POST /auth/invite + POST /auth/accept-invite |
-| 9 | **Contacts multiples par client** | Ajouter table `customer_contacts` |
-| 10 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
-| 11 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
+| 4 | **Invitation collaborateurs** | POST /auth/invite + POST /auth/accept-invite |
+| 5 | **Contacts multiples par client** | Ajouter table `customer_contacts` |
+| 6 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
+| 7 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
