@@ -247,6 +247,58 @@ export class DeliveriesService {
     return { data: dn };
   }
 
+  async update(id: string, dto: CreateDeliveryNoteDto, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const dn = await qr.manager.findOne(DeliveryNote, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!dn) throw new NotFoundException('delivery_note_not_found');
+      if (dn.status !== 'draft') {
+        throw new UnprocessableEntityException('delivery_note_cannot_update');
+      }
+
+      // Libère les réservations stock de l'ancien BL
+      await this.releaseFIFO(qr, id);
+
+      // Supprime les anciens items
+      await qr.query(`DELETE FROM delivery_note_items WHERE "deliveryNoteId" = $1`, [id]);
+
+      // Recalcule et recrée les items
+      const computed = dto.items.map((i) => this.computeItem(i));
+      const totals = this.computeTotals(computed);
+
+      dn.customerId = dto.customerId;
+      dn.deliveryDate = dto.deliveryDate as unknown as Date;
+      dn.notes = dto.notes ?? null;
+      dn.subtotal = totals.subtotal;
+      dn.taxAmount = totals.taxAmount;
+      dn.total = totals.total;
+      dn.updatedBy = userId;
+      await qr.manager.save(DeliveryNote, dn);
+
+      const items = computed.map((c) =>
+        qr.manager.create(DeliveryNoteItem, { ...c, tenantId, deliveryNoteId: id }),
+      );
+      await qr.manager.save(DeliveryNoteItem, items);
+
+      // Redécrémente FIFO stock
+      for (const item of computed) {
+        await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, id);
+      }
+
+      await qr.commitTransaction();
+      return this.findOne(id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
   async updateStatus(
     id: string,
     dto: UpdateDeliveryNoteStatusDto,

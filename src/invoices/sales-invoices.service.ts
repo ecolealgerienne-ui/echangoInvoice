@@ -240,6 +240,51 @@ export class SalesInvoicesService {
     return { data: invoice };
   }
 
+  async update(id: string, dto: CreateSalesInvoiceDto, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const invoice = await qr.manager.findOne(SalesInvoice, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!invoice) throw new NotFoundException('invoice_not_found');
+      if (invoice.status !== 'draft') {
+        throw new UnprocessableEntityException('invoice_cannot_update');
+      }
+
+      // Supprime les anciens items
+      await qr.query(`DELETE FROM sales_invoice_items WHERE "salesInvoiceId" = $1`, [id]);
+
+      const { items } = await this.resolveItems(dto, tenantId, qr);
+      const totals = this.computeTotals(items);
+
+      invoice.customerId = dto.customerId;
+      invoice.invoiceDate = dto.invoiceDate as unknown as Date;
+      invoice.dueDate = dto.dueDate ? dto.dueDate as unknown as Date : null;
+      invoice.notes = dto.notes ?? null;
+      invoice.subtotal = totals.subtotal;
+      invoice.taxAmount = totals.taxAmount;
+      invoice.totalAmount = totals.totalAmount;
+      invoice.amountDue = totals.totalAmount - invoice.amountPaid;
+      invoice.updatedBy = userId;
+      await qr.manager.save(SalesInvoice, invoice);
+
+      const savedItems = items.map((c) =>
+        qr.manager.create(SalesInvoiceItem, { ...c, tenantId, salesInvoiceId: id }),
+      );
+      await qr.manager.save(SalesInvoiceItem, savedItems);
+
+      await qr.commitTransaction();
+      return this.findOne(id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
   async updateStatus(id: string, dto: UpdateInvoiceStatusDto, tenantId: string, userId: string) {
     const invoice = await this.invoiceRepo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!invoice) throw new NotFoundException('invoice_not_found');

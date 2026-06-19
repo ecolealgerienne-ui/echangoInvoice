@@ -1,6 +1,6 @@
 import {
   Body, Controller, Delete, Get, HttpCode, Param,
-  ParseUUIDPipe, Patch, Post, Query, UseGuards,
+  ParseUUIDPipe, Patch, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -38,6 +38,17 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Détail d\'une facture' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.findOne(id, user.tenantId);
+  }
+
+  @Put(':id')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Modifier une facture (draft uniquement)' })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateSalesInvoiceDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.service.update(id, dto, user.tenantId, user.id);
   }
 
   @Patch(':id/status')

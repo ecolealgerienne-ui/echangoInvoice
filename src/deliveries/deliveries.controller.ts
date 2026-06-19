@@ -1,6 +1,6 @@
 import {
   Body, Controller, Delete, Get, Param, ParseUUIDPipe,
-  Patch, Post, Query, UseGuards,
+  Patch, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DeliveriesService } from './deliveries.service';
@@ -39,6 +39,17 @@ export class DeliveriesController {
   @ApiOperation({ summary: 'Détail d\'un bon de livraison' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.deliveriesService.findOne(id, user.tenantId);
+  }
+
+  @Put(':id')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Modifier un BL (draft uniquement, recalcule FIFO)' })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateDeliveryNoteDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.deliveriesService.update(id, dto, user.tenantId, user.id);
   }
 
   @Patch(':id/status')
