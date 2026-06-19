@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, Pencil, PackageCheck } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
@@ -72,9 +72,17 @@ export function PurchasesPage() {
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [editingPo, setEditingPo] = useState<any>(null); // null = create, object = edit
 
+  // PO view modal
+  const [viewPoId, setViewPoId] = useState<string>('');
+  const [viewPoOpen, setViewPoOpen] = useState(false);
+
   // Reception modal
   const [recModalOpen, setRecModalOpen] = useState(false);
   const [recPoId, setRecPoId] = useState<string>('');
+
+  // Reception BL view modal
+  const [viewRecId, setViewRecId] = useState<string>('');
+  const [viewRecOpen, setViewRecOpen] = useState(false);
 
   // ── Data queries ─────────────────────────────────────────────────────────
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
@@ -101,6 +109,20 @@ export function PurchasesPage() {
     queryKey: ['purchase-order-detail', recPoId],
     queryFn: () => purchasesApi.getOrder(recPoId),
     enabled: !!recPoId,
+  });
+
+  // Load PO detail for view modal
+  const { data: viewPoDetail } = useQuery({
+    queryKey: ['purchase-order-detail', viewPoId],
+    queryFn: () => purchasesApi.getOrder(viewPoId),
+    enabled: !!viewPoId,
+  });
+
+  // Load reception BL detail for view modal
+  const { data: viewRecDetail } = useQuery({
+    queryKey: ['reception-bl-detail', viewRecId],
+    queryFn: () => purchasesApi.getReception(viewRecId),
+    enabled: !!viewRecId,
   });
 
   // ── PO form ───────────────────────────────────────────────────────────────
@@ -320,6 +342,10 @@ export function PurchasesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" title="Voir détail"
+                        onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {o.status === 'draft' && (
                         <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
@@ -362,22 +388,29 @@ export function PurchasesPage() {
                 <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>
                 <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>
                 <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {receptions.map((r: any) => (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
                   <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.purchaseOrderId}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>
                   <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>
                   <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge>
                   </td>
+                  <td className="px-4 py-3">
+                    <Button size="sm" variant="ghost" title="Voir détail"
+                      onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
               {receptions.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
@@ -419,35 +452,47 @@ export function PurchasesPage() {
               </Button>
             </div>
             <div className="space-y-2">
-              {poFields.map((f, i) => (
-                <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-4">
-                    <Select {...poForm.register(`items.${i}.rawMaterialId`)} className="w-full text-xs">
-                      <option value="">{t('common.select')}</option>
-                      {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </Select>
+              {poFields.map((f, i) => {
+                const selectedId = poForm.watch(`items.${i}.rawMaterialId`);
+                const selectedProduct = rawMats.find((m: any) => m.id === selectedId);
+                return (
+                  <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-4">
+                      <Select {...poForm.register(`items.${i}.rawMaterialId`)}
+                        className="w-full text-xs"
+                        onChange={(e) => {
+                          poForm.setValue(`items.${i}.rawMaterialId`, e.target.value);
+                          const prod = rawMats.find((m: any) => m.id === e.target.value);
+                          if (prod?.unit) poForm.setValue(`items.${i}.unit`, prod.unit);
+                        }}>
+                        <option value="">{t('common.select')}</option>
+                        {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </Select>
+                    </div>
+                    <div className="col-span-2">
+                      <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')}
+                        {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
+                    </div>
+                    <div className="col-span-2 flex items-center">
+                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center">
+                        {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
+                      </span>
+                      <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
+                    </div>
+                    <div className="col-span-3">
+                      <Input type="number" step="0.01" min="0" placeholder="P.U."
+                        {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
+                    </div>
+                    <div className="col-span-1 flex justify-center">
+                      {poFields.length > 1 && (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => poRemove(i)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-2">
-                    <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')}
-                      {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
-                  </div>
-                  <div className="col-span-2">
-                    <Input placeholder={t('common.unit')}
-                      {...poForm.register(`items.${i}.unit`)} className="text-xs" />
-                  </div>
-                  <div className="col-span-3">
-                    <Input type="number" step="0.01" min="0" placeholder="P.U."
-                      {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                    {poFields.length > 1 && (
-                      <Button type="button" size="sm" variant="ghost" onClick={() => poRemove(i)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -464,6 +509,97 @@ export function PurchasesPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── PO View Modal ────────────────────────────────────────────────── */}
+      <Modal open={viewPoOpen} onClose={() => { setViewPoOpen(false); setViewPoId(''); }}
+        title={`Commande ${(viewPoDetail as any)?.data?.poNumber ?? ''}`}>
+        {!viewPoDetail ? <LoadingSpinner /> : (() => {
+          const d = (viewPoDetail as any).data;
+          return (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-muted-foreground">Fournisseur :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
+                <div><span className="text-muted-foreground">Statut :</span> <Badge variant={PO_STATUS_VARIANT[d.status] ?? 'muted'} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
+                <div><span className="text-muted-foreground">Date commande :</span> {formatDate(d.orderDate)}</div>
+                <div><span className="text-muted-foreground">Livraison prévue :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
+              </div>
+              {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
+              <table className="w-full border border-border rounded-md overflow-hidden text-xs">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left px-3 py-2">Produit</th>
+                    <th className="text-right px-3 py-2">Qté</th>
+                    <th className="text-left px-3 py-2">Unité</th>
+                    <th className="text-right px-3 py-2">P.U.</th>
+                    <th className="text-right px-3 py-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(d.items ?? []).map((it: any, idx: number) => {
+                    const prod = rawMats.find((m: any) => m.id === it.rawMaterialId);
+                    return (
+                      <tr key={idx} className="border-t border-border">
+                        <td className="px-3 py-2">{prod?.name ?? it.rawMaterialId}</td>
+                        <td className="px-3 py-2 text-right">{Number(it.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2">{prod?.unit ?? it.unit}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(it.unitPrice)}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(Number(it.quantity) * Number(it.unitPrice))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="flex justify-end font-medium">
+                Total : {formatCurrency(d.total ?? d.totalAmount)}
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Reception BL View Modal ───────────────────────────────────────── */}
+      <Modal open={viewRecOpen} onClose={() => { setViewRecOpen(false); setViewRecId(''); }}
+        title={`Réception ${(viewRecDetail as any)?.data?.blNumber ?? ''}`}>
+        {!viewRecDetail ? <LoadingSpinner /> : (() => {
+          const d = (viewRecDetail as any).data;
+          return (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-muted-foreground">Commande :</span> <span className="font-mono">{d.poNumber ?? d.purchaseOrderId}</span></div>
+                <div><span className="text-muted-foreground">Date réception :</span> {formatDate(d.receptionDate)}</div>
+              </div>
+              {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
+              <table className="w-full border border-border rounded-md overflow-hidden text-xs">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left px-3 py-2">Produit</th>
+                    <th className="text-right px-3 py-2">Qté reçue</th>
+                    <th className="text-left px-3 py-2">Unité</th>
+                    <th className="text-right px-3 py-2">Coût/u</th>
+                    <th className="text-left px-3 py-2">N° lot</th>
+                    <th className="text-left px-3 py-2">Expiration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(d.stockEntries ?? d.items ?? []).map((se: any, idx: number) => {
+                    const prod = rawMats.find((m: any) => m.id === (se.finishedProductId ?? se.rawMaterialId));
+                    return (
+                      <tr key={idx} className="border-t border-border">
+                        <td className="px-3 py-2">{prod?.name ?? se.rawMaterialId}</td>
+                        <td className="px-3 py-2 text-right">{Number(se.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2">{prod?.unit ?? '—'}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(se.costPerUnit)}</td>
+                        <td className="px-3 py-2">{se.batchNumber ?? '—'}</td>
+                        <td className="px-3 py-2">{se.expiresAt ? formatDate(se.expiresAt) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* ── Reception Modal ──────────────────────────────────────────────── */}
