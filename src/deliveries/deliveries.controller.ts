@@ -1,9 +1,11 @@
 import {
   Body, Controller, Delete, Get, Param, ParseUUIDPipe,
-  Patch, Post, Put, Query, UseGuards,
+  Patch, Post, Put, Query, Res, UseGuards,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DeliveriesService } from './deliveries.service';
+import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 import { CreateDeliveryNoteDto } from './dto/create-delivery-note.dto';
 import { UpdateDeliveryNoteStatusDto } from './dto/update-delivery-note-status.dto';
 import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
@@ -18,7 +20,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('deliveries/delivery-notes')
 export class DeliveriesController {
-  constructor(private readonly deliveriesService: DeliveriesService) {}
+  constructor(
+    private readonly deliveriesService: DeliveriesService,
+    private readonly pdfService: InvoicePdfService,
+  ) {}
 
   @Post()
   @Roles('owner', 'manager', 'agent')
@@ -79,5 +84,20 @@ export class DeliveriesController {
   @ApiOperation({ summary: 'Supprimer un BL (draft uniquement, libère stock)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.deliveriesService.remove(id, user.tenantId, user.id);
+  }
+
+  @Get(':id/pdf')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Générer le PDF du bon de livraison' })
+  async pdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateDeliveryNotePdf(id, user.tenantId);
+    void reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(buffer);
   }
 }

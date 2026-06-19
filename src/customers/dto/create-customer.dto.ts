@@ -20,6 +20,22 @@ export class CreateCustomerDto {
   @IsOptional() @IsString() @MaxLength(50)
   phone?: string;
 
+  @ApiProperty({ required: false, description: 'Numéro d\'Identification Fiscale' })
+  @IsOptional() @IsString() @MaxLength(20)
+  nif?: string;
+
+  @ApiProperty({ required: false, description: 'Registre du Commerce' })
+  @IsOptional() @IsString() @MaxLength(20)
+  rc?: string;
+
+  @ApiProperty({ required: false, description: 'Article d\'Imposition' })
+  @IsOptional() @IsString() @MaxLength(20)
+  ai?: string;
+
+  @ApiProperty({ required: false, description: 'Numéro d\'Identification Statistique' })
+  @IsOptional() @IsString() @MaxLength(20)
+  nis?: string;
+
   @ApiProperty({ required: false })
   @IsOptional() @IsString()
   address?: string;

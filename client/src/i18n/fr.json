@@ -74,7 +74,10 @@
     "phone": "Téléphone",
     "address": "Adresse",
     "nif": "NIF",
-    "rc": "RC"
+    "rc": "RC",
+    "ai": "AI (Art. Imposition)",
+    "nis": "NIS",
+    "legalInfo": "Identification fiscale"
   },
   "suppliers": {
     "title": "Fournisseurs",
@@ -149,9 +152,16 @@
     "purchases": "Achats",
     "expenses": "Dépenses",
     "stock": "Stock",
+    "tax": "Résumé TVA",
     "dateFrom": "Du",
     "dateTo": "Au",
-    "generate": "Générer"
+    "generate": "Générer",
+    "taxName": "Taxe",
+    "taxRate": "Taux",
+    "htBase": "Base HT",
+    "taxCollected": "TVA collectée",
+    "invoiceCount": "Factures",
+    "month": "Mois"
   },
   "settings": {
     "title": "Paramètres",

@@ -149,6 +149,7 @@ export const reportsApi = {
   purchases: (params: Record<string, unknown>) => api.get('/reports/purchases', { params }).then(r => r.data),
   expenses: (params: Record<string, unknown>) => api.get('/reports/expenses', { params }).then(r => r.data),
   stock: () => api.get('/reports/stock').then(r => r.data),
+  taxSummary: (params: Record<string, unknown>) => api.get('/reports/tax-summary', { params }).then(r => r.data),
 };
 
 export const settingsApi = {

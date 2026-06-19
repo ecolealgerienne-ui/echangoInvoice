@@ -18,6 +18,10 @@ const schema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  nif: z.string().optional(),
+  rc: z.string().optional(),
+  ai: z.string().optional(),
+  nis: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -90,19 +94,21 @@ export function CustomersPage() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.name')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.email')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.nif')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.rc')}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.phone')}</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.email || '—'}</td>
+                  <td className="px-4 py-3 font-mono text-muted-foreground">{c.nif || '—'}</td>
+                  <td className="px-4 py-3 font-mono text-muted-foreground">{c.rc || '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
@@ -142,6 +148,29 @@ export function CustomersPage() {
               <Input {...register('phone')} />
             </div>
           </div>
+
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('customers.legalInfo')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">{t('customers.nif')}</label>
+                <Input {...register('nif')} placeholder="000000000000000" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">{t('customers.rc')}</label>
+                <Input {...register('rc')} placeholder="00/00-0000000" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">{t('customers.ai')}</label>
+                <Input {...register('ai')} placeholder="00000000000" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-foreground">{t('customers.nis')}</label>
+                <Input {...register('nis')} placeholder="000000000000000" />
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('customers.address')}</label>
             <Input {...register('address')} />

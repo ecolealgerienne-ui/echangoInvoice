@@ -370,4 +370,89 @@ export class ReportsService {
       },
     };
   }
+
+  // ─── Résumé TVA (déclaration DGI) ─────────────────────────────────────────
+
+  async getTaxSummary(tenantId: string, dto: ReportQueryDto) {
+    const { dateFrom, dateTo } = dto;
+
+    const [byRateRows, totalRow, byMonthRows] = await Promise.all([
+      this.ds.query(`
+        SELECT tax_name, tax_rate,
+               COALESCE(SUM(tax_collected),0) AS tax_collected,
+               COALESCE(SUM(ht_base),0)       AS ht_base,
+               COALESCE(SUM(invoice_count),0) AS invoice_count
+        FROM (
+          SELECT sii."taxName1" AS tax_name, sii."taxRate1" AS tax_rate,
+                 SUM(sii."taxAmount1") AS tax_collected,
+                 SUM(sii."quantity"*sii."unitPrice") AS ht_base,
+                 COUNT(DISTINCT si.id) AS invoice_count
+          FROM sales_invoice_items sii
+          JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+          WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+            AND si.status != 'cancelled' AND si."deletedAt" IS NULL
+            AND sii."taxRate1" IS NOT NULL
+          GROUP BY sii."taxName1", sii."taxRate1"
+          UNION ALL
+          SELECT sii."taxName2", sii."taxRate2",
+                 SUM(sii."taxAmount2"),
+                 SUM(sii."quantity"*sii."unitPrice"),
+                 COUNT(DISTINCT si.id)
+          FROM sales_invoice_items sii
+          JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+          WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+            AND si.status != 'cancelled' AND si."deletedAt" IS NULL
+            AND sii."taxRate2" IS NOT NULL
+          GROUP BY sii."taxName2", sii."taxRate2"
+        ) t
+        GROUP BY tax_name, tax_rate
+        ORDER BY tax_rate DESC`,
+        [tenantId, dateFrom, dateTo]),
+
+      this.ds.query(`
+        SELECT COALESCE(SUM("subtotal"),0) AS total_ht,
+               COALESCE(SUM("taxAmount"),0) AS total_tax,
+               COALESCE(SUM("totalAmount"),0) AS total_ttc,
+               COUNT(*) AS invoice_count
+        FROM sales_invoices
+        WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+          AND status != 'cancelled' AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+
+      this.ds.query(`
+        SELECT TO_CHAR("invoiceDate",'YYYY-MM') AS month,
+               COALESCE(SUM("taxAmount"),0) AS tax_collected,
+               COALESCE(SUM("subtotal"),0)  AS ht_base
+        FROM sales_invoices
+        WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+          AND status != 'cancelled' AND "deletedAt" IS NULL
+        GROUP BY month ORDER BY month ASC`,
+        [tenantId, dateFrom, dateTo]),
+    ]);
+
+    const tot = totalRow[0];
+    return {
+      data: {
+        period: { from: dateFrom, to: dateTo },
+        totals: {
+          totalHT: Math.round(parseFloat(tot.total_ht) * 100) / 100,
+          totalTax: Math.round(parseFloat(tot.total_tax) * 100) / 100,
+          totalTTC: Math.round(parseFloat(tot.total_ttc) * 100) / 100,
+          invoiceCount: parseInt(tot.invoice_count),
+        },
+        byRate: byRateRows.map((r: any) => ({
+          taxName: r.tax_name || `TVA ${r.tax_rate}%`,
+          taxRate: parseFloat(r.tax_rate),
+          htBase: Math.round(parseFloat(r.ht_base) * 100) / 100,
+          taxCollected: Math.round(parseFloat(r.tax_collected) * 100) / 100,
+          invoiceCount: parseInt(r.invoice_count),
+        })),
+        byMonth: byMonthRows.map((r: any) => ({
+          month: r.month,
+          htBase: Math.round(parseFloat(r.ht_base) * 100) / 100,
+          taxCollected: Math.round(parseFloat(r.tax_collected) * 100) / 100,
+        })),
+      },
+    };
+  }
 }

@@ -1,9 +1,11 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param,
-  ParseUUIDPipe, Patch, Post, Put, Query, UseGuards,
+  Body, Controller, Delete, Get, Header, HttpCode, Param,
+  ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesInvoicesService } from './sales-invoices.service';
+import { InvoicePdfService } from './invoice-pdf.service';
 import { CreateSalesInvoiceDto } from './dto/create-sales-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
@@ -17,7 +19,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('invoices/sales-invoices')
 export class InvoicesController {
-  constructor(private readonly service: SalesInvoicesService) {}
+  constructor(
+    private readonly service: SalesInvoicesService,
+    private readonly pdfService: InvoicePdfService,
+  ) {}
 
   @Post()
   @Roles('owner', 'manager', 'agent')
@@ -68,5 +73,20 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Supprimer une facture (draft uniquement)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.remove(id, user.tenantId, user.id);
+  }
+
+  @Get(':id/pdf')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Générer le PDF de la facture' })
+  async pdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateInvoicePdf(id, user.tenantId);
+    void reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(buffer);
   }
 }
