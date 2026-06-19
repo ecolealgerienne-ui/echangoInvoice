@@ -20,7 +20,14 @@
     "filter": "Filtrer",
     "export": "Exporter",
     "approve": "Approuver",
-    "close": "Fermer"
+    "close": "Fermer",
+    "allStatuses": "Tous les statuts",
+    "items": "Articles",
+    "qty": "Qté",
+    "price": "Prix",
+    "notes": "Notes",
+    "select": "Sélectionner...",
+    "customer": "Client"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -31,7 +38,8 @@
     "invoices": "Factures",
     "expenses": "Dépenses",
     "reports": "Rapports",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "deliveries": "Bons de Livraison"
   },
   "auth": {
     "login": "Connexion",
@@ -110,7 +118,10 @@
       "paid": "Payée",
       "overdue": "En retard",
       "cancelled": "Annulée"
-    }
+    },
+    "created": "Facture créée",
+    "send": "Envoyer",
+    "description": "Description"
   },
   "expenses": {
     "title": "Dépenses",
@@ -168,5 +179,17 @@
   "status": {
     "active": "Actif",
     "inactive": "Inactif"
+  },
+  "deliveries": {
+    "title": "Bons de Livraison",
+    "new": "Nouveau BL",
+    "blNumber": "N° BL",
+    "created": "Bon de livraison créé",
+    "cancelled": "Bon de livraison annulé",
+    "status": {
+      "draft": "Brouillon",
+      "delivered": "Livré",
+      "cancelled": "Annulé"
+    }
   }
 }

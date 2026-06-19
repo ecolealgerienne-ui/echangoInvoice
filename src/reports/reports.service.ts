@@ -127,48 +127,55 @@ export class ReportsService {
     const { dateFrom, dateTo, page = 1, limit = 20 } = dto;
     const offset = (page - 1) * limit;
 
+    // reception_bls has no totalAmount/supplierId — join through purchase_orders
     const [summaryRows, bySupplierRows, byMaterialRows, detailRows, countRow] = await Promise.all([
       this.ds.query(`
-        SELECT COALESCE(SUM("totalAmount"),0) AS cost, COUNT(*) AS count
-        FROM reception_bls
-        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        SELECT COALESCE(SUM(po.total),0) AS cost, COUNT(DISTINCT bl.id) AS count
+        FROM reception_bls bl
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
-        SELECT bl."supplierId", s.name,
-               COUNT(*) AS order_count,
-               COALESCE(SUM(bl."totalAmount"),0) AS total
+        SELECT po."supplierId", s.name,
+               COUNT(DISTINCT bl.id) AS order_count,
+               COALESCE(SUM(po.total),0) AS total
         FROM reception_bls bl
-        JOIN suppliers s ON s.id = bl."supplierId"
-        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3 AND bl."deletedAt" IS NULL
-        GROUP BY bl."supplierId", s.name ORDER BY total DESC`,
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        JOIN suppliers s ON s.id = po."supplierId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL
+        GROUP BY po."supplierId", s.name ORDER BY total DESC`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
         SELECT se."rawMaterialId", rm.name, rm.unit,
                SUM(se.quantity) AS total_qty,
-               SUM(se."totalCost") AS total_cost
+               COALESCE(SUM(se.quantity * se."costPerUnit"),0) AS total_cost
         FROM stock_entries se
         JOIN raw_materials rm ON rm.id = se."rawMaterialId"
         JOIN reception_bls bl ON bl.id = se."receptionBlId"
         WHERE se."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
-          AND se."deletedAt" IS NULL
         GROUP BY se."rawMaterialId", rm.name, rm.unit ORDER BY total_cost DESC`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
         SELECT bl.id, bl."blNumber", s.name AS supplier_name,
-               bl."receptionDate", bl."totalAmount", bl.status
+               bl."receptionDate", po.total AS "totalAmount", bl.status
         FROM reception_bls bl
-        JOIN suppliers s ON s.id = bl."supplierId"
-        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3 AND bl."deletedAt" IS NULL
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        JOIN suppliers s ON s.id = po."supplierId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL
         ORDER BY bl."receptionDate" DESC
         LIMIT $4 OFFSET $5`,
         [tenantId, dateFrom, dateTo, limit, offset]),
 
       this.ds.query(`
         SELECT COUNT(*) AS total FROM reception_bls
-        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3
+          AND "deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
     ]);
 

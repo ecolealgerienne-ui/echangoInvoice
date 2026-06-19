@@ -18,8 +18,6 @@ const schema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
-  nif: z.string().optional(),
-  rc: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -147,16 +145,6 @@ export function CustomersPage() {
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('customers.address')}</label>
             <Input {...register('address')} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-foreground">{t('customers.nif')}</label>
-              <Input {...register('nif')} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-foreground">{t('customers.rc')}</label>
-              <Input {...register('rc')} />
-            </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={closeModal}>{t('common.cancel')}</Button>

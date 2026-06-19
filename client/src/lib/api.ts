@@ -113,6 +113,14 @@ export const invoicesApi = {
   addPayment: (body: unknown) => api.post('/invoices/payments', body).then(r => r.data),
 };
 
+export const deliveriesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/deliveries/delivery-notes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/deliveries/delivery-notes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/deliveries/delivery-notes', body).then(r => r.data),
+  cancel: (id: string) => api.patch(`/deliveries/delivery-notes/${id}/cancel`).then(r => r.data),
+  remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then(r => r.data),
+};
+
 export const expensesApi = {
   list: (params?: Record<string, unknown>) => api.get('/expenses', { params }).then(r => r.data),
   get: (id: string) => api.get(`/expenses/${id}`).then(r => r.data),
