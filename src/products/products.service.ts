@@ -23,6 +23,7 @@ export class ProductsService {
     const product = this.repo.create({
       ...dto,
       type: dto.type ?? 'product',
+      code: dto.code || null,
       tenantId,
       isActive: dto.isActive ?? true,
       lastCostPerUnit: dto.lastCostPerUnit ?? 0,
@@ -72,7 +73,7 @@ export class ProductsService {
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new NotFoundException('errors.product_not_found');
-    Object.assign(product, dto, { updatedBy: userId });
+    Object.assign(product, { ...dto, code: dto.code || null }, { updatedBy: userId });
     await this.repo.save(product);
     return { data: product };
   }
