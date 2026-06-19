@@ -177,6 +177,7 @@ export const purchasesApi = {
   listOrders: (params?: Record<string, unknown>) => api.get('/purchases/purchase-orders', { params }).then(r => r.data),
   getOrder: (id: string) => api.get(`/purchases/purchase-orders/${id}`).then(r => r.data),
   createOrder: (body: unknown) => api.post('/purchases/purchase-orders', body).then(r => r.data),
+  updateOrder: (id: string, body: unknown) => api.patch(`/purchases/purchase-orders/${id}`, body).then(r => r.data),
   updateOrderStatus: (id: string, body: unknown) => api.patch(`/purchases/purchase-orders/${id}/status`, body).then(r => r.data),
   removeOrder: (id: string) => api.delete(`/purchases/purchase-orders/${id}`).then(r => r.data),
   listReceptions: (params?: Record<string, unknown>) => api.get('/purchases/reception-bls', { params }).then(r => r.data),
