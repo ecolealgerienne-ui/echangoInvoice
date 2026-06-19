@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// Charger e2e/.env explicitement
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const browser = (process.env.BROWSER ?? 'chromium') as 'chromium' | 'firefox' | 'webkit';
 
@@ -22,20 +26,18 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'off',
     ignoreHTTPSErrors: true,
-    // PAS de storageState ici — défini par projet
   },
 
   projects: [
     {
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
-      // Pas de storageState : le setup crée le fichier
     },
     {
       name: browser,
       use: {
         ...browserDevice[browser],
-        storageState: AUTH_FILE,  // lu après que setup l'a créé
+        storageState: AUTH_FILE,
       },
       dependencies: ['setup'],
     },
