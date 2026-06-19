@@ -5,6 +5,7 @@ import { reportsApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -89,6 +90,176 @@ export function ReportsPage() {
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(r.invoiceDate)}</td>
                     <td className="px-4 py-3 text-right text-foreground">{formatCurrency(r.totalAmount)}</td>
                     <td className="px-4 py-3 text-right text-foreground">{formatCurrency(r.amountDue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
+        </div>
+      )}
+
+      {/* Achats */}
+      {tab === 'purchases' && data?.data && (
+        <div className="space-y-4">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            {[
+              { label: 'Coût total achats', value: formatCurrency(data.data.summary.totalPurchaseCost) },
+              { label: 'Réceptions', value: String(data.data.summary.receptionCount) },
+              { label: 'Valeur moy. / réception', value: formatCurrency(data.data.summary.averageOrderValue) },
+            ].map(s => (
+              <Card key={s.label}><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className="text-lg font-bold text-foreground">{s.value}</p>
+              </CardContent></Card>
+            ))}
+          </div>
+
+          {/* Par fournisseur */}
+          {data.data.bySupplier?.length > 0 && (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50"><tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fournisseur</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Réceptions</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
+                </tr></thead>
+                <tbody className="divide-y divide-border">
+                  {data.data.bySupplier.map((r: any) => (
+                    <tr key={r.supplierId} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{r.orderCount}</td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.totalAmount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Par matière première */}
+          {data.data.byRawMaterial?.length > 0 && (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50"><tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Produit</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Qté reçue</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Coût total</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Coût moy./u</th>
+                </tr></thead>
+                <tbody className="divide-y divide-border">
+                  {data.data.byRawMaterial.map((r: any) => (
+                    <tr key={r.rawMaterialId} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium text-foreground">{r.name} <span className="text-xs text-muted-foreground">({r.unit})</span></td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{r.totalQuantityReceived}</td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.totalCost)}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">{formatCurrency(r.averageCostPerUnit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Détail réceptions */}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50"><tr>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">N° BL</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fournisseur</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Montant</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Statut</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {data.data.details?.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                )}
+                {data.data.details?.map((r: any) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 font-mono text-foreground">{r.blNumber}</td>
+                    <td className="px-4 py-3 text-foreground">{r.supplierName}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.receptionDate)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.totalAmount)}</td>
+                    <td className="px-4 py-3"><Badge variant="success">{r.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
+        </div>
+      )}
+
+      {/* Dépenses */}
+      {tab === 'expenses' && data?.data && (
+        <div className="space-y-4">
+          {/* KPIs */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              { label: 'Total dépenses', value: formatCurrency(data.data.summary.totalExpenses) },
+              { label: 'Approuvées', value: formatCurrency(data.data.summary.approvedExpenses) },
+              { label: 'En attente', value: formatCurrency(data.data.summary.pendingExpenses) },
+              { label: 'Nb dépenses', value: String(data.data.summary.expenseCount) },
+            ].map(s => (
+              <Card key={s.label}><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className="text-lg font-bold text-foreground">{s.value}</p>
+              </CardContent></Card>
+            ))}
+          </div>
+
+          {/* Par catégorie */}
+          {data.data.byCategory && Object.keys(data.data.byCategory).length > 0 && (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50"><tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Catégorie</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Nb</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
+                </tr></thead>
+                <tbody className="divide-y divide-border">
+                  {Object.entries(data.data.byCategory)
+                    .filter(([, v]: any) => v.count > 0)
+                    .sort(([, a]: any, [, b]: any) => b.total - a.total)
+                    .map(([cat, v]: any) => (
+                      <tr key={cat} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 font-medium text-foreground capitalize">{cat}</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">{v.count}</td>
+                        <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(v.total)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Détail dépenses */}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50"><tr>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Catégorie</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Montant</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Approuvée</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {data.data.details?.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                )}
+                {data.data.details?.map((r: any) => (
+                  <tr key={r.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.expenseDate)}</td>
+                    <td className="px-4 py-3 text-foreground">{r.description}</td>
+                    <td className="px-4 py-3 text-muted-foreground capitalize">{r.category}</td>
+                    <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.amount)}</td>
+                    <td className="px-4 py-3 text-center">
+                      {r.isApproved
+                        ? <Badge variant="success">Oui</Badge>
+                        : <Badge variant="warning">Non</Badge>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
