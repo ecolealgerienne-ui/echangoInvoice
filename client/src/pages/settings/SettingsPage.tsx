@@ -28,8 +28,14 @@ export function SettingsPage() {
   const mutation = useMutation({
     mutationFn: (d: any) => {
       const { id, tenantId, logo, updatedBy, createdAt, updatedAt, taxRates, ...payload } = d;
-      const cleanRates = (taxRates ?? []).map(({ id: _id, tenantId: _t, settingsId: _s, currency: _c, createdAt: _ca, updatedAt: _ua, ...r }: any) => r);
-      return settingsApi.update({ ...payload, taxRates: cleanRates });
+      const cleanRates = (taxRates ?? []).map(({ id: _id, tenantId: _t, settingsId: _s, currency: _c, createdAt: _ca, updatedAt: _ua, rate, ...r }: any) => ({
+        ...r, rate: rate !== '' && rate != null ? Number(rate) : undefined,
+      }));
+      return settingsApi.update({
+        ...payload,
+        taxRate: payload.taxRate !== '' && payload.taxRate != null ? Number(payload.taxRate) : undefined,
+        taxRates: cleanRates,
+      });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast(t('settings.saved')); },
     onError: () => toast(t('errors.generic'), 'error'),

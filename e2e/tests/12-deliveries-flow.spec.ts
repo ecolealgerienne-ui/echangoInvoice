@@ -15,7 +15,7 @@ test.describe('Bons de livraison — flux complet', () => {
     await selectFirst(page, '[role="dialog"] select[name="customerId"]');
     await page.locator('[role="dialog"] input[name="deliveryDate"]').fill(today);
 
-    await selectFirst(page, '[role="dialog"] select[name="items.0.rawMaterialId"]');
+    await selectFirst(page, '[role="dialog"] select[name="items.0.finishedProductId"]');
     await page.locator('[role="dialog"] input[name="items.0.quantity"]').fill('2');
     await page.locator('[role="dialog"] input[name="items.0.unitPrice"]').fill('100');
 

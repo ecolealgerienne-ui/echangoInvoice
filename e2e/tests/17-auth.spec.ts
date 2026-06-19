@@ -8,7 +8,7 @@ test.describe('Auth', () => {
     const ctx = await browser.newContext({ baseURL: BASE_URL });
     const page = await ctx.newPage();
 
-    await page.goto('/login');
+    await page.goto(`${BASE_URL}/login`);
     await page.waitForLoadState('networkidle');
     await page.locator('input[type="email"]').fill('invalide@example.com');
     await page.locator('input[type="password"]').fill('mauvais_mot_de_passe');
