@@ -150,14 +150,14 @@ export class ReportsService {
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
-        SELECT se."rawMaterialId", rm.name, rm.unit,
+        SELECT se."finishedProductId", rm.name, rm.unit,
                SUM(se.quantity) AS total_qty,
                COALESCE(SUM(se.quantity * se."costPerUnit"),0) AS total_cost
         FROM stock_entries se
-        JOIN finished_products rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."finishedProductId"
         JOIN reception_bls bl ON bl.id = se."receptionBlId"
         WHERE se."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
-        GROUP BY se."rawMaterialId", rm.name, rm.unit ORDER BY total_cost DESC`,
+        GROUP BY se."finishedProductId", rm.name, rm.unit ORDER BY total_cost DESC`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
@@ -200,7 +200,7 @@ export class ReportsService {
           const qty = parseFloat(r.total_qty);
           const cost = parseFloat(r.total_cost);
           return {
-            rawMaterialId: r.rawMaterialId,
+            rawMaterialId: r.finishedProductId,
             name: r.name,
             unit: r.unit,
             totalQuantityReceived: Math.round(qty * 100) / 100,
@@ -311,10 +311,10 @@ export class ReportsService {
                inv."alertThreshold",
                inv."earliestExpirationDate",
                (SELECT MIN(se2."enteredAt") FROM stock_entries se2
-                WHERE se2."rawMaterialId"=inv."rawMaterialId" AND se2."tenantId"=inv."tenantId"
+                WHERE se2."finishedProductId"=inv."rawMaterialId" AND se2."tenantId"=inv."tenantId"
                   AND se2.status='available') AS oldest_entry,
                (SELECT COALESCE(SUM(se3.quantity),0) FROM stock_entries se3
-                WHERE se3."rawMaterialId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
+                WHERE se3."finishedProductId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
                   AND se3.status='reserved') AS reserved_qty
         FROM inventory_summary inv
         JOIN finished_products rm ON rm.id = inv."rawMaterialId"

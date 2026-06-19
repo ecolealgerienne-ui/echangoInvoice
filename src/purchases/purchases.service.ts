@@ -210,7 +210,7 @@ export class PurchasesService {
         const totalCost = Number((item.quantityReceived * item.costPerUnit).toFixed(2));
         const entry = qr.manager.create(StockEntry, {
           tenantId,
-          rawMaterialId: item.rawMaterialId,
+          finishedProductId: item.rawMaterialId,
           receptionBlId: bl.id,
           quantity: item.quantityReceived,
           costPerUnit: item.costPerUnit,
@@ -339,7 +339,7 @@ export class PurchasesService {
     const entries = await qr.manager
       .createQueryBuilder(StockEntry, 'se')
       .where('se.tenantId = :tenantId', { tenantId })
-      .andWhere('se.rawMaterialId = :rawMaterialId', { rawMaterialId })
+      .andWhere('se.finishedProductId = :rawMaterialId', { rawMaterialId })
       .andWhere('se.status = :status', { status: 'available' })
       .getMany();
 
