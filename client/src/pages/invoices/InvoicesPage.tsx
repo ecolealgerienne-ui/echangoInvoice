@@ -64,8 +64,8 @@ export function InvoicesPage() {
   });
 
   const { data: customers } = useQuery({
-    queryKey: ['customers', { limit: 200 }],
-    queryFn: () => customersApi.list({ page: 1, limit: 200 }),
+    queryKey: ['customers', 1, ''],
+    queryFn: () => customersApi.list({ page: 1, limit: 20, search: undefined }),
   });
 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
