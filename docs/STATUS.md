@@ -20,8 +20,8 @@
 | POST /auth/refresh | ✅ | Rotation refresh token |
 | POST /auth/logout | ✅ | Invalide refresh token |
 | GET /auth/me | ✅ | Retourne profil user depuis JWT |
-| POST /auth/invite | ❌ | Non implémenté |
-| POST /auth/accept-invite | ❌ | Non implémenté |
+| POST /auth/invite | ✅ | Token 7j, email envoyé, rôle manager/agent |
+| POST /auth/accept-invite | ✅ | Crée user + invalide token |
 
 ### Customers (spec 02)
 | Endpoint | Statut | Notes |
@@ -91,7 +91,7 @@
 | PATCH /deliveries/delivery-notes/:id/signature | ✅ | |
 | DELETE /deliveries/delivery-notes/:id | ✅ | Draft uniquement, libère stock |
 | GET /deliveries/delivery-notes/:id/pdf | ✅ | Puppeteer A4, NIF/RC, zones signature, archivage ARCHIVES/ |
-| POST /deliveries/delivery-notes/:id/send-email | ❌ | Email non implémenté |
+| POST /deliveries/delivery-notes/:id/send-email | ✅ | Nodemailer, PDF en pièce jointe |
 
 ### Invoices (spec 09)
 | Endpoint | Statut | Notes |
@@ -103,10 +103,11 @@
 | PATCH /invoices/sales-invoices/:id/status | ✅ | |
 | DELETE /invoices/sales-invoices/:id | ✅ | Draft uniquement |
 | GET /invoices/sales-invoices/:id/pdf | ✅ | Puppeteer A4, NIF/RC client+société, totaux HT/TVA/TTC, archivage |
-| POST /invoices/sales-invoices/:id/send-email | ❌ | Email non implémenté |
+| POST /invoices/sales-invoices/:id/send-email | ✅ | Nodemailer, PDF en pièce jointe |
 | GET /invoices/payments | ✅ | |
 | POST /invoices/payments | ✅ | Met à jour amountPaid/Due, status paid si soldé |
 | Cron overdue | ✅ | 00:01 quotidien |
+| Cron rappels email | ✅ | 08:00 quotidien — J+7/J+14/J+21 sur factures impayées |
 
 ### Credit Notes / Avoirs (nouveau)
 | Endpoint | Statut | Notes |
@@ -218,14 +219,14 @@
 ### 🟠 Fort
 | # | Gap | Notes |
 |---|-----|-------|
-| 1 | **Type de paiement** (virement/chèque/espèces) | Champ `paymentType` + `reference` sur Payment |
-| 2 | **Envoi email** | SMTP configuré, templates + service à créer |
-| 3 | **Rappels email automatiques** | Cron J+7/J+14/J+21 sur factures impayées |
+| — | ~~Type de paiement~~ | ✅ Implémenté (paymentMethod + reference, modal frontend) |
+| — | ~~Envoi email~~ | ✅ Implémenté (EmailService nodemailer, facture + BL) |
+| — | ~~Rappels email~~ | ✅ Implémenté (cron J+7/J+14/J+21) |
+| — | ~~Invitation collaborateurs~~ | ✅ Implémenté (/auth/invite + /auth/accept-invite) |
 
-### 🟡 Moyen
+### 🟡 Restant
 | # | Gap | Notes |
 |---|-----|-------|
-| 4 | **Invitation collaborateurs** | POST /auth/invite + POST /auth/accept-invite |
-| 5 | **Contacts multiples par client** | Ajouter table `customer_contacts` |
-| 6 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
-| 7 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
+| 1 | **Contacts multiples par client** | Table `customer_contacts` |
+| 2 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
+| 3 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
