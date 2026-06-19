@@ -147,6 +147,7 @@ export class StockService {
 
       const entry = qr.manager.create(StockEntry, {
         tenantId,
+        rawMaterialId: dto.rawMaterialId,
         finishedProductId: dto.rawMaterialId,
         quantity: Math.abs(qty),
         costPerUnit,

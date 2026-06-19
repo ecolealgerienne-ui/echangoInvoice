@@ -256,6 +256,7 @@ export class PurchasesService {
         const totalCost = Number((item.quantityReceived * item.costPerUnit).toFixed(2));
         const entry = qr.manager.create(StockEntry, {
           tenantId,
+          rawMaterialId: item.rawMaterialId,
           finishedProductId: item.rawMaterialId,
           receptionBlId: bl.id,
           quantity: item.quantityReceived,
