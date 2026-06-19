@@ -26,7 +26,15 @@ test.describe('Clients', () => {
 
     await page.getByRole('button', { name: /nouveau client/i }).click();
     await page.locator('[role="dialog"] input[name="name"]').fill(`Client Test ${Date.now()}`);
+
+    const responsePromise = page.waitForResponse(r => r.url().includes('/customers') && r.request().method() === 'POST');
     await page.getByRole('button', { name: /enregistrer/i }).click();
+    const response = await responsePromise;
+
+    if (!response.ok()) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`POST /customers échoué (${response.status()}): ${body}`);
+    }
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
     errors.assert('Clients créer');
