@@ -1,22 +1,44 @@
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard, Users, Truck, Package, Layers,
-  FileText, Receipt, BarChart2, Settings, LogOut,
+  LayoutDashboard, Users, Truck, Box, Layers,
+  FileText, BarChart2, Settings, LogOut, ClipboardList,
+  FileSignature, ShoppingCart, Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, key: 'nav.dashboard' },
-  { to: '/customers', icon: Users, key: 'nav.customers' },
-  { to: '/suppliers', icon: Truck, key: 'nav.suppliers' },
-  { to: '/raw-materials', icon: Package, key: 'nav.rawMaterials' },
-  { to: '/stock', icon: Layers, key: 'nav.stock' },
-  { to: '/invoices', icon: FileText, key: 'nav.invoices' },
-  { to: '/expenses', icon: Receipt, key: 'nav.expenses' },
-  { to: '/reports', icon: BarChart2, key: 'nav.reports' },
-  { to: '/settings', icon: Settings, key: 'nav.settings' },
+const groups = [
+  {
+    key: 'nav.group.sales',
+    items: [
+      { to: '/customers', icon: Users, key: 'nav.customers' },
+      { to: '/quotes', icon: FileSignature, key: 'nav.quotes' },
+      { to: '/invoices', icon: FileText, key: 'nav.invoices' },
+      { to: '/deliveries', icon: ClipboardList, key: 'nav.deliveries' },
+    ],
+  },
+  {
+    key: 'nav.group.catalog',
+    items: [
+      { to: '/products', icon: Box, key: 'nav.products' },
+      { to: '/stock', icon: Layers, key: 'nav.stock' },
+    ],
+  },
+  {
+    key: 'nav.group.purchases',
+    items: [
+      { to: '/suppliers', icon: Truck, key: 'nav.suppliers' },
+      { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
+    ],
+  },
+  {
+    key: 'nav.group.finance',
+    items: [
+      { to: '/expenses', icon: Receipt, key: 'nav.expenses' },
+      { to: '/reports', icon: BarChart2, key: 'nav.reports' },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -30,27 +52,65 @@ export function Sidebar() {
         {user && <p className="text-xs text-sidebar-foreground/60 mt-0.5 truncate">{user.email}</p>}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map(({ to, icon: Icon, key }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
-              )
-            }
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {t(key)}
-          </NavLink>
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors mb-1',
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+            )
+          }
+        >
+          <LayoutDashboard className="h-4 w-4 shrink-0" />
+          {t('nav.dashboard')}
+        </NavLink>
+
+        {groups.map((group) => (
+          <div key={group.key} className="mt-3">
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+              {t(group.key)}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map(({ to, icon: Icon, key }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+                    )
+                  }
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {t(key)}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
-      <div className="px-2 py-3 border-t border-sidebar-border">
+      <div className="px-2 py-3 border-t border-sidebar-border space-y-0.5">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            cn(
+              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+            )
+          }
+        >
+          <Settings className="h-4 w-4 shrink-0" />
+          {t('nav.settings')}
+        </NavLink>
         <button
           onClick={logout}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground transition-colors"

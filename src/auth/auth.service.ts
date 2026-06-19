@@ -1,6 +1,8 @@
 import {
-  Injectable,
+  BadRequestException,
   ConflictException,
+  Injectable,
+  NotFoundException,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
@@ -8,14 +10,17 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull, EntityManager } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { InviteDto, AcceptInviteDto } from './dto/invite.dto';
 import { Tenant } from '../tenants/entities/tenant.entity';
 import { Subscription } from '../tenants/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { requireEnv } from '../config/env.config';
+import { EmailService } from '../common/email.service';
 
 const SALT_ROUNDS = 12;
 const FREEMIUM_INVOICE_LIMIT = 10;
@@ -28,6 +33,7 @@ export class AuthService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
+    private readonly emailService: EmailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -210,5 +216,91 @@ export class AuthService {
       slug = `${base}-${i++}`;
     }
     return slug;
+  }
+
+  async invite(dto: InviteDto, tenantId: string, invitedBy: string): Promise<{ message: string }> {
+    const existing = await this.dataSource.manager.findOne(User, {
+      where: { email: dto.email, tenantId, deletedAt: IsNull() },
+    });
+    if (existing) throw new ConflictException('errors.user_already_exists');
+
+    const token = crypto.randomBytes(48).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
+
+    await this.dataSource.query(
+      `INSERT INTO invitations ("tenantId", email, role, token, "expiresAt", "createdBy")
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (token) DO NOTHING`,
+      [tenantId, dto.email, dto.role ?? 'agent', token, expiresAt, invitedBy],
+    );
+
+    const inviteUrl = `${process.env.APP_URL ?? 'http://localhost:5173'}/accept-invite?token=${token}`;
+
+    try {
+      await this.emailService.send({
+        to: dto.email,
+        subject: 'Invitation à rejoindre Echango Invoice',
+        html: `
+          <body style="font-family:Arial,sans-serif;font-size:14px;color:#333;max-width:600px;margin:0 auto;padding:20px">
+            <h2 style="color:#1e3a5f">Invitation à rejoindre Echango Invoice</h2>
+            <p>Vous avez été invité(e) à rejoindre l'équipe en tant que <strong>${dto.role ?? 'agent'}</strong>.</p>
+            <p>Cliquez sur le lien ci-dessous pour créer votre compte (valable 7 jours) :</p>
+            <p><a href="${inviteUrl}" style="background:#1e3a5f;color:white;padding:10px 20px;border-radius:4px;text-decoration:none;display:inline-block">Accepter l'invitation</a></p>
+            <p style="font-size:11px;color:#999;margin-top:20px">Ou copiez ce lien : ${inviteUrl}</p>
+          </body>
+        `,
+      });
+    } catch (emailErr) {
+      this.logger.error('Invite email failed', (emailErr as Error).message);
+    }
+
+    return { message: 'Invitation envoyée' };
+  }
+
+  async acceptInvite(dto: AcceptInviteDto): Promise<ReturnType<AuthService['authResponse']>> {
+    const invitations = await this.dataSource.query(
+      `SELECT * FROM invitations WHERE token = $1 AND "acceptedAt" IS NULL AND "expiresAt" > NOW()`,
+      [dto.token],
+    );
+    if (!invitations.length) throw new NotFoundException('errors.invite_invalid_or_expired');
+
+    const invitation = invitations[0];
+
+    const existing = await this.dataSource.manager.findOne(User, {
+      where: { email: invitation.email, tenantId: invitation.tenantId, deletedAt: IsNull() },
+    });
+    if (existing) throw new ConflictException('errors.user_already_exists');
+
+    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const user = qr.manager.create(User, {
+        tenantId: invitation.tenantId,
+        email: invitation.email,
+        passwordHash,
+        name: dto.name,
+        role: invitation.role,
+        isActive: true,
+        createdBy: invitation.createdBy,
+      });
+      await qr.manager.save(User, user);
+
+      await qr.query(
+        `UPDATE invitations SET "acceptedAt" = NOW() WHERE token = $1`,
+        [dto.token],
+      );
+
+      const tokens = await this.generateTokens(user, qr.manager);
+      await qr.commitTransaction();
+      return this.authResponse(tokens, user);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
   }
 }

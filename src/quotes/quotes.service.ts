@@ -346,17 +346,21 @@ export class QuotesService {
 
   @Cron('0 * * * *')
   async markExpiredQuotes(): Promise<void> {
-    const result = await this.dataSource
-      .createQueryBuilder()
-      .update(Quote)
-      .set({ status: 'expired' })
-      .where('status IN (:...statuses)', { statuses: ['sent', 'accepted'] })
-      .andWhere('expiryDate IS NOT NULL')
-      .andWhere('expiryDate < :today', { today: new Date() })
-      .andWhere('deletedAt IS NULL')
-      .execute();
-    if (result.affected && result.affected > 0) {
-      this.logger.log(`Marked ${result.affected} quote(s) as expired`);
+    try {
+      const result = await this.dataSource
+        .createQueryBuilder()
+        .update(Quote)
+        .set({ status: 'expired' })
+        .where('status IN (:...statuses)', { statuses: ['sent', 'accepted'] })
+        .andWhere('expiryDate IS NOT NULL')
+        .andWhere('expiryDate < :today', { today: new Date() })
+        .andWhere('deletedAt IS NULL')
+        .execute();
+      if (result.affected && result.affected > 0) {
+        this.logger.log(`Marked ${result.affected} quote(s) as expired`);
+      }
+    } catch (error) {
+      this.logger.error('Cron markExpiredQuotes failed', (error as Error).stack);
     }
   }
 }

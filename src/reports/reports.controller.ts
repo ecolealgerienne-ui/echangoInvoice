@@ -41,4 +41,11 @@ export class ReportsController {
   getStock(@CurrentUser() user: any) {
     return this.service.getStockReport(user.tenantId);
   }
+
+  @Get('tax-summary')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Résumé TVA par taux et par mois (déclaration DGI)' })
+  getTaxSummary(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
+    return this.service.getTaxSummary(user.tenantId, query);
+  }
 }

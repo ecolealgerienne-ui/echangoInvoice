@@ -11,6 +11,7 @@ import { Subscription } from '../tenants/entities/subscription.entity';
 import { CreateSalesInvoiceDto, CreateSalesInvoiceItemDto } from './dto/create-sales-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
+import { EmailService } from '../common/email.service';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -43,6 +44,7 @@ export class SalesInvoicesService {
     @InjectRepository(SalesInvoiceItem) private readonly itemRepo: Repository<SalesInvoiceItem>,
     @InjectRepository(Subscription) private readonly subRepo: Repository<Subscription>,
     private readonly dataSource: DataSource,
+    private readonly emailService: EmailService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
@@ -240,6 +242,51 @@ export class SalesInvoicesService {
     return { data: invoice };
   }
 
+  async update(id: string, dto: CreateSalesInvoiceDto, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const invoice = await qr.manager.findOne(SalesInvoice, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!invoice) throw new NotFoundException('invoice_not_found');
+      if (invoice.status !== 'draft') {
+        throw new UnprocessableEntityException('invoice_cannot_update');
+      }
+
+      // Supprime les anciens items
+      await qr.query(`DELETE FROM sales_invoice_items WHERE "salesInvoiceId" = $1`, [id]);
+
+      const { items } = await this.resolveItems(dto, tenantId, qr);
+      const totals = this.computeTotals(items);
+
+      invoice.customerId = dto.customerId;
+      invoice.invoiceDate = dto.invoiceDate as unknown as Date;
+      invoice.dueDate = dto.dueDate ? dto.dueDate as unknown as Date : null;
+      invoice.notes = dto.notes ?? null;
+      invoice.subtotal = totals.subtotal;
+      invoice.taxAmount = totals.taxAmount;
+      invoice.totalAmount = totals.totalAmount;
+      invoice.amountDue = totals.totalAmount - invoice.amountPaid;
+      invoice.updatedBy = userId;
+      await qr.manager.save(SalesInvoice, invoice);
+
+      const savedItems = items.map((c) =>
+        qr.manager.create(SalesInvoiceItem, { ...c, tenantId, salesInvoiceId: id }),
+      );
+      await qr.manager.save(SalesInvoiceItem, savedItems);
+
+      await qr.commitTransaction();
+      return this.findOne(id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
   async updateStatus(id: string, dto: UpdateInvoiceStatusDto, tenantId: string, userId: string) {
     const invoice = await this.invoiceRepo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!invoice) throw new NotFoundException('invoice_not_found');
@@ -268,17 +315,75 @@ export class SalesInvoicesService {
 
   @Cron('1 0 * * *')
   async markOverdueInvoices(): Promise<void> {
-    const result = await this.dataSource
-      .createQueryBuilder()
-      .update(SalesInvoice)
-      .set({ status: 'overdue' })
-      .where('status IN (:...statuses)', { statuses: ['sent', 'partial'] })
-      .andWhere('dueDate < :today', { today: new Date() })
-      .andWhere('amountDue > 0')
-      .andWhere('deletedAt IS NULL')
-      .execute();
-    if (result.affected && result.affected > 0) {
-      this.logger.log(`Marked ${result.affected} invoice(s) as overdue`);
+    try {
+      const result = await this.dataSource
+        .createQueryBuilder()
+        .update(SalesInvoice)
+        .set({ status: 'overdue' })
+        .where('status IN (:...statuses)', { statuses: ['sent', 'partial'] })
+        .andWhere('dueDate < :today', { today: new Date() })
+        .andWhere('amountDue > 0')
+        .andWhere('deletedAt IS NULL')
+        .execute();
+      if (result.affected && result.affected > 0) {
+        this.logger.log(`Marked ${result.affected} invoice(s) as overdue`);
+      }
+    } catch (error) {
+      this.logger.error('Cron markOverdueInvoices failed', (error as Error).stack);
+    }
+  }
+
+  // ─── Cron : rappels email J+7 / J+14 / J+21 (quotidien 08:00) ─────────────
+
+  @Cron('0 8 * * *')
+  async sendOverdueReminders(): Promise<void> {
+    if (!process.env.EMAIL_SMTP_HOST) {
+      return; // email non configuré — skip silencieusement
+    }
+    try {
+      const rows: Array<{
+        id: string; invoiceNumber: string; amountDue: string; totalAmount: string;
+        dueDate: string; customerName: string; customerEmail: string;
+        companyName: string; daysOverdue: number;
+      }> = await this.dataSource.query(`
+        SELECT si.id, si."invoiceNumber", si."amountDue"::text, si."totalAmount"::text,
+               si."dueDate"::text, c.name AS "customerName", c.email AS "customerEmail",
+               COALESCE(s.name, 'Mon Entreprise') AS "companyName",
+               (CURRENT_DATE - si."dueDate")::int AS "daysOverdue"
+        FROM sales_invoices si
+        JOIN customers c ON c.id = si."customerId"
+        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
+        WHERE si.status IN ('sent', 'partial', 'overdue')
+          AND si."amountDue" > 0
+          AND si."deletedAt" IS NULL
+          AND c.email IS NOT NULL
+          AND (CURRENT_DATE - si."dueDate")::int IN (7, 14, 21)
+      `);
+
+      for (const inv of rows) {
+        const fmt = (v: string) => new Intl.NumberFormat('fr-DZ', { minimumFractionDigits: 2 }).format(Number(v)) + ' DA';
+        const fmtDate = (v: string) => new Intl.DateTimeFormat('fr-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(v));
+        try {
+          await this.emailService.send({
+            to: inv.customerEmail,
+            subject: `Rappel — Facture ${inv.invoiceNumber} impayée (J+${inv.daysOverdue})`,
+            html: this.emailService.buildReminderEmail({
+              companyName: inv.companyName,
+              invoiceNumber: inv.invoiceNumber,
+              customerName: inv.customerName,
+              totalAmount: fmt(inv.totalAmount),
+              amountDue: fmt(inv.amountDue),
+              dueDate: fmtDate(inv.dueDate),
+              daysOverdue: inv.daysOverdue,
+            }),
+          });
+          this.logger.log(`Rappel J+${inv.daysOverdue} envoyé — ${inv.invoiceNumber} → ${inv.customerEmail}`);
+        } catch (emailErr) {
+          this.logger.error(`Rappel échoué pour ${inv.invoiceNumber}`, (emailErr as Error).message);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Cron sendOverdueReminders failed', (error as Error).stack);
     }
   }
 }

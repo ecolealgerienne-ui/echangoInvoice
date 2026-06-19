@@ -60,7 +60,7 @@ export function ExpensesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => expensesApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['expenses'] }),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.delete') + ' !', 'success'); },
     onError: () => toast(t('errors.generic'), 'error'),
   });
 

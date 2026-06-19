@@ -48,7 +48,7 @@ export function SuppliersPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => suppliersApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['suppliers'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['suppliers'] }); toast(t('common.delete') + ' !', 'success'); },
     onError: () => toast(t('errors.generic'), 'error'),
   });
 

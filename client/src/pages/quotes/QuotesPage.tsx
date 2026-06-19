@@ -1,0 +1,289 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { quotesApi, customersApi, productsApi } from '@/lib/api';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Pagination } from '@/components/shared/Pagination';
+import { useToast } from '@/components/ui/Toast';
+import { Plus, Trash2, Search, FileDown, RefreshCw } from 'lucide-react';
+
+const STATUS_VARIANT: Record<string, any> = {
+  draft: 'muted', sent: 'info', accepted: 'success',
+  rejected: 'destructive', expired: 'secondary', converted: 'warning',
+};
+
+const itemSchema = z.object({
+  finishedProductId: z.string().uuid(),
+  quantity: z.coerce.number().positive(),
+  unit: z.string().min(1),
+  unitPrice: z.coerce.number().min(0),
+  taxRate1: z.coerce.number().min(0).max(100).optional(),
+});
+
+const schema = z.object({
+  customerId: z.string().uuid(),
+  quoteDate: z.string().min(1),
+  expiryDate: z.string().optional(),
+  notes: z.string().optional(),
+  items: z.array(itemSchema).min(1),
+});
+
+type FormData = z.infer<typeof schema>;
+
+const today = new Date().toISOString().split('T')[0];
+const in30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0];
+
+export function QuotesPage() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['quotes', page, search, status],
+    queryFn: () => quotesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ['customers', 1, ''],
+    queryFn: () => customersApi.list({ page: 1, limit: 20, search: undefined }),
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ['products', 1, '', 'all'],
+    queryFn: () => productsApi.list({ page: 1, limit: 200 }),
+  });
+
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      quoteDate: today,
+      expiryDate: in30,
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: 19 }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  const createMutation = useMutation({
+    mutationFn: (d: FormData) => quotesApi.create(d),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotes'] });
+      toast(t('quotes.created'), 'success');
+      closeModal();
+    },
+    onError: () => toast(t('errors.generic'), 'error'),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.convert(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotes'] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast(t('quotes.converted'), 'success');
+    },
+    onError: () => toast(t('errors.generic'), 'error'),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotes'] });
+      toast(t('quotes.deleted'), 'success');
+    },
+    onError: () => toast(t('errors.generic'), 'error'),
+  });
+
+  function closeModal() { reset(); setModalOpen(false); }
+
+  function downloadPdf(id: string, number: string) {
+    quotesApi.pdf(id).then((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${number}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    }).catch(() => toast(t('errors.generic'), 'error'));
+  }
+
+  const quotes = data?.data ?? [];
+  const pagination = data?.pagination;
+  const customerList = customers?.data ?? [];
+  const productList = products?.data ?? [];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">{t('quotes.title')}</h1>
+        <Button onClick={() => setModalOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />{t('quotes.new')}
+        </Button>
+      </div>
+
+      <div className="flex gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t('common.search')} value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        </div>
+        <Select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
+          <option value="">{t('common.allStatuses')}</option>
+          <option value="draft">{t('status.draft')}</option>
+          <option value="sent">{t('status.sent')}</option>
+          <option value="accepted">{t('status.accepted')}</option>
+          <option value="rejected">{t('status.rejected')}</option>
+          <option value="expired">{t('status.expired')}</option>
+          <option value="converted">{t('status.converted')}</option>
+        </Select>
+      </div>
+
+      {isLoading ? <LoadingSpinner /> : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteNumber')}</th>
+                <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>
+                <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteDate')}</th>
+                <th className="text-left px-4 py-3 font-medium">{t('quotes.expiryDate')}</th>
+                <th className="text-right px-4 py-3 font-medium">Total TTC</th>
+                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {quotes.map((q: any) => (
+                <tr key={q.id} className="border-t border-border hover:bg-muted/30">
+                  <td className="px-4 py-3 font-mono text-xs">{q.quoteNumber}</td>
+                  <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>
+                  <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>
+                  <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>
+                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => downloadPdf(q.id, q.quoteNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      {q.status === 'accepted' && (
+                        <Button size="sm" variant="ghost" onClick={() => convertMutation.mutate(q.id)}>
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {(q.status === 'draft' || q.status === 'rejected') && (
+                        <Button size="sm" variant="ghost" onClick={() => removeMutation.mutate(q.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {quotes.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {pagination && (
+        <Pagination page={page} total={pagination.total} limit={pagination.limit} onChange={setPage} />
+      )}
+
+      <Modal open={modalOpen} onClose={closeModal} title={t('quotes.new')}>
+        <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="text-sm font-medium">{t('customers.title')}</label>
+              <Select {...register('customerId')} className="mt-1 w-full">
+                <option value="">{t('common.select')}</option>
+                {customerList.map((c: any) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+              {errors.customerId && <p className="text-xs text-destructive mt-1">{t('errors.required')}</p>}
+            </div>
+            <div>
+              <label className="text-sm font-medium">{t('quotes.quoteDate')}</label>
+              <Input type="date" {...register('quoteDate')} className="mt-1" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">{t('quotes.expiryDate')}</label>
+              <Input type="date" {...register('expiryDate')} className="mt-1" />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium">{t('common.items')}</label>
+              <Button type="button" size="sm" variant="outline"
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: 19 })}>
+                <Plus className="h-3 w-3 mr-1" />{t('common.add')}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {fields.map((f, i) => (
+                <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-4">
+                    <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs">
+                      <option value="">{t('products.title')}</option>
+                      {productList.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
+                  </div>
+                  <div className="col-span-2">
+                    <Input placeholder={t('common.unit')} {...register(`items.${i}.unit`)} className="text-xs" />
+                  </div>
+                  <div className="col-span-2">
+                    <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
+                  </div>
+                  <div className="col-span-1">
+                    <Input type="number" step="1" min="0" placeholder="TVA%" {...register(`items.${i}.taxRate1`)} className="text-xs" />
+                  </div>
+                  <div className="col-span-1 flex justify-center">
+                    {fields.length > 1 && (
+                      <Button type="button" size="sm" variant="ghost" onClick={() => remove(i)}>
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">{t('quotes.notes')}</label>
+            <textarea {...register('notes')} rows={2}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={closeModal}>{t('common.cancel')}</Button>
+            <Button type="submit" disabled={createMutation.isPending}>
+              {createMutation.isPending ? <LoadingSpinner size="sm" /> : t('common.save')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}

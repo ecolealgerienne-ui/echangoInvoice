@@ -76,6 +76,10 @@ export const customersApi = {
   create: (body: unknown) => api.post('/customers', body).then(r => r.data),
   update: (id: string, body: unknown) => api.put(`/customers/${id}`, body).then(r => r.data),
   remove: (id: string) => api.delete(`/customers/${id}`).then(r => r.data),
+  listContacts: (customerId: string) => api.get(`/customers/${customerId}/contacts`).then(r => r.data),
+  createContact: (customerId: string, body: unknown) => api.post(`/customers/${customerId}/contacts`, body).then(r => r.data),
+  updateContact: (customerId: string, contactId: string, body: unknown) => api.put(`/customers/${customerId}/contacts/${contactId}`, body).then(r => r.data),
+  removeContact: (customerId: string, contactId: string) => api.delete(`/customers/${customerId}/contacts/${contactId}`).then(r => r.data),
 };
 
 export const suppliersApi = {
@@ -87,11 +91,11 @@ export const suppliersApi = {
 };
 
 export const rawMaterialsApi = {
-  list: (params?: Record<string, unknown>) => api.get('/raw-materials', { params }).then(r => r.data),
-  get: (id: string) => api.get(`/raw-materials/${id}`).then(r => r.data),
-  create: (body: unknown) => api.post('/raw-materials', body).then(r => r.data),
-  update: (id: string, body: unknown) => api.put(`/raw-materials/${id}`, body).then(r => r.data),
-  remove: (id: string) => api.delete(`/raw-materials/${id}`).then(r => r.data),
+  list: (params?: Record<string, unknown>) => api.get('/products', { params: { ...params, type: 'material' } }).then(r => r.data),
+  get: (id: string) => api.get(`/products/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/products', { ...body as object, type: 'material' }).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then(r => r.data),
+  remove: (id: string) => api.delete(`/products/${id}`).then(r => r.data),
 };
 
 export const stockApi = {
@@ -111,6 +115,22 @@ export const invoicesApi = {
   remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then(r => r.data),
   payments: (invoiceId: string) => api.get(`/invoices/payments`, { params: { invoiceId } }).then(r => r.data),
   addPayment: (body: unknown) => api.post('/invoices/payments', body).then(r => r.data),
+  pdf: (id: string) => api.get(`/invoices/sales-invoices/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+};
+
+export const productsApi = {
+  list: (params?: Record<string, unknown>) => api.get('/products', { params }).then(r => r.data),
+  create: (body: unknown) => api.post('/products', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then(r => r.data),
+  remove: (id: string) => api.delete(`/products/${id}`).then(r => r.data),
+};
+
+export const deliveriesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/deliveries/delivery-notes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/deliveries/delivery-notes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/deliveries/delivery-notes', body).then(r => r.data),
+  cancel: (id: string) => api.patch(`/deliveries/delivery-notes/${id}/cancel`).then(r => r.data),
+  remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then(r => r.data),
 };
 
 export const expensesApi = {
@@ -134,9 +154,41 @@ export const reportsApi = {
   purchases: (params: Record<string, unknown>) => api.get('/reports/purchases', { params }).then(r => r.data),
   expenses: (params: Record<string, unknown>) => api.get('/reports/expenses', { params }).then(r => r.data),
   stock: () => api.get('/reports/stock').then(r => r.data),
+  taxSummary: (params: Record<string, unknown>) => api.get('/reports/tax-summary', { params }).then(r => r.data),
 };
 
 export const settingsApi = {
   get: () => api.get('/settings').then(r => r.data),
   update: (body: unknown) => api.put('/settings', body).then(r => r.data),
+};
+
+export const quotesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/quotes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/quotes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/quotes', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/quotes/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/quotes/${id}/status`, body).then(r => r.data),
+  convert: (id: string) => api.post(`/quotes/${id}/convert`).then(r => r.data),
+  remove: (id: string) => api.delete(`/quotes/${id}`).then(r => r.data),
+  pdf: (id: string) => api.get(`/quotes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+};
+
+export const purchasesApi = {
+  listOrders: (params?: Record<string, unknown>) => api.get('/purchases/orders', { params }).then(r => r.data),
+  getOrder: (id: string) => api.get(`/purchases/orders/${id}`).then(r => r.data),
+  createOrder: (body: unknown) => api.post('/purchases/orders', body).then(r => r.data),
+  updateOrderStatus: (id: string, body: unknown) => api.patch(`/purchases/orders/${id}/status`, body).then(r => r.data),
+  removeOrder: (id: string) => api.delete(`/purchases/orders/${id}`).then(r => r.data),
+  listReceptions: (params?: Record<string, unknown>) => api.get('/purchases/reception-bls', { params }).then(r => r.data),
+  getReception: (id: string) => api.get(`/purchases/reception-bls/${id}`).then(r => r.data),
+  createReception: (body: unknown) => api.post('/purchases/reception-bls', body).then(r => r.data),
+};
+
+export const creditNotesApi = {
+  list: (params?: Record<string, unknown>) => api.get('/invoices/credit-notes', { params }).then(r => r.data),
+  get: (id: string) => api.get(`/invoices/credit-notes/${id}`).then(r => r.data),
+  create: (body: unknown) => api.post('/invoices/credit-notes', body).then(r => r.data),
+  issue: (id: string) => api.patch(`/invoices/credit-notes/${id}/issue`).then(r => r.data),
+  cancel: (id: string) => api.patch(`/invoices/credit-notes/${id}/cancel`).then(r => r.data),
+  remove: (id: string) => api.delete(`/invoices/credit-notes/${id}`).then(r => r.data),
 };

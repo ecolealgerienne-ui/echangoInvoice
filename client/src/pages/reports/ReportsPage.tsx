@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 
-type ReportType = 'sales' | 'purchases' | 'expenses' | 'stock';
+type ReportType = 'sales' | 'purchases' | 'expenses' | 'stock' | 'tax';
 
 export function ReportsPage() {
   const { t } = useTranslation();
@@ -23,18 +23,19 @@ export function ReportsPage() {
     queryKey: ['report', tab, dateFrom, dateTo, page],
     queryFn: () => {
       if (tab === 'stock') return reportsApi.stock();
+      if (tab === 'tax') return reportsApi.taxSummary({ dateFrom, dateTo });
       return reportsApi[tab]({ dateFrom, dateTo, page, limit: 20 });
     },
     enabled: ready || tab === 'stock',
   });
 
-  const tabs: ReportType[] = ['sales', 'purchases', 'expenses', 'stock'];
+  const tabs: ReportType[] = ['sales', 'purchases', 'expenses', 'stock', 'tax'];
 
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold text-foreground">{t('reports.title')}</h1>
 
-      <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+      <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit flex-wrap">
         {tabs.map(tp => (
           <Button key={tp} variant={tab === tp ? 'default' : 'ghost'} size="sm" onClick={() => { setTab(tp); setReady(false); setPage(1); }}>
             {t(`reports.${tp}`)}
@@ -132,6 +133,69 @@ export function ReportsPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Résumé TVA */}
+      {tab === 'tax' && data?.data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {[
+              { label: 'Total HT', value: formatCurrency(data.data.totals.totalHT) },
+              { label: 'Total TVA', value: formatCurrency(data.data.totals.totalTax) },
+              { label: 'Total TTC', value: formatCurrency(data.data.totals.totalTTC) },
+              { label: 'Factures', value: String(data.data.totals.invoiceCount) },
+            ].map(s => (
+              <Card key={s.label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold text-foreground">{s.value}</p></CardContent></Card>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50"><tr>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.taxName')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxRate')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxCollected')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.invoiceCount')}</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {data.data.byRate?.length === 0 && (
+                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                )}
+                {data.data.byRate?.map((r: any) => (
+                  <tr key={r.taxRate} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 font-medium text-foreground">{r.taxName}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">{r.taxRate}%</td>
+                    <td className="px-4 py-3 text-right text-foreground">{formatCurrency(r.htBase)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.taxCollected)}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">{r.invoiceCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {data.data.byMonth?.length > 0 && (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50"><tr>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.month')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxCollected')}</th>
+                </tr></thead>
+                <tbody className="divide-y divide-border">
+                  {data.data.byMonth.map((r: any) => (
+                    <tr key={r.month} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium text-foreground">{r.month}</td>
+                      <td className="px-4 py-3 text-right text-foreground">{formatCurrency(r.htBase)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(r.taxCollected)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

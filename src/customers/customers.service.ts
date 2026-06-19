@@ -4,9 +4,11 @@ import {
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, IsNull, ILike, FindOptionsWhere, DataSource } from 'typeorm';
 import { Customer } from './customer.entity';
+import { CustomerContact } from './entities/customer-contact.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
+import { CreateCustomerContactDto } from './dto/create-customer-contact.dto';
 
 @Injectable()
 export class CustomersService {
@@ -67,7 +69,7 @@ export class CustomersService {
     // History: last 5 delivery notes, last 5 invoices, total revenue
     const [deliveryNotes, invoices, revenueResult] = await Promise.all([
       this.dataSource.query(
-        `SELECT id, "blNumber", "deliveryDate", "totalAmount", status
+        `SELECT id, "blNumber", "deliveryDate", total AS "totalAmount", status
          FROM delivery_notes
          WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
          ORDER BY "deliveryDate" DESC LIMIT 5`,
@@ -128,5 +130,64 @@ export class CustomersService {
     }
 
     await this.repo.softDelete(id);
+  }
+
+  // ─── Contacts ─────────────────────────────────────────────────────────────
+
+  async listContacts(customerId: string, tenantId: string) {
+    await this.findOne(customerId, tenantId); // vérifie que le client existe (R020)
+    const contacts = await this.dataSource.manager.find(CustomerContact, {
+      where: { customerId, tenantId, deletedAt: IsNull() },
+      order: { isPrimary: 'DESC', createdAt: 'ASC' },
+    });
+    return { data: contacts };
+  }
+
+  async createContact(customerId: string, dto: CreateCustomerContactDto, tenantId: string, userId: string) {
+    await this.findOne(customerId, tenantId);
+
+    if (dto.isPrimary) {
+      await this.dataSource.query(
+        `UPDATE customer_contacts SET "isPrimary" = false WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        [customerId, tenantId],
+      );
+    }
+
+    const contact = this.dataSource.manager.create(CustomerContact, {
+      ...dto,
+      customerId,
+      tenantId,
+      isPrimary: dto.isPrimary ?? false,
+      createdBy: userId,
+      updatedBy: userId,
+    });
+    await this.dataSource.manager.save(CustomerContact, contact);
+    return { data: contact };
+  }
+
+  async updateContact(contactId: string, customerId: string, dto: CreateCustomerContactDto, tenantId: string, userId: string) {
+    const contact = await this.dataSource.manager.findOne(CustomerContact, {
+      where: { id: contactId, customerId, tenantId, deletedAt: IsNull() },
+    });
+    if (!contact) throw new NotFoundException('errors.contact_not_found');
+
+    if (dto.isPrimary && !contact.isPrimary) {
+      await this.dataSource.query(
+        `UPDATE customer_contacts SET "isPrimary" = false WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        [customerId, tenantId],
+      );
+    }
+
+    Object.assign(contact, { ...dto, updatedBy: userId });
+    await this.dataSource.manager.save(CustomerContact, contact);
+    return { data: contact };
+  }
+
+  async removeContact(contactId: string, customerId: string, tenantId: string) {
+    const contact = await this.dataSource.manager.findOne(CustomerContact, {
+      where: { id: contactId, customerId, tenantId, deletedAt: IsNull() },
+    });
+    if (!contact) throw new NotFoundException('errors.contact_not_found');
+    await this.dataSource.manager.softDelete(CustomerContact, contactId);
   }
 }

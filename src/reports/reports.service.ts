@@ -127,48 +127,55 @@ export class ReportsService {
     const { dateFrom, dateTo, page = 1, limit = 20 } = dto;
     const offset = (page - 1) * limit;
 
+    // reception_bls has no totalAmount/supplierId — join through purchase_orders
     const [summaryRows, bySupplierRows, byMaterialRows, detailRows, countRow] = await Promise.all([
       this.ds.query(`
-        SELECT COALESCE(SUM("totalAmount"),0) AS cost, COUNT(*) AS count
-        FROM reception_bls
-        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        SELECT COALESCE(SUM(po.total),0) AS cost, COUNT(DISTINCT bl.id) AS count
+        FROM reception_bls bl
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
-        SELECT bl."supplierId", s.name,
-               COUNT(*) AS order_count,
-               COALESCE(SUM(bl."totalAmount"),0) AS total
+        SELECT po."supplierId", s.name,
+               COUNT(DISTINCT bl.id) AS order_count,
+               COALESCE(SUM(po.total),0) AS total
         FROM reception_bls bl
-        JOIN suppliers s ON s.id = bl."supplierId"
-        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3 AND bl."deletedAt" IS NULL
-        GROUP BY bl."supplierId", s.name ORDER BY total DESC`,
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        JOIN suppliers s ON s.id = po."supplierId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL
+        GROUP BY po."supplierId", s.name ORDER BY total DESC`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
         SELECT se."rawMaterialId", rm.name, rm.unit,
                SUM(se.quantity) AS total_qty,
-               SUM(se."totalCost") AS total_cost
+               COALESCE(SUM(se.quantity * se."costPerUnit"),0) AS total_cost
         FROM stock_entries se
         JOIN raw_materials rm ON rm.id = se."rawMaterialId"
         JOIN reception_bls bl ON bl.id = se."receptionBlId"
         WHERE se."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
-          AND se."deletedAt" IS NULL
         GROUP BY se."rawMaterialId", rm.name, rm.unit ORDER BY total_cost DESC`,
         [tenantId, dateFrom, dateTo]),
 
       this.ds.query(`
         SELECT bl.id, bl."blNumber", s.name AS supplier_name,
-               bl."receptionDate", bl."totalAmount", bl.status
+               bl."receptionDate", po.total AS "totalAmount", bl.status
         FROM reception_bls bl
-        JOIN suppliers s ON s.id = bl."supplierId"
-        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3 AND bl."deletedAt" IS NULL
+        JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
+        JOIN suppliers s ON s.id = po."supplierId"
+        WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
+          AND bl."deletedAt" IS NULL
         ORDER BY bl."receptionDate" DESC
         LIMIT $4 OFFSET $5`,
         [tenantId, dateFrom, dateTo, limit, offset]),
 
       this.ds.query(`
         SELECT COUNT(*) AS total FROM reception_bls
-        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        WHERE "tenantId"=$1 AND "receptionDate" BETWEEN $2 AND $3
+          AND "deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
     ]);
 
@@ -293,7 +300,7 @@ export class ReportsService {
           COUNT(*) FILTER (WHERE status='reserved')  AS reserved_entries,
           COUNT(*) FILTER (WHERE status='sold')      AS sold_entries,
           COUNT(*) FILTER (WHERE status='adjusted')  AS adjusted_entries
-        FROM stock_entries WHERE "tenantId"=$1 AND "deletedAt" IS NULL`,
+        FROM stock_entries WHERE "tenantId"=$1`,
         [tenantId]),
 
       this.ds.query(`
@@ -305,10 +312,10 @@ export class ReportsService {
                inv."earliestExpirationDate",
                (SELECT MIN(se2."enteredAt") FROM stock_entries se2
                 WHERE se2."rawMaterialId"=inv."rawMaterialId" AND se2."tenantId"=inv."tenantId"
-                  AND se2.status='available' AND se2."deletedAt" IS NULL) AS oldest_entry,
+                  AND se2.status='available') AS oldest_entry,
                (SELECT COALESCE(SUM(se3.quantity),0) FROM stock_entries se3
                 WHERE se3."rawMaterialId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
-                  AND se3.status='reserved' AND se3."deletedAt" IS NULL) AS reserved_qty
+                  AND se3.status='reserved') AS reserved_qty
         FROM inventory_summary inv
         JOIN raw_materials rm ON rm.id = inv."rawMaterialId"
         WHERE inv."tenantId"=$1 ORDER BY rm.name ASC`,
@@ -317,8 +324,7 @@ export class ReportsService {
       this.ds.query(`
         SELECT COUNT(*) AS count FROM stock_entries
         WHERE "tenantId"=$1 AND status='available'
-          AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW() + INTERVAL '5 days'
-          AND "deletedAt" IS NULL`,
+          AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW() + INTERVAL '5 days'`,
         [tenantId]),
 
       this.ds.query(`
@@ -361,6 +367,91 @@ export class ReportsService {
             nearestExpiryDate: r.earliestExpirationDate,
           };
         }),
+      },
+    };
+  }
+
+  // ─── Résumé TVA (déclaration DGI) ─────────────────────────────────────────
+
+  async getTaxSummary(tenantId: string, dto: ReportQueryDto) {
+    const { dateFrom, dateTo } = dto;
+
+    const [byRateRows, totalRow, byMonthRows] = await Promise.all([
+      this.ds.query(`
+        SELECT tax_name, tax_rate,
+               COALESCE(SUM(tax_collected),0) AS tax_collected,
+               COALESCE(SUM(ht_base),0)       AS ht_base,
+               COALESCE(SUM(invoice_count),0) AS invoice_count
+        FROM (
+          SELECT sii."taxName1" AS tax_name, sii."taxRate1" AS tax_rate,
+                 SUM(sii."taxAmount1") AS tax_collected,
+                 SUM(sii."quantity"*sii."unitPrice") AS ht_base,
+                 COUNT(DISTINCT si.id) AS invoice_count
+          FROM sales_invoice_items sii
+          JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+          WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+            AND si.status != 'cancelled' AND si."deletedAt" IS NULL
+            AND sii."taxRate1" IS NOT NULL
+          GROUP BY sii."taxName1", sii."taxRate1"
+          UNION ALL
+          SELECT sii."taxName2", sii."taxRate2",
+                 SUM(sii."taxAmount2"),
+                 SUM(sii."quantity"*sii."unitPrice"),
+                 COUNT(DISTINCT si.id)
+          FROM sales_invoice_items sii
+          JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+          WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+            AND si.status != 'cancelled' AND si."deletedAt" IS NULL
+            AND sii."taxRate2" IS NOT NULL
+          GROUP BY sii."taxName2", sii."taxRate2"
+        ) t
+        GROUP BY tax_name, tax_rate
+        ORDER BY tax_rate DESC`,
+        [tenantId, dateFrom, dateTo]),
+
+      this.ds.query(`
+        SELECT COALESCE(SUM("subtotal"),0) AS total_ht,
+               COALESCE(SUM("taxAmount"),0) AS total_tax,
+               COALESCE(SUM("totalAmount"),0) AS total_ttc,
+               COUNT(*) AS invoice_count
+        FROM sales_invoices
+        WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+          AND status != 'cancelled' AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+
+      this.ds.query(`
+        SELECT TO_CHAR("invoiceDate",'YYYY-MM') AS month,
+               COALESCE(SUM("taxAmount"),0) AS tax_collected,
+               COALESCE(SUM("subtotal"),0)  AS ht_base
+        FROM sales_invoices
+        WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+          AND status != 'cancelled' AND "deletedAt" IS NULL
+        GROUP BY month ORDER BY month ASC`,
+        [tenantId, dateFrom, dateTo]),
+    ]);
+
+    const tot = totalRow[0];
+    return {
+      data: {
+        period: { from: dateFrom, to: dateTo },
+        totals: {
+          totalHT: Math.round(parseFloat(tot.total_ht) * 100) / 100,
+          totalTax: Math.round(parseFloat(tot.total_tax) * 100) / 100,
+          totalTTC: Math.round(parseFloat(tot.total_ttc) * 100) / 100,
+          invoiceCount: parseInt(tot.invoice_count),
+        },
+        byRate: byRateRows.map((r: any) => ({
+          taxName: r.tax_name || `TVA ${r.tax_rate}%`,
+          taxRate: parseFloat(r.tax_rate),
+          htBase: Math.round(parseFloat(r.ht_base) * 100) / 100,
+          taxCollected: Math.round(parseFloat(r.tax_collected) * 100) / 100,
+          invoiceCount: parseInt(r.invoice_count),
+        })),
+        byMonth: byMonthRows.map((r: any) => ({
+          month: r.month,
+          htBase: Math.round(parseFloat(r.ht_base) * 100) / 100,
+          taxCollected: Math.round(parseFloat(r.tax_collected) * 100) / 100,
+        })),
       },
     };
   }

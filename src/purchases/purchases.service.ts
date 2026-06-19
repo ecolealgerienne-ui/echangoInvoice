@@ -8,7 +8,7 @@ import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { ReceptionBL } from './entities/reception-bl.entity';
 import { StockEntry } from '../stock/stock-entry.entity';
 import { InventorySummary } from '../stock/inventory-summary.entity';
-import { RawMaterial } from '../raw-materials/raw-material.entity';
+import { FinishedProduct } from '../products/finished-product.entity';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
 import { PatchPoStatusDto } from './dto/patch-po-status.dto';
@@ -236,8 +236,7 @@ export class PurchasesService {
           });
         }
 
-        // Update lastCostPerUnit on RawMaterial
-        await qr.manager.update(RawMaterial, { id: item.rawMaterialId, tenantId }, {
+        await qr.manager.update(FinishedProduct, { id: item.rawMaterialId, tenantId }, {
           lastCostPerUnit: item.costPerUnit,
         });
       }

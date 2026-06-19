@@ -10,6 +10,7 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Subscription } from '../tenants/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { getJwtConfig } from '../config/jwt.config';
+import { EmailService } from '../common/email.service';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { getJwtConfig } from '../config/jwt.config';
     TypeOrmModule.forFeature([RefreshToken, Tenant, Subscription, User]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, EmailService],
   exports: [AuthService],
 })
 export class AuthModule {}

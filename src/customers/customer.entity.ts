@@ -25,6 +25,18 @@ export class Customer {
   @Column({ type: 'varchar', length: 50, nullable: true })
   phone: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  nif: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  rc: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  ai: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  nis: string | null;
+
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
@@ -33,6 +45,12 @@ export class Customer {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   country: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  shippingAddress: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  shippingCity: string | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;

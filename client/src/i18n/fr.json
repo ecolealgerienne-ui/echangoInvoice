@@ -20,18 +20,39 @@
     "filter": "Filtrer",
     "export": "Exporter",
     "approve": "Approuver",
-    "close": "Fermer"
+    "close": "Fermer",
+    "allStatuses": "Tous les statuts",
+    "items": "Articles",
+    "qty": "Qté",
+    "price": "Prix",
+    "notes": "Notes",
+    "select": "Sélectionner...",
+    "customer": "Client",
+    "description": "Description",
+    "add": "Ajouter",
+    "unit": "Unité",
+    "deleted": "Supprimé"
   },
   "nav": {
     "dashboard": "Tableau de bord",
     "customers": "Clients",
     "suppliers": "Fournisseurs",
-    "rawMaterials": "Matières premières",
     "stock": "Stock",
     "invoices": "Factures",
     "expenses": "Dépenses",
     "reports": "Rapports",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "deliveries": "Bons de livraison",
+    "products": "Catalogue",
+    "quotes": "Devis",
+    "purchases": "Achats",
+    "creditNotes": "Avoirs",
+    "group": {
+      "sales": "Ventes",
+      "catalog": "Catalogue",
+      "purchases": "Achats",
+      "finance": "Finance"
+    }
   },
   "auth": {
     "login": "Connexion",
@@ -64,7 +85,18 @@
     "phone": "Téléphone",
     "address": "Adresse",
     "nif": "NIF",
-    "rc": "RC"
+    "rc": "RC",
+    "ai": "AI (Art. Imposition)",
+    "nis": "NIS",
+    "legalInfo": "Identification fiscale",
+    "billingAddress": "Adresse de facturation",
+    "shippingAddress": "Adresse de livraison",
+    "city": "Ville",
+    "country": "Pays",
+    "contacts": "Contacts",
+    "addContact": "Ajouter un contact",
+    "contactRole": "Fonction",
+    "primary": "Contact principal"
   },
   "suppliers": {
     "title": "Fournisseurs",
@@ -110,6 +142,22 @@
       "paid": "Payée",
       "overdue": "En retard",
       "cancelled": "Annulée"
+    },
+    "created": "Facture créée",
+    "send": "Envoyer",
+    "description": "Description",
+    "addPayment": "Enregistrer un paiement",
+    "paymentAdded": "Paiement enregistré",
+    "paymentAmount": "Montant",
+    "paymentDate": "Date du paiement",
+    "paymentMethod": "Mode de paiement",
+    "paymentReference": "Référence",
+    "recordPayment": "Valider le paiement",
+    "methods": {
+      "bank_transfer": "Virement bancaire",
+      "cheque": "Chèque",
+      "cash": "Espèces",
+      "other": "Autre"
     }
   },
   "expenses": {
@@ -136,9 +184,16 @@
     "purchases": "Achats",
     "expenses": "Dépenses",
     "stock": "Stock",
+    "tax": "Résumé TVA",
     "dateFrom": "Du",
     "dateTo": "Au",
-    "generate": "Générer"
+    "generate": "Générer",
+    "taxName": "Taxe",
+    "taxRate": "Taux",
+    "htBase": "Base HT",
+    "taxCollected": "TVA collectée",
+    "invoiceCount": "Factures",
+    "month": "Mois"
   },
   "settings": {
     "title": "Paramètres",
@@ -167,6 +222,94 @@
   },
   "status": {
     "active": "Actif",
-    "inactive": "Inactif"
+    "inactive": "Inactif",
+    "draft": "Brouillon",
+    "sent": "Envoyé",
+    "accepted": "Accepté",
+    "rejected": "Rejeté",
+    "expired": "Expiré",
+    "converted": "Converti",
+    "received": "Reçu",
+    "cancelled": "Annulé",
+    "partial": "Partiel",
+    "pending": "En attente",
+    "completed": "Complété",
+    "paid": "Payé",
+    "overdue": "En retard",
+    "issued": "Émis",
+    "applied": "Appliqué",
+    "reserved": "Réservé",
+    "delivered": "Livré",
+    "signed": "Signé"
+  },
+  "deliveries": {
+    "title": "Bons de Livraison",
+    "new": "Nouveau BL",
+    "blNumber": "N° BL",
+    "created": "Bon de livraison créé",
+    "cancelled": "Bon de livraison annulé",
+    "status": {
+      "draft": "Brouillon",
+      "delivered": "Livré",
+      "cancelled": "Annulé"
+    }
+  },
+  "products": {
+    "title": "Catalogue",
+    "new": "Nouvel article",
+    "name": "Nom",
+    "code": "Référence",
+    "unit": "Unité",
+    "price": "Prix de vente",
+    "costPerUnit": "Coût d'achat",
+    "type": {
+      "label": "Type",
+      "all": "Tous",
+      "product": "Produit",
+      "material": "Matière",
+      "both": "Les deux"
+    }
+  },
+  "quotes": {
+    "title": "Devis",
+    "new": "Nouveau devis",
+    "created": "Devis créé",
+    "updated": "Devis mis à jour",
+    "deleted": "Devis supprimé",
+    "converted": "Converti en facture",
+    "quoteNumber": "N° Devis",
+    "quoteDate": "Date devis",
+    "expiryDate": "Date d'expiration",
+    "status": "Statut",
+    "notes": "Notes",
+    "convert": "Convertir en facture"
+  },
+  "purchases": {
+    "title": "Achats",
+    "ordersTitle": "Commandes fournisseurs",
+    "receptionsTitle": "Réceptions BL",
+    "newOrder": "Nouvelle commande",
+    "newReception": "Nouvelle réception",
+    "orderCreated": "Commande créée",
+    "receptionCreated": "Réception créée",
+    "poNumber": "N° Commande",
+    "orderDate": "Date commande",
+    "expectedDelivery": "Livraison prévue",
+    "blNumber": "N° BL Réception",
+    "receptionDate": "Date réception",
+    "totalReceived": "Qté reçue",
+    "supplier": "Fournisseur"
+  },
+  "creditNotes": {
+    "title": "Avoirs",
+    "new": "Nouvel avoir",
+    "created": "Avoir créé",
+    "issued": "Avoir émis",
+    "cancelled": "Avoir annulé",
+    "deleted": "Avoir supprimé",
+    "creditNoteNumber": "N° Avoir",
+    "reason": "Motif",
+    "issue": "Émettre",
+    "cancel": "Annuler"
   }
 }

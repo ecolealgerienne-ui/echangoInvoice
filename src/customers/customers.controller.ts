@@ -7,6 +7,7 @@ import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
+import { CreateCustomerContactDto } from './dto/create-customer-contact.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -59,5 +60,49 @@ export class CustomersController {
   @ApiResponse({ status: 422 })
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.remove(id, user.tenantId);
+  }
+
+  // ─── Contacts ─────────────────────────────────────────────────────────────
+
+  @Get(':id/contacts')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Lister les contacts d\'un client' })
+  listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.listContacts(id, user.tenantId);
+  }
+
+  @Post(':id/contacts')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Ajouter un contact à un client' })
+  createContact(
+    @Param('id') id: string,
+    @Body() dto: CreateCustomerContactDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.createContact(id, dto, user.tenantId, user.sub);
+  }
+
+  @Put(':id/contacts/:contactId')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Modifier un contact' })
+  updateContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @Body() dto: CreateCustomerContactDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.updateContact(contactId, id, dto, user.tenantId, user.sub);
+  }
+
+  @Delete(':id/contacts/:contactId')
+  @Roles('owner', 'manager')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer un contact' })
+  removeContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.removeContact(contactId, id, user.tenantId);
   }
 }

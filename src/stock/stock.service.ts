@@ -39,7 +39,7 @@ export class StockService {
               inv."totalQuantity", inv."averageCostPerUnit", inv."totalValue",
               inv."earliestExpirationDate", inv."alertThreshold", inv."updatedAt"
        FROM inventory_summary inv
-       JOIN raw_materials rm ON rm.id = inv."rawMaterialId"
+       JOIN finished_products rm ON rm.id = inv."rawMaterialId"
        WHERE ${where}
        ORDER BY rm.name ASC
        LIMIT $${idx++} OFFSET $${idx++}`,
@@ -82,7 +82,7 @@ export class StockService {
                EXTRACT(DAY FROM se."expiresAt" - NOW())::int AS days,
                SUM(se.quantity) AS qty
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status='available'
           AND se."expiresAt" IS NOT NULL
           AND se."expiresAt" <= NOW() + INTERVAL '5 days'
@@ -94,7 +94,7 @@ export class StockService {
         SELECT inv."rawMaterialId", rm.name, rm.unit,
                inv."totalQuantity", inv."alertThreshold"
         FROM inventory_summary inv
-        JOIN raw_materials rm ON rm.id = inv."rawMaterialId"
+        JOIN finished_products rm ON rm.id = inv."rawMaterialId"
         WHERE inv."tenantId"=$1
           AND inv."alertThreshold" IS NOT NULL
           AND inv."totalQuantity" <= inv."alertThreshold"`,

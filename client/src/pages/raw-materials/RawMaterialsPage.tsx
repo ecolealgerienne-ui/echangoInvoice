@@ -44,7 +44,7 @@ export function RawMaterialsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => rawMaterialsApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['raw-materials'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['raw-materials'] }); toast(t('common.delete') + ' !', 'success'); },
     onError: () => toast(t('errors.generic'), 'error'),
   });
 

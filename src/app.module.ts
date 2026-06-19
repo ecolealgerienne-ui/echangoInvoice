@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { UsersModule } from './users/users.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
-import { RawMaterialsModule } from './raw-materials/raw-materials.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
 import { PurchasesModule } from './purchases/purchases.module';
@@ -29,7 +28,6 @@ import { SettingsModule } from './settings/settings.module';
     TenantsModule,
     UsersModule,
     SuppliersModule,
-    RawMaterialsModule,
     CustomersModule,
     ProductsModule,
     PurchasesModule,
