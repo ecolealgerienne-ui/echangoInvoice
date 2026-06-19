@@ -69,7 +69,7 @@ export class CustomersService {
     // History: last 5 delivery notes, last 5 invoices, total revenue
     const [deliveryNotes, invoices, revenueResult] = await Promise.all([
       this.dataSource.query(
-        `SELECT id, "blNumber", "deliveryDate", "totalAmount", status
+        `SELECT id, "blNumber", "deliveryDate", total AS "totalAmount", status
          FROM delivery_notes
          WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
          ORDER BY "deliveryDate" DESC LIMIT 5`,
