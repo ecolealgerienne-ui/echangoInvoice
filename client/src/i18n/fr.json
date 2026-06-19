@@ -83,7 +83,15 @@
     "rc": "RC",
     "ai": "AI (Art. Imposition)",
     "nis": "NIS",
-    "legalInfo": "Identification fiscale"
+    "legalInfo": "Identification fiscale",
+    "billingAddress": "Adresse de facturation",
+    "shippingAddress": "Adresse de livraison",
+    "city": "Ville",
+    "country": "Pays",
+    "contacts": "Contacts",
+    "addContact": "Ajouter un contact",
+    "contactRole": "Fonction",
+    "primary": "Contact principal"
   },
   "suppliers": {
     "title": "Fournisseurs",

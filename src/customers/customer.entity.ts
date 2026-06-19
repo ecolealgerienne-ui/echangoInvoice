@@ -47,6 +47,12 @@ export class Customer {
   country: string | null;
 
   @Column({ type: 'text', nullable: true })
+  shippingAddress: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  shippingCity: string | null;
+
+  @Column({ type: 'text', nullable: true })
   notes: string | null;
 
   @Column({ type: 'boolean', default: true })

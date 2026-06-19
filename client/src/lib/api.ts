@@ -76,6 +76,10 @@ export const customersApi = {
   create: (body: unknown) => api.post('/customers', body).then(r => r.data),
   update: (id: string, body: unknown) => api.put(`/customers/${id}`, body).then(r => r.data),
   remove: (id: string) => api.delete(`/customers/${id}`).then(r => r.data),
+  listContacts: (customerId: string) => api.get(`/customers/${customerId}/contacts`).then(r => r.data),
+  createContact: (customerId: string, body: unknown) => api.post(`/customers/${customerId}/contacts`, body).then(r => r.data),
+  updateContact: (customerId: string, contactId: string, body: unknown) => api.put(`/customers/${customerId}/contacts/${contactId}`, body).then(r => r.data),
+  removeContact: (customerId: string, contactId: string) => api.delete(`/customers/${customerId}/contacts/${contactId}`).then(r => r.data),
 };
 
 export const suppliersApi = {

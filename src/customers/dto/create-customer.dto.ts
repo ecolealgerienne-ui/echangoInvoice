@@ -50,6 +50,14 @@ export class CreateCustomerDto {
 
   @ApiProperty({ required: false })
   @IsOptional() @IsString()
+  shippingAddress?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional() @IsString() @MaxLength(100)
+  shippingCity?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional() @IsString()
   notes?: string;
 
   @ApiProperty({ required: false, default: true })
