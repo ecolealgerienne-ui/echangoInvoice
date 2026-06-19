@@ -27,10 +27,11 @@
 | Endpoint | Statut | Notes |
 |----------|--------|-------|
 | GET /customers | ✅ | Pagination + search |
-| POST /customers | ✅ | |
+| POST /customers | ✅ | Champs NIF / RC / AI / NIS inclus |
 | GET /customers/:id | ✅ | |
 | PUT /customers/:id | ✅ | |
 | DELETE /customers/:id | ✅ | Soft delete |
+| Champs légaux (NIF/RC/AI/NIS) | ✅ | Migration 1709980900000 |
 
 ### Suppliers (spec 03)
 | Endpoint | Statut | Notes |
@@ -89,7 +90,7 @@
 | PATCH /deliveries/delivery-notes/:id/status | ✅ | Transitions draft→sent→signed→delivered |
 | PATCH /deliveries/delivery-notes/:id/signature | ✅ | |
 | DELETE /deliveries/delivery-notes/:id | ✅ | Draft uniquement, libère stock |
-| GET /deliveries/delivery-notes/:id/pdf | ❌ | PDF non implémenté |
+| GET /deliveries/delivery-notes/:id/pdf | ✅ | Puppeteer A4, NIF/RC, zones signature, archivage ARCHIVES/ |
 | POST /deliveries/delivery-notes/:id/send-email | ❌ | Email non implémenté |
 
 ### Invoices (spec 09)
@@ -101,11 +102,21 @@
 | PUT /invoices/sales-invoices/:id | ✅ | Draft uniquement |
 | PATCH /invoices/sales-invoices/:id/status | ✅ | |
 | DELETE /invoices/sales-invoices/:id | ✅ | Draft uniquement |
+| GET /invoices/sales-invoices/:id/pdf | ✅ | Puppeteer A4, NIF/RC client+société, totaux HT/TVA/TTC, archivage |
+| POST /invoices/sales-invoices/:id/send-email | ❌ | Email non implémenté |
 | GET /invoices/payments | ✅ | |
 | POST /invoices/payments | ✅ | Met à jour amountPaid/Due, status paid si soldé |
-| GET /invoices/sales-invoices/:id/pdf | ❌ | PDF non implémenté |
-| POST /invoices/sales-invoices/:id/send-email | ❌ | Email non implémenté |
 | Cron overdue | ✅ | 00:01 quotidien |
+
+### Credit Notes / Avoirs (nouveau)
+| Endpoint | Statut | Notes |
+|----------|--------|-------|
+| GET /invoices/credit-notes | ✅ | Pagination |
+| POST /invoices/credit-notes | ✅ | Numérotation AV-YY-###, lock DB, TVA calculée |
+| GET /invoices/credit-notes/:id | ✅ | |
+| PATCH /invoices/credit-notes/:id/issue | ✅ | draft → issued |
+| PATCH /invoices/credit-notes/:id/cancel | ✅ | |
+| DELETE /invoices/credit-notes/:id | ✅ | Draft uniquement |
 
 ### Quotes / Devis (spec 10)
 | Endpoint | Statut | Notes |
@@ -117,7 +128,7 @@
 | PATCH /quotes/:id/status | ✅ | |
 | DELETE /quotes/:id | ✅ | |
 | POST /quotes/:id/convert-to-invoice | ✅ | |
-| GET /quotes/:id/pdf | ❌ | PDF non implémenté |
+| GET /quotes/:id/pdf | ❌ | PDF non implémenté (service PDF disponible, template à créer) |
 | POST /quotes/:id/send-email | ❌ | Email non implémenté |
 | Cron expired | ✅ | 00:05 quotidien |
 
@@ -146,6 +157,7 @@
 | GET /reports/purchases | ✅ | |
 | GET /reports/expenses | ✅ | |
 | GET /reports/stock | ✅ | |
+| GET /reports/tax-summary | ✅ | TVA collectée par taux + par mois (déclaration DGI) |
 
 ### Settings (spec 14)
 | Endpoint | Statut | Notes |
@@ -161,16 +173,17 @@
 |------|--------|-------|
 | Login | ✅ | |
 | Dashboard | ✅ | Stats + graphiques |
-| Customers | ✅ | CRUD complet |
+| Customers | ✅ | CRUD complet + champs NIF/RC/AI/NIS |
 | Suppliers | ✅ | CRUD complet |
 | Raw Materials | ✅ | CRUD complet |
 | Products | ✅ | CRUD complet |
 | Stock | ✅ | Inventaire + alertes + ajustements |
-| Delivery Notes | ✅ | Création + liste + annulation |
-| Invoices | ✅ | Création + liste + envoi + annulation |
+| Delivery Notes | ✅ | Création + liste + annulation + bouton PDF |
+| Invoices | ✅ | Création + liste + envoi + annulation + bouton PDF |
 | Expenses | ✅ | CRUD complet |
-| Reports | ✅ | 4 onglets |
+| Reports | ✅ | 5 onglets : Ventes / Achats / Dépenses / Stock / Résumé TVA |
 | Settings | ✅ | |
+| Credit Notes (Avoirs) | ❌ | Backend prêt, page frontend manquante |
 | Purchase Orders | ❌ | Manquant — nécessaire pour remplir le stock |
 | Reception BLs | ❌ | Manquant — nécessaire pour remplir le stock |
 | Quotes | ❌ | Manquant |
@@ -189,21 +202,34 @@
 | Helmet + CORS | ✅ | |
 | Rate limiting /auth | ✅ | @nestjs/throttler |
 | Soft delete filtré | ✅ | deletedAt IS NULL sur toutes les queries |
-| Transactions multi-tables | ✅ | QueryRunner sur opérations FIFO, payment |
+| Transactions multi-tables | ✅ | QueryRunner sur opérations FIFO, payment, credit-notes |
 | FIFO stock | ✅ | decrementFIFO + releaseFIFO |
-| Auto-numérotation avec lock DB | ✅ | pg_advisory_xact_lock par tenant |
+| Auto-numérotation avec lock DB | ✅ | pg_advisory_xact_lock — FAC, BL, AV, PO |
 | Freemium quota check | ✅ | Sur POST /invoices |
-| PDF génération | ❌ | |
+| PDF génération | ✅ | Puppeteer — Factures + BL, archivage ARCHIVES/YYYY/MM/TYPE/ |
+| PDF Devis | ❌ | Service disponible, template à créer |
 | Email envoi | ❌ | |
-| Migrations pending | ⚠️ | stock_entries.deletedAt non appliqué |
+| Migrations pending | ⚠️ | Exécuter `npm run migration:run` (stock_entries.deletedAt + NIF/RC + credit_notes) |
 
 ---
 
-## Gaps critiques à implémenter
+## Gaps restants (prochaines priorités)
 
-1. **Pages frontend Achats** (Purchase Orders + Reception BL) — le stock est vide sans ces pages
-2. **Page frontend Devis** (Quotes)
-3. **PDF génération** (pdf-lib ou Puppeteer, archivage ARCHIVES/YYYY/MM/TYPE/)
-4. **Email envoi** (SMTP configuré, templates manquants)
-5. **Invitation utilisateurs** (POST /auth/invite + accept-invite)
-6. **Migration pending** — exécuter `npm run migration:run` pour ajouter `stock_entries.deletedAt`
+### 🟠 Fort
+| # | Gap | Notes |
+|---|-----|-------|
+| 1 | **Page frontend Avoirs** | Backend 100% prêt, juste la page React à créer |
+| 2 | **Type de paiement** (virement/chèque/espèces) | Champ `paymentType` + `reference` sur Payment |
+| 3 | **Envoi email** | SMTP configuré, templates + service à créer |
+| 4 | **Rappels email automatiques** | Cron J+7/J+14/J+21 sur factures impayées |
+
+### 🟡 Moyen
+| # | Gap | Notes |
+|---|-----|-------|
+| 5 | **Pages frontend Achats** | Purchase Orders + Reception BL — pour alimenter le stock |
+| 6 | **Page frontend Devis** | Quotes — backend prêt |
+| 7 | **PDF Devis** | `InvoicePdfService.generateQuotePdf()` à ajouter |
+| 8 | **Invitation collaborateurs** | POST /auth/invite + POST /auth/accept-invite |
+| 9 | **Contacts multiples par client** | Ajouter table `customer_contacts` |
+| 10 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
+| 11 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
