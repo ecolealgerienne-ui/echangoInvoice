@@ -18,7 +18,10 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { InviteDto, AcceptInviteDto } from './dto/invite.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -83,5 +86,22 @@ export class AuthController {
     @CurrentUser() _user: JwtPayload,
   ): Promise<void> {
     await this.authService.logout(dto.refreshToken);
+  }
+
+  @Post('invite')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('owner', 'manager')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Inviter un collaborateur (envoie un email avec lien)' })
+  @ApiResponse({ status: 201 })
+  async invite(@Body() dto: InviteDto, @CurrentUser() user: JwtPayload) {
+    return this.authService.invite(dto, user.tenantId, user.sub);
+  }
+
+  @Post('accept-invite')
+  @ApiOperation({ summary: 'Accepter une invitation et créer son compte' })
+  @ApiResponse({ status: 201 })
+  async acceptInvite(@Body() dto: AcceptInviteDto) {
+    return this.authService.acceptInvite(dto);
   }
 }

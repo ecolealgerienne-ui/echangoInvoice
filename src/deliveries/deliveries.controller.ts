@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe,
+  Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe,
   Patch, Post, Put, Query, Res, UseGuards,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
@@ -99,5 +99,13 @@ export class DeliveriesController {
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="${filename}"`)
       .send(buffer);
+  }
+
+  @Post(':id/send-email')
+  @Roles('owner', 'manager')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Envoyer le BL par email au client (avec PDF en pièce jointe)' })
+  async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId);
   }
 }

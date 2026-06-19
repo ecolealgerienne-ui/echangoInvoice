@@ -111,6 +111,7 @@ export const invoicesApi = {
   remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then(r => r.data),
   payments: (invoiceId: string) => api.get(`/invoices/payments`, { params: { invoiceId } }).then(r => r.data),
   addPayment: (body: unknown) => api.post('/invoices/payments', body).then(r => r.data),
+  pdf: (id: string) => api.get(`/invoices/sales-invoices/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
 };
 
 export const productsApi = {

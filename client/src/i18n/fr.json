@@ -132,7 +132,20 @@
     },
     "created": "Facture créée",
     "send": "Envoyer",
-    "description": "Description"
+    "description": "Description",
+    "addPayment": "Enregistrer un paiement",
+    "paymentAdded": "Paiement enregistré",
+    "paymentAmount": "Montant",
+    "paymentDate": "Date du paiement",
+    "paymentMethod": "Mode de paiement",
+    "paymentReference": "Référence",
+    "recordPayment": "Valider le paiement",
+    "methods": {
+      "bank_transfer": "Virement bancaire",
+      "cheque": "Chèque",
+      "cash": "Espèces",
+      "other": "Autre"
+    }
   },
   "expenses": {
     "title": "Dépenses",

@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull } from 'typeorm';
 import { PdfService } from '../common/pdf.service';
+import { EmailService } from '../common/email.service';
 
 @Injectable()
 export class InvoicePdfService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly pdfService: PdfService,
+    private readonly emailService: EmailService,
   ) {}
 
   private formatCurrency(val: number | string) {
@@ -258,6 +260,65 @@ export class InvoicePdfService {
       html,
     });
     return { buffer, filename: `${dn.blNumber}.pdf` };
+  }
+
+  async sendInvoiceEmail(invoiceId: string, tenantId: string): Promise<void> {
+    const rows = await this.ds.query(
+      `SELECT si.*, c.name AS customer_name, c.email AS customer_email,
+              s.name AS company_name
+       FROM sales_invoices si
+       JOIN customers c ON c.id = si."customerId"
+       LEFT JOIN settings s ON s."tenantId" = si."tenantId"
+       WHERE si.id = $1 AND si."tenantId" = $2 AND si."deletedAt" IS NULL`,
+      [invoiceId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('invoice_not_found');
+    const inv = rows[0];
+    if (!inv.customer_email) throw new NotFoundException('customer_email_missing');
+
+    const { buffer, filename } = await this.generateInvoicePdf(invoiceId, tenantId);
+
+    await this.emailService.send({
+      to: inv.customer_email,
+      subject: `Facture ${inv.invoiceNumber} — ${inv.company_name ?? ''}`,
+      html: this.emailService.buildInvoiceEmail({
+        companyName: inv.company_name ?? 'Mon Entreprise',
+        invoiceNumber: inv.invoiceNumber,
+        customerName: inv.customer_name,
+        totalAmount: this.formatCurrency(inv.totalAmount),
+        dueDate: this.formatDate(inv.dueDate),
+      }),
+      attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
+    });
+  }
+
+  async sendDeliveryNoteEmail(dnId: string, tenantId: string): Promise<void> {
+    const rows = await this.ds.query(
+      `SELECT dn.*, c.name AS customer_name, c.email AS customer_email,
+              s.name AS company_name
+       FROM delivery_notes dn
+       JOIN customers c ON c.id = dn."customerId"
+       LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
+       WHERE dn.id = $1 AND dn."tenantId" = $2 AND dn."deletedAt" IS NULL`,
+      [dnId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('delivery_note_not_found');
+    const dn = rows[0];
+    if (!dn.customer_email) throw new NotFoundException('customer_email_missing');
+
+    const { buffer, filename } = await this.generateDeliveryNotePdf(dnId, tenantId);
+
+    await this.emailService.send({
+      to: dn.customer_email,
+      subject: `Bon de livraison ${dn.blNumber} — ${dn.company_name ?? ''}`,
+      html: this.emailService.buildDeliveryNoteEmail({
+        companyName: dn.company_name ?? 'Mon Entreprise',
+        blNumber: dn.blNumber,
+        customerName: dn.customer_name,
+        deliveryDate: this.formatDate(dn.deliveryDate),
+      }),
+      attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
+    });
   }
 
   async generateQuotePdf(quoteId: string, tenantId: string): Promise<{ buffer: Buffer; filename: string }> {

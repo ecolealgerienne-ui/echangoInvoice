@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown } from 'lucide-react';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', partial: 'warning', paid: 'success', overdue: 'destructive', cancelled: 'secondary',
@@ -34,7 +34,16 @@ const schema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
+const paymentSchema = z.object({
+  amount: z.coerce.number().positive(),
+  paymentDate: z.string().min(1),
+  paymentMethod: z.enum(['cash', 'bank_transfer', 'cheque', 'other']),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 type FormData = z.infer<typeof schema>;
+type PaymentFormData = z.infer<typeof paymentSchema>;
 
 const today = new Date().toISOString().split('T')[0];
 const in30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0];
@@ -47,6 +56,7 @@ export function InvoicesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, search, status],
@@ -60,14 +70,14 @@ export function InvoicesPage() {
 
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      invoiceDate: today,
-      dueDate: in30,
-      items: [{ description: '', quantity: 1, unitPrice: 0 }],
-    },
+    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ description: '', quantity: 1, unitPrice: 0 }] },
   });
-
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  const paymentForm = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: { paymentDate: today, paymentMethod: 'bank_transfer' },
+  });
 
   const createMutation = useMutation({
     mutationFn: (d: FormData) => invoicesApi.create(d),
@@ -91,9 +101,30 @@ export function InvoicesPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
+  const paymentMutation = useMutation({
+    mutationFn: (d: PaymentFormData) =>
+      invoicesApi.addPayment({ ...d, salesInvoiceId: paymentInvoice.id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast(t('invoices.paymentAdded'), 'success');
+      setPaymentInvoice(null);
+      paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' });
+    },
+    onError: () => toast(t('errors.generic'), 'error'),
+  });
+
   function closeModal() {
     setModalOpen(false);
     reset({ invoiceDate: today, dueDate: in30, items: [{ description: '', quantity: 1, unitPrice: 0 }] });
+  }
+
+  function downloadPdf(id: string, number: string) {
+    invoicesApi.pdf(id).then((blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${number}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+    }).catch(() => toast(t('errors.generic'), 'error'));
   }
 
   return (
@@ -150,6 +181,15 @@ export function InvoicesPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="PDF" onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
+                        <FileDown className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      {['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.amountDue) > 0 && (
+                        <Button variant="ghost" size="icon" title={t('invoices.addPayment')}
+                          onClick={() => { setPaymentInvoice(inv); paymentForm.setValue('amount', Number(inv.amountDue)); }}>
+                          <CreditCard className="h-4 w-4 text-primary" />
+                        </Button>
+                      )}
                       {inv.status === 'draft' && (
                         <Button variant="ghost" size="icon" title={t('invoices.send')} onClick={() => sendMutation.mutate(inv.id)}>
                           <Send className="h-4 w-4 text-primary" />
@@ -171,6 +211,7 @@ export function InvoicesPage() {
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
 
+      {/* Create invoice modal */}
       <Modal open={modalOpen} onClose={closeModal} title={t('invoices.new')}>
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
@@ -221,6 +262,65 @@ export function InvoicesPage() {
             <Button type="submit" disabled={createMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Payment modal */}
+      <Modal
+        open={!!paymentInvoice}
+        onClose={() => { setPaymentInvoice(null); paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' }); }}
+        title={t('invoices.addPayment')}
+      >
+        {paymentInvoice && (
+          <form onSubmit={paymentForm.handleSubmit(d => paymentMutation.mutate(d))} className="space-y-4">
+            <div className="rounded-md bg-muted px-4 py-3 text-sm space-y-1">
+              <p><span className="text-muted-foreground">{t('invoices.number')} :</span> <span className="font-mono font-medium">{paymentInvoice.invoiceNumber}</span></p>
+              <p><span className="text-muted-foreground">{t('invoices.amount')} :</span> <span className="font-medium">{formatCurrency(paymentInvoice.totalAmount)}</span></p>
+              <p><span className="text-muted-foreground">{t('invoices.due')} :</span> <span className="font-medium text-destructive">{formatCurrency(paymentInvoice.amountDue)}</span></p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">{t('invoices.paymentAmount')} *</label>
+                <Input type="number" step="0.01" min="0.01" {...paymentForm.register('amount')} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">{t('invoices.paymentDate')} *</label>
+                <Input type="date" {...paymentForm.register('paymentDate')} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">{t('invoices.paymentMethod')} *</label>
+                <Select {...paymentForm.register('paymentMethod')} className="w-full">
+                  <option value="bank_transfer">{t('invoices.methods.bank_transfer')}</option>
+                  <option value="cheque">{t('invoices.methods.cheque')}</option>
+                  <option value="cash">{t('invoices.methods.cash')}</option>
+                  <option value="other">{t('invoices.methods.other')}</option>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">{t('invoices.paymentReference')}</label>
+                <Input placeholder="N° chèque, virement..." {...paymentForm.register('reference')} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">{t('common.notes')}</label>
+              <Input {...paymentForm.register('notes')} />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline"
+                onClick={() => { setPaymentInvoice(null); paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' }); }}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={paymentMutation.isPending}>
+                {paymentMutation.isPending ? <LoadingSpinner size="sm" /> : t('invoices.recordPayment')}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

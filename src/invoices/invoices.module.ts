@@ -11,6 +11,7 @@ import { PaymentsService } from './payments.service';
 import { CreditNotesService } from './credit-notes/credit-notes.service';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { PdfService } from '../common/pdf.service';
+import { EmailService } from '../common/email.service';
 import { InvoicesController } from './invoices.controller';
 import { PaymentsController } from './payments.controller';
 import { CreditNotesController } from './credit-notes/credit-notes.controller';
@@ -23,7 +24,7 @@ import { CreditNotesController } from './credit-notes/credit-notes.controller';
     ]),
   ],
   controllers: [InvoicesController, PaymentsController, CreditNotesController],
-  providers: [SalesInvoicesService, PaymentsService, CreditNotesService, InvoicePdfService, PdfService],
-  exports: [SalesInvoicesService, InvoicePdfService, PdfService],
+  providers: [SalesInvoicesService, PaymentsService, CreditNotesService, InvoicePdfService, PdfService, EmailService],
+  exports: [SalesInvoicesService, InvoicePdfService, PdfService, EmailService],
 })
 export class InvoicesModule {}

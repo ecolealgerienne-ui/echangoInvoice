@@ -11,6 +11,7 @@ import { Subscription } from '../tenants/entities/subscription.entity';
 import { CreateSalesInvoiceDto, CreateSalesInvoiceItemDto } from './dto/create-sales-invoice.dto';
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
+import { EmailService } from '../common/email.service';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -43,6 +44,7 @@ export class SalesInvoicesService {
     @InjectRepository(SalesInvoiceItem) private readonly itemRepo: Repository<SalesInvoiceItem>,
     @InjectRepository(Subscription) private readonly subRepo: Repository<Subscription>,
     private readonly dataSource: DataSource,
+    private readonly emailService: EmailService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
@@ -328,6 +330,60 @@ export class SalesInvoicesService {
       }
     } catch (error) {
       this.logger.error('Cron markOverdueInvoices failed', (error as Error).stack);
+    }
+  }
+
+  // ─── Cron : rappels email J+7 / J+14 / J+21 (quotidien 08:00) ─────────────
+
+  @Cron('0 8 * * *')
+  async sendOverdueReminders(): Promise<void> {
+    if (!process.env.EMAIL_SMTP_HOST) {
+      return; // email non configuré — skip silencieusement
+    }
+    try {
+      const rows: Array<{
+        id: string; invoiceNumber: string; amountDue: string; totalAmount: string;
+        dueDate: string; customerName: string; customerEmail: string;
+        companyName: string; daysOverdue: number;
+      }> = await this.dataSource.query(`
+        SELECT si.id, si."invoiceNumber", si."amountDue"::text, si."totalAmount"::text,
+               si."dueDate"::text, c.name AS "customerName", c.email AS "customerEmail",
+               COALESCE(s.name, 'Mon Entreprise') AS "companyName",
+               (CURRENT_DATE - si."dueDate")::int AS "daysOverdue"
+        FROM sales_invoices si
+        JOIN customers c ON c.id = si."customerId"
+        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
+        WHERE si.status IN ('sent', 'partial', 'overdue')
+          AND si."amountDue" > 0
+          AND si."deletedAt" IS NULL
+          AND c.email IS NOT NULL
+          AND (CURRENT_DATE - si."dueDate")::int IN (7, 14, 21)
+      `);
+
+      for (const inv of rows) {
+        const fmt = (v: string) => new Intl.NumberFormat('fr-DZ', { minimumFractionDigits: 2 }).format(Number(v)) + ' DA';
+        const fmtDate = (v: string) => new Intl.DateTimeFormat('fr-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(v));
+        try {
+          await this.emailService.send({
+            to: inv.customerEmail,
+            subject: `Rappel — Facture ${inv.invoiceNumber} impayée (J+${inv.daysOverdue})`,
+            html: this.emailService.buildReminderEmail({
+              companyName: inv.companyName,
+              invoiceNumber: inv.invoiceNumber,
+              customerName: inv.customerName,
+              totalAmount: fmt(inv.totalAmount),
+              amountDue: fmt(inv.amountDue),
+              dueDate: fmtDate(inv.dueDate),
+              daysOverdue: inv.daysOverdue,
+            }),
+          });
+          this.logger.log(`Rappel J+${inv.daysOverdue} envoyé — ${inv.invoiceNumber} → ${inv.customerEmail}`);
+        } catch (emailErr) {
+          this.logger.error(`Rappel échoué pour ${inv.invoiceNumber}`, (emailErr as Error).message);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Cron sendOverdueReminders failed', (error as Error).stack);
     }
   }
 }
