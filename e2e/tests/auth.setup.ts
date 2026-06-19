@@ -3,22 +3,20 @@ import * as path from 'path';
 
 const AUTH_FILE = path.join(__dirname, '../auth.json');
 
-// Ce fichier tourne une seule fois avant tous les tests.
-// Il se connecte et sauvegarde la session (cookies + localStorage).
 setup('authenticate', async ({ page }) => {
   const email = process.env.TEST_EMAIL ?? 'test@example.com';
   const password = process.env.TEST_PASSWORD ?? 'password123';
 
   await page.goto('/login');
+  await page.waitForLoadState('networkidle');
 
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/mot de passe|password/i).fill(password);
-  await page.getByRole('button', { name: /connexion|login/i }).click();
+  // Les inputs sont sans htmlFor — on cible par type
+  await page.locator('input[type="email"]').fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.locator('button[type="submit"]').click();
 
-  // Attendre la redirection vers le dashboard
-  await page.waitForURL(/dashboard/, { timeout: 10_000 });
+  await page.waitForURL(/dashboard/, { timeout: 15_000 });
   await expect(page).toHaveURL(/dashboard/);
 
-  // Sauvegarder la session
   await page.context().storageState({ path: AUTH_FILE });
 });
