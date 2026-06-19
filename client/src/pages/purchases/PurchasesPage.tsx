@@ -87,7 +87,7 @@ export function PurchasesPage() {
   });
   const { data: ordersForSelect } = useQuery({
     queryKey: ['purchase-orders-select'],
-    queryFn: () => purchasesApi.listOrders({ limit: 200, status: 'sent' }),
+    queryFn: () => purchasesApi.listOrders({ page: 1, limit: 200, status: 'sent' }),
     enabled: recModalOpen,
   });
 

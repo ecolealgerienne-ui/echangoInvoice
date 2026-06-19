@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsEmail, MinLength, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateSupplierDto {
   @ApiProperty()
@@ -16,6 +17,7 @@ export class CreateSupplierDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsEmail()
   email?: string;
 

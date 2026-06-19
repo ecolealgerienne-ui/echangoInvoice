@@ -3,7 +3,7 @@ import {
   IsUUID, IsDateString, IsOptional, IsString,
   IsArray, ValidateNested, IsNumber, Min, MaxLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreatePurchaseOrderItemDto {
   @ApiProperty()
@@ -35,7 +35,9 @@ export class CreatePurchaseOrderDto {
   orderDate: string;
 
   @ApiProperty({ required: false })
-  @IsOptional() @IsDateString()
+  @IsOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
+  @IsDateString()
   expectedDeliveryDate?: string;
 
   @ApiProperty({ required: false })

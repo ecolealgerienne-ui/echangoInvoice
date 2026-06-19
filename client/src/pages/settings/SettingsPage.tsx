@@ -26,7 +26,11 @@ export function SettingsPage() {
   }, [data, reset]);
 
   const mutation = useMutation({
-    mutationFn: (d: any) => settingsApi.update(d),
+    mutationFn: (d: any) => {
+      const { id, tenantId, logo, updatedBy, createdAt, updatedAt, taxRates, ...payload } = d;
+      const cleanRates = (taxRates ?? []).map(({ id: _id, tenantId: _t, settingsId: _s, currency: _c, createdAt: _ca, updatedAt: _ua, ...r }: any) => r);
+      return settingsApi.update({ ...payload, taxRates: cleanRates });
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast(t('settings.saved')); },
     onError: () => toast(t('errors.generic'), 'error'),
   });

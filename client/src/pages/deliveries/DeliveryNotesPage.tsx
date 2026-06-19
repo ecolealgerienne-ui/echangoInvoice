@@ -20,8 +20,9 @@ const STATUS_VARIANT: Record<string, any> = {
 };
 
 const itemSchema = z.object({
-  rawMaterialId: z.string().uuid(),
+  finishedProductId: z.string().uuid(),
   quantity: z.coerce.number().positive(),
+  unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
 });
 
@@ -61,7 +62,7 @@ export function DeliveryNotesPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       deliveryDate: new Date().toISOString().split('T')[0],
-      items: [{ rawMaterialId: '', quantity: 1, unitPrice: 0 }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 }],
     },
   });
 
@@ -90,7 +91,7 @@ export function DeliveryNotesPage() {
     setModalOpen(false);
     reset({
       deliveryDate: new Date().toISOString().split('T')[0],
-      items: [{ rawMaterialId: '', quantity: 1, unitPrice: 0 }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 }],
     });
   }
 
@@ -175,19 +176,20 @@ export function DeliveryNotesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
-              <Button type="button" size="sm" variant="outline" onClick={() => append({ rawMaterialId: '', quantity: 1, unitPrice: 0 })}>
+              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 })}>
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
             {fields.map((field, i) => (
-              <div key={field.id} className="grid grid-cols-[1fr_80px_80px_32px] gap-2 items-end">
+              <div key={field.id} className="grid grid-cols-[1fr_70px_70px_70px_32px] gap-2 items-end">
                 <div>
-                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register(`items.${i}.rawMaterialId`)}>
+                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register(`items.${i}.finishedProductId`)}>
                     <option value="">{t('common.select')}</option>
                     {productsForBL?.data?.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
                 <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />
+                <Input placeholder={t('common.unit')} {...register(`items.${i}.unit`)} />
                 <Input type="number" step="0.01" placeholder={t('common.price')} {...register(`items.${i}.unitPrice`)} />
                 <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
                   <Trash2 className="h-4 w-4 text-destructive" />
