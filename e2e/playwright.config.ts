@@ -1,5 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Navigateur configurable via env var : BROWSER=firefox npm test
+const browser = (process.env.BROWSER ?? 'chromium') as 'chromium' | 'firefox' | 'webkit';
+
+const browserDevice: Record<string, typeof devices[string]> = {
+  chromium: devices['Desktop Chrome'],
+  firefox: devices['Desktop Firefox'],
+  webkit: devices['Desktop Safari'],
+};
+
 export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
@@ -8,25 +17,21 @@ export default defineConfig({
 
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
-    // Credentials stockés entre les tests du même worker
     storageState: 'auth.json',
     screenshot: 'only-on-failure',
     video: 'off',
-    // Capture toutes les erreurs console
     ignoreHTTPSErrors: true,
   },
 
   projects: [
-    // Setup : login et sauvegarde session
     {
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
       use: { storageState: undefined },
     },
-    // Tests principaux (dépendent du setup)
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: browser,
+      use: { ...browserDevice[browser] },
       dependencies: ['setup'],
     },
   ],
