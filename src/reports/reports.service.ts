@@ -154,7 +154,7 @@ export class ReportsService {
                SUM(se.quantity) AS total_qty,
                COALESCE(SUM(se.quantity * se."costPerUnit"),0) AS total_cost
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         JOIN reception_bls bl ON bl.id = se."receptionBlId"
         WHERE se."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
         GROUP BY se."rawMaterialId", rm.name, rm.unit ORDER BY total_cost DESC`,
@@ -317,7 +317,7 @@ export class ReportsService {
                 WHERE se3."rawMaterialId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
                   AND se3.status='reserved') AS reserved_qty
         FROM inventory_summary inv
-        JOIN raw_materials rm ON rm.id = inv."rawMaterialId"
+        JOIN finished_products rm ON rm.id = inv."rawMaterialId"
         WHERE inv."tenantId"=$1 ORDER BY rm.name ASC`,
         [tenantId]),
 
