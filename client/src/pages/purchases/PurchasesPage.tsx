@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, CheckCircle } from 'lucide-react';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
@@ -65,6 +65,7 @@ export function PurchasesPage() {
   const [page, setPage] = useState(1);
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [recModalOpen, setRecModalOpen] = useState(false);
+  const [preselectedPoId, setPreselectedPoId] = useState<string | null>(null);
 
   // ── Data queries ─────────────────────────────────────────────────────────
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
@@ -117,6 +118,16 @@ export function PurchasesPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
+  const patchStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      purchasesApi.updateOrderStatus(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      toast(t('common.updated'), 'success');
+    },
+    onError: () => toast(t('errors.generic'), 'error'),
+  });
+
   // ── Reception form ────────────────────────────────────────────────────────
   const recForm = useForm<RecFormData>({
     resolver: zodResolver(recSchema),
@@ -141,6 +152,13 @@ export function PurchasesPage() {
   const suppliers = suppliersData?.data ?? [];
   const rawMats = productsForPO?.data ?? [];
   const openOrders = ordersForSelect?.data ?? [];
+  const suppliersMap = new Map<string, string>(suppliers.map((s: any) => [s.id, s.name]));
+
+  function openReceptionFor(poId: string) {
+    setPreselectedPoId(poId);
+    recForm.setValue('purchaseOrderId', poId);
+    setRecModalOpen(true);
+  }
 
   const isLoading = tab === 'orders' ? ordersLoading : receptionsLoading;
 
@@ -188,14 +206,28 @@ export function PurchasesPage() {
               {orders.map((o: any) => (
                 <tr key={o.id} className="border-t border-border hover:bg-muted/30">
                   <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>
-                  <td className="px-4 py-3">{o.supplier?.name ?? '—'}</td>
+                  <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>
                   <td className="px-4 py-3">{formatDate(o.orderDate)}</td>
                   <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>
                   <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>
                   <td className="px-4 py-3">
                     <Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right flex gap-1 justify-end">
+                    {o.status === 'draft' && (
+                      <Button size="sm" variant="outline"
+                        title="Valider la commande"
+                        onClick={() => patchStatusMutation.mutate({ id: o.id, status: 'sent' })}>
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                      </Button>
+                    )}
+                    {(o.status === 'draft' || o.status === 'sent') && (
+                      <Button size="sm" variant="outline"
+                        title="Créer une réception BL"
+                        onClick={() => openReceptionFor(o.id)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
                     {o.status === 'draft' && (
                       <Button size="sm" variant="ghost" onClick={() => removePoMutation.mutate(o.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -321,7 +353,7 @@ export function PurchasesPage() {
       </Modal>
 
       {/* Reception Modal */}
-      <Modal open={recModalOpen} onClose={() => { setRecModalOpen(false); recForm.reset(); }} title={t('purchases.newReception')}>
+      <Modal open={recModalOpen} onClose={() => { setRecModalOpen(false); recForm.reset(); setPreselectedPoId(null); }} title={t('purchases.newReception')}>
         <form onSubmit={recForm.handleSubmit(d => createRecMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
