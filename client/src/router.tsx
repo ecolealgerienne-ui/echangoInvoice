@@ -10,6 +10,7 @@ import { RawMaterialsPage } from '@/pages/raw-materials/RawMaterialsPage';
 import { StockPage } from '@/pages/stock/StockPage';
 import { InvoicesPage } from '@/pages/invoices/InvoicesPage';
 import { DeliveryNotesPage } from '@/pages/deliveries/DeliveryNotesPage';
+import { ProductsPage } from '@/pages/products/ProductsPage';
 import { ExpensesPage } from '@/pages/expenses/ExpensesPage';
 import { ReportsPage } from '@/pages/reports/ReportsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
@@ -36,6 +37,7 @@ export function AppRouter() {
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
       <Route path="/invoices" element={<PrivateRoute><InvoicesPage /></PrivateRoute>} />
       <Route path="/deliveries" element={<PrivateRoute><DeliveryNotesPage /></PrivateRoute>} />
+      <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
       <Route path="/expenses" element={<PrivateRoute><ExpensesPage /></PrivateRoute>} />
       <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />

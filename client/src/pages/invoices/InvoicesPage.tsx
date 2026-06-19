@@ -54,7 +54,7 @@ export function InvoicesPage() {
   });
 
   const { data: customers } = useQuery({
-    queryKey: ['customers-all'],
+    queryKey: ['customers', { limit: 200 }],
     queryFn: () => customersApi.list({ limit: 200 }),
   });
 

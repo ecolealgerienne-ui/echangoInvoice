@@ -300,7 +300,7 @@ export class ReportsService {
           COUNT(*) FILTER (WHERE status='reserved')  AS reserved_entries,
           COUNT(*) FILTER (WHERE status='sold')      AS sold_entries,
           COUNT(*) FILTER (WHERE status='adjusted')  AS adjusted_entries
-        FROM stock_entries WHERE "tenantId"=$1 AND "deletedAt" IS NULL`,
+        FROM stock_entries WHERE "tenantId"=$1`,
         [tenantId]),
 
       this.ds.query(`
@@ -312,10 +312,10 @@ export class ReportsService {
                inv."earliestExpirationDate",
                (SELECT MIN(se2."enteredAt") FROM stock_entries se2
                 WHERE se2."rawMaterialId"=inv."rawMaterialId" AND se2."tenantId"=inv."tenantId"
-                  AND se2.status='available' AND se2."deletedAt" IS NULL) AS oldest_entry,
+                  AND se2.status='available') AS oldest_entry,
                (SELECT COALESCE(SUM(se3.quantity),0) FROM stock_entries se3
                 WHERE se3."rawMaterialId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
-                  AND se3.status='reserved' AND se3."deletedAt" IS NULL) AS reserved_qty
+                  AND se3.status='reserved') AS reserved_qty
         FROM inventory_summary inv
         JOIN raw_materials rm ON rm.id = inv."rawMaterialId"
         WHERE inv."tenantId"=$1 ORDER BY rm.name ASC`,
@@ -324,8 +324,7 @@ export class ReportsService {
       this.ds.query(`
         SELECT COUNT(*) AS count FROM stock_entries
         WHERE "tenantId"=$1 AND status='available'
-          AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW() + INTERVAL '5 days'
-          AND "deletedAt" IS NULL`,
+          AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW() + INTERVAL '5 days'`,
         [tenantId]),
 
       this.ds.query(`

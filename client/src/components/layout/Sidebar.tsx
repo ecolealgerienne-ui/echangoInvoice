@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Truck, Package, Layers,
-  FileText, Receipt, BarChart2, Settings, LogOut, ClipboardList,
+  FileText, Receipt, BarChart2, Settings, LogOut, ClipboardList, Box,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/customers', icon: Users, key: 'nav.customers' },
   { to: '/suppliers', icon: Truck, key: 'nav.suppliers' },
   { to: '/raw-materials', icon: Package, key: 'nav.rawMaterials' },
+  { to: '/products', icon: Box, key: 'nav.products' },
   { to: '/stock', icon: Layers, key: 'nav.stock' },
   { to: '/deliveries', icon: ClipboardList, key: 'nav.deliveries' },
   { to: '/invoices', icon: FileText, key: 'nav.invoices' },

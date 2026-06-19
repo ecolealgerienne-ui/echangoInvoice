@@ -48,12 +48,12 @@ export function DeliveryNotesPage() {
   });
 
   const { data: customers } = useQuery({
-    queryKey: ['customers-all'],
+    queryKey: ['customers', { limit: 200 }],
     queryFn: () => customersApi.list({ limit: 200 }),
   });
 
   const { data: materials } = useQuery({
-    queryKey: ['raw-materials-all'],
+    queryKey: ['raw-materials', { limit: 200 }],
     queryFn: () => rawMaterialsApi.list({ limit: 200 }),
   });
 

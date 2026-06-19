@@ -27,7 +27,8 @@
     "price": "Prix",
     "notes": "Notes",
     "select": "Sélectionner...",
-    "customer": "Client"
+    "customer": "Client",
+    "description": "Description"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -39,7 +40,8 @@
     "expenses": "Dépenses",
     "reports": "Rapports",
     "settings": "Paramètres",
-    "deliveries": "Bons de Livraison"
+    "deliveries": "Bons de Livraison",
+    "products": "Produits"
   },
   "auth": {
     "login": "Connexion",
@@ -191,5 +193,13 @@
       "delivered": "Livré",
       "cancelled": "Annulé"
     }
+  },
+  "products": {
+    "title": "Produits finis",
+    "new": "Nouveau produit",
+    "name": "Nom",
+    "code": "Code",
+    "unit": "Unité",
+    "price": "Prix de vente"
   }
 }
