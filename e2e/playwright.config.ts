@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
 
-// Navigateur configurable via env var : BROWSER=firefox npm test
 const browser = (process.env.BROWSER ?? 'chromium') as 'chromium' | 'firefox' | 'webkit';
 
 const browserDevice: Record<string, typeof devices[string]> = {
@@ -8,6 +8,8 @@ const browserDevice: Record<string, typeof devices[string]> = {
   firefox: devices['Desktop Firefox'],
   webkit: devices['Desktop Safari'],
 };
+
+export const AUTH_FILE = path.join(__dirname, 'auth.json');
 
 export default defineConfig({
   testDir: './tests',
@@ -17,21 +19,24 @@ export default defineConfig({
 
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
-    storageState: 'auth.json',
     screenshot: 'only-on-failure',
     video: 'off',
     ignoreHTTPSErrors: true,
+    // PAS de storageState ici — défini par projet
   },
 
   projects: [
     {
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
-      use: { storageState: undefined },
+      // Pas de storageState : le setup crée le fichier
     },
     {
       name: browser,
-      use: { ...browserDevice[browser] },
+      use: {
+        ...browserDevice[browser],
+        storageState: AUTH_FILE,  // lu après que setup l'a créé
+      },
       dependencies: ['setup'],
     },
   ],
