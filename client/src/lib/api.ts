@@ -59,6 +59,16 @@ api.interceptors.response.use(
   },
 );
 
+/** Extract a human-readable message from an Axios/NestJS error */
+export function apiErrorMessage(error: unknown, fallback = 'Une erreur est survenue'): string {
+  const data = (error as any)?.response?.data;
+  if (!data) return fallback;
+  const msg = data.message;
+  if (Array.isArray(msg)) return msg.join(', ');
+  if (typeof msg === 'string') return msg;
+  return fallback;
+}
+
 export default api;
 
 // ── API helpers ─────────────────────────────────────────────────────────────
