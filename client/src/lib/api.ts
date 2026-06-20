@@ -223,6 +223,13 @@ export const purchasesApi = {
   listReceptions: (params?: Record<string, unknown>) => api.get('/purchases/reception-bls', { params }).then(r => r.data),
   getReception: (id: string) => api.get(`/purchases/reception-bls/${id}`).then(r => r.data),
   createReception: (body: unknown) => api.post('/purchases/reception-bls', body).then(r => r.data),
+  listBills: (params?: Record<string, unknown>) => api.get('/purchases/vendor-bills', { params }).then(r => r.data),
+  getBill: (id: string) => api.get(`/purchases/vendor-bills/${id}`).then(r => r.data),
+  createBill: (body: unknown) => api.post('/purchases/vendor-bills', body).then(r => r.data),
+  updateBill: (id: string, body: unknown) => api.put(`/purchases/vendor-bills/${id}`, body).then(r => r.data),
+  updateBillStatus: (id: string, status: string) => api.patch(`/purchases/vendor-bills/${id}/status`, { status }).then(r => r.data),
+  removeBill: (id: string) => api.delete(`/purchases/vendor-bills/${id}`).then(r => r.data),
+  addBillPayment: (id: string, body: unknown) => api.post(`/purchases/vendor-bills/${id}/payments`, body).then(r => r.data),
 };
 
 export const creditNotesApi = {

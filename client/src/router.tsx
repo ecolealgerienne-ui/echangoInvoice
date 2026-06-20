@@ -16,6 +16,7 @@ import { ReportsPage } from '@/pages/reports/ReportsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { QuotesPage } from '@/pages/quotes/QuotesPage';
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
+import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,7 @@ export function AppRouter() {
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
       <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
       <Route path="/purchases" element={<PrivateRoute><PurchasesPage /></PrivateRoute>} />
+      <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />
     </Routes>
   );
