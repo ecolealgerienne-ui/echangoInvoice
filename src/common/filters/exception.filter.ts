@@ -31,6 +31,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } else {
         message = exceptionResponse as string;
       }
+      if (status >= 500) {
+        this.logger.error(`[${request.method}] ${request.url} → ${status}: ${JSON.stringify(exceptionResponse)}`);
+      } else {
+        this.logger.warn(`[${request.method}] ${request.url} → ${status}: ${JSON.stringify(exceptionResponse)}`);
+      }
     } else if (exception instanceof Error) {
       const pgError = exception as Error & { code?: string };
       if (pgError.code === '23505') {
