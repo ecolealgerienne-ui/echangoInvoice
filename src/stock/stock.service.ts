@@ -20,26 +20,32 @@ export class StockService {
     const limit = dto.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    let where = `inv."tenantId" = $1`;
+    // Base WHERE on products (not inventory_summary) so all products appear
+    let where = `rm."tenantId" = $1 AND rm."deletedAt" IS NULL`;
     const params: any[] = [tenantId];
     let idx = 2;
 
-    if (dto.materialId) { where += ` AND inv."rawMaterialId" = $${idx++}`; params.push(dto.materialId); }
-    if (dto.lowStockOnly) { where += ` AND inv."alertThreshold" IS NOT NULL AND inv."totalQuantity" <= inv."alertThreshold"`; }
+    if (dto.materialId) { where += ` AND rm.id = $${idx++}`; params.push(dto.materialId); }
+    if (dto.lowStockOnly) { where += ` AND inv."alertThreshold" IS NOT NULL AND COALESCE(inv."totalQuantity", 0) <= inv."alertThreshold"`; }
     if (dto.expiringSoon) { where += ` AND inv."earliestExpirationDate" IS NOT NULL AND inv."earliestExpirationDate" <= NOW() + INTERVAL '5 days'`; }
 
     const countRow = await this.ds.query(
-      `SELECT COUNT(*) AS total FROM inventory_summary inv WHERE ${where}`,
+      `SELECT COUNT(*) AS total
+       FROM finished_products rm
+       LEFT JOIN inventory_summary inv ON inv."rawMaterialId" = rm.id AND inv."tenantId" = $1
+       WHERE ${where}`,
       params,
     );
     const total = parseInt(countRow[0].total);
 
     const rows = await this.ds.query(
-      `SELECT inv."rawMaterialId", rm.name, rm.unit,
-              inv."totalQuantity", inv."averageCostPerUnit", inv."totalValue",
+      `SELECT rm.id AS "rawMaterialId", rm.name, rm.unit,
+              COALESCE(inv."totalQuantity", 0)      AS "totalQuantity",
+              COALESCE(inv."averageCostPerUnit", 0) AS "averageCostPerUnit",
+              COALESCE(inv."totalValue", 0)          AS "totalValue",
               inv."earliestExpirationDate", inv."alertThreshold", inv."updatedAt"
-       FROM inventory_summary inv
-       JOIN finished_products rm ON rm.id = inv."rawMaterialId"
+       FROM finished_products rm
+       LEFT JOIN inventory_summary inv ON inv."rawMaterialId" = rm.id AND inv."tenantId" = $1
        WHERE ${where}
        ORDER BY rm.name ASC
        LIMIT $${idx++} OFFSET $${idx++}`,
