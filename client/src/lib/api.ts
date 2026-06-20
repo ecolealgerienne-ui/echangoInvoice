@@ -169,6 +169,7 @@ export const deliveriesApi = {
   cancel: (id: string) => api.patch(`/deliveries/delivery-notes/${id}/cancel`).then(r => r.data),
   remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then(r => r.data),
   pdf: (id: string) => api.get(`/deliveries/delivery-notes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+  createInvoice: (id: string) => api.post(`/deliveries/delivery-notes/${id}/create-invoice`).then(r => r.data),
 };
 
 export const expensesApi = {
@@ -207,6 +208,7 @@ export const quotesApi = {
   update: (id: string, body: unknown) => api.put(`/quotes/${id}`, body).then(r => r.data),
   updateStatus: (id: string, body: unknown) => api.patch(`/quotes/${id}/status`, body).then(r => r.data),
   convert: (id: string) => api.post(`/quotes/${id}/convert`).then(r => r.data),
+  createBl: (id: string) => api.post(`/quotes/${id}/create-bl`).then(r => r.data),
   remove: (id: string) => api.delete(`/quotes/${id}`).then(r => r.data),
   pdf: (id: string) => api.get(`/quotes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
 };

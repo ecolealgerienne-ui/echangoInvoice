@@ -281,6 +281,9 @@
     "delivery_note_cannot_delete": "Ce bon de livraison ne peut pas être supprimé",
     "delivery_note_cannot_update": "Ce bon de livraison ne peut pas être modifié",
     "delivery_note_not_signable": "Ce bon de livraison ne peut pas être signé",
+    "delivery_note_cannot_create_invoice": "Seuls les BL signés ou livrés peuvent être facturés",
+    "bl_already_converted_to_invoice": "Une facture a déjà été créée pour ce BL",
+    "quote_already_converted_to_bl": "Un BL a déjà été créé pour ce devis",
 
     "invoice_not_found": "Facture introuvable",
     "invoice_cannot_update": "Cette facture ne peut pas être modifiée",
@@ -337,6 +340,8 @@
     "cancelled": "Bon de livraison annulé",
     "send": "Envoyer",
     "markDelivered": "Marquer livré",
+    "createInvoice": "Facturer",
+    "invoiceCreated": "Facture créée depuis le BL",
     "status": {
       "draft": "Brouillon",
       "sent": "Envoyé",
@@ -370,6 +375,8 @@
     "updated": "Devis mis à jour",
     "deleted": "Devis supprimé",
     "converted": "Converti en facture",
+    "convertedToBl": "BL créé depuis le devis",
+    "createBl": "Créer un BL",
     "quoteNumber": "N° Devis",
     "quoteDate": "Date devis",
     "expiryDate": "Date d'expiration",

@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -115,6 +115,16 @@ export function DeliveryNotesPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: string) => deliveriesApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['delivery-notes'] }); toast(t('deliveries.cancelled'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: (id: string) => deliveriesApi.createInvoice(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast(t('deliveries.invoiceCreated'), 'success');
+    },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -245,8 +255,20 @@ export function DeliveryNotesPage() {
                         </Button>
                       )}
                       {bl.status === 'signed' && (
-                        <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                          <Package className="h-4 w-4 text-primary" />
+                        <>
+                          <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
+                            <Package className="h-4 w-4 text-primary" />
+                          </Button>
+                          {!bl.convertedToInvoiceId && (
+                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
+                              <Receipt className="h-4 w-4 text-green-600" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {bl.status === 'delivered' && !bl.convertedToInvoiceId && (
+                        <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
+                          <Receipt className="h-4 w-4 text-green-600" />
                         </Button>
                       )}
                     </div>

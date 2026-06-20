@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { quotesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { quotesApi, customersApi, productsApi, settingsApi, deliveriesApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -125,6 +125,16 @@ export function QuotesPage() {
       qc.invalidateQueries({ queryKey: ['quotes'] });
       qc.invalidateQueries({ queryKey: ['invoices'] });
       toast(t('quotes.converted'), 'success');
+    },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const createBlMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.createBl(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quotes'] });
+      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      toast(t('quotes.convertedToBl'), 'success');
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
@@ -277,9 +287,14 @@ export function QuotesPage() {
                         </>
                       )}
                       {q.status === 'accepted' && (
-                        <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
-                          <RefreshCw className="h-4 w-4 text-green-600" />
-                        </Button>
+                        <>
+                          <Button size="sm" variant="ghost" title={t('quotes.createBl')} onClick={() => createBlMutation.mutate(q.id)}>
+                            <Truck className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
+                            <RefreshCw className="h-4 w-4 text-green-600" />
+                          </Button>
+                        </>
                       )}
                       {q.status === 'rejected' && (
                         <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>

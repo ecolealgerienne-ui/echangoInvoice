@@ -101,6 +101,13 @@ export class DeliveriesController {
       .send(buffer);
   }
 
+  @Post(':id/create-invoice')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Créer une facture depuis un BL (signé ou livré)' })
+  createInvoice(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.deliveriesService.createInvoice(id, user.tenantId, user.id);
+  }
+
   @Post(':id/send-email')
   @Roles('owner', 'manager')
   @HttpCode(204)

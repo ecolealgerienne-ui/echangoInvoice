@@ -335,6 +335,173 @@ export class DeliveriesService {
     return { data: dn };
   }
 
+  // ─── Conversion Devis → BL (R005, R015) ──────────────────────────────────
+
+  async createFromQuote(quoteId: string, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const rows = await qr.query(
+        `SELECT * FROM quotes WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        [quoteId, tenantId],
+      );
+      if (!rows.length) throw new NotFoundException('quote_not_found');
+      const quote = rows[0];
+      if (quote.status !== 'accepted') throw new UnprocessableEntityException('quote_not_accepted');
+      if (quote.convertedToDeliveryNoteId) {
+        throw new UnprocessableEntityException('quote_already_converted_to_bl');
+      }
+
+      const quoteItems: any[] = await qr.query(
+        `SELECT * FROM quote_items WHERE "quoteId" = $1 AND "tenantId" = $2`,
+        [quoteId, tenantId],
+      );
+
+      const computed = quoteItems.map((it) => ({
+        finishedProductId: it.finishedProductId,
+        quantity: parseFloat(it.quantity),
+        unit: it.unit,
+        unitPrice: parseFloat(it.unitPrice),
+        taxName1: it.taxName1 ?? null,
+        taxRate1: it.taxRate1 != null ? parseFloat(it.taxRate1) : null,
+        taxAmount1: parseFloat(it.taxAmount1 ?? '0'),
+        taxName2: it.taxName2 ?? null,
+        taxRate2: it.taxRate2 != null ? parseFloat(it.taxRate2) : null,
+        taxAmount2: parseFloat(it.taxAmount2 ?? '0'),
+        lineTaxTotal: parseFloat(it.lineTaxTotal ?? '0'),
+        lineTotal: parseFloat(it.lineTotal ?? '0'),
+      }));
+
+      const blNumber = await this.generateBlNumber(qr, tenantId);
+      const totals = this.computeTotals(computed);
+
+      const dn = qr.manager.create(DeliveryNote, {
+        tenantId,
+        blNumber,
+        customerId: quote.customerId,
+        deliveryDate: new Date() as any,
+        notes: quote.notes ?? null,
+        ...totals,
+        status: 'draft',
+        createdBy: userId,
+        updatedBy: userId,
+      });
+      await qr.manager.save(DeliveryNote, dn);
+
+      const dnItems = computed.map((c) =>
+        qr.manager.create(DeliveryNoteItem, { ...c, tenantId, deliveryNoteId: dn.id }),
+      );
+      await qr.manager.save(DeliveryNoteItem, dnItems);
+
+      for (const item of computed) {
+        await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, dn.id);
+      }
+
+      await qr.query(
+        `UPDATE quotes SET "convertedToDeliveryNoteId" = $1, "updatedBy" = $2, "updatedAt" = NOW()
+         WHERE id = $3`,
+        [dn.id, userId, quoteId],
+      );
+
+      await qr.commitTransaction();
+      return this.findOne(dn.id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
+  // ─── Conversion BL → Facture (R005, R008) ────────────────────────────────
+
+  async createInvoice(blId: string, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const dn = await qr.manager.findOne(DeliveryNote, {
+        where: { id: blId, tenantId, deletedAt: IsNull() },
+        relations: ['items'],
+      });
+      if (!dn) throw new NotFoundException('delivery_note_not_found');
+      if (!['signed', 'delivered'].includes(dn.status)) {
+        throw new UnprocessableEntityException('delivery_note_cannot_create_invoice');
+      }
+      if (dn.convertedToInvoiceId) {
+        throw new UnprocessableEntityException('bl_already_converted_to_invoice');
+      }
+
+      await qr.query(
+        `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
+        [tenantId],
+      );
+      const year = new Date().getFullYear();
+      const yy = String(year).slice(-2);
+      const lastInv: any[] = await qr.query(
+        `SELECT "invoiceNumber" FROM sales_invoices
+         WHERE "tenantId" = $1 AND EXTRACT(YEAR FROM "createdAt") = $2 AND "deletedAt" IS NULL
+         ORDER BY "invoiceNumber" DESC LIMIT 1`,
+        [tenantId, year],
+      );
+      const lastSeq = lastInv.length > 0
+        ? parseInt(lastInv[0].invoiceNumber.split('-')[2], 10)
+        : 0;
+      const invoiceNumber = `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+
+      const [invoice] = await qr.query(
+        `INSERT INTO sales_invoices
+           ("tenantId", "invoiceNumber", "customerId", "invoiceDate",
+            "subtotal", "taxAmount", "totalAmount",
+            "amountPaid", "amountDue", "status", "deliveryNoteId", "createdBy", "updatedBy")
+         VALUES ($1,$2,$3,NOW(),$4,$5,$6,0,$7,'draft',$8,$9,$9)
+         RETURNING *`,
+        [
+          tenantId, invoiceNumber, dn.customerId,
+          dn.subtotal, dn.taxAmount, dn.total,
+          dn.total, blId, userId,
+        ],
+      );
+
+      for (const item of dn.items) {
+        await qr.query(
+          `INSERT INTO sales_invoice_items
+             ("tenantId", "salesInvoiceId", "finishedProductId",
+              "quantity", "unit", "unitPrice",
+              "taxName1", "taxRate1", "taxAmount1",
+              "taxName2", "taxRate2", "taxAmount2",
+              "lineTaxTotal", "lineTotal")
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          [
+            tenantId, invoice.id, item.finishedProductId,
+            item.quantity, item.unit, item.unitPrice,
+            item.taxName1, item.taxRate1, item.taxAmount1,
+            item.taxName2, item.taxRate2, item.taxAmount2,
+            item.lineTaxTotal, item.lineTotal,
+          ],
+        );
+      }
+
+      dn.convertedToInvoiceId = invoice.id;
+      dn.updatedBy = userId;
+      await qr.manager.save(DeliveryNote, dn);
+
+      await qr.commitTransaction();
+      return {
+        data: {
+          blConverted: { id: dn.id, blNumber: dn.blNumber, convertedToInvoiceId: invoice.id },
+          invoiceCreated: invoice,
+        },
+      };
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
   async remove(id: string, tenantId: string, userId: string) {
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();

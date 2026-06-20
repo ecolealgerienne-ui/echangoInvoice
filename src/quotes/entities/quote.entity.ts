@@ -13,6 +13,7 @@ import { Customer } from '../../customers/customer.entity';
 @Index('IDX_quotes_expiry_date', ['expiryDate'])
 @Index('IDX_quotes_deleted_at', ['deletedAt'])
 @Index('IDX_quotes_converted_invoice', ['convertedToInvoiceId'])
+@Index('IDX_quotes_converted_bl', ['convertedToDeliveryNoteId'])
 @Unique('UQ_quotes_number_tenant', ['quoteNumber', 'tenantId'])
 @Entity('quotes')
 export class Quote {
@@ -55,6 +56,9 @@ export class Quote {
 
   @Column({ type: 'uuid', nullable: true })
   convertedToInvoiceId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  convertedToDeliveryNoteId: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   createdBy: string | null;

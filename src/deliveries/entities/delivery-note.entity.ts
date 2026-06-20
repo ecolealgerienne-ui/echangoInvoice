@@ -11,6 +11,7 @@ import { Customer } from '../../customers/customer.entity';
 @Index('IDX_delivery_notes_status', ['status'])
 @Index('IDX_delivery_notes_delivery_date', ['deliveryDate'])
 @Index('IDX_delivery_notes_deleted_at', ['deletedAt'])
+@Index('IDX_delivery_notes_converted_invoice', ['convertedToInvoiceId'])
 @Unique('UQ_delivery_notes_bl_number_tenant', ['blNumber', 'tenantId'])
 @Entity('delivery_notes')
 export class DeliveryNote {
@@ -50,6 +51,9 @@ export class DeliveryNote {
 
   @Column({ type: 'date', nullable: true })
   signedDate: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  convertedToInvoiceId: string | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
