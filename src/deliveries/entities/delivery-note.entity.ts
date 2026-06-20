@@ -4,7 +4,7 @@ import {
   OneToMany, ManyToOne, JoinColumn, Index, Unique,
 } from 'typeorm';
 import { DeliveryNoteItem } from './delivery-note-item.entity';
-import { Customer } from '../../../customers/customer.entity';
+import { Customer } from '../../customers/customer.entity';
 
 @Index('IDX_delivery_notes_tenant_id', ['tenantId'])
 @Index('IDX_delivery_notes_customer_id', ['customerId'])

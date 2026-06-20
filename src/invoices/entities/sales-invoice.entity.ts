@@ -5,7 +5,7 @@ import {
 } from 'typeorm';
 import { SalesInvoiceItem } from './sales-invoice-item.entity';
 import { Payment } from './payment.entity';
-import { Customer } from '../../../customers/customer.entity';
+import { Customer } from '../../customers/customer.entity';
 
 @Index('IDX_sales_invoices_tenant_id', ['tenantId'])
 @Index('IDX_sales_invoices_customer_id', ['customerId'])
