@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -53,6 +53,7 @@ export function QuotesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotes', page, search, status],
@@ -91,12 +92,18 @@ export function QuotesPage() {
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
   const createMutation = useMutation({
-    mutationFn: (d: FormData) => quotesApi.create(d),
+    mutationFn: (d: FormData) => editing ? quotesApi.update(editing.id, d) : quotesApi.create(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['quotes'] });
-      toast(t('quotes.created'), 'success');
+      toast(editing ? t('common.save') + ' !' : t('quotes.created'), 'success');
       closeModal();
     },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.updateStatus(id, { status: 'sent' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast(t('quotes.sent') ?? 'Envoyé !', 'success'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -119,7 +126,28 @@ export function QuotesPage() {
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
-  function closeModal() { reset(); setModalOpen(false); }
+  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }] }); setModalOpen(true); }
+  function openEdit(row: any) {
+    quotesApi.get(row.id).then((res: any) => {
+      const q = res.data ?? res;
+      setEditing(q);
+      reset({
+        customerId: q.customerId,
+        quoteDate: q.quoteDate?.slice(0, 10) ?? today,
+        expiryDate: q.expiryDate?.slice(0, 10) ?? '',
+        notes: q.notes ?? '',
+        items: (q.items ?? []).map((it: any) => ({
+          finishedProductId: it.finishedProductId,
+          quantity: Number(it.quantity),
+          unit: it.unit,
+          unitPrice: Number(it.unitPrice),
+          taxRate1: Number(it.taxRate1 ?? defaultTaxRate),
+        })),
+      });
+      setModalOpen(true);
+    }).catch(() => toast(t('errors.generic'), 'error'));
+  }
+  function closeModal() { setEditing(null); reset(); setModalOpen(false); }
 
   function downloadPdf(id: string, number: string) {
     quotesApi.pdf(id).then((blob) => {
@@ -143,7 +171,7 @@ export function QuotesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">{t('quotes.title')}</h1>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />{t('quotes.new')}
         </Button>
       </div>
@@ -206,17 +234,30 @@ export function QuotesPage() {
                   {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => downloadPdf(q.id, q.quoteNumber)}>
+                    <div className="flex items-center gap-1 justify-end">
+                      <Button size="sm" variant="ghost" title={t('common.pdf')} onClick={() => downloadPdf(q.id, q.quoteNumber)}>
                         <FileDown className="h-4 w-4" />
                       </Button>
+                      {q.status === 'draft' && (
+                        <>
+                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title={t('quotes.send')} onClick={() => sendMutation.mutate(q.id)}>
+                            <Send className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                       {q.status === 'accepted' && (
-                        <Button size="sm" variant="ghost" onClick={() => convertMutation.mutate(q.id)}>
-                          <RefreshCw className="h-4 w-4" />
+                        <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
+                          <RefreshCw className="h-4 w-4 text-green-600" />
                         </Button>
                       )}
-                      {(q.status === 'draft' || q.status === 'rejected') && (
-                        <Button size="sm" variant="ghost" onClick={() => removeMutation.mutate(q.id)}>
+                      {q.status === 'rejected' && (
+                        <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -236,7 +277,7 @@ export function QuotesPage() {
         <Pagination page={page} total={pagination.total} limit={pagination.limit} onChange={setPage} />
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={t('quotes.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('quotes.new')}>
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">

@@ -149,6 +149,7 @@ export class QuotesService {
 
     const qb = this.quoteRepo
       .createQueryBuilder('q')
+      .leftJoinAndSelect('q.customer', 'customer')
       .where('q.tenantId = :tenantId', { tenantId })
       .andWhere('q.deletedAt IS NULL');
 

@@ -4,6 +4,7 @@
     "cancel": "Annuler",
     "delete": "Supprimer",
     "edit": "Modifier",
+    "pdf": "Télécharger PDF",
     "create": "Créer",
     "search": "Rechercher",
     "loading": "Chargement...",
@@ -370,7 +371,9 @@
     "expiryDate": "Date d'expiration",
     "status": "Statut",
     "notes": "Notes",
-    "convert": "Convertir en facture"
+    "convert": "Convertir en facture",
+    "send": "Marquer comme envoyé",
+    "sent": "Devis marqué comme envoyé"
   },
   "purchases": {
     "title": "Achats",

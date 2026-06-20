@@ -1,9 +1,10 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, DeleteDateColumn,
-  OneToMany, Index, Unique,
+  OneToMany, ManyToOne, JoinColumn, Index, Unique,
 } from 'typeorm';
 import { QuoteItem } from './quote-item.entity';
+import { Customer } from '../../customers/entities/customer.entity';
 
 @Index('IDX_quotes_tenant_id', ['tenantId'])
 @Index('IDX_quotes_customer_id', ['customerId'])
@@ -69,6 +70,10 @@ export class Quote {
 
   @DeleteDateColumn({ type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
+
+  @ManyToOne(() => Customer, { nullable: true })
+  @JoinColumn({ name: 'customerId' })
+  customer: Customer;
 
   @OneToMany(() => QuoteItem, (item) => item.quote, { cascade: true })
   items: QuoteItem[];
