@@ -308,12 +308,12 @@ export function QuotesPage() {
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
                   </div>
                   <div className="col-span-1">
-                    <Select {...register(`items.${i}.taxRate1`)} className="w-full text-xs">
+                    <Select {...register(`items.${i}.taxRate1`, { valueAsNumber: true })} className="w-full text-xs">
                       {taxRates.length > 0
                         ? taxRates.map(r => (
-                            <option key={r.rate} value={r.rate}>{r.rate}%</option>
+                            <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>
                           ))
-                        : <option value={19}>19%</option>
+                        : <option value="19">19%</option>
                       }
                     </Select>
                   </div>
