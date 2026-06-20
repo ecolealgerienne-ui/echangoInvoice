@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { purchasesApi, suppliersApi, productsApi } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi , resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +15,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
@@ -128,7 +130,7 @@ export function PurchasesPage() {
   // ── PO form ───────────────────────────────────────────────────────────────
   const poForm = useForm<PoFormData>({
     resolver: zodResolver(poSchema),
-    defaultValues: { orderDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] },
+    defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 }] },
   });
   const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
 
@@ -139,7 +141,7 @@ export function PurchasesPage() {
       toast(t('purchases.orderCreated'), 'success');
       closePo();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const updatePoMutation = useMutation({
@@ -150,7 +152,7 @@ export function PurchasesPage() {
       toast(t('common.updated'), 'success');
       closePo();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const removePoMutation = useMutation({
@@ -159,7 +161,7 @@ export function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast(t('common.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const patchStatusMutation = useMutation({
@@ -169,12 +171,12 @@ export function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast(t('common.updated'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreatePo() {
     setEditingPo(null);
-    poForm.reset({ orderDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
+    poForm.reset({ orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
     setPoModalOpen(true);
   }
 
@@ -265,7 +267,7 @@ export function PurchasesPage() {
       toast(t('purchases.receptionCreated'), 'success');
       closeRec();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openReceptionFor(poId: string) {
@@ -283,6 +285,14 @@ export function PurchasesPage() {
   const orders = ordersData?.data ?? [];
   const receptions = receptionsData?.data ?? [];
   const pagination = tab === 'orders' ? ordersData?.pagination : receptionsData?.pagination;
+  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility(
+    'purchases_po_visible_columns',
+    ['poNumber', 'supplier', 'orderDate', 'expectedDelivery', 'total', 'status'],
+  );
+  const { visible: recVisible, toggle: recToggle, col: recCol } = useColumnVisibility(
+    'purchases_rec_visible_columns',
+    ['blNumber', 'poNumber', 'receptionDate', 'totalReceived', 'status'],
+  );
   const suppliers = suppliersData?.data ?? [];
   const rawMats = productsData?.data ?? [];
   const suppliersMap = new Map<string, string>(suppliers.map((s: any) => [s.id, s.name]));
@@ -316,30 +326,46 @@ export function PurchasesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : tab === 'orders' ? (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <>
+          <div className="flex justify-end">
+            <ColumnToggleMenu
+              columns={[
+                { key: 'poNumber', label: t('purchases.poNumber') },
+                { key: 'supplier', label: t('purchases.supplier') },
+                { key: 'orderDate', label: t('purchases.orderDate') },
+                { key: 'expectedDelivery', label: t('purchases.expectedDelivery') },
+                { key: 'total', label: 'Total' },
+                { key: 'status', label: t('quotes.status') },
+                { key: 'notes', label: 'Notes' },
+              ]}
+              visible={poVisible}
+              onToggle={poToggle}
+            />
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.poNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>
-                <th className="text-right px-4 py-3 font-medium">Total</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {poCol('poNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.poNumber')}</th>}
+                {poCol('supplier') && <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>}
+                {poCol('orderDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>}
+                {poCol('expectedDelivery') && <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>}
+                {poCol('total') && <th className="text-right px-4 py-3 font-medium">Total</th>}
+                {poCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
+                {poCol('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {orders.map((o: any) => (
                 <tr key={o.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>
-                  <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>
-                  <td className="px-4 py-3">{formatDate(o.orderDate)}</td>
-                  <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge>
-                  </td>
+                  {poCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>}
+                  {poCol('supplier') && <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
+                  {poCol('orderDate') && <td className="px-4 py-3">{formatDate(o.orderDate)}</td>}
+                  {poCol('expectedDelivery') && <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
+                  {poCol('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>}
+                  {poCol('status') && <td className="px-4 py-3"><Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge></td>}
+                  {poCol('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{o.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" title="Voir détail"
@@ -373,34 +399,47 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={poVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        </>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <>
+          <div className="flex justify-end">
+            <ColumnToggleMenu
+              columns={[
+                { key: 'blNumber', label: t('purchases.blNumber') },
+                { key: 'poNumber', label: 'Commande' },
+                { key: 'receptionDate', label: t('purchases.receptionDate') },
+                { key: 'totalReceived', label: t('purchases.totalReceived') },
+                { key: 'status', label: t('quotes.status') },
+              ]}
+              visible={recVisible}
+              onToggle={recToggle}
+            />
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">Commande</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {recCol('blNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>}
+                {recCol('poNumber') && <th className="text-left px-4 py-3 font-medium">Commande</th>}
+                {recCol('receptionDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>}
+                {recCol('totalReceived') && <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>}
+                {recCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {receptions.map((r: any) => (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>
-                  <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>
-                  <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge>
-                  </td>
+                  {recCol('blNumber') && <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>}
+                  {recCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
+                  {recCol('receptionDate') && <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>}
+                  {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
+                  {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
                   <td className="px-4 py-3">
                     <Button size="sm" variant="ghost" title="Voir détail"
                       onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
@@ -410,11 +449,12 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {receptions.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={recVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {pagination && (
@@ -447,7 +487,7 @@ export function PurchasesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 })}>
+                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -458,29 +498,34 @@ export function PurchasesPage() {
                 return (
                   <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-4">
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.product')}</label>}
                       <Select {...poForm.register(`items.${i}.rawMaterialId`)}
                         className="w-full text-xs"
                         onChange={(e) => {
                           poForm.setValue(`items.${i}.rawMaterialId`, e.target.value);
                           const prod = rawMats.find((m: any) => m.id === e.target.value);
                           if (prod?.unit) poForm.setValue(`items.${i}.unit`, prod.unit);
+                          if (prod?.lastCostPerUnit != null) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
                         }}>
                         <option value="">{t('common.select')}</option>
                         {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </Select>
                     </div>
                     <div className="col-span-2">
-                      <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')}
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.qty')}</label>}
+                      <Input type="number" step="0.01" min="0.01"
                         {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
                     </div>
-                    <div className="col-span-2 flex items-center">
-                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center">
+                    <div className="col-span-2">
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('products.unit')}</label>}
+                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center block">
                         {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
                       </span>
                       <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
                     </div>
                     <div className="col-span-3">
-                      <Input type="number" step="0.01" min="0" placeholder="P.U."
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.unitPrice')}</label>}
+                      <Input type="number" step="0.01" min="0"
                         {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
                     </div>
                     <div className="col-span-1 flex justify-center">

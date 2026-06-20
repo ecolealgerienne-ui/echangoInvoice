@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { expensesApi } from '@/lib/api';
+import { expensesApi , resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +15,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, CheckCircle, Trash2 } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const CATEGORIES = ['loyer', 'utilities', 'transport', 'rh', 'maintenance', 'other'];
 
@@ -35,6 +37,10 @@ export function ExpensesPage() {
   const [category, setCategory] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const { visible, toggle, col } = useColumnVisibility(
+    'expenses_visible_columns',
+    ['date', 'description', 'category', 'amount', 'status'],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['expenses', page, category],
@@ -49,19 +55,19 @@ export function ExpensesPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) => editing ? expensesApi.update(editing.id, d) : expensesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.save') + ' !'); closeModal(); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => expensesApi.approve(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.approve') + ' !'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => expensesApi.remove(id),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.delete') + ' !', 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() { setEditing(null); reset({ category: 'other' }); setModalOpen(true); }
@@ -79,39 +85,57 @@ export function ExpensesPage() {
         <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> {t('expenses.new')}</Button>
       </div>
 
-      <Select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }} className="w-44">
-        <option value="">Toutes catégories</option>
-        {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}
-      </Select>
+      <div className="flex items-center gap-3">
+        <Select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }} className="w-44">
+          <option value="">Toutes catégories</option>
+          {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}
+        </Select>
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={[
+              { key: 'date', label: t('expenses.date') },
+              { key: 'description', label: t('expenses.description') },
+              { key: 'category', label: t('expenses.category') },
+              { key: 'amount', label: t('expenses.amount') },
+              { key: 'status', label: t('common.status') },
+              { key: 'notes', label: 'Notes' },
+            ]}
+            visible={visible}
+            onToggle={toggle}
+          />
+        </div>
+      </div>
 
       {isLoading ? <LoadingSpinner /> : (
         <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.date')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.description')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('expenses.amount')}</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>
+                {col('date') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.date')}</th>}
+                {col('description') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.description')}</th>}
+                {col('category') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>}
+                {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('expenses.amount')}</th>}
+                {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((e: any) => (
                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(e.expenseDate)}</td>
-                  <td className="px-4 py-3 text-foreground">{e.description}</td>
-                  <td className="px-4 py-3"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>
-                  <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(e.amount)}</td>
-                  <td className="px-4 py-3 text-center">
+                  {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(e.expenseDate)}</td>}
+                  {col('description') && <td className="px-4 py-3 text-foreground">{e.description}</td>}
+                  {col('category') && <td className="px-4 py-3"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
+                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(e.amount)}</td>}
+                  {col('status') && <td className="px-4 py-3 text-center">
                     <Badge variant={e.isApproved ? 'success' : 'warning'}>
                       {e.isApproved ? t('expenses.approved') : t('expenses.pending')}
                     </Badge>
-                  </td>
+                  </td>}
+                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{e.notes || '—'}</td>}
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       {!e.isApproved && (

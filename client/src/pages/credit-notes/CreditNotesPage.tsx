@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { creditNotesApi, customersApi, invoicesApi } from '@/lib/api';
+import { creditNotesApi, customersApi, invoicesApi , resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', issued: 'success', applied: 'info', cancelled: 'destructive',
@@ -86,7 +88,7 @@ export function CreditNotesPage() {
       toast(t('creditNotes.created'), 'success');
       setModalOpen(false); reset();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const issueMutation = useMutation({
@@ -95,7 +97,7 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.issued'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const cancelMutation = useMutation({
@@ -104,7 +106,7 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.cancelled'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const removeMutation = useMutation({
@@ -113,11 +115,15 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const creditNotes = data?.data ?? [];
   const pagination = data?.pagination;
+  const { visible, toggle, col } = useColumnVisibility(
+    'creditnotes_visible_columns',
+    ['number', 'customer', 'date', 'reason', 'total', 'status'],
+  );
   const customerList = customers?.data ?? [];
   const invoiceList = invoicesData?.data ?? [];
 
@@ -130,31 +136,47 @@ export function CreditNotesPage() {
         </Button>
       </div>
 
+      <div className="flex justify-end">
+        <ColumnToggleMenu
+          columns={[
+            { key: 'number', label: t('creditNotes.creditNoteNumber') },
+            { key: 'customer', label: t('customers.title') },
+            { key: 'date', label: 'Date' },
+            { key: 'reason', label: t('creditNotes.reason') },
+            { key: 'total', label: 'Total TTC' },
+            { key: 'status', label: t('quotes.status') },
+            { key: 'notes', label: 'Notes' },
+          ]}
+          visible={visible}
+          onToggle={toggle}
+        />
+      </div>
+
       {isLoading ? <LoadingSpinner /> : (
         <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('creditNotes.creditNoteNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>
-                <th className="text-left px-4 py-3 font-medium">Date</th>
-                <th className="text-left px-4 py-3 font-medium">{t('creditNotes.reason')}</th>
-                <th className="text-right px-4 py-3 font-medium">Total TTC</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.creditNoteNumber')}</th>}
+                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
+                {col('date') && <th className="text-left px-4 py-3 font-medium">Date</th>}
+                {col('reason') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.reason')}</th>}
+                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
+                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
+                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {creditNotes.map((cn: any) => (
                 <tr key={cn.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{cn.creditNoteNumber}</td>
-                  <td className="px-4 py-3">{cn.customer?.name ?? '—'}</td>
-                  <td className="px-4 py-3">{formatDate(cn.creditNoteDate)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(cn.totalAmount)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[cn.status] ?? 'muted'}>{t(`status.${cn.status}`)}</Badge>
-                  </td>
+                  {col('number') && <td className="px-4 py-3 font-mono text-xs">{cn.creditNoteNumber}</td>}
+                  {col('customer') && <td className="px-4 py-3">{cn.customer?.name ?? '—'}</td>}
+                  {col('date') && <td className="px-4 py-3">{formatDate(cn.creditNoteDate)}</td>}
+                  {col('reason') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
+                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(cn.totalAmount)}</td>}
+                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[cn.status] ?? 'muted'}>{t(`status.${cn.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       {cn.status === 'draft' && (
@@ -177,7 +199,7 @@ export function CreditNotesPage() {
                 </tr>
               ))}
               {creditNotes.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>

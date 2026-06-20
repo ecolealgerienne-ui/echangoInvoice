@@ -8,12 +8,18 @@ import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { AlertTriangle, Clock, TrendingDown } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
 export function StockPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<'inventory' | 'alerts'>('inventory');
   const [page, setPage] = useState(1);
+  const { visible, toggle, col } = useColumnVisibility(
+    'stock_visible_columns',
+    ['name', 'quantity', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
+  );
 
   const { data: invData, isLoading: invLoading } = useQuery({
     queryKey: ['stock-inventory', page],
@@ -44,38 +50,52 @@ export function StockPage() {
       {tab === 'inventory' && (
         invLoading ? <LoadingSpinner /> : (
           <>
+            <div className="flex justify-end">
+              <ColumnToggleMenu
+                columns={[
+                  { key: 'name', label: t('rawMaterials.name') },
+                  { key: 'quantity', label: t('stock.quantity') },
+                  { key: 'value', label: t('stock.value') },
+                  { key: 'expiryAlert', label: t('stock.expiryAlert') },
+                  { key: 'lowStockAlert', label: t('stock.lowStockAlert') },
+                  { key: 'expiry', label: t('stock.expiry') },
+                ]}
+                visible={visible}
+                onToggle={toggle}
+              />
+            </div>
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('rawMaterials.name')}</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.quantity')}</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.value')}</th>
-                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>
-                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('stock.expiry')}</th>
+                    {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('rawMaterials.name')}</th>}
+                    {col('quantity') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.quantity')}</th>}
+                    {col('value') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.value')}</th>}
+                    {col('expiryAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>}
+                    {col('lowStockAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>}
+                    {col('expiry') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('stock.expiry')}</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {invData?.data?.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                    <tr><td colSpan={visible.length} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
                     <tr key={item.rawMaterialId} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-medium text-foreground">{item.rawMaterialName}<span className="text-muted-foreground ml-1 text-xs">({item.unit})</span></td>
-                      <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>
-                      <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>
-                      <td className="px-4 py-3 text-center">
+                      {col('name') && <td className="px-4 py-3 font-medium text-foreground">{item.rawMaterialName}<span className="text-muted-foreground ml-1 text-xs">({item.unit})</span></td>}
+                      {col('quantity') && <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>}
+                      {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
+                      {col('expiryAlert') && <td className="px-4 py-3 text-center">
                         {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
                         {item.expiryAlert === 'orange' && <Badge variant="warning">Bientôt</Badge>}
                         {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-center">
+                      </td>}
+                      {col('lowStockAlert') && <td className="px-4 py-3 text-center">
                         {item.lowStockAlert
                           ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />Bas</Badge>
                           : <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>
+                      </td>}
+                      {col('expiry') && <td className="px-4 py-3 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
                     </tr>
                   ))}
                 </tbody>
