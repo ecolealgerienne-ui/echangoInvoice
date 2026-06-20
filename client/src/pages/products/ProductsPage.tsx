@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { productsApi, suppliersApi, settingsApi } from '@/lib/api';
+import { productsApi, suppliersApi, settingsApi , resolveApiError } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useUnits } from '@/lib/useUnits';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
@@ -91,7 +91,7 @@ export function ProductsPage() {
       toast(t('common.save') + ' !', 'success');
       closeModal();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
@@ -100,7 +100,7 @@ export function ProductsPage() {
       qc.invalidateQueries({ queryKey: ['products'] });
       toast(t('common.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() {

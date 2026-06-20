@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { suppliersApi } from '@/lib/api';
+import { suppliersApi , resolveApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -49,13 +49,13 @@ export function SuppliersPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) => editing ? suppliersApi.update(editing.id, d) : suppliersApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['suppliers'] }); toast(t('common.save') + ' !'); closeModal(); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => suppliersApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['suppliers'] }); toast(t('common.delete') + ' !', 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() { setEditing(null); reset({}); setModalOpen(true); }

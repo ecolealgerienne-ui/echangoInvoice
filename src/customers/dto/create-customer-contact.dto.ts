@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateCustomerContactDto {
@@ -11,6 +12,7 @@ export class CreateCustomerContactDto {
   role?: string;
 
   @ApiPropertyOptional()
+  @Transform(({ value }) => value === '' ? undefined : value)
   @IsOptional() @IsEmail()
   email?: string;
 

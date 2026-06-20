@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { expensesApi } from '@/lib/api';
+import { expensesApi , resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -55,19 +55,19 @@ export function ExpensesPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) => editing ? expensesApi.update(editing.id, d) : expensesApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.save') + ' !'); closeModal(); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => expensesApi.approve(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.approve') + ' !'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => expensesApi.remove(id),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.delete') + ' !', 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() { setEditing(null); reset({ category: 'other' }); setModalOpen(true); }

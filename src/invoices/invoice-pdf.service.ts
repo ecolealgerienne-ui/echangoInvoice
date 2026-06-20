@@ -80,8 +80,8 @@ export class InvoicePdfService {
     const rows = await this.ds.query(
       `SELECT si.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
-              s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai,
+              s."companyName" AS company_name, s.address AS company_address,
+              NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
               s.logo AS company_logo
        FROM sales_invoices si
        JOIN customers c ON c.id = si."customerId"
@@ -177,8 +177,8 @@ export class InvoicePdfService {
     const rows = await this.ds.query(
       `SELECT dn.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc,
-              s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc,
+              s."companyName" AS company_name, s.address AS company_address,
+              NULL AS company_nif, NULL AS company_rc,
               s.logo AS company_logo
        FROM delivery_notes dn
        JOIN customers c ON c.id = dn."customerId"
@@ -273,7 +273,7 @@ export class InvoicePdfService {
   async sendInvoiceEmail(invoiceId: string, tenantId: string): Promise<void> {
     const rows = await this.ds.query(
       `SELECT si.*, c.name AS customer_name, c.email AS customer_email,
-              s.name AS company_name
+              s."companyName" AS company_name
        FROM sales_invoices si
        JOIN customers c ON c.id = si."customerId"
        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
@@ -303,7 +303,7 @@ export class InvoicePdfService {
   async sendDeliveryNoteEmail(dnId: string, tenantId: string): Promise<void> {
     const rows = await this.ds.query(
       `SELECT dn.*, c.name AS customer_name, c.email AS customer_email,
-              s.name AS company_name
+              s."companyName" AS company_name
        FROM delivery_notes dn
        JOIN customers c ON c.id = dn."customerId"
        LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
@@ -333,8 +333,8 @@ export class InvoicePdfService {
     const rows = await this.ds.query(
       `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
-              s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai,
+              s."companyName" AS company_name, s.address AS company_address,
+              NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
               s.logo AS company_logo
        FROM quotes q
        JOIN customers c ON c.id = q."customerId"

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { creditNotesApi, customersApi, invoicesApi } from '@/lib/api';
+import { creditNotesApi, customersApi, invoicesApi , resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -88,7 +88,7 @@ export function CreditNotesPage() {
       toast(t('creditNotes.created'), 'success');
       setModalOpen(false); reset();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const issueMutation = useMutation({
@@ -97,7 +97,7 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.issued'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const cancelMutation = useMutation({
@@ -106,7 +106,7 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.cancelled'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const removeMutation = useMutation({
@@ -115,7 +115,7 @@ export function CreditNotesPage() {
       qc.invalidateQueries({ queryKey: ['credit-notes'] });
       toast(t('creditNotes.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const creditNotes = data?.data ?? [];

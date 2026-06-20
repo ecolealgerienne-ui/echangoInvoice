@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { rawMaterialsApi } from '@/lib/api';
+import { rawMaterialsApi , resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -42,13 +42,13 @@ export function RawMaterialsPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) => editing ? rawMaterialsApi.update(editing.id, d) : rawMaterialsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['raw-materials'] }); toast(t('common.save') + ' !'); closeModal(); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => rawMaterialsApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['raw-materials'] }); toast(t('common.delete') + ' !', 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() { setEditing(null); reset({}); setModalOpen(true); }
