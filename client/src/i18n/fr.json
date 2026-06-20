@@ -281,7 +281,8 @@
     "delivery_note_cannot_delete": "Ce bon de livraison ne peut pas être supprimé",
     "delivery_note_cannot_update": "Ce bon de livraison ne peut pas être modifié",
     "delivery_note_not_signable": "Ce bon de livraison ne peut pas être signé",
-    "delivery_note_cannot_create_invoice": "Seuls les BL signés ou livrés peuvent être facturés",
+    "delivery_note_cannot_create_invoice": "Seuls les BL envoyés ou livrés peuvent être facturés",
+    "delivery_note_has_invoice": "Ce BL a déjà une facture, annulez la facture d'abord",
     "bl_already_converted_to_invoice": "Une facture a déjà été créée pour ce BL",
     "quote_already_converted_to_bl": "Un BL a déjà été créé pour ce devis",
 

@@ -32,7 +32,7 @@ export class DeliveryNote {
 
   @Column({
     type: 'enum',
-    enum: ['draft', 'sent', 'signed', 'delivered'],
+    enum: ['draft', 'sent', 'signed', 'delivered', 'cancelled'],
     default: 'draft',
   })
   status: string;

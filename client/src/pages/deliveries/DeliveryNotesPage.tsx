@@ -113,8 +113,14 @@ export function DeliveryNotesPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string) => deliveriesApi.remove(id),
+    mutationFn: (id: string) => deliveriesApi.updateStatus(id, { status: 'cancelled' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['delivery-notes'] }); toast(t('deliveries.cancelled'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deliveriesApi.remove(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['delivery-notes'] }); toast(t('common.deleted'), 'success'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -236,6 +242,7 @@ export function DeliveryNotesPage() {
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(bl.id, bl.blNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
+                      {/* brouillon : modifier, envoyer, annuler, supprimer */}
                       {bl.status === 'draft' && (
                         <>
                           <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(bl)}>
@@ -247,29 +254,39 @@ export function DeliveryNotesPage() {
                           <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
                             <XCircle className="h-4 w-4 text-destructive" />
                           </Button>
+                          <Button variant="ghost" size="icon" title={t('common.delete')} onClick={() => deleteMutation.mutate(bl.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </>
                       )}
+                      {/* envoyé : livrer, facturer, annuler */}
                       {bl.status === 'sent' && (
-                        <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                          <CheckCircle className="h-4 w-4 text-success" />
-                        </Button>
-                      )}
-                      {bl.status === 'signed' && (
                         <>
                           <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                            <Package className="h-4 w-4 text-primary" />
+                            <CheckCircle className="h-4 w-4 text-green-600" />
                           </Button>
                           {!bl.convertedToInvoiceId && (
                             <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-green-600" />
+                              <Receipt className="h-4 w-4 text-blue-600" />
                             </Button>
                           )}
+                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          </Button>
                         </>
                       )}
-                      {bl.status === 'delivered' && !bl.convertedToInvoiceId && (
-                        <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                          <Receipt className="h-4 w-4 text-green-600" />
-                        </Button>
+                      {/* livré : facturer, annuler */}
+                      {bl.status === 'delivered' && (
+                        <>
+                          {!bl.convertedToInvoiceId && (
+                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
+                              <Receipt className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </td>

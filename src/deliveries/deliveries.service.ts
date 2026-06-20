@@ -12,10 +12,11 @@ import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  draft: ['sent'],
-  sent: ['signed'],
-  signed: ['delivered'],
-  delivered: [],
+  draft: ['sent', 'cancelled'],
+  sent: ['delivered', 'cancelled'],
+  signed: ['delivered', 'cancelled'],
+  delivered: ['cancelled'],
+  cancelled: [],
 };
 
 interface ComputedItem {
@@ -306,6 +307,10 @@ export class DeliveriesService {
     tenantId: string,
     userId: string,
   ) {
+    if (dto.status === 'cancelled') {
+      return this.cancel(id, tenantId, userId);
+    }
+
     const dn = await this.dnRepo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!dn) throw new NotFoundException('delivery_note_not_found');
 
@@ -318,6 +323,40 @@ export class DeliveriesService {
     dn.updatedBy = userId;
     await this.dnRepo.save(dn);
     return { data: dn };
+  }
+
+  async cancel(id: string, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const dn = await qr.manager.findOne(DeliveryNote, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!dn) throw new NotFoundException('delivery_note_not_found');
+
+      const allowed = ALLOWED_TRANSITIONS[dn.status] ?? [];
+      if (!allowed.includes('cancelled')) {
+        throw new UnprocessableEntityException('invalid_status_transition');
+      }
+      if (dn.convertedToInvoiceId) {
+        throw new UnprocessableEntityException('delivery_note_has_invoice');
+      }
+
+      await this.releaseFIFO(qr, id);
+
+      dn.status = 'cancelled';
+      dn.updatedBy = userId;
+      await qr.manager.save(DeliveryNote, dn);
+
+      await qr.commitTransaction();
+      return { data: dn };
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
   }
 
   async sign(id: string, dto: SignDeliveryNoteDto, tenantId: string, userId: string) {
@@ -426,7 +465,7 @@ export class DeliveriesService {
         relations: ['items'],
       });
       if (!dn) throw new NotFoundException('delivery_note_not_found');
-      if (!['signed', 'delivered'].includes(dn.status)) {
+      if (!['sent', 'signed', 'delivered'].includes(dn.status)) {
         throw new UnprocessableEntityException('delivery_note_cannot_create_invoice');
       }
       if (dn.convertedToInvoiceId) {
