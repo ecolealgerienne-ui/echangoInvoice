@@ -98,10 +98,10 @@ export class DashboardService {
           AND "expiresAt" <= NOW() + INTERVAL '5 days'`,
         [tenantId]),
 
-      // Stock bas (via inventory_summary)
       this.ds.query(`
-        SELECT COUNT(*) AS count FROM inventory_summary
-        WHERE "tenantId"=$1 AND "totalQuantity" <= "alertThreshold" AND "alertThreshold" IS NOT NULL`,
+        SELECT COUNT(*) AS count FROM finished_products
+        WHERE "tenantId"=$1 AND "stockQuantity" <= "alertThreshold" AND "alertThreshold" IS NOT NULL
+          AND "deletedAt" IS NULL`,
         [tenantId]),
     ]);
 

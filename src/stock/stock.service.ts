@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { StockEntry } from './stock-entry.entity';
-import { InventorySummary } from './inventory-summary.entity';
+import { FinishedProduct } from '../products/finished-product.entity';
 import { ListInventoryDto } from './dto/list-inventory.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { SetThresholdDto } from './dto/set-threshold.dto';
@@ -12,7 +12,7 @@ export class StockService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     @InjectRepository(StockEntry) private readonly entryRepo: Repository<StockEntry>,
-    @InjectRepository(InventorySummary) private readonly summaryRepo: Repository<InventorySummary>,
+    @InjectRepository(FinishedProduct) private readonly productRepo: Repository<FinishedProduct>,
   ) {}
 
   async getInventory(tenantId: string, dto: ListInventoryDto) {
@@ -20,34 +20,31 @@ export class StockService {
     const limit = dto.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    // Base WHERE on products (not inventory_summary) so all products appear
-    let where = `rm."tenantId" = $1 AND rm."deletedAt" IS NULL`;
+    let where = `"tenantId" = $1 AND "deletedAt" IS NULL`;
     const params: any[] = [tenantId];
     let idx = 2;
 
-    if (dto.materialId) { where += ` AND rm.id = $${idx++}`; params.push(dto.materialId); }
-    if (dto.lowStockOnly) { where += ` AND inv."alertThreshold" IS NOT NULL AND COALESCE(inv."totalQuantity", 0) <= inv."alertThreshold"`; }
-    if (dto.expiringSoon) { where += ` AND inv."earliestExpirationDate" IS NOT NULL AND inv."earliestExpirationDate" <= NOW() + INTERVAL '5 days'`; }
+    if (dto.materialId) { where += ` AND id = $${idx++}`; params.push(dto.materialId); }
+    if (dto.lowStockOnly) { where += ` AND "alertThreshold" IS NOT NULL AND "stockQuantity" <= "alertThreshold"`; }
+    if (dto.expiringSoon) { where += ` AND "earliestExpirationDate" IS NOT NULL AND "earliestExpirationDate" <= NOW() + INTERVAL '5 days'`; }
 
     const countRow = await this.ds.query(
-      `SELECT COUNT(*) AS total
-       FROM finished_products rm
-       LEFT JOIN inventory_summary inv ON inv."rawMaterialId" = rm.id AND inv."tenantId" = $1
-       WHERE ${where}`,
+      `SELECT COUNT(*) AS total FROM finished_products WHERE ${where}`,
       params,
     );
     const total = parseInt(countRow[0].total);
 
     const rows = await this.ds.query(
-      `SELECT rm.id AS "rawMaterialId", rm.name, rm.unit,
-              COALESCE(inv."totalQuantity", 0)      AS "totalQuantity",
-              COALESCE(inv."averageCostPerUnit", 0) AS "averageCostPerUnit",
-              COALESCE(inv."totalValue", 0)          AS "totalValue",
-              inv."earliestExpirationDate", inv."alertThreshold", inv."updatedAt"
-       FROM finished_products rm
-       LEFT JOIN inventory_summary inv ON inv."rawMaterialId" = rm.id AND inv."tenantId" = $1
+      `SELECT id AS "rawMaterialId", name, unit,
+              "stockQuantity"          AS "totalQuantity",
+              "averageCostPerUnit",
+              "totalStockValue"        AS "totalValue",
+              "earliestExpirationDate",
+              "alertThreshold",
+              "updatedAt"
+       FROM finished_products
        WHERE ${where}
-       ORDER BY rm.name ASC
+       ORDER BY name ASC
        LIMIT $${idx++} OFFSET $${idx++}`,
       [...params, limit, offset],
     );
@@ -97,13 +94,13 @@ export class StockService {
         [tenantId]),
 
       this.ds.query(`
-        SELECT inv."rawMaterialId", rm.name, rm.unit,
-               inv."totalQuantity", inv."alertThreshold"
-        FROM inventory_summary inv
-        JOIN finished_products rm ON rm.id = inv."rawMaterialId"
-        WHERE inv."tenantId"=$1
-          AND inv."alertThreshold" IS NOT NULL
-          AND inv."totalQuantity" <= inv."alertThreshold"`,
+        SELECT id AS "rawMaterialId", name, unit,
+               "stockQuantity" AS "totalQuantity", "alertThreshold"
+        FROM finished_products
+        WHERE "tenantId"=$1
+          AND "alertThreshold" IS NOT NULL
+          AND "stockQuantity" <= "alertThreshold"
+          AND "deletedAt" IS NULL`,
         [tenantId]),
     ]);
 
@@ -140,15 +137,15 @@ export class StockService {
   }
 
   async adjust(tenantId: string, dto: AdjustStockDto, userId: string) {
-    const summary = await this.summaryRepo.findOne({
-      where: { tenantId, rawMaterialId: dto.rawMaterialId },
+    const product = await this.productRepo.findOne({
+      where: { id: dto.rawMaterialId, tenantId },
     });
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
-      const costPerUnit = summary ? parseFloat(summary.averageCostPerUnit as any) : 0;
+      const costPerUnit = product ? parseFloat(product.averageCostPerUnit as any) : 0;
       const qty = dto.quantityAdjustment;
 
       const entry = qr.manager.create(StockEntry, {
@@ -171,7 +168,7 @@ export class StockService {
         [tenantId, dto.rawMaterialId, saved.id, qty, dto.reason, dto.notes ?? null, userId],
       );
 
-      // Recalculate InventorySummary from available entries
+      // Recalculate from available entries
       const avail = await qr.manager
         .createQueryBuilder(StockEntry, 'se')
         .where('se.tenantId = :tenantId', { tenantId })
@@ -186,19 +183,16 @@ export class StockService {
         .filter(e => e.expiresAt)
         .sort((a, b) => new Date(a.expiresAt!).getTime() - new Date(b.expiresAt!).getTime())[0]?.expiresAt ?? null;
 
-      if (summary) {
-        summary.totalQuantity = totalQty;
-        summary.averageCostPerUnit = avgCost;
-        summary.totalValue = totalVal;
-        summary.earliestExpirationDate = earliest;
-        await qr.manager.save(InventorySummary, summary);
-      } else {
-        await qr.manager.save(InventorySummary, qr.manager.create(InventorySummary, {
-          tenantId, rawMaterialId: dto.rawMaterialId,
-          totalQuantity: totalQty, averageCostPerUnit: avgCost,
-          totalValue: totalVal, earliestExpirationDate: earliest,
-        }));
-      }
+      await qr.manager.query(`
+        UPDATE finished_products
+        SET "stockQuantity"          = $1,
+            "averageCostPerUnit"     = $2,
+            "totalStockValue"        = $3,
+            "earliestExpirationDate" = $4,
+            "updatedAt"              = NOW()
+        WHERE id = $5 AND "tenantId" = $6`,
+        [totalQty, avgCost, totalVal, earliest, dto.rawMaterialId, tenantId],
+      );
 
       await qr.commitTransaction();
       return {
@@ -221,10 +215,9 @@ export class StockService {
   }
 
   async setThreshold(tenantId: string, rawMaterialId: string, dto: SetThresholdDto) {
-    let summary = await this.summaryRepo.findOne({ where: { tenantId, rawMaterialId } });
-    if (!summary) throw new NotFoundException('inventory_summary_not_found');
-    summary.alertThreshold = dto.alertThreshold;
-    await this.summaryRepo.save(summary);
+    const product = await this.productRepo.findOne({ where: { id: rawMaterialId, tenantId } });
+    if (!product) throw new NotFoundException('product_not_found');
+    await this.productRepo.update({ id: rawMaterialId, tenantId }, { alertThreshold: dto.alertThreshold });
     return { data: { rawMaterialId, alertThreshold: dto.alertThreshold } };
   }
 

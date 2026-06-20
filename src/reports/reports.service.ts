@@ -304,21 +304,21 @@ export class ReportsService {
         [tenantId]),
 
       this.ds.query(`
-        SELECT inv."rawMaterialId", rm.name, rm.unit,
-               inv."totalQuantity" AS avail_qty,
-               inv."totalValue"    AS stock_value,
-               inv."averageCostPerUnit" AS avg_cost,
-               inv."alertThreshold",
-               inv."earliestExpirationDate",
+        SELECT rm.id AS "rawMaterialId", rm.name, rm.unit,
+               rm."stockQuantity"          AS avail_qty,
+               rm."totalStockValue"        AS stock_value,
+               rm."averageCostPerUnit"     AS avg_cost,
+               rm."alertThreshold",
+               rm."earliestExpirationDate",
                (SELECT MIN(se2."enteredAt") FROM stock_entries se2
-                WHERE se2."finishedProductId"=inv."rawMaterialId" AND se2."tenantId"=inv."tenantId"
+                WHERE se2."finishedProductId"=rm.id AND se2."tenantId"=rm."tenantId"
                   AND se2.status='available') AS oldest_entry,
                (SELECT COALESCE(SUM(se3.quantity),0) FROM stock_entries se3
-                WHERE se3."finishedProductId"=inv."rawMaterialId" AND se3."tenantId"=inv."tenantId"
+                WHERE se3."finishedProductId"=rm.id AND se3."tenantId"=rm."tenantId"
                   AND se3.status='reserved') AS reserved_qty
-        FROM inventory_summary inv
-        JOIN finished_products rm ON rm.id = inv."rawMaterialId"
-        WHERE inv."tenantId"=$1 ORDER BY rm.name ASC`,
+        FROM finished_products rm
+        WHERE rm."tenantId"=$1 AND rm."deletedAt" IS NULL
+        ORDER BY rm.name ASC`,
         [tenantId]),
 
       this.ds.query(`
@@ -328,9 +328,9 @@ export class ReportsService {
         [tenantId]),
 
       this.ds.query(`
-        SELECT COUNT(*) AS count FROM inventory_summary
+        SELECT COUNT(*) AS count FROM finished_products
         WHERE "tenantId"=$1 AND "alertThreshold" IS NOT NULL
-          AND "totalQuantity" <= "alertThreshold"`,
+          AND "stockQuantity" <= "alertThreshold" AND "deletedAt" IS NULL`,
         [tenantId]),
     ]);
 

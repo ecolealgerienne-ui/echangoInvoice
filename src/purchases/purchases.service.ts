@@ -7,7 +7,6 @@ import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { ReceptionBL } from './entities/reception-bl.entity';
 import { StockEntry } from '../stock/stock-entry.entity';
-import { InventorySummary } from '../stock/inventory-summary.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
@@ -271,15 +270,15 @@ export class PurchasesService {
         await qr.manager.save(StockEntry, entry);
         stockEntriesCreated.push(entry);
 
-        // Update InventorySummary (upsert)
-        await this.updateInventorySummary(qr, tenantId, item.rawMaterialId);
-        const summary = await qr.manager.findOne(InventorySummary, {
-          where: { tenantId, rawMaterialId: item.rawMaterialId },
+        // Update product stock fields
+        await this.updateProductStock(qr, tenantId, item.rawMaterialId);
+        const updatedProduct = await qr.manager.findOne(FinishedProduct, {
+          where: { id: item.rawMaterialId, tenantId },
         });
-        if (summary) {
+        if (updatedProduct) {
           inventoryUpdated.push({
             rawMaterialId: item.rawMaterialId,
-            newTotalQuantity: Number(summary.totalQuantity),
+            newTotalQuantity: Number(updatedProduct.stockQuantity),
           });
         }
 
@@ -377,12 +376,11 @@ export class PurchasesService {
     return `BL-REC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
   }
 
-  private async updateInventorySummary(
+  private async updateProductStock(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
     rawMaterialId: string,
   ): Promise<void> {
-    // Recalculate from all available stock entries (source of truth)
     const entries = await qr.manager
       .createQueryBuilder(StockEntry, 'se')
       .where('se.tenantId = :tenantId', { tenantId })
@@ -401,29 +399,15 @@ export class PurchasesService {
       .sort((a, b) => a.getTime() - b.getTime());
     const earliestExpirationDate = expirations[0] ?? null;
 
-    const existing = await qr.manager.findOne(InventorySummary, {
-      where: { tenantId, rawMaterialId },
-    });
-
-    if (existing) {
-      await qr.manager.update(InventorySummary, { id: existing.id }, {
-        totalQuantity,
-        averageCostPerUnit,
-        totalValue,
-        earliestExpirationDate,
-      });
-    } else {
-      await qr.manager.save(
-        InventorySummary,
-        qr.manager.create(InventorySummary, {
-          tenantId,
-          rawMaterialId,
-          totalQuantity,
-          averageCostPerUnit,
-          totalValue,
-          earliestExpirationDate,
-        }),
-      );
-    }
+    await qr.manager.query(`
+      UPDATE finished_products
+      SET "stockQuantity"          = $1,
+          "averageCostPerUnit"     = $2,
+          "totalStockValue"        = $3,
+          "earliestExpirationDate" = $4,
+          "updatedAt"              = NOW()
+      WHERE id = $5 AND "tenantId" = $6`,
+      [totalQuantity, averageCostPerUnit, totalValue, earliestExpirationDate, rawMaterialId, tenantId],
+    );
   }
 }
