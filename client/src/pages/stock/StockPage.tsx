@@ -14,8 +14,8 @@ import { AlertTriangle, Clock, TrendingDown, Pencil } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Modal } from '@/components/shared/Modal';
-import { toast } from '@/lib/toast';
+import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
 
@@ -29,6 +29,7 @@ type AdjustForm = z.infer<typeof adjustSchema>;
 export function StockPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [tab, setTab] = useState<'inventory' | 'alerts'>('inventory');
   const [page, setPage] = useState(1);
   const [adjustTarget, setAdjustTarget] = useState<any | null>(null);
@@ -67,12 +68,13 @@ export function StockPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-inventory'] });
       queryClient.invalidateQueries({ queryKey: ['stock-alerts'] });
-      toast.success(t('stock.adjusted'));
+      toast(t('stock.adjusted'), 'success');
       setAdjustTarget(null);
       adjustForm.reset({ reason: 'physical_count', notes: '' });
     },
     onError: (err: any) => {
-      toast.error(t(`errors.${err?.response?.data?.message}`, { defaultValue: t('errors.generic') }));
+      const msg = err?.response?.data?.message;
+      toast(msg ? t(`errors.${msg}`) : t('errors.generic'), 'error');
     },
   });
 
