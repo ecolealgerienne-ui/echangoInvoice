@@ -46,6 +46,10 @@ export class UpdateSettingsDto {
 
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) defaultPaymentTermsDays?: number;
 
+  @ApiPropertyOptional({ description: 'Base64 data URL of the company logo' })
+  @IsOptional() @IsString()
+  logo?: string;
+
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
