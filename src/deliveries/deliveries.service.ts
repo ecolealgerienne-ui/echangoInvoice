@@ -221,6 +221,7 @@ export class DeliveriesService {
 
     const qb = this.dnRepo
       .createQueryBuilder('dn')
+      .leftJoinAndSelect('dn.customer', 'customer')
       .where('dn.tenantId = :tenantId', { tenantId })
       .andWhere('dn.deletedAt IS NULL');
 

@@ -274,8 +274,12 @@
     "blNumber": "N° BL",
     "created": "Bon de livraison créé",
     "cancelled": "Bon de livraison annulé",
+    "send": "Envoyer",
+    "markDelivered": "Marquer livré",
     "status": {
       "draft": "Brouillon",
+      "sent": "Envoyé",
+      "signed": "Signé",
       "delivered": "Livré",
       "cancelled": "Annulé"
     }

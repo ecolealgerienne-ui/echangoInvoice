@@ -1,10 +1,11 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, DeleteDateColumn,
-  OneToMany, Index, Unique,
+  OneToMany, ManyToOne, JoinColumn, Index, Unique,
 } from 'typeorm';
 import { SalesInvoiceItem } from './sales-invoice-item.entity';
 import { Payment } from './payment.entity';
+import { Customer } from '../../../customers/customer.entity';
 
 @Index('IDX_sales_invoices_tenant_id', ['tenantId'])
 @Index('IDX_sales_invoices_customer_id', ['customerId'])
@@ -80,6 +81,10 @@ export class SalesInvoice {
 
   @DeleteDateColumn({ type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
+
+  @ManyToOne(() => Customer, { nullable: true })
+  @JoinColumn({ name: 'customerId' })
+  customer: Customer;
 
   @OneToMany(() => SalesInvoiceItem, (item) => item.salesInvoice, { cascade: true })
   items: SalesInvoiceItem[];

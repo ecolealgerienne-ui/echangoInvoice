@@ -216,6 +216,7 @@ export class SalesInvoicesService {
 
     const qb = this.invoiceRepo
       .createQueryBuilder('inv')
+      .leftJoinAndSelect('inv.customer', 'customer')
       .where('inv.tenantId = :tenantId', { tenantId })
       .andWhere('inv.deletedAt IS NULL');
 

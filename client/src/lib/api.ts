@@ -110,6 +110,8 @@ export const invoicesApi = {
   list: (params?: Record<string, unknown>) => api.get('/invoices/sales-invoices', { params }).then(r => r.data),
   get: (id: string) => api.get(`/invoices/sales-invoices/${id}`).then(r => r.data),
   create: (body: unknown) => api.post('/invoices/sales-invoices', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/invoices/sales-invoices/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/invoices/sales-invoices/${id}/status`, body).then(r => r.data),
   send: (id: string) => api.patch(`/invoices/sales-invoices/${id}/send`).then(r => r.data),
   cancel: (id: string) => api.patch(`/invoices/sales-invoices/${id}/cancel`).then(r => r.data),
   remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then(r => r.data),
@@ -129,8 +131,11 @@ export const deliveriesApi = {
   list: (params?: Record<string, unknown>) => api.get('/deliveries/delivery-notes', { params }).then(r => r.data),
   get: (id: string) => api.get(`/deliveries/delivery-notes/${id}`).then(r => r.data),
   create: (body: unknown) => api.post('/deliveries/delivery-notes', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/deliveries/delivery-notes/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/deliveries/delivery-notes/${id}/status`, body).then(r => r.data),
   cancel: (id: string) => api.patch(`/deliveries/delivery-notes/${id}/cancel`).then(r => r.data),
   remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then(r => r.data),
+  pdf: (id: string) => api.get(`/deliveries/delivery-notes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
 };
 
 export const expensesApi = {

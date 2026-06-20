@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { invoicesApi, customersApi, productsApi } from '@/lib/api';
+import { invoicesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,9 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', partial: 'warning', paid: 'success', overdue: 'destructive', cancelled: 'secondary',
@@ -27,6 +29,7 @@ const itemSchema = z.object({
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
+  taxRate1: z.coerce.number().min(0).max(100).optional(),
 });
 
 const schema = z.object({
@@ -59,6 +62,7 @@ export function InvoicesPage() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
@@ -78,9 +82,17 @@ export function InvoicesPage() {
   const productList = productsData?.data ?? [];
   const units = useUnits();
 
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
+  const defaultTaxRate = taxRates.find(r => r.isDefault)?.rate ?? 19;
+
   const { register, handleSubmit, control, reset, watch: watchInv, setValue: setInvValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 }] },
+    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
@@ -90,10 +102,10 @@ export function InvoicesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (d: FormData) => invoicesApi.create(d),
+    mutationFn: (d: FormData) => editing ? invoicesApi.update(editing.id, d) : invoicesApi.create(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
-      toast(t('invoices.created'), 'success');
+      toast(editing ? t('common.save') + ' !' : t('invoices.created'), 'success');
       closeModal();
     },
     onError: () => toast(t('errors.generic'), 'error'),
@@ -123,9 +135,35 @@ export function InvoicesPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
+  function openCreate() {
+    setEditing(null);
+    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
+    setModalOpen(true);
+  }
+  function openEdit(inv: any) {
+    invoicesApi.get(inv.id).then((res: any) => {
+      const d = res.data ?? res;
+      setEditing(d);
+      reset({
+        customerId: d.customerId,
+        invoiceDate: d.invoiceDate?.slice(0, 10) ?? today,
+        dueDate: d.dueDate?.slice(0, 10) ?? in30,
+        notes: d.notes ?? '',
+        items: (d.items ?? []).map((it: any) => ({
+          finishedProductId: it.finishedProductId,
+          quantity: Number(it.quantity),
+          unit: it.unit,
+          unitPrice: Number(it.unitPrice),
+          taxRate1: String(parseFloat(String(it.taxRate1 ?? defaultTaxRate))),
+        })),
+      });
+      setModalOpen(true);
+    }).catch(() => toast(t('errors.generic'), 'error'));
+  }
   function closeModal() {
+    setEditing(null);
     setModalOpen(false);
-    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unitPrice: 0 }] });
+    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
   }
 
   function downloadPdf(id: string, number: string) {
@@ -141,7 +179,7 @@ export function InvoicesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">{t('invoices.title')}</h1>
-        <Button onClick={() => setModalOpen(true)} size="sm">
+        <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('invoices.new')}
         </Button>
       </div>
@@ -191,21 +229,29 @@ export function InvoicesPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="PDF" onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
+                      <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
+                      {inv.status === 'draft' && (
+                        <>
+                          <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(inv)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title={t('invoices.send')} onClick={() => sendMutation.mutate(inv.id)}>
+                            <Send className="h-4 w-4 text-primary" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(inv.id)}>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                       {['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.amountDue) > 0 && (
                         <Button variant="ghost" size="icon" title={t('invoices.addPayment')}
                           onClick={() => { setPaymentInvoice(inv); paymentForm.setValue('amount', Number(inv.amountDue)); }}>
                           <CreditCard className="h-4 w-4 text-primary" />
                         </Button>
                       )}
-                      {inv.status === 'draft' && (
-                        <Button variant="ghost" size="icon" title={t('invoices.send')} onClick={() => sendMutation.mutate(inv.id)}>
-                          <Send className="h-4 w-4 text-primary" />
-                        </Button>
-                      )}
-                      {['draft', 'sent'].includes(inv.status) && (
+                      {inv.status === 'sent' && (
                         <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(inv.id)}>
                           <XCircle className="h-4 w-4 text-destructive" />
                         </Button>
@@ -221,8 +267,7 @@ export function InvoicesPage() {
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
 
-      {/* Create invoice modal */}
-      <Modal open={modalOpen} onClose={closeModal} title={t('invoices.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('invoices.new')}>
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1 col-span-1">
@@ -246,15 +291,22 @@ export function InvoicesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
-              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 })}>
+              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any })}>
                 <Plus className="h-3 w-3" />
               </Button>
+            </div>
+            <div className="grid grid-cols-[2fr_60px_55px_80px_60px_32px] gap-2 mb-1">
+              <span className="text-xs font-medium text-muted-foreground">{t('common.product')}</span>
+              <span className="text-xs font-medium text-muted-foreground">{t('common.qty')}</span>
+              <span className="text-xs font-medium text-muted-foreground">{t('products.unit')}</span>
+              <span className="text-xs font-medium text-muted-foreground">{t('purchases.unitPrice')}</span>
+              <span className="text-xs font-medium text-muted-foreground">{t('settings.taxRate')}</span>
             </div>
             {fields.map((field, i) => {
               const selId = watchInv(`items.${i}.finishedProductId`);
               const selProd = productList.find((p: any) => p.id === selId);
               return (
-                <div key={field.id} className="grid grid-cols-[2fr_60px_60px_80px_32px] gap-2 items-center">
+                <div key={field.id} className="grid grid-cols-[2fr_60px_55px_80px_60px_32px] gap-2 items-center">
                   <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     {...register(`items.${i}.finishedProductId`)}
                     onChange={e => {
@@ -268,12 +320,18 @@ export function InvoicesPage() {
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
-                  <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />
+                  <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
                   <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground text-center truncate">
                     {selProd?.unit ?? watchInv(`items.${i}.unit`) ?? '—'}
                   </span>
                   <input type="hidden" {...register(`items.${i}.unit`)} />
-                  <Input type="number" step="0.01" placeholder={t('common.price')} {...register(`items.${i}.unitPrice`)} />
+                  <Input type="number" step="0.01" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
+                  <select className="w-full rounded-md border border-input bg-background px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
+                    {taxRates.length > 0
+                      ? taxRates.map(r => <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>)
+                      : <option value="19">19%</option>
+                    }
+                  </select>
                   <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
