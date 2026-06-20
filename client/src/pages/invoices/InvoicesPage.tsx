@@ -25,7 +25,6 @@ const STATUS_VARIANT: Record<string, any> = {
 
 const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
-  description: z.string().optional(),
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
@@ -64,6 +63,10 @@ export function InvoicesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const { visible, toggle, col } = useColumnVisibility(
+    'invoices_visible_columns',
+    ['number', 'customer', 'invoiceDate', 'dueDate', 'amount', 'due', 'status', 'notes'],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, search, status],
@@ -72,7 +75,7 @@ export function InvoicesPage() {
 
   const { data: customers } = useQuery({
     queryKey: ['customers', 1, ''],
-    queryFn: () => customersApi.list({ page: 1, limit: 20, search: undefined }),
+    queryFn: () => customersApi.list({ page: 1, limit: 200, search: undefined }),
   });
 
   const { data: productsData } = useQuery({
@@ -80,7 +83,7 @@ export function InvoicesPage() {
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
   const productList = productsData?.data ?? [];
-  const units = useUnits();
+  useUnits();
 
   const { data: settingsData } = useQuery({
     queryKey: ['settings'],
@@ -108,19 +111,19 @@ export function InvoicesPage() {
       toast(editing ? t('common.save') + ' !' : t('invoices.created'), 'success');
       closeModal();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const sendMutation = useMutation({
     mutationFn: (id: string) => invoicesApi.send(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast(t('invoices.status.sent'), 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => invoicesApi.cancel(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast(t('invoices.status.cancelled'), 'success'); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const paymentMutation = useMutation({
@@ -132,7 +135,7 @@ export function InvoicesPage() {
       setPaymentInvoice(null);
       paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' });
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreate() {
@@ -140,6 +143,7 @@ export function InvoicesPage() {
     reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
     setModalOpen(true);
   }
+
   function openEdit(inv: any) {
     invoicesApi.get(inv.id).then((res: any) => {
       const d = res.data ?? res;
@@ -160,6 +164,7 @@ export function InvoicesPage() {
       setModalOpen(true);
     }).catch(() => toast(t('errors.generic'), 'error'));
   }
+
   function closeModal() {
     setEditing(null);
     setModalOpen(false);
@@ -184,7 +189,7 @@ export function InvoicesPage() {
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center flex-wrap">
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder={t('common.search')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
@@ -195,6 +200,22 @@ export function InvoicesPage() {
             <option key={s} value={s}>{t(`invoices.status.${s}`)}</option>
           ))}
         </Select>
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={[
+              { key: 'number', label: t('invoices.number') },
+              { key: 'customer', label: t('invoices.customer') },
+              { key: 'invoiceDate', label: t('invoices.invoiceDate') },
+              { key: 'dueDate', label: t('invoices.dueDate') },
+              { key: 'amount', label: t('invoices.amount') },
+              { key: 'due', label: t('invoices.due') },
+              { key: 'status', label: t('common.status') },
+              { key: 'notes', label: 'Notes' },
+            ]}
+            visible={visible}
+            onToggle={toggle}
+          />
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -202,31 +223,31 @@ export function InvoicesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.number')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.customer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.invoiceDate')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.dueDate')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.due')}</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>
+                {col('number') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.number')}</th>}
+                {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.customer')}</th>}
+                {col('invoiceDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.invoiceDate')}</th>}
+                {col('dueDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.dueDate')}</th>}
+                {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>}
+                {col('due') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.due')}</th>}
+                {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((inv: any) => (
                 <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono font-medium text-foreground">{inv.invoiceNumber}</td>
-                  <td className="px-4 py-3 text-foreground">{inv.customer?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(inv.totalAmount)}</td>
-                  <td className="px-4 py-3 text-right text-foreground">{formatCurrency(inv.amountDue)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={STATUS_VARIANT[inv.status]}>{t(`invoices.status.${inv.status}`)}</Badge>
-                  </td>
+                  {col('number') && <td className="px-4 py-3 font-mono font-medium text-foreground">{inv.invoiceNumber}</td>}
+                  {col('customer') && <td className="px-4 py-3 text-foreground">{inv.customer?.name ?? '—'}</td>}
+                  {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
+                  {col('dueDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
+                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(inv.totalAmount)}</td>}
+                  {col('due') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(inv.amountDue)}</td>}
+                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={STATUS_VARIANT[inv.status]}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{inv.notes || '—'}</td>}
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
@@ -352,7 +373,6 @@ export function InvoicesPage() {
         </form>
       </Modal>
 
-      {/* Payment modal */}
       <Modal
         open={!!paymentInvoice}
         onClose={() => { setPaymentInvoice(null); paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' }); }}
