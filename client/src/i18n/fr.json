@@ -373,7 +373,11 @@
     "notes": "Notes",
     "convert": "Convertir en facture",
     "send": "Marquer comme envoyé",
-    "sent": "Devis marqué comme envoyé"
+    "sent": "Devis marqué comme envoyé",
+    "accept": "Accepter le devis",
+    "reject": "Rejeter le devis",
+    "accepted": "Devis accepté",
+    "rejected": "Devis rejeté"
   },
   "purchases": {
     "title": "Achats",

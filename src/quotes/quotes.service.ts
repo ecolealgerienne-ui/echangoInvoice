@@ -190,6 +190,7 @@ export class QuotesService {
         throw new UnprocessableEntityException('quote_not_editable');
       }
 
+      if (dto.customerId) quote.customerId = dto.customerId;
       if (dto.quoteDate) quote.quoteDate = dto.quoteDate as unknown as Date;
       if (dto.expiryDate !== undefined) quote.expiryDate = dto.expiryDate ? dto.expiryDate as unknown as Date : null;
       if (dto.notes !== undefined) quote.notes = dto.notes ?? null;

@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -85,7 +85,7 @@ export function QuotesPage() {
     defaultValues: {
       quoteDate: today,
       expiryDate: in30,
-      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }],
     },
   });
 
@@ -103,7 +103,19 @@ export function QuotesPage() {
 
   const sendMutation = useMutation({
     mutationFn: (id: string) => quotesApi.updateStatus(id, { status: 'sent' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast(t('quotes.sent') ?? 'Envoyé !', 'success'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast(t('quotes.sent'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.updateStatus(id, { status: 'accepted' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast(t('quotes.accepted'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.updateStatus(id, { status: 'rejected' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quotes'] }); toast(t('quotes.rejected'), 'success'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -126,7 +138,7 @@ export function QuotesPage() {
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
-  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }] }); setModalOpen(true); }
+  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }] }); setModalOpen(true); }
   function openEdit(row: any) {
     quotesApi.get(row.id).then((res: any) => {
       const q = res.data ?? res;
@@ -141,7 +153,7 @@ export function QuotesPage() {
           quantity: Number(it.quantity),
           unit: it.unit,
           unitPrice: Number(it.unitPrice),
-          taxRate1: Number(it.taxRate1 ?? defaultTaxRate),
+          taxRate1: String(Number(it.taxRate1 ?? defaultTaxRate)),
         })),
       });
       setModalOpen(true);
@@ -251,6 +263,16 @@ export function QuotesPage() {
                           </Button>
                         </>
                       )}
+                      {q.status === 'sent' && (
+                        <>
+                          <Button size="sm" variant="ghost" title={t('quotes.accept')} onClick={() => acceptMutation.mutate(q.id)}>
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title={t('quotes.reject')} onClick={() => rejectMutation.mutate(q.id)}>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                       {q.status === 'accepted' && (
                         <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
                           <RefreshCw className="h-4 w-4 text-green-600" />
@@ -304,7 +326,7 @@ export function QuotesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -349,7 +371,7 @@ export function QuotesPage() {
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
                   </div>
                   <div className="col-span-1">
-                    <Select {...register(`items.${i}.taxRate1`, { valueAsNumber: true })} className="w-full text-xs">
+                    <Select {...register(`items.${i}.taxRate1`)} className="w-full text-xs">
                       {taxRates.length > 0
                         ? taxRates.map(r => (
                             <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>
