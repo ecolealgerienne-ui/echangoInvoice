@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { productsApi, suppliersApi } from '@/lib/api';
+import { productsApi, suppliersApi, settingsApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useUnits } from '@/lib/useUnits';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, SlidersHorizontal, Check } from 'lucide-react';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -30,6 +30,20 @@ type FormData = z.infer<typeof schema>;
 
 const TYPE_FILTERS = ['all', 'product', 'material', 'both'] as const;
 
+const ALL_COLUMNS = ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice', 'supplier', 'description'] as const;
+type ColumnKey = typeof ALL_COLUMNS[number];
+
+const DEFAULT_VISIBLE: ColumnKey[] = ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice'];
+const STORAGE_KEY = 'products_visible_columns';
+
+function loadVisibleColumns(): ColumnKey[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as ColumnKey[];
+  } catch { /* ignore */ }
+  return DEFAULT_VISIBLE;
+}
+
 export function ProductsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -40,6 +54,27 @@ export function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'material' | 'both'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(loadVisibleColumns);
+  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
+  const columnsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close columns menu on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (columnsMenuRef.current && !columnsMenuRef.current.contains(e.target as Node)) {
+        setColumnsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const defaultUnit: string = settingsData?.data?.defaultUnit ?? '';
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', page, search, typeFilter],
@@ -55,12 +90,17 @@ export function ProductsPage() {
     queryFn: () => suppliersApi.list({ page: 1, limit: 100 }),
   });
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { type: 'product' },
+    defaultValues: { type: 'product', unit: defaultUnit },
   });
 
-  const currentType = watch('type');
+  // Sync default unit once settings load (create modal only)
+  useEffect(() => {
+    if (!editing && defaultUnit) {
+      reset((prev) => ({ ...prev, unit: prev.unit || defaultUnit }));
+    }
+  }, [defaultUnit, editing, reset]);
 
   const mutation = useMutation({
     mutationFn: (d: FormData) =>
@@ -82,15 +122,36 @@ export function ProductsPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
-  function openCreate() { setEditing(null); reset({ type: 'product' }); setModalOpen(true); }
+  function openCreate() {
+    setEditing(null);
+    reset({ type: 'product', unit: defaultUnit });
+    setModalOpen(true);
+  }
   function openEdit(p: any) { setEditing(p); reset(p); setModalOpen(true); }
-  function closeModal() { setModalOpen(false); setEditing(null); reset({ type: 'product' }); }
+  function closeModal() { setModalOpen(false); setEditing(null); reset({ type: 'product', unit: defaultUnit }); }
 
-  const showPrice = currentType === 'product' || currentType === 'both';
-  const showCost = currentType === 'material' || currentType === 'both';
-  const showSupplier = currentType === 'material' || currentType === 'both';
+  function toggleColumn(col: ColumnKey) {
+    setVisibleColumns(prev => {
+      const next = prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
+
+  const col = (key: ColumnKey) => visibleColumns.includes(key);
 
   const suppliers = suppliersData?.data ?? [];
+
+  const COLUMN_LABELS: Record<ColumnKey, string> = {
+    type: t('products.type.label'),
+    name: t('products.name'),
+    code: t('products.code'),
+    unit: t('products.unit'),
+    salesPrice: t('products.price'),
+    costPrice: t('products.costPerUnit'),
+    supplier: t('products.supplier'),
+    description: t('products.description'),
+  };
 
   return (
     <div className="space-y-5">
@@ -101,7 +162,7 @@ export function ProductsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder={t('common.search')} value={search}
@@ -116,6 +177,30 @@ export function ProductsPage() {
             </button>
           ))}
         </div>
+
+        {/* Column visibility menu */}
+        <div className="relative ml-auto" ref={columnsMenuRef}>
+          <Button variant="outline" size="sm" onClick={() => setColumnsMenuOpen(o => !o)}>
+            <SlidersHorizontal className="h-4 w-4" />
+            {t('products.columns')}
+          </Button>
+          {columnsMenuOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg p-2 min-w-44">
+              {ALL_COLUMNS.map(col => (
+                <button
+                  key={col}
+                  onClick={() => toggleColumn(col)}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted text-sm text-left transition-colors"
+                >
+                  <span className={`h-4 w-4 flex items-center justify-center rounded border ${visibleColumns.includes(col) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
+                    {visibleColumns.includes(col) && <Check className="h-3 w-3" />}
+                  </span>
+                  {COLUMN_LABELS[col]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -123,35 +208,51 @@ export function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.type.label')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.name')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.code')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.unit')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.price')}</th>
+                {col('type') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.type.label')}</th>}
+                {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.name')}</th>}
+                {col('code') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.code')}</th>}
+                {col('unit') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.unit')}</th>}
+                {col('salesPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.price')}</th>}
+                {col('costPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.costPerUnit')}</th>}
+                {col('supplier') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.supplier')}</th>}
+                {col('description') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.description')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visibleColumns.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((p: any) => (
                 <tr key={p.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      p.type === 'material' ? 'bg-orange-100 text-orange-700' :
-                      p.type === 'both' ? 'bg-purple-100 text-purple-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>{t(`products.type.${p.type}`)}</span>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">
-                    {p.type !== 'material' && p.defaultSalesPrice != null
-                      ? formatCurrency(p.defaultSalesPrice)
-                      : '—'}
-                  </td>
+                  {col('type') && (
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        p.type === 'material' ? 'bg-orange-100 text-orange-700' :
+                        p.type === 'both' ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>{t(`products.type.${p.type}`)}</span>
+                    </td>
+                  )}
+                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>}
+                  {col('code') && <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>}
+                  {col('unit') && <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>}
+                  {col('salesPrice') && (
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {p.defaultSalesPrice != null ? formatCurrency(p.defaultSalesPrice) : '—'}
+                    </td>
+                  )}
+                  {col('costPrice') && (
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {p.lastCostPerUnit != null ? formatCurrency(p.lastCostPerUnit) : '—'}
+                    </td>
+                  )}
+                  {col('supplier') && (
+                    <td className="px-4 py-3 text-muted-foreground">{p.supplierName || '—'}</td>
+                  )}
+                  {col('description') && (
+                    <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
+                  )}
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
@@ -205,21 +306,18 @@ export function ProductsPage() {
             </div>
           </div>
 
-          {showPrice && (
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('products.price')}</label>
               <Input type="number" step="0.01" {...register('defaultSalesPrice')} placeholder="0.00" />
             </div>
-          )}
-
-          {showCost && (
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('products.costPerUnit')}</label>
               <Input type="number" step="0.01" {...register('lastCostPerUnit')} placeholder="0.00" />
             </div>
-          )}
+          </div>
 
-          {showSupplier && suppliers.length > 0 && (
+          {suppliers.length > 0 && (
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('nav.suppliers')}</label>
               <select {...register('supplierId')}

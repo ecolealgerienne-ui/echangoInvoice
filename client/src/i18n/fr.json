@@ -288,6 +288,9 @@
     "unit": "Unité",
     "price": "Prix de vente",
     "costPerUnit": "Coût d'achat",
+    "supplier": "Fournisseur",
+    "description": "Description",
+    "columns": "Colonnes",
     "type": {
       "label": "Type",
       "all": "Tous",
