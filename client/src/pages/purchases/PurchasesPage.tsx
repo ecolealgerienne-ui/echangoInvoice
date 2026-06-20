@@ -130,7 +130,7 @@ export function PurchasesPage() {
   // ── PO form ───────────────────────────────────────────────────────────────
   const poForm = useForm<PoFormData>({
     resolver: zodResolver(poSchema),
-    defaultValues: { orderDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] },
+    defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 }] },
   });
   const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
 
@@ -176,7 +176,7 @@ export function PurchasesPage() {
 
   function openCreatePo() {
     setEditingPo(null);
-    poForm.reset({ orderDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
+    poForm.reset({ orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
     setPoModalOpen(true);
   }
 
@@ -487,7 +487,7 @@ export function PurchasesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 })}>
+                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -498,29 +498,34 @@ export function PurchasesPage() {
                 return (
                   <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-4">
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.product')}</label>}
                       <Select {...poForm.register(`items.${i}.rawMaterialId`)}
                         className="w-full text-xs"
                         onChange={(e) => {
                           poForm.setValue(`items.${i}.rawMaterialId`, e.target.value);
                           const prod = rawMats.find((m: any) => m.id === e.target.value);
                           if (prod?.unit) poForm.setValue(`items.${i}.unit`, prod.unit);
+                          if (prod?.lastCostPerUnit != null) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
                         }}>
                         <option value="">{t('common.select')}</option>
                         {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </Select>
                     </div>
                     <div className="col-span-2">
-                      <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')}
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.qty')}</label>}
+                      <Input type="number" step="0.01" min="0.01"
                         {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
                     </div>
-                    <div className="col-span-2 flex items-center">
+                    <div className="col-span-2 flex items-end">
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block w-full">{t('products.unit')}</label>}
                       <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center">
                         {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
                       </span>
                       <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
                     </div>
                     <div className="col-span-3">
-                      <Input type="number" step="0.01" min="0" placeholder="P.U."
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.unitPrice')}</label>}
+                      <Input type="number" step="0.01" min="0"
                         {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
                     </div>
                     <div className="col-span-1 flex justify-center">

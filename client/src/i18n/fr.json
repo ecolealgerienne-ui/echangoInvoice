@@ -327,7 +327,8 @@
     "blNumber": "N° BL Réception",
     "receptionDate": "Date réception",
     "totalReceived": "Qté reçue",
-    "supplier": "Fournisseur"
+    "supplier": "Fournisseur",
+    "unitPrice": "Prix unitaire"
   },
   "creditNotes": {
     "title": "Avoirs",
