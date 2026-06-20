@@ -7,14 +7,14 @@ import {
 
 class TaxRateDto {
   @ApiPropertyOptional() @IsString() name: string;
-  @ApiPropertyOptional() @IsNumber() @Min(0) @Max(100) rate: number;
+  @ApiPropertyOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) rate: number;
   @ApiPropertyOptional() @IsBoolean() isDefault: boolean;
 }
 
 export class UpdateSettingsDto {
   @ApiPropertyOptional() @IsOptional() @IsString() companyName?: string;
 
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) @Max(100) taxRate?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) taxRate?: number;
 
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
 
@@ -44,7 +44,7 @@ export class UpdateSettingsDto {
 
   @ApiPropertyOptional() @IsOptional() @IsString() defaultUnit?: string;
 
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) defaultPaymentTermsDays?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() @Min(1) defaultPaymentTermsDays?: number;
 
   @ApiPropertyOptional({ description: 'Base64 data URL of the company logo' })
   @IsOptional() @IsString()

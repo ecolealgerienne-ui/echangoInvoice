@@ -185,7 +185,7 @@ export function SettingsPage() {
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{t('settings.defaultPaymentTerms')}</label>
                   <div className="flex items-center gap-2 max-w-xs">
-                    <Input type="number" min="1" {...register('defaultPaymentTermsDays')} className="w-24" />
+                    <Input type="number" min="1" {...register('defaultPaymentTermsDays', { valueAsNumber: true })} className="w-24" />
                     <span className="text-sm text-muted-foreground">{t('settings.days')}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{t('settings.defaultPaymentTermsHint')}</p>
