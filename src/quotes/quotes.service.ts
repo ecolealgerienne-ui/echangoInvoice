@@ -181,12 +181,12 @@ export class QuotesService {
     await qr.connect();
     await qr.startTransaction();
     try {
+      // Do NOT load 'items' relation — cascade save would try to orphan them
       const quote = await qr.manager.findOne(Quote, {
         where: { id, tenantId, deletedAt: IsNull() },
-        relations: ['items'],
       });
       if (!quote) throw new NotFoundException('quote_not_found');
-      if (quote.status !== 'draft') {
+      if (!['draft', 'sent'].includes(quote.status)) {
         throw new UnprocessableEntityException('quote_not_editable');
       }
 
@@ -194,20 +194,25 @@ export class QuotesService {
       if (dto.quoteDate) quote.quoteDate = dto.quoteDate as unknown as Date;
       if (dto.expiryDate !== undefined) quote.expiryDate = dto.expiryDate ? dto.expiryDate as unknown as Date : null;
       if (dto.notes !== undefined) quote.notes = dto.notes ?? null;
+      // Editing a sent quote resets it to draft (needs to be re-sent)
+      if (quote.status === 'sent') quote.status = 'draft';
       quote.updatedBy = userId;
 
       if (dto.items) {
-        await qr.manager.delete(QuoteItem, { quoteId: id });
         const computed = dto.items.map((i) => this.computeItem(i));
         const totals = this.computeTotals(computed);
         Object.assign(quote, totals);
+        // Save quote first, then replace items to avoid cascade conflict
+        await qr.manager.save(Quote, quote);
+        await qr.manager.delete(QuoteItem, { quoteId: id });
         const items = computed.map((c) =>
           qr.manager.create(QuoteItem, { ...c, tenantId, quoteId: id }),
         );
         await qr.manager.save(QuoteItem, items);
+      } else {
+        await qr.manager.save(Quote, quote);
       }
 
-      await qr.manager.save(Quote, quote);
       await qr.commitTransaction();
       return this.findOne(id, tenantId);
     } catch (err) {

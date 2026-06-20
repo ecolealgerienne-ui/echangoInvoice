@@ -153,7 +153,7 @@ export function QuotesPage() {
           quantity: Number(it.quantity),
           unit: it.unit,
           unitPrice: Number(it.unitPrice),
-          taxRate1: String(Number(it.taxRate1 ?? defaultTaxRate)),
+          taxRate1: String(parseFloat(String(it.taxRate1 ?? defaultTaxRate))),
         })),
       });
       setModalOpen(true);
@@ -265,6 +265,9 @@ export function QuotesPage() {
                       )}
                       {q.status === 'sent' && (
                         <>
+                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="ghost" title={t('quotes.accept')} onClick={() => acceptMutation.mutate(q.id)}>
                             <CheckCircle className="h-4 w-4 text-green-600" />
                           </Button>
