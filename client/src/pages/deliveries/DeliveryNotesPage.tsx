@@ -15,6 +15,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', delivered: 'success', cancelled: 'secondary',
@@ -43,6 +45,10 @@ export function DeliveryNotesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const { visible, toggle, col } = useColumnVisibility(
+    'deliveries_visible_columns',
+    ['blNumber', 'customer', 'date', 'status'],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['delivery-notes', page, search],
@@ -106,14 +112,29 @@ export function DeliveryNotesPage() {
         </Button>
       </div>
 
-      <div className="relative w-64">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t('common.search')}
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="pl-9"
-        />
+      <div className="flex items-center gap-3">
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('common.search')}
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className="pl-9"
+          />
+        </div>
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={[
+              { key: 'blNumber', label: t('deliveries.blNumber') },
+              { key: 'customer', label: t('common.customer') },
+              { key: 'date', label: t('common.date') },
+              { key: 'status', label: t('common.status') },
+              { key: 'notes', label: 'Notes' },
+            ]}
+            visible={visible}
+            onToggle={toggle}
+          />
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -121,25 +142,25 @@ export function DeliveryNotesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('deliveries.blNumber')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.status')}</th>
+                {col('blNumber') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('deliveries.blNumber')}</th>}
+                {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>}
+                {col('date') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>}
+                {col('status') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.status')}</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((bl: any) => (
                 <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono text-foreground">{bl.blNumber}</td>
-                  <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[bl.status] ?? 'muted'}>{t(`deliveries.status.${bl.status}`)}</Badge>
-                  </td>
+                  {col('blNumber') && <td className="px-4 py-3 font-mono text-foreground">{bl.blNumber}</td>}
+                  {col('customer') && <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>}
+                  {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
+                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[bl.status] ?? 'muted'}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
                   <td className="px-4 py-3 text-right">
                     {bl.status === 'draft' && (
                       <Button variant="ghost" size="sm" onClick={() => cancelMutation.mutate(bl.id)}>

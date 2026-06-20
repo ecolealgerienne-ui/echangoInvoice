@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -7,14 +7,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { productsApi, suppliersApi, settingsApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { useUnits } from '@/lib/useUnits';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Pencil, Trash2, Search, SlidersHorizontal, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -33,17 +35,6 @@ const TYPE_FILTERS = ['all', 'product', 'material', 'both'] as const;
 const ALL_COLUMNS = ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice', 'supplier', 'description'] as const;
 type ColumnKey = typeof ALL_COLUMNS[number];
 
-const DEFAULT_VISIBLE: ColumnKey[] = ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice'];
-const STORAGE_KEY = 'products_visible_columns';
-
-function loadVisibleColumns(): ColumnKey[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as ColumnKey[];
-  } catch { /* ignore */ }
-  return DEFAULT_VISIBLE;
-}
-
 export function ProductsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -54,20 +45,10 @@ export function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'material' | 'both'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(loadVisibleColumns);
-  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
-  const columnsMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close columns menu on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (columnsMenuRef.current && !columnsMenuRef.current.contains(e.target as Node)) {
-        setColumnsMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  const { visible: visibleColumns, toggle: toggleColumn, col } = useColumnVisibility<ColumnKey>(
+    'products_visible_columns',
+    ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice'],
+  );
 
   const { data: settingsData } = useQuery({
     queryKey: ['settings'],
@@ -130,16 +111,6 @@ export function ProductsPage() {
   function openEdit(p: any) { setEditing(p); reset(p); setModalOpen(true); }
   function closeModal() { setModalOpen(false); setEditing(null); reset({ type: 'product', unit: defaultUnit }); }
 
-  function toggleColumn(col: ColumnKey) {
-    setVisibleColumns(prev => {
-      const next = prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
-  }
-
-  const col = (key: ColumnKey) => visibleColumns.includes(key);
-
   const suppliers = suppliersData?.data ?? [];
 
   const COLUMN_LABELS: Record<ColumnKey, string> = {
@@ -178,28 +149,12 @@ export function ProductsPage() {
           ))}
         </div>
 
-        {/* Column visibility menu */}
-        <div className="relative ml-auto" ref={columnsMenuRef}>
-          <Button variant="outline" size="sm" onClick={() => setColumnsMenuOpen(o => !o)}>
-            <SlidersHorizontal className="h-4 w-4" />
-            {t('products.columns')}
-          </Button>
-          {columnsMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg p-2 min-w-44">
-              {ALL_COLUMNS.map(col => (
-                <button
-                  key={col}
-                  onClick={() => toggleColumn(col)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted text-sm text-left transition-colors"
-                >
-                  <span className={`h-4 w-4 flex items-center justify-center rounded border ${visibleColumns.includes(col) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
-                    {visibleColumns.includes(col) && <Check className="h-3 w-3" />}
-                  </span>
-                  {COLUMN_LABELS[col]}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={ALL_COLUMNS.map(k => ({ key: k, label: COLUMN_LABELS[k] }))}
+            visible={visibleColumns}
+            onToggle={key => toggleColumn(key as ColumnKey)}
+          />
         </div>
       </div>
 

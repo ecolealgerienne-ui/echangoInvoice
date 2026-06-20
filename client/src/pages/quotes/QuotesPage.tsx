@@ -16,6 +16,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, FileDown, RefreshCw } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', accepted: 'success',
@@ -121,6 +123,10 @@ export function QuotesPage() {
 
   const quotes = data?.data ?? [];
   const pagination = data?.pagination;
+  const { visible, toggle, col } = useColumnVisibility(
+    'quotes_visible_columns',
+    ['number', 'customer', 'quoteDate', 'expiryDate', 'total', 'status'],
+  );
   const customerList = customers?.data ?? [];
   const productList = products?.data ?? [];
 
@@ -133,7 +139,7 @@ export function QuotesPage() {
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder={t('common.search')} value={search}
@@ -148,6 +154,21 @@ export function QuotesPage() {
           <option value="expired">{t('status.expired')}</option>
           <option value="converted">{t('status.converted')}</option>
         </Select>
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={[
+              { key: 'number', label: t('quotes.quoteNumber') },
+              { key: 'customer', label: t('customers.title') },
+              { key: 'quoteDate', label: t('quotes.quoteDate') },
+              { key: 'expiryDate', label: t('quotes.expiryDate') },
+              { key: 'total', label: 'Total TTC' },
+              { key: 'status', label: t('quotes.status') },
+              { key: 'notes', label: 'Notes' },
+            ]}
+            visible={visible}
+            onToggle={toggle}
+          />
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -155,26 +176,26 @@ export function QuotesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteDate')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.expiryDate')}</th>
-                <th className="text-right px-4 py-3 font-medium">Total TTC</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteNumber')}</th>}
+                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
+                {col('quoteDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteDate')}</th>}
+                {col('expiryDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.expiryDate')}</th>}
+                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
+                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
+                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {quotes.map((q: any) => (
                 <tr key={q.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{q.quoteNumber}</td>
-                  <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>
-                  <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>
-                  <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge>
-                  </td>
+                  {col('number') && <td className="px-4 py-3 font-mono text-xs">{q.quoteNumber}</td>}
+                  {col('customer') && <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>}
+                  {col('quoteDate') && <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>}
+                  {col('expiryDate') && <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
+                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>}
+                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       <Button size="sm" variant="ghost" onClick={() => downloadPdf(q.id, q.quoteNumber)}>
@@ -195,7 +216,7 @@ export function QuotesPage() {
                 </tr>
               ))}
               {quotes.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
