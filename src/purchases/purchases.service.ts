@@ -14,6 +14,7 @@ import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
 import { PatchPoStatusDto } from './dto/patch-po-status.dto';
 import { CreateReceptionBlDto } from './dto/create-reception-bl.dto';
 import { ListReceptionBlsDto } from './dto/list-reception-bls.dto';
+import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -154,6 +155,51 @@ export class PurchasesService {
     return { data: po };
   }
 
+  async updatePurchaseOrder(id: string, dto: UpdatePurchaseOrderDto, tenantId: string, userId: string) {
+    const po = await this.dataSource.manager.findOne(PurchaseOrder, {
+      where: { id, tenantId, deletedAt: IsNull() },
+    });
+    if (!po) throw new NotFoundException('errors.purchase_order_not_found');
+    if (po.status !== 'draft') {
+      throw new UnprocessableEntityException('errors.po_cannot_edit_non_draft');
+    }
+
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      if (dto.supplierId !== undefined) po.supplierId = dto.supplierId;
+      if (dto.orderDate !== undefined) po.orderDate = dto.orderDate as unknown as Date;
+      if (dto.expectedDeliveryDate !== undefined) po.expectedDeliveryDate = dto.expectedDeliveryDate as unknown as Date ?? null;
+      if (dto.notes !== undefined) po.notes = dto.notes ?? null;
+      po.updatedBy = userId;
+
+      if (dto.items && dto.items.length > 0) {
+        await qr.manager.delete(PurchaseOrderItem, { purchaseOrderId: id, tenantId });
+        const items = dto.items.map((item) => ({
+          ...item,
+          lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
+          tenantId,
+          purchaseOrderId: id,
+        }));
+        po.subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
+        po.total = po.subtotal;
+        await qr.manager.save(PurchaseOrder, po);
+        await qr.manager.save(PurchaseOrderItem, items.map(i => qr.manager.create(PurchaseOrderItem, i)));
+      } else {
+        await qr.manager.save(PurchaseOrder, po);
+      }
+
+      await qr.commitTransaction();
+      return { data: po };
+    } catch (error) {
+      await qr.rollbackTransaction();
+      throw error;
+    } finally {
+      await qr.release();
+    }
+  }
+
   async removePurchaseOrder(id: string, tenantId: string) {
     const po = await this.dataSource.manager.findOne(PurchaseOrder, {
       where: { id, tenantId, deletedAt: IsNull() },
@@ -211,6 +257,7 @@ export class PurchasesService {
         const entry = qr.manager.create(StockEntry, {
           tenantId,
           rawMaterialId: item.rawMaterialId,
+          finishedProductId: item.rawMaterialId,
           receptionBlId: bl.id,
           quantity: item.quantityReceived,
           costPerUnit: item.costPerUnit,
@@ -304,7 +351,7 @@ export class PurchasesService {
       .createQueryBuilder(PurchaseOrder, 'po')
       .where('po.tenantId = :tenantId', { tenantId })
       .andWhere(`EXTRACT(YEAR FROM po."createdAt") = :year`, { year })
-      .andWhere('po.deletedAt IS NULL')
+      .withDeleted()
       .orderBy('po.poNumber', 'DESC')
       .limit(1)
       .getOne();
@@ -322,7 +369,7 @@ export class PurchasesService {
       .createQueryBuilder(ReceptionBL, 'bl')
       .where('bl.tenantId = :tenantId', { tenantId })
       .andWhere(`EXTRACT(YEAR FROM bl."createdAt") = :year`, { year })
-      .andWhere('bl.deletedAt IS NULL')
+      .withDeleted()
       .orderBy('bl.blNumber', 'DESC')
       .limit(1)
       .getOne();
@@ -339,7 +386,7 @@ export class PurchasesService {
     const entries = await qr.manager
       .createQueryBuilder(StockEntry, 'se')
       .where('se.tenantId = :tenantId', { tenantId })
-      .andWhere('se.rawMaterialId = :rawMaterialId', { rawMaterialId })
+      .andWhere('se.finishedProductId = :rawMaterialId', { rawMaterialId })
       .andWhere('se.status = :status', { status: 'available' })
       .getMany();
 

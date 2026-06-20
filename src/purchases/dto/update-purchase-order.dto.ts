@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsUUID, IsDateString, IsOptional, IsString,
-  IsArray, ValidateNested, IsNumber, Min, MaxLength,
+  IsArray, ValidateNested, IsNumber, Min,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
-export class CreatePurchaseOrderItemDto {
+export class UpdatePoItemDto {
   @ApiProperty()
   @IsUUID()
   rawMaterialId: string;
@@ -15,8 +15,8 @@ export class CreatePurchaseOrderItemDto {
   @IsNumber() @Min(0.01)
   quantity: number;
 
-  @ApiProperty({ example: 'kg' })
-  @IsString() @MaxLength(50)
+  @ApiProperty()
+  @IsString()
   unit: string;
 
   @ApiProperty()
@@ -25,14 +25,14 @@ export class CreatePurchaseOrderItemDto {
   unitPrice: number;
 }
 
-export class CreatePurchaseOrderDto {
-  @ApiProperty()
-  @IsUUID()
-  supplierId: string;
+export class UpdatePurchaseOrderDto {
+  @ApiProperty({ required: false })
+  @IsOptional() @IsUUID()
+  supplierId?: string;
 
-  @ApiProperty({ example: '2026-06-18' })
-  @IsDateString()
-  orderDate: string;
+  @ApiProperty({ required: false })
+  @IsOptional() @IsDateString()
+  orderDate?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -44,9 +44,10 @@ export class CreatePurchaseOrderDto {
   @IsOptional() @IsString()
   notes?: string;
 
-  @ApiProperty({ type: [CreatePurchaseOrderItemDto] })
+  @ApiProperty({ type: [UpdatePoItemDto], required: false })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreatePurchaseOrderItemDto)
-  items: CreatePurchaseOrderItemDto[];
+  @Type(() => UpdatePoItemDto)
+  items?: UpdatePoItemDto[];
 }

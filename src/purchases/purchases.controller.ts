@@ -9,6 +9,7 @@ import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
 import { PatchPoStatusDto } from './dto/patch-po-status.dto';
 import { CreateReceptionBlDto } from './dto/create-reception-bl.dto';
 import { ListReceptionBlsDto } from './dto/list-reception-bls.dto';
+import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -46,6 +47,19 @@ export class PurchasesController {
   @ApiResponse({ status: 404 })
   findOnePo(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOnePurchaseOrder(id, user.tenantId);
+  }
+
+  @Patch('purchase-orders/:id')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Update draft purchase order (supplier, dates, items)' })
+  @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 422, description: 'Not draft' })
+  updatePo(
+    @Param('id') id: string,
+    @Body() dto: UpdatePurchaseOrderDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.updatePurchaseOrder(id, dto, user.tenantId, user.sub);
   }
 
   @Patch('purchase-orders/:id/status')

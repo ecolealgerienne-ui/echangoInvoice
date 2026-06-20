@@ -6,8 +6,10 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { productsApi, suppliersApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { useUnits } from '@/lib/useUnits';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
@@ -32,6 +34,7 @@ export function ProductsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const units = useUnits();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'material' | 'both'>('all');
@@ -194,7 +197,10 @@ export function ProductsPage() {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('products.unit')} *</label>
-              <Input {...register('unit')} placeholder="kg, L, pcs..." />
+              <Select {...register('unit')} className="w-full">
+                <option value="">{t('common.select')}</option>
+                {units.map(u => <option key={u} value={u}>{u}</option>)}
+              </Select>
               {errors.unit && <p className="text-xs text-destructive">{t('errors.required')}</p>}
             </div>
           </div>

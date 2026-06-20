@@ -8,7 +8,7 @@ export class ListProductsDto {
   page: number = 1;
 
   @ApiPropertyOptional({ default: 20 })
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(500)
   limit: number = 20;
 
   @ApiPropertyOptional()

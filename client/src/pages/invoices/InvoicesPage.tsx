@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoicesApi, customersApi, productsApi } from '@/lib/api';
+import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -24,6 +25,7 @@ const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
   description: z.string().optional(),
   quantity: z.coerce.number().positive(),
+  unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
 });
 
@@ -74,10 +76,11 @@ export function InvoicesPage() {
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
   const productList = productsData?.data ?? [];
+  const units = useUnits();
 
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, watch: watchInv, setValue: setInvValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unitPrice: 0 }] },
+    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
@@ -243,25 +246,40 @@ export function InvoicesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
-              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unitPrice: 0 })}>
+              <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0 })}>
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
-            {fields.map((field, i) => (
-              <div key={field.id} className="grid grid-cols-[2fr_70px_90px_32px] gap-2 items-center">
-                <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm" {...register(`items.${i}.finishedProductId`)}>
-                  <option value="">{t('common.select')}</option>
-                  {productList.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />
-                <Input type="number" step="0.01" placeholder={t('common.price')} {...register(`items.${i}.unitPrice`)} />
-                <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
+            {fields.map((field, i) => {
+              const selId = watchInv(`items.${i}.finishedProductId`);
+              const selProd = productList.find((p: any) => p.id === selId);
+              return (
+                <div key={field.id} className="grid grid-cols-[2fr_60px_60px_80px_32px] gap-2 items-center">
+                  <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    {...register(`items.${i}.finishedProductId`)}
+                    onChange={e => {
+                      setInvValue(`items.${i}.finishedProductId`, e.target.value);
+                      const prod = productList.find((p: any) => p.id === e.target.value);
+                      if (prod?.unit) setInvValue(`items.${i}.unit`, prod.unit);
+                      if (prod?.defaultSalesPrice) setInvValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                    }}>
+                    <option value="">{t('common.select')}</option>
+                    {productList.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <Input type="number" step="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} />
+                  <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground text-center truncate">
+                    {selProd?.unit ?? watchInv(`items.${i}.unit`) ?? '—'}
+                  </span>
+                  <input type="hidden" {...register(`items.${i}.unit`)} />
+                  <Input type="number" step="0.01" placeholder={t('common.price')} {...register(`items.${i}.unitPrice`)} />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-1">

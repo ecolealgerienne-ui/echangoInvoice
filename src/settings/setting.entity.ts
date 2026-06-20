@@ -49,6 +49,15 @@ export class Setting {
   @Column({ type: 'text', nullable: true })
   footerText: string | null;
 
+  @Column({ type: 'simple-array', nullable: true })
+  units: string[];
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  defaultUnit: string | null;
+
+  @Column({ type: 'int', default: 30 })
+  defaultPaymentTermsDays: number;
+
   @Column({ type: 'varchar', nullable: true })
   updatedBy: string | null;
 

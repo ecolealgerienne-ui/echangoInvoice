@@ -78,15 +78,15 @@ export class StockService {
   async getAlerts(tenantId: string) {
     const [expiringRows, lowStockRows] = await Promise.all([
       this.ds.query(`
-        SELECT se."rawMaterialId", rm.name, se."expiresAt",
+        SELECT se."finishedProductId", rm.name, se."expiresAt",
                EXTRACT(DAY FROM se."expiresAt" - NOW())::int AS days,
                SUM(se.quantity) AS qty
         FROM stock_entries se
-        JOIN finished_products rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."finishedProductId"
         WHERE se."tenantId"=$1 AND se.status='available'
           AND se."expiresAt" IS NOT NULL
           AND se."expiresAt" <= NOW() + INTERVAL '5 days'
-        GROUP BY se."rawMaterialId", rm.name, se."expiresAt"
+        GROUP BY se."finishedProductId", rm.name, se."expiresAt"
         ORDER BY se."expiresAt" ASC`,
         [tenantId]),
 
@@ -102,7 +102,7 @@ export class StockService {
     ]);
 
     const expiringSoon = expiringRows.map((r: any) => ({
-      rawMaterialId: r.rawMaterialId,
+      rawMaterialId: r.finishedProductId,
       rawMaterialName: r.name,
       expiresAt: r.expiresAt,
       daysUntilExpiry: r.days,
@@ -148,6 +148,7 @@ export class StockService {
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
+        finishedProductId: dto.rawMaterialId,
         quantity: Math.abs(qty),
         costPerUnit,
         totalCost: Math.abs(qty) * costPerUnit,
@@ -168,7 +169,7 @@ export class StockService {
       const avail = await qr.manager
         .createQueryBuilder(StockEntry, 'se')
         .where('se.tenantId = :tenantId', { tenantId })
-        .andWhere('se.rawMaterialId = :mid', { mid: dto.rawMaterialId })
+        .andWhere('se.finishedProductId = :mid', { mid: dto.rawMaterialId })
         .andWhere('se.status = :s', { s: 'available' })
         .getMany();
 
@@ -223,7 +224,7 @@ export class StockService {
 
   async listEntries(tenantId: string, rawMaterialId: string, page = 1, limit = 20) {
     const [data, total] = await this.entryRepo.findAndCount({
-      where: { tenantId, rawMaterialId },
+      where: { tenantId, finishedProductId: rawMaterialId },
       order: { enteredAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
