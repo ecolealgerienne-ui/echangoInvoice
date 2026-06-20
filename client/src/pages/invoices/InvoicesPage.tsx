@@ -91,7 +91,7 @@ export function InvoicesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
-  const defaultTaxRate = taxRates.find(r => r.isDefault)?.rate ?? 19;
+  const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
 
   const { register, handleSubmit, control, reset, watch: watchInv, setValue: setInvValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -349,7 +349,7 @@ export function InvoicesPage() {
                   <Input type="number" step="0.01" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
                   <select className="w-full rounded-md border border-input bg-background px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
                     {taxRates.length > 0
-                      ? taxRates.map(r => <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>)
+                      ? taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{v}%</option>; })
                       : <option value="19">19%</option>
                     }
                   </select>

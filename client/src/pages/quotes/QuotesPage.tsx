@@ -78,7 +78,7 @@ export function QuotesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
-  const defaultTaxRate = taxRates.find(r => r.isDefault)?.rate ?? 19;
+  const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
 
   const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -391,9 +391,7 @@ export function QuotesPage() {
                   <div className="col-span-1">
                     <Select {...register(`items.${i}.taxRate1`)} className="w-full text-xs">
                       {taxRates.length > 0
-                        ? taxRates.map(r => (
-                            <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>
-                          ))
+                        ? taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{v}%</option>; })
                         : <option value="19">19%</option>
                       }
                     </Select>
