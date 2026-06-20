@@ -516,9 +516,9 @@ export function PurchasesPage() {
                       <Input type="number" step="0.01" min="0.01"
                         {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
                     </div>
-                    <div className="col-span-2 flex items-end">
-                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block w-full">{t('products.unit')}</label>}
-                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center">
+                    <div className="col-span-2">
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('products.unit')}</label>}
+                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center block">
                         {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
                       </span>
                       <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
