@@ -226,7 +226,7 @@ export function StockPage() {
 
       {/* Adjust Stock Modal */}
       <Modal
-        isOpen={!!adjustTarget}
+        open={!!adjustTarget}
         onClose={() => { setAdjustTarget(null); adjustForm.reset(); }}
         title={t('stock.adjust')}
       >
