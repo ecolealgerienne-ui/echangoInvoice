@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, Upload } from 'lucide-react';
 
 type SettingsTab = 'general' | 'tax' | 'units' | 'formats';
 
@@ -22,6 +22,9 @@ export function SettingsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [tab, setTab] = useState<SettingsTab>('general');
+
+  // Logo state
+  const [logo, setLogo] = useState<string | null>(null);
 
   // Units state
   const [units, setUnits] = useState<string[]>(DEFAULT_UNITS);
@@ -46,6 +49,7 @@ export function SettingsPage() {
     const rawUnits: string[] = d.units ?? [];
     setUnits(rawUnits.length > 0 ? rawUnits : DEFAULT_UNITS);
     setDefaultUnit(d.defaultUnit ?? '');
+    setLogo(d.logo ?? null);
 
     if (d.taxRates?.length > 0) {
       setTaxRates(d.taxRates.map((r: any) => ({
@@ -58,9 +62,10 @@ export function SettingsPage() {
 
   const mutation = useMutation({
     mutationFn: (formData: any) => {
-      const { id, tenantId, logo, updatedBy, createdAt, updatedAt, taxRate: _tr, taxRates: _trc, units: _u, defaultUnit: _du, ...payload } = formData;
+      const { id, tenantId, logo: _logo, updatedBy, createdAt, updatedAt, taxRate: _tr, taxRates: _trc, units: _u, defaultUnit: _du, ...payload } = formData;
       return settingsApi.update({
         ...payload,
+        logo: logo ?? undefined,
         units,
         defaultUnit: defaultUnit || undefined,
         taxRates: taxRates.map(r => ({
@@ -138,6 +143,37 @@ export function SettingsPage() {
             <Card>
               <CardHeader><CardTitle>{t('settings.company')}</CardTitle></CardHeader>
               <CardContent className="space-y-3">
+                {/* Logo */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">{t('settings.logo')}</label>
+                  <div className="flex items-start gap-4">
+                    {logo ? (
+                      <div className="relative border border-border rounded p-1 bg-muted flex items-center justify-center" style={{ minWidth: 120, minHeight: 60 }}>
+                        <img src={logo} alt="logo" className="max-h-14 max-w-[120px] object-contain" />
+                        <button type="button" onClick={() => setLogo(null)}
+                          className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-muted transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
+                        <Upload className="h-5 w-5" />
+                        <span>{t('settings.uploadLogo')}</span>
+                        <input type="file" accept="image/*" className="sr-only"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = ev => setLogo(ev.target?.result as string);
+                            reader.readAsDataURL(file);
+                            e.target.value = '';
+                          }} />
+                      </label>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">{t('settings.logoHint')}</p>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{t('settings.companyName')}</label>
                   <Input {...register('companyName')} />

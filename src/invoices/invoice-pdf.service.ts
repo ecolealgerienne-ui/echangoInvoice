@@ -81,7 +81,8 @@ export class InvoicePdfService {
       `SELECT si.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
               s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai
+              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai,
+              s.logo AS company_logo
        FROM sales_invoices si
        JOIN customers c ON c.id = si."customerId"
        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
@@ -99,10 +100,13 @@ export class InvoicePdfService {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
       <div class="page">
         <div class="header">
-          <div>
-            <div class="company-name">${inv.company_name ?? 'Mon Entreprise'}</div>
-            <div class="company-info">${inv.company_address ?? ''}</div>
-            <div class="company-info">NIF: ${inv.company_nif ?? ''} | RC: ${inv.company_rc ?? ''}</div>
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            ${inv.company_logo ? `<img src="${inv.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
+            <div>
+              <div class="company-name">${inv.company_name ?? 'Mon Entreprise'}</div>
+              <div class="company-info">${inv.company_address ?? ''}</div>
+              <div class="company-info">NIF: ${inv.company_nif ?? ''} | RC: ${inv.company_rc ?? ''}</div>
+            </div>
           </div>
           <div class="doc-title">
             <div class="doc-number">FACTURE N° ${inv.invoiceNumber}</div>
@@ -174,7 +178,8 @@ export class InvoicePdfService {
       `SELECT dn.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc,
               s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc
+              s.nif AS company_nif, s.rc AS company_rc,
+              s.logo AS company_logo
        FROM delivery_notes dn
        JOIN customers c ON c.id = dn."customerId"
        LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
@@ -194,10 +199,13 @@ export class InvoicePdfService {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
       <div class="page">
         <div class="header">
-          <div>
-            <div class="company-name">${dn.company_name ?? 'Mon Entreprise'}</div>
-            <div class="company-info">${dn.company_address ?? ''}</div>
-            <div class="company-info">NIF: ${dn.company_nif ?? ''} | RC: ${dn.company_rc ?? ''}</div>
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            ${dn.company_logo ? `<img src="${dn.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
+            <div>
+              <div class="company-name">${dn.company_name ?? 'Mon Entreprise'}</div>
+              <div class="company-info">${dn.company_address ?? ''}</div>
+              <div class="company-info">NIF: ${dn.company_nif ?? ''} | RC: ${dn.company_rc ?? ''}</div>
+            </div>
           </div>
           <div class="doc-title">
             <div class="doc-number">BON DE LIVRAISON N° ${dn.blNumber}</div>
@@ -326,7 +334,8 @@ export class InvoicePdfService {
       `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
               s.name AS company_name, s."companyAddress" AS company_address,
-              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai
+              s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai,
+              s.logo AS company_logo
        FROM quotes q
        JOIN customers c ON c.id = q."customerId"
        LEFT JOIN settings s ON s."tenantId" = q."tenantId"
@@ -346,10 +355,13 @@ export class InvoicePdfService {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
       <div class="page">
         <div class="header">
-          <div>
-            <div class="company-name">${q.company_name ?? 'Mon Entreprise'}</div>
-            <div class="company-info">${q.company_address ?? ''}</div>
-            <div class="company-info">NIF: ${q.company_nif ?? ''} | RC: ${q.company_rc ?? ''}</div>
+          <div style="display:flex; align-items:flex-start; gap:12px;">
+            ${q.company_logo ? `<img src="${q.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
+            <div>
+              <div class="company-name">${q.company_name ?? 'Mon Entreprise'}</div>
+              <div class="company-info">${q.company_address ?? ''}</div>
+              <div class="company-info">NIF: ${q.company_nif ?? ''} | RC: ${q.company_rc ?? ''}</div>
+            </div>
           </div>
           <div class="doc-title">
             <div class="doc-number">DEVIS N° ${q.quoteNumber}</div>
