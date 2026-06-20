@@ -15,6 +15,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
@@ -283,6 +285,14 @@ export function PurchasesPage() {
   const orders = ordersData?.data ?? [];
   const receptions = receptionsData?.data ?? [];
   const pagination = tab === 'orders' ? ordersData?.pagination : receptionsData?.pagination;
+  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility(
+    'purchases_po_visible_columns',
+    ['poNumber', 'supplier', 'orderDate', 'expectedDelivery', 'total', 'status'],
+  );
+  const { visible: recVisible, toggle: recToggle, col: recCol } = useColumnVisibility(
+    'purchases_rec_visible_columns',
+    ['blNumber', 'poNumber', 'receptionDate', 'totalReceived', 'status'],
+  );
   const suppliers = suppliersData?.data ?? [];
   const rawMats = productsData?.data ?? [];
   const suppliersMap = new Map<string, string>(suppliers.map((s: any) => [s.id, s.name]));
@@ -316,30 +326,46 @@ export function PurchasesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : tab === 'orders' ? (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <>
+          <div className="flex justify-end">
+            <ColumnToggleMenu
+              columns={[
+                { key: 'poNumber', label: t('purchases.poNumber') },
+                { key: 'supplier', label: t('purchases.supplier') },
+                { key: 'orderDate', label: t('purchases.orderDate') },
+                { key: 'expectedDelivery', label: t('purchases.expectedDelivery') },
+                { key: 'total', label: 'Total' },
+                { key: 'status', label: t('quotes.status') },
+                { key: 'notes', label: 'Notes' },
+              ]}
+              visible={poVisible}
+              onToggle={poToggle}
+            />
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.poNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>
-                <th className="text-right px-4 py-3 font-medium">Total</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {poCol('poNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.poNumber')}</th>}
+                {poCol('supplier') && <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>}
+                {poCol('orderDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>}
+                {poCol('expectedDelivery') && <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>}
+                {poCol('total') && <th className="text-right px-4 py-3 font-medium">Total</th>}
+                {poCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
+                {poCol('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {orders.map((o: any) => (
                 <tr key={o.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>
-                  <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>
-                  <td className="px-4 py-3">{formatDate(o.orderDate)}</td>
-                  <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge>
-                  </td>
+                  {poCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>}
+                  {poCol('supplier') && <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
+                  {poCol('orderDate') && <td className="px-4 py-3">{formatDate(o.orderDate)}</td>}
+                  {poCol('expectedDelivery') && <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
+                  {poCol('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>}
+                  {poCol('status') && <td className="px-4 py-3"><Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge></td>}
+                  {poCol('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{o.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" title="Voir détail"
@@ -373,34 +399,47 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={poVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        </>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <>
+          <div className="flex justify-end">
+            <ColumnToggleMenu
+              columns={[
+                { key: 'blNumber', label: t('purchases.blNumber') },
+                { key: 'poNumber', label: 'Commande' },
+                { key: 'receptionDate', label: t('purchases.receptionDate') },
+                { key: 'totalReceived', label: t('purchases.totalReceived') },
+                { key: 'status', label: t('quotes.status') },
+              ]}
+              visible={recVisible}
+              onToggle={recToggle}
+            />
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>
-                <th className="text-left px-4 py-3 font-medium">Commande</th>
-                <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>
-                <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>
+                {recCol('blNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>}
+                {recCol('poNumber') && <th className="text-left px-4 py-3 font-medium">Commande</th>}
+                {recCol('receptionDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>}
+                {recCol('totalReceived') && <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>}
+                {recCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {receptions.map((r: any) => (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>
-                  <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>
-                  <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge>
-                  </td>
+                  {recCol('blNumber') && <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>}
+                  {recCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
+                  {recCol('receptionDate') && <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>}
+                  {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
+                  {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
                   <td className="px-4 py-3">
                     <Button size="sm" variant="ghost" title="Voir détail"
                       onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
@@ -410,11 +449,12 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {receptions.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={recVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {pagination && (

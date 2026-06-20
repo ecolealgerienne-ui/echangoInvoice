@@ -11,6 +11,7 @@
     "yes": "Oui",
     "no": "Non",
     "actions": "Actions",
+    "columns": "Colonnes",
     "noData": "Aucun résultat",
     "total": "Total",
     "status": "Statut",
@@ -288,6 +289,8 @@
     "unit": "Unité",
     "price": "Prix de vente",
     "costPerUnit": "Coût d'achat",
+    "supplier": "Fournisseur",
+    "description": "Description",
     "type": {
       "label": "Type",
       "all": "Tous",
