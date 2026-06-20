@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { quotesApi, customersApi, productsApi } from '@/lib/api';
+import { quotesApi, customersApi, productsApi , resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -88,7 +88,7 @@ export function QuotesPage() {
       toast(t('quotes.created'), 'success');
       closeModal();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const convertMutation = useMutation({
@@ -98,7 +98,7 @@ export function QuotesPage() {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       toast(t('quotes.converted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const removeMutation = useMutation({
@@ -107,7 +107,7 @@ export function QuotesPage() {
       qc.invalidateQueries({ queryKey: ['quotes'] });
       toast(t('quotes.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function closeModal() { reset(); setModalOpen(false); }

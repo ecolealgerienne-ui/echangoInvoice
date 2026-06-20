@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { purchasesApi, suppliersApi, productsApi } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi , resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -141,7 +141,7 @@ export function PurchasesPage() {
       toast(t('purchases.orderCreated'), 'success');
       closePo();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const updatePoMutation = useMutation({
@@ -152,7 +152,7 @@ export function PurchasesPage() {
       toast(t('common.updated'), 'success');
       closePo();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const removePoMutation = useMutation({
@@ -161,7 +161,7 @@ export function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast(t('common.deleted'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const patchStatusMutation = useMutation({
@@ -171,7 +171,7 @@ export function PurchasesPage() {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast(t('common.updated'), 'success');
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openCreatePo() {
@@ -267,7 +267,7 @@ export function PurchasesPage() {
       toast(t('purchases.receptionCreated'), 'success');
       closeRec();
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openReceptionFor(poId: string) {

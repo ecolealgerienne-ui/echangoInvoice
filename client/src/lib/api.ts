@@ -59,14 +59,37 @@ api.interceptors.response.use(
   },
 );
 
-/** Extract a human-readable message from an Axios/NestJS error */
-export function apiErrorMessage(error: unknown, fallback = 'Une erreur est survenue'): string {
+/**
+ * Resolve an API error to a translated string.
+ *
+ * The backend sends `message` as an i18n key (e.g. "errors.product_in_use")
+ * or as a class-validator array (e.g. ["email must be an email"]).
+ * We try t(key) first; if the key has no translation we fall back to
+ * t('errors.generic').
+ */
+export function resolveApiError(
+  error: unknown,
+  t: (key: string) => string,
+): string {
   const data = (error as any)?.response?.data;
-  if (!data) return fallback;
-  const msg = data.message;
-  if (Array.isArray(msg)) return msg.join(', ');
-  if (typeof msg === 'string') return msg;
-  return fallback;
+  if (!data) return t('errors.network');
+
+  const raw = data.message;
+  // class-validator sends an array of English strings → always generic
+  if (Array.isArray(raw)) return t('errors.generic');
+
+  if (typeof raw === 'string') {
+    // Try the key as-is first (e.g. "errors.product_in_use")
+    const translated = t(raw);
+    // i18next returns the key itself when no translation found
+    if (translated !== raw) return translated;
+    // Key without namespace prefix (e.g. "product_in_use" → "errors.product_in_use")
+    const withPrefix = `errors.${raw}`;
+    const translatedWithPrefix = t(withPrefix);
+    if (translatedWithPrefix !== withPrefix) return translatedWithPrefix;
+  }
+
+  return t('errors.generic');
 }
 
 export default api;

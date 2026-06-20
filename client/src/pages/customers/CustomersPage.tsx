@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { customersApi, apiErrorMessage } from '@/lib/api';
+import { customersApi, resolveApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -108,7 +108,7 @@ export function CustomersPage() {
       setEditingContact(null);
       contactForm.reset({});
     },
-    onError: (err) => toast(apiErrorMessage(err), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteContactMutation = useMutation({
