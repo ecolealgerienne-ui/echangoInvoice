@@ -48,6 +48,8 @@ export class SettingsService {
       if (dto.address !== undefined) setting.address = dto.address;
       if (dto.footerText !== undefined) setting.footerText = dto.footerText;
       if (dto.units !== undefined) setting.units = dto.units;
+      if (dto.defaultUnit !== undefined) setting.defaultUnit = dto.defaultUnit;
+      if (dto.defaultPaymentTermsDays !== undefined) setting.defaultPaymentTermsDays = dto.defaultPaymentTermsDays;
       setting.updatedBy = userId;
 
       const saved = await qr.manager.save(Setting, setting);

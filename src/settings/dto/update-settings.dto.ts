@@ -42,6 +42,10 @@ export class UpdateSettingsDto {
   @IsOptional() @IsArray() @IsString({ each: true })
   units?: string[];
 
+  @ApiPropertyOptional() @IsOptional() @IsString() defaultUnit?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) defaultPaymentTermsDays?: number;
+
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
