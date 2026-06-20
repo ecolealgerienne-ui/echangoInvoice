@@ -1,21 +1,37 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { stockApi } from '@/lib/api';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { AlertTriangle, Clock, TrendingDown } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, Pencil } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Modal } from '@/components/shared/Modal';
+import { toast } from '@/lib/toast';
+
+const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
+
+const adjustSchema = z.object({
+  newQuantity: z.coerce.number().min(0, 'Quantité invalide'),
+  reason: z.enum(REASONS),
+  notes: z.string().optional(),
+});
+type AdjustForm = z.infer<typeof adjustSchema>;
 
 export function StockPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<'inventory' | 'alerts'>('inventory');
   const [page, setPage] = useState(1);
+  const [adjustTarget, setAdjustTarget] = useState<any | null>(null);
   const { visible, toggle, col } = useColumnVisibility(
     'stock_visible_columns',
     ['name', 'quantity', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
@@ -32,6 +48,41 @@ export function StockPage() {
     queryFn: () => stockApi.alerts(),
     enabled: tab === 'alerts',
   });
+
+  const adjustForm = useForm<AdjustForm>({
+    resolver: zodResolver(adjustSchema),
+    defaultValues: { reason: 'physical_count', notes: '' },
+  });
+
+  const adjustMutation = useMutation({
+    mutationFn: (data: AdjustForm) => {
+      const delta = data.newQuantity - (adjustTarget?.totalQuantity ?? 0);
+      return stockApi.adjust({
+        rawMaterialId: adjustTarget.rawMaterialId,
+        quantityAdjustment: Math.round(delta * 100) / 100,
+        reason: data.reason,
+        notes: data.notes || undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-alerts'] });
+      toast.success(t('stock.adjusted'));
+      setAdjustTarget(null);
+      adjustForm.reset({ reason: 'physical_count', notes: '' });
+    },
+    onError: (err: any) => {
+      toast.error(t(`errors.${err?.response?.data?.message}`, { defaultValue: t('errors.generic') }));
+    },
+  });
+
+  function openAdjust(item: any) {
+    setAdjustTarget(item);
+    adjustForm.reset({ newQuantity: item.totalQuantity, reason: 'physical_count', notes: '' });
+  }
+
+  const newQty = adjustForm.watch('newQuantity');
+  const delta = adjustTarget ? (Number(newQty) || 0) - adjustTarget.totalQuantity : 0;
 
   return (
     <div className="space-y-5">
@@ -74,14 +125,15 @@ export function StockPage() {
                     {col('expiryAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>}
                     {col('lowStockAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>}
                     {col('expiry') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('stock.expiry')}</th>}
+                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {invData?.data?.length === 0 && (
-                    <tr><td colSpan={visible.length} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                    <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
-                    <tr key={item.rawMaterialId} className="hover:bg-muted/30 transition-colors">
+                    <tr key={item.rawMaterialId} className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
                       {col('name') && <td className="px-4 py-3 font-medium text-foreground">{item.rawMaterialName}<span className="text-muted-foreground ml-1 text-xs">({item.unit})</span></td>}
                       {col('quantity') && <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>}
                       {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
@@ -96,6 +148,11 @@ export function StockPage() {
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
                       {col('expiry') && <td className="px-4 py-3 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
+                      <td className="px-4 py-3 text-center">
+                        <Button variant="ghost" size="sm" onClick={() => openAdjust(item)} title={t('stock.adjust')}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,6 +221,71 @@ export function StockPage() {
           </div>
         )
       )}
+
+      {/* Adjust Stock Modal */}
+      <Modal
+        isOpen={!!adjustTarget}
+        onClose={() => { setAdjustTarget(null); adjustForm.reset(); }}
+        title={t('stock.adjust')}
+      >
+        {adjustTarget && (
+          <form onSubmit={adjustForm.handleSubmit((d) => adjustMutation.mutate(d))} className="space-y-4">
+            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+              <p className="font-medium text-foreground">{adjustTarget.rawMaterialName}</p>
+              <p className="text-muted-foreground">{t('stock.currentQty')}: <span className="font-semibold text-foreground">{formatNumber(adjustTarget.totalQuantity)} {adjustTarget.unit}</span></p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('stock.newQuantity')}</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                {...adjustForm.register('newQuantity')}
+              />
+              {adjustForm.formState.errors.newQuantity && (
+                <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message}</p>
+              )}
+              {delta !== 0 && (
+                <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {delta > 0 ? '+' : ''}{Math.round(delta * 100) / 100} {adjustTarget.unit}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('stock.adjustReason')}</label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                {...adjustForm.register('reason')}
+              >
+                {REASONS.map(r => (
+                  <option key={r} value={r}>{t(`stock.reasons.${r}`)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">{t('common.notes')}</label>
+              <textarea
+                rows={2}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                {...adjustForm.register('notes')}
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => { setAdjustTarget(null); adjustForm.reset(); }}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={delta === 0 || adjustMutation.isPending}>
+                {adjustMutation.isPending ? t('common.loading') : t('stock.applyAdjustment')}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

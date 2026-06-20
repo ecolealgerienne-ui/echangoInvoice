@@ -120,13 +120,25 @@
     "title": "Stock",
     "inventory": "Inventaire",
     "alerts": "Alertes",
-    "adjust": "Ajustement",
+    "adjust": "Ajuster le stock",
+    "adjusted": "Stock ajusté",
+    "currentQty": "Quantité actuelle",
+    "newQuantity": "Nouvelle quantité",
+    "adjustReason": "Motif",
+    "applyAdjustment": "Appliquer l'ajustement",
     "quantity": "Quantité",
     "value": "Valeur",
     "threshold": "Seuil d'alerte",
     "expiry": "Expiration",
     "expiryAlert": "Alerte expiration",
-    "lowStockAlert": "Stock bas"
+    "lowStockAlert": "Stock bas",
+    "reasons": {
+      "physical_count": "Inventaire physique",
+      "correction": "Correction d'erreur",
+      "loss": "Perte / Vol",
+      "breakage": "Casse / Avarie",
+      "other": "Autre"
+    }
   },
   "invoices": {
     "title": "Factures",
