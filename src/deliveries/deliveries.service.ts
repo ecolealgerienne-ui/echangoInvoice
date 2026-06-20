@@ -135,10 +135,10 @@ export class DeliveriesService {
         );
         await qr.query(
           `INSERT INTO stock_entries
-             ("tenantId", "finishedProductId", quantity, "costPerUnit", "totalCost",
+             ("tenantId", "rawMaterialId", "finishedProductId", quantity, "costPerUnit", "totalCost",
               "enteredAt", status, "reservedByDeliveryNoteId",
               "createdAt", "updatedAt")
-           SELECT "tenantId", "finishedProductId", $1, "costPerUnit", "costPerUnit" * $1,
+           SELECT "tenantId", "rawMaterialId", "finishedProductId", $1, "costPerUnit", "costPerUnit" * $1,
               "enteredAt", 'reserved', $2,
               now(), now()
            FROM stock_entries WHERE id = $3`,
