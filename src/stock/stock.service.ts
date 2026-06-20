@@ -137,24 +137,32 @@ export class StockService {
   }
 
   async adjust(tenantId: string, dto: AdjustStockDto, userId: string) {
+    if (!dto.newQuantity && dto.newQuantity !== 0) {
+      throw new BadRequestException('newQuantity is required');
+    }
+
     const product = await this.productRepo.findOne({
       where: { id: dto.rawMaterialId, tenantId },
     });
+
+    const currentQty = product ? parseFloat(product.stockQuantity as any) : 0;
+    const newQty = Math.round(dto.newQuantity * 100) / 100;
+    const delta = Math.round((newQty - currentQty) * 100) / 100;
+    const costPerUnit = product ? parseFloat(product.averageCostPerUnit as any) : 0;
+    const newTotalValue = Math.round(newQty * costPerUnit * 100) / 100;
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
-      const costPerUnit = product ? parseFloat(product.averageCostPerUnit as any) : 0;
-      const qty = dto.quantityAdjustment;
-
+      // Audit log entry
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
         finishedProductId: dto.rawMaterialId,
-        quantity: Math.abs(qty),
+        quantity: Math.abs(delta),
         costPerUnit,
-        totalCost: Math.abs(qty) * costPerUnit,
+        totalCost: Math.abs(delta) * costPerUnit,
         status: 'adjusted',
         enteredAt: new Date(),
         createdBy: userId,
@@ -165,43 +173,27 @@ export class StockService {
         INSERT INTO stock_adjustments
           ("tenantId","rawMaterialId","stockEntryId","quantityAdjustment","reason","notes","adjustedBy","adjustedAt")
         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
-        [tenantId, dto.rawMaterialId, saved.id, qty, dto.reason, dto.notes ?? null, userId],
+        [tenantId, dto.rawMaterialId, saved.id, delta, dto.reason, dto.notes ?? null, userId],
       );
 
-      // Recalculate from available entries
-      const avail = await qr.manager
-        .createQueryBuilder(StockEntry, 'se')
-        .where('se.tenantId = :tenantId', { tenantId })
-        .andWhere('se.finishedProductId = :mid', { mid: dto.rawMaterialId })
-        .andWhere('se.status = :s', { s: 'available' })
-        .getMany();
-
-      const totalQty = avail.reduce((s, e) => s + parseFloat(e.quantity as any), 0);
-      const totalVal = avail.reduce((s, e) => s + parseFloat(e.quantity as any) * parseFloat(e.costPerUnit as any), 0);
-      const avgCost = totalQty > 0 ? totalVal / totalQty : 0;
-      const earliest = avail
-        .filter(e => e.expiresAt)
-        .sort((a, b) => new Date(a.expiresAt!).getTime() - new Date(b.expiresAt!).getTime())[0]?.expiresAt ?? null;
-
+      // Set stock directly to new absolute quantity (physical inventory adjustment)
       await qr.manager.query(`
         UPDATE finished_products
-        SET "stockQuantity"          = $1,
-            "averageCostPerUnit"     = $2,
-            "totalStockValue"        = $3,
-            "earliestExpirationDate" = $4,
-            "updatedAt"              = NOW()
-        WHERE id = $5 AND "tenantId" = $6`,
-        [totalQty, avgCost, totalVal, earliest, dto.rawMaterialId, tenantId],
+        SET "stockQuantity"      = $1,
+            "totalStockValue"    = $2,
+            "updatedAt"          = NOW()
+        WHERE id = $3 AND "tenantId" = $4`,
+        [newQty, newTotalValue, dto.rawMaterialId, tenantId],
       );
 
       await qr.commitTransaction();
       return {
         data: {
           rawMaterialId: dto.rawMaterialId,
-          quantityAdjustment: qty,
+          quantityAdjustment: delta,
+          newTotalQuantity: newQty,
           reason: dto.reason,
           notes: dto.notes ?? null,
-          newTotalQuantity: Math.round(totalQty * 100) / 100,
           adjustmentEntryId: saved.id,
           adjustedAt: saved.createdAt,
         },

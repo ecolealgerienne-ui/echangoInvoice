@@ -56,15 +56,13 @@ export function StockPage() {
   });
 
   const adjustMutation = useMutation({
-    mutationFn: (data: AdjustForm) => {
-      const delta = data.newQuantity - (adjustTarget?.totalQuantity ?? 0);
-      return stockApi.adjust({
+    mutationFn: (data: AdjustForm) =>
+      stockApi.adjust({
         rawMaterialId: adjustTarget.rawMaterialId,
-        quantityAdjustment: Math.round(delta * 100) / 100,
+        newQuantity: data.newQuantity,
         reason: data.reason,
         notes: data.notes || undefined,
-      });
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock-inventory'] });
       queryClient.invalidateQueries({ queryKey: ['stock-alerts'] });
