@@ -264,7 +264,7 @@ export function QuotesPage() {
                 const selProd = (productList as any[]).find((p: any) => p.id === selId);
                 return (
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-4">
+                  <div className="col-span-5">
                     <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs"
                       onChange={e => {
                         setQValue(`items.${i}.finishedProductId`, e.target.value);
@@ -281,17 +281,15 @@ export function QuotesPage() {
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
                   </div>
-                  <div className="col-span-2 flex items-center">
-                    <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center truncate">
+                  <div className="col-span-2">
+                    <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
                       {selProd?.unit ?? watchQ(`items.${i}.unit`) ?? '—'}
                     </span>
                     <input type="hidden" {...register(`items.${i}.unit`)} />
+                    <input type="hidden" {...register(`items.${i}.taxRate1`)} />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
-                  </div>
-                  <div className="col-span-1">
-                    <Input type="number" step="1" min="0" placeholder="TVA%" {...register(`items.${i}.taxRate1`)} className="text-xs" />
                   </div>
                   <div className="col-span-1 flex justify-center">
                     {fields.length > 1 && (
