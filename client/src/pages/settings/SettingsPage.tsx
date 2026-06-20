@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Plus, X, Trash2, Upload } from 'lucide-react';
+import { rules } from '@/lib/validation';
 
 type SettingsTab = 'general' | 'tax' | 'units' | 'formats';
 
@@ -39,7 +40,7 @@ export function SettingsPage() {
     queryFn: () => settingsApi.get(),
   });
 
-  const { register, handleSubmit, reset } = useForm<any>();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
 
   useEffect(() => {
     if (!data?.data) return;
@@ -176,18 +177,19 @@ export function SettingsPage() {
 
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{t('settings.companyName')}</label>
-                  <Input {...register('companyName')} />
+                  <Input {...register('companyName', rules.maxLength(t('settings.companyName'), 255))} />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{t('settings.currency')}</label>
-                  <Input {...register('currency')} className="max-w-xs" />
+                  <Input {...register('currency', rules.maxLength(t('settings.currency'), 10))} className="max-w-xs" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{t('settings.defaultPaymentTerms')}</label>
                   <div className="flex items-center gap-2 max-w-xs">
-                    <Input type="number" min="1" {...register('defaultPaymentTermsDays', { valueAsNumber: true })} className="w-24" />
+                    <Input type="number" min="1" {...register('defaultPaymentTermsDays', rules.positiveInt(t('settings.defaultPaymentTerms')))} className="w-24" />
                     <span className="text-sm text-muted-foreground">{t('settings.days')}</span>
                   </div>
+                  {errors.defaultPaymentTermsDays && <p className="text-xs text-destructive">{errors.defaultPaymentTermsDays.message as string}</p>}
                   <p className="text-xs text-muted-foreground">{t('settings.defaultPaymentTermsHint')}</p>
                 </div>
               </CardContent>
@@ -199,11 +201,13 @@ export function SettingsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">{t('settings.email')}</label>
-                    <Input type="email" {...register('email')} />
+                    <Input type="email" {...register('email', rules.optionalEmail())} />
+                    {errors.email && <p className="text-xs text-destructive">{errors.email.message as string}</p>}
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-foreground">{t('settings.phone')}</label>
-                    <Input {...register('phone')} />
+                    <Input {...register('phone', rules.optionalPhone())} />
+                    {errors.phone && <p className="text-xs text-destructive">{errors.phone.message as string}</p>}
                   </div>
                 </div>
                 <div className="space-y-1">
