@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { quotesApi, customersApi, productsApi , resolveApiError } from '@/lib/api';
+import { quotesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -70,12 +70,21 @@ export function QuotesPage() {
   });
 
   const units = useUnits();
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
+  const defaultTaxRate = taxRates.find(r => r.isDefault)?.rate ?? 19;
+
   const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       quoteDate: today,
       expiryDate: in30,
-      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: 19 }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }],
     },
   });
 
@@ -254,17 +263,25 @@ export function QuotesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: 19 })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
+            </div>
+            {/* Column headers */}
+            <div className="grid grid-cols-12 gap-2 mb-1">
+              <div className="col-span-4 text-xs font-medium text-muted-foreground">{t('common.product')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('common.qty')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('products.unit')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('purchases.unitPrice')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('settings.taxRate')}</div>
             </div>
             <div className="space-y-2">
               {fields.map((f, i) => {
                 const selId = watchQ(`items.${i}.finishedProductId`);
                 const selProd = (productList as any[]).find((p: any) => p.id === selId);
                 return (
-                <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
-                  <div className="col-span-5">
+                <div key={f.id} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-4">
                     <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs"
                       onChange={e => {
                         setQValue(`items.${i}.finishedProductId`, e.target.value);
@@ -286,10 +303,19 @@ export function QuotesPage() {
                       {selProd?.unit ?? watchQ(`items.${i}.unit`) ?? '—'}
                     </span>
                     <input type="hidden" {...register(`items.${i}.unit`)} />
-                    <input type="hidden" {...register(`items.${i}.taxRate1`)} />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
+                  </div>
+                  <div className="col-span-1">
+                    <Select {...register(`items.${i}.taxRate1`)} className="w-full text-xs">
+                      {taxRates.length > 0
+                        ? taxRates.map(r => (
+                            <option key={r.rate} value={r.rate}>{r.rate}%</option>
+                          ))
+                        : <option value={19}>19%</option>
+                      }
+                    </Select>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     {fields.length > 1 && (
