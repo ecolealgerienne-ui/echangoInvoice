@@ -616,6 +616,12 @@ export class PurchasesService {
     const currentPaid = parseFloat(bill.amountPaid);
     const newPaid = Math.round((currentPaid + dto.amount) * 100) / 100;
     const totalAmount = parseFloat(bill.totalAmount);
+    const amountDue = Math.round((totalAmount - currentPaid) * 100) / 100;
+    if (dto.amount > amountDue) {
+      throw new UnprocessableEntityException(
+        `Montant (${dto.amount}) supérieur au solde dû (${amountDue})`,
+      );
+    }
     const newDue = Math.round(Math.max(totalAmount - newPaid, 0) * 100) / 100;
     const newStatus = newDue <= 0 ? 'paid' : 'partial';
 
