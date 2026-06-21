@@ -25,7 +25,8 @@ export class SuppliersService {
     const supplier = this.supplierRepo.create({
       ...dto,
       tenantId,
-      isSupplier: true,
+      isCustomer: dto.isCustomer ?? false,
+      isSupplier: dto.isSupplier ?? true,
       createdBy: userId,
       updatedBy: userId,
     });

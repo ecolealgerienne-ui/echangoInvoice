@@ -26,6 +26,8 @@ const schema = z.object({
   rc: z.string().optional(),
   ai: z.string().optional(),
   nis: z.string().optional(),
+  isCustomer: z.boolean().optional(),
+  isSupplier: z.boolean().optional(),
 });
 
 const contactSchema = z.object({
@@ -215,6 +217,17 @@ export function SuppliersPage() {
             <label className="text-sm font-medium text-foreground">{t('suppliers.name')} *</label>
             <Input {...register('name')} />
             {errors.name && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+          </div>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isSupplier')} defaultChecked className="rounded" />
+              {t('contacts.isSupplier')}
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isCustomer')} className="rounded" />
+              {t('contacts.isCustomer')}
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

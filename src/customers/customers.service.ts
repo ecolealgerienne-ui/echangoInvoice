@@ -25,7 +25,8 @@ export class CustomersService {
     const customer = this.repo.create({
       ...dto,
       tenantId,
-      isCustomer: true,
+      isCustomer: dto.isCustomer ?? true,
+      isSupplier: dto.isSupplier ?? false,
       isActive: dto.isActive ?? true,
       createdBy: userId,
       updatedBy: userId,

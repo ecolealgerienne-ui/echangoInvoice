@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean, MinLength, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateSupplierDto {
@@ -72,4 +72,12 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  isCustomer?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  isSupplier?: boolean;
 }

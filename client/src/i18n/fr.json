@@ -102,6 +102,10 @@
     "contactRole": "Fonction",
     "primary": "Contact principal"
   },
+  "contacts": {
+    "isCustomer": "Client",
+    "isSupplier": "Fournisseur"
+  },
   "suppliers": {
     "title": "Fournisseurs",
     "new": "Nouveau fournisseur",
