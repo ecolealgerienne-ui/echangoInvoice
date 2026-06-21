@@ -123,8 +123,8 @@ export class CustomersService {
     if (!customer) throw new NotFoundException('errors.customer_not_found');
 
     const linked = await this.dataSource.query(
-      `SELECT 1 FROM delivery_notes WHERE "customerId" = $1 AND "deletedAt" IS NULL LIMIT 1`,
-      [id],
+      `SELECT 1 FROM delivery_notes WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
+      [id, tenantId],
     );
     if (linked.length > 0) {
       throw new UnprocessableEntityException('errors.customer_has_linked_documents');

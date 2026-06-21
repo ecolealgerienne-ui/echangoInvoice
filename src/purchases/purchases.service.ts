@@ -213,7 +213,7 @@ export class PurchasesService {
     if (!['draft', 'cancelled'].includes(po.status)) {
       throw new UnprocessableEntityException('errors.po_cannot_delete');
     }
-    await this.dataSource.manager.softDelete(PurchaseOrder, id);
+    await this.dataSource.manager.softDelete(PurchaseOrder, { id, tenantId });
   }
 
   // ─── Reception BLs ─────────────────────────────────────────────────────────
@@ -489,7 +489,7 @@ export class PurchasesService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      await qr.query(`DELETE FROM vendor_bill_items WHERE "vendorBillId" = $1`, [id]);
+      await qr.query(`DELETE FROM vendor_bill_items WHERE "vendorBillId" = $1 AND "tenantId" = $2`, [id, tenantId]);
 
       const items = dto.items.map((item) => {
         const lineHT = Math.round(item.quantity * item.unitPrice * 100) / 100;
@@ -507,11 +507,11 @@ export class PurchasesService {
         SET "supplierId"=$1,"purchaseOrderId"=$2,"receptionBlId"=$3,
             "billDate"=$4,"dueDate"=$5,"subtotal"=$6,"taxAmount"=$7,
             "totalAmount"=$8,"amountDue"=$9,"notes"=$10,"updatedBy"=$11,"updatedAt"=NOW()
-        WHERE id=$12`,
+        WHERE id=$12 AND "tenantId"=$13`,
         [
           dto.supplierId, dto.purchaseOrderId ?? null, dto.receptionBlId ?? null,
           dto.billDate, dto.dueDate ?? null, subtotal, taxAmount, totalAmount, totalAmount,
-          dto.notes ?? null, userId, id,
+          dto.notes ?? null, userId, id, tenantId,
         ],
       );
 
@@ -557,8 +557,8 @@ export class PurchasesService {
     }
 
     await this.dataSource.query(
-      `UPDATE vendor_bills SET status=$1,"updatedBy"=$2,"updatedAt"=NOW() WHERE id=$3`,
-      [status, userId, id],
+      `UPDATE vendor_bills SET status=$1,"updatedBy"=$2,"updatedAt"=NOW() WHERE id=$3 AND "tenantId"=$4`,
+      [status, userId, id, tenantId],
     );
     return this.findOneVendorBill(id, tenantId);
   }
@@ -573,8 +573,8 @@ export class PurchasesService {
       throw new UnprocessableEntityException('vendor_bill_cannot_delete');
     }
     await this.dataSource.query(
-      `UPDATE vendor_bills SET "deletedAt"=NOW() WHERE id=$1`,
-      [id],
+      `UPDATE vendor_bills SET "deletedAt"=NOW() WHERE id=$1 AND "tenantId"=$2`,
+      [id, tenantId],
     );
   }
 
@@ -608,8 +608,8 @@ export class PurchasesService {
       await qr.query(`
         UPDATE vendor_bills
         SET "amountPaid"=$1,"amountDue"=$2,status=$3,"updatedBy"=$4,"updatedAt"=NOW()
-        WHERE id=$5`,
-        [newPaid, newDue, newStatus, userId, billId],
+        WHERE id=$5 AND "tenantId"=$6`,
+        [newPaid, newDue, newStatus, userId, billId, tenantId],
       );
       await qr.commitTransaction();
       return this.findOneVendorBill(billId, tenantId);

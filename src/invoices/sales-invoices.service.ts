@@ -124,8 +124,8 @@ export class SalesInvoicesService {
       );
       if (!dn.length) throw new NotFoundException('delivery_note_not_found');
       const existing = await qr.query(
-        `SELECT id FROM sales_invoices WHERE "deliveryNoteId" = $1 AND "deletedAt" IS NULL`,
-        [dto.deliveryNoteId],
+        `SELECT id FROM sales_invoices WHERE "deliveryNoteId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        [dto.deliveryNoteId, tenantId],
       );
       if (existing.length) throw new BadRequestException('delivery_note_already_invoiced');
       const items = rows.map((r) => ({

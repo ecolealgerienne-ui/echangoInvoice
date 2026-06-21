@@ -85,8 +85,8 @@ export class SuppliersService {
     if (!supplier) throw new NotFoundException('errors.supplier_not_found');
 
     const linkedPOs = await this.supplierRepo.manager.query(
-      `SELECT 1 FROM purchase_orders WHERE "supplierId" = $1 AND "deletedAt" IS NULL LIMIT 1`,
-      [id],
+      `SELECT 1 FROM purchase_orders WHERE "supplierId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
+      [id, tenantId],
     );
     if (linkedPOs.length > 0) {
       throw new UnprocessableEntityException('errors.supplier_has_purchase_orders');

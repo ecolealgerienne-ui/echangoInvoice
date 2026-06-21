@@ -124,15 +124,15 @@ export class DeliveriesService {
       if (available <= remaining) {
         await qr.query(
           `UPDATE stock_entries SET status = 'reserved', "reservedByDeliveryNoteId" = $1
-           WHERE id = $2`,
-          [deliveryNoteId, entry.id],
+           WHERE id = $2 AND "tenantId" = $3`,
+          [deliveryNoteId, entry.id, tenantId],
         );
         remaining -= available;
       } else {
         // Split: consume part of this entry
         await qr.query(
-          `UPDATE stock_entries SET quantity = quantity - $1 WHERE id = $2`,
-          [remaining, entry.id],
+          `UPDATE stock_entries SET quantity = quantity - $1 WHERE id = $2 AND "tenantId" = $3`,
+          [remaining, entry.id, tenantId],
         );
         await qr.query(
           `INSERT INTO stock_entries
@@ -158,17 +158,17 @@ export class DeliveriesService {
 
   // ─── Libération FIFO (annulation réservation lors de delete/update) ───────
 
-  private async releaseFIFO(qr: QueryRunner, deliveryNoteId: string): Promise<void> {
+  private async releaseFIFO(qr: QueryRunner, deliveryNoteId: string, tenantId: string): Promise<void> {
     await qr.query(
       `UPDATE stock_entries SET status = 'available', "reservedByDeliveryNoteId" = NULL
-       WHERE "reservedByDeliveryNoteId" = $1 AND status = 'reserved'`,
-      [deliveryNoteId],
+       WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
+      [deliveryNoteId, tenantId],
     );
     // Remove split zero-quantity entries (cleanup)
     await qr.query(
       `DELETE FROM stock_entries
-       WHERE "reservedByDeliveryNoteId" = $1 AND status = 'reserved'`,
-      [deliveryNoteId],
+       WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
+      [deliveryNoteId, tenantId],
     );
   }
 
@@ -275,10 +275,10 @@ export class DeliveriesService {
       }
 
       // Libère les réservations stock de l'ancien BL
-      await this.releaseFIFO(qr, id);
+      await this.releaseFIFO(qr, id, tenantId);
 
       // Supprime les anciens items
-      await qr.query(`DELETE FROM delivery_note_items WHERE "deliveryNoteId" = $1`, [id]);
+      await qr.query(`DELETE FROM delivery_note_items WHERE "deliveryNoteId" = $1 AND "tenantId" = $2`, [id, tenantId]);
 
       // Recalcule et recrée les items
       const computed = dto.items.map((i) => this.computeItem(i));
@@ -355,7 +355,7 @@ export class DeliveriesService {
         throw new UnprocessableEntityException('delivery_note_has_invoice');
       }
 
-      await this.releaseFIFO(qr, id);
+      await this.releaseFIFO(qr, id, tenantId);
 
       dn.status = 'cancelled';
       dn.updatedBy = userId;
@@ -452,8 +452,8 @@ export class DeliveriesService {
 
       await qr.query(
         `UPDATE quotes SET "convertedToDeliveryNoteId" = $1, status = 'converted', "updatedBy" = $2, "updatedAt" = NOW()
-         WHERE id = $3`,
-        [dn.id, userId, quoteId],
+         WHERE id = $3 AND "tenantId" = $4`,
+        [dn.id, userId, quoteId, tenantId],
       );
 
       await qr.commitTransaction();
@@ -568,7 +568,7 @@ export class DeliveriesService {
       }
 
       // Libère les réservations stock avant suppression
-      await this.releaseFIFO(qr, id);
+      await this.releaseFIFO(qr, id, tenantId);
 
       dn.updatedBy = userId;
       await qr.manager.save(DeliveryNote, dn);

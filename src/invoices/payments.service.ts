@@ -60,8 +60,8 @@ export class PaymentsService {
         // Transition stock : reserved → sold (R015)
         await qr.query(
           `UPDATE stock_entries SET status = 'sold'
-           WHERE "reservedByDeliveryNoteId" = $1 AND status = 'reserved'`,
-          [invoice.deliveryNoteId],
+           WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
+          [invoice.deliveryNoteId, tenantId],
         );
       }
 
@@ -74,7 +74,7 @@ export class PaymentsService {
 
       await qr.commitTransaction();
 
-      const updatedInvoice = await this.invoiceRepo.findOne({ where: { id: invoice.id } });
+      const updatedInvoice = await this.invoiceRepo.findOne({ where: { id: invoice.id, tenantId, deletedAt: IsNull() } });
       return { data: { ...payment, invoice: updatedInvoice } };
     } catch (err) {
       await qr.rollbackTransaction();
@@ -140,8 +140,8 @@ export class PaymentsService {
       if (invoice.status === 'paid' && invoice.deliveryNoteId) {
         await qr.query(
           `UPDATE stock_entries SET status = 'reserved'
-           WHERE "reservedByDeliveryNoteId" = $1 AND status = 'sold'`,
-          [invoice.deliveryNoteId],
+           WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'sold'`,
+          [invoice.deliveryNoteId, tenantId],
         );
       }
 

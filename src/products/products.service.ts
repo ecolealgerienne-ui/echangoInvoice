@@ -95,16 +95,16 @@ export class ProductsService {
 
     const [inBL, inInvoice, inPO] = await Promise.all([
       this.dataSource.query(
-        `SELECT 1 FROM delivery_note_items WHERE "finishedProductId" = $1 LIMIT 1`,
-        [id],
+        `SELECT 1 FROM delivery_note_items WHERE "finishedProductId" = $1 AND "tenantId" = $2 LIMIT 1`,
+        [id, tenantId],
       ),
       this.dataSource.query(
-        `SELECT 1 FROM sales_invoice_items WHERE "finishedProductId" = $1 LIMIT 1`,
-        [id],
+        `SELECT 1 FROM sales_invoice_items WHERE "finishedProductId" = $1 AND "tenantId" = $2 LIMIT 1`,
+        [id, tenantId],
       ),
       this.dataSource.query(
-        `SELECT 1 FROM purchase_order_items WHERE "rawMaterialId" = $1 LIMIT 1`,
-        [id],
+        `SELECT 1 FROM purchase_order_items WHERE "rawMaterialId" = $1 AND "tenantId" = $2 LIMIT 1`,
+        [id, tenantId],
       ),
     ]);
 
