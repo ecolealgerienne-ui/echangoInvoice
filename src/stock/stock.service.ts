@@ -157,7 +157,7 @@ export class StockService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // Audit log entry
+      // Audit log entry — 'available' if adding stock so FIFO can consume it
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
@@ -165,7 +165,7 @@ export class StockService {
         quantity: Math.abs(delta),
         costPerUnit,
         totalCost: Math.abs(delta) * costPerUnit,
-        status: 'adjusted',
+        status: delta > 0 ? 'available' : 'adjusted',
         enteredAt: new Date(),
         createdBy: userId,
       });
