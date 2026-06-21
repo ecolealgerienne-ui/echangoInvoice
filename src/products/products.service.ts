@@ -74,6 +74,15 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('errors.product_not_found');
     Object.assign(product, { ...dto, code: dto.code || null }, { updatedBy: userId });
+
+    // Recalculate totalStockValue when cost changes
+    if (dto.lastCostPerUnit !== undefined) {
+      const costPerUnit = Number(dto.lastCostPerUnit);
+      const qty = Number(product.stockQuantity ?? 0);
+      product.averageCostPerUnit = costPerUnit;
+      product.totalStockValue = Math.round(qty * costPerUnit * 100) / 100;
+    }
+
     await this.repo.save(product);
     return { data: product };
   }
