@@ -45,6 +45,22 @@ export class FinishedProduct {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  // ─── Champs stock (remplace inventory_summary) ──────────────────────────
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  stockQuantity: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  averageCostPerUnit: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  totalStockValue: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  earliestExpirationDate: Date | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  alertThreshold: number | null;
+
   @Column({ type: 'varchar', nullable: true })
   createdBy: string | null;
 

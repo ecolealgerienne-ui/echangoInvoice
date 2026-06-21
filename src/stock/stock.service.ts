@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { StockEntry } from './stock-entry.entity';
-import { InventorySummary } from './inventory-summary.entity';
+import { FinishedProduct } from '../products/finished-product.entity';
 import { ListInventoryDto } from './dto/list-inventory.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { SetThresholdDto } from './dto/set-threshold.dto';
@@ -12,7 +12,7 @@ export class StockService {
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     @InjectRepository(StockEntry) private readonly entryRepo: Repository<StockEntry>,
-    @InjectRepository(InventorySummary) private readonly summaryRepo: Repository<InventorySummary>,
+    @InjectRepository(FinishedProduct) private readonly productRepo: Repository<FinishedProduct>,
   ) {}
 
   async getInventory(tenantId: string, dto: ListInventoryDto) {
@@ -20,28 +20,31 @@ export class StockService {
     const limit = dto.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    let where = `inv."tenantId" = $1`;
+    let where = `"tenantId" = $1 AND "deletedAt" IS NULL`;
     const params: any[] = [tenantId];
     let idx = 2;
 
-    if (dto.materialId) { where += ` AND inv."rawMaterialId" = $${idx++}`; params.push(dto.materialId); }
-    if (dto.lowStockOnly) { where += ` AND inv."alertThreshold" IS NOT NULL AND inv."totalQuantity" <= inv."alertThreshold"`; }
-    if (dto.expiringSoon) { where += ` AND inv."earliestExpirationDate" IS NOT NULL AND inv."earliestExpirationDate" <= NOW() + INTERVAL '5 days'`; }
+    if (dto.materialId) { where += ` AND id = $${idx++}`; params.push(dto.materialId); }
+    if (dto.lowStockOnly) { where += ` AND "alertThreshold" IS NOT NULL AND "stockQuantity" <= "alertThreshold"`; }
+    if (dto.expiringSoon) { where += ` AND "earliestExpirationDate" IS NOT NULL AND "earliestExpirationDate" <= NOW() + INTERVAL '5 days'`; }
 
     const countRow = await this.ds.query(
-      `SELECT COUNT(*) AS total FROM inventory_summary inv WHERE ${where}`,
+      `SELECT COUNT(*) AS total FROM finished_products WHERE ${where}`,
       params,
     );
     const total = parseInt(countRow[0].total);
 
     const rows = await this.ds.query(
-      `SELECT inv."rawMaterialId", rm.name, rm.unit,
-              inv."totalQuantity", inv."averageCostPerUnit", inv."totalValue",
-              inv."earliestExpirationDate", inv."alertThreshold", inv."updatedAt"
-       FROM inventory_summary inv
-       JOIN finished_products rm ON rm.id = inv."rawMaterialId"
+      `SELECT id AS "rawMaterialId", name, unit,
+              "stockQuantity"          AS "totalQuantity",
+              "averageCostPerUnit",
+              "totalStockValue"        AS "totalValue",
+              "earliestExpirationDate",
+              "alertThreshold",
+              "updatedAt"
+       FROM finished_products
        WHERE ${where}
-       ORDER BY rm.name ASC
+       ORDER BY name ASC
        LIMIT $${idx++} OFFSET $${idx++}`,
       [...params, limit, offset],
     );
@@ -91,13 +94,13 @@ export class StockService {
         [tenantId]),
 
       this.ds.query(`
-        SELECT inv."rawMaterialId", rm.name, rm.unit,
-               inv."totalQuantity", inv."alertThreshold"
-        FROM inventory_summary inv
-        JOIN finished_products rm ON rm.id = inv."rawMaterialId"
-        WHERE inv."tenantId"=$1
-          AND inv."alertThreshold" IS NOT NULL
-          AND inv."totalQuantity" <= inv."alertThreshold"`,
+        SELECT id AS "rawMaterialId", name, unit,
+               "stockQuantity" AS "totalQuantity", "alertThreshold"
+        FROM finished_products
+        WHERE "tenantId"=$1
+          AND "alertThreshold" IS NOT NULL
+          AND "stockQuantity" <= "alertThreshold"
+          AND "deletedAt" IS NULL`,
         [tenantId]),
     ]);
 
@@ -134,25 +137,35 @@ export class StockService {
   }
 
   async adjust(tenantId: string, dto: AdjustStockDto, userId: string) {
-    const summary = await this.summaryRepo.findOne({
-      where: { tenantId, rawMaterialId: dto.rawMaterialId },
+    if (!dto.newQuantity && dto.newQuantity !== 0) {
+      throw new BadRequestException('newQuantity is required');
+    }
+
+    const product = await this.productRepo.findOne({
+      where: { id: dto.rawMaterialId, tenantId },
     });
+
+    const currentQty = product ? parseFloat(product.stockQuantity as any) : 0;
+    const newQty = Math.round(dto.newQuantity * 100) / 100;
+    const delta = Math.round((newQty - currentQty) * 100) / 100;
+    const avgCost = product ? (parseFloat(product.averageCostPerUnit as any) || 0) : 0;
+    const lastCost = product ? (parseFloat(product.lastCostPerUnit as any) || 0) : 0;
+    const costPerUnit = avgCost > 0 ? avgCost : lastCost;
+    const newTotalValue = Math.round(newQty * costPerUnit * 100) / 100;
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
-      const costPerUnit = summary ? parseFloat(summary.averageCostPerUnit as any) : 0;
-      const qty = dto.quantityAdjustment;
-
+      // Audit log entry — 'available' if adding stock so FIFO can consume it
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
         finishedProductId: dto.rawMaterialId,
-        quantity: Math.abs(qty),
+        quantity: Math.abs(delta),
         costPerUnit,
-        totalCost: Math.abs(qty) * costPerUnit,
-        status: 'adjusted',
+        totalCost: Math.abs(delta) * costPerUnit,
+        status: delta > 0 ? 'available' : 'adjusted',
         enteredAt: new Date(),
         createdBy: userId,
       });
@@ -162,46 +175,27 @@ export class StockService {
         INSERT INTO stock_adjustments
           ("tenantId","rawMaterialId","stockEntryId","quantityAdjustment","reason","notes","adjustedBy","adjustedAt")
         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
-        [tenantId, dto.rawMaterialId, saved.id, qty, dto.reason, dto.notes ?? null, userId],
+        [tenantId, dto.rawMaterialId, saved.id, delta, dto.reason, dto.notes ?? null, userId],
       );
 
-      // Recalculate InventorySummary from available entries
-      const avail = await qr.manager
-        .createQueryBuilder(StockEntry, 'se')
-        .where('se.tenantId = :tenantId', { tenantId })
-        .andWhere('se.finishedProductId = :mid', { mid: dto.rawMaterialId })
-        .andWhere('se.status = :s', { s: 'available' })
-        .getMany();
-
-      const totalQty = avail.reduce((s, e) => s + parseFloat(e.quantity as any), 0);
-      const totalVal = avail.reduce((s, e) => s + parseFloat(e.quantity as any) * parseFloat(e.costPerUnit as any), 0);
-      const avgCost = totalQty > 0 ? totalVal / totalQty : 0;
-      const earliest = avail
-        .filter(e => e.expiresAt)
-        .sort((a, b) => new Date(a.expiresAt!).getTime() - new Date(b.expiresAt!).getTime())[0]?.expiresAt ?? null;
-
-      if (summary) {
-        summary.totalQuantity = totalQty;
-        summary.averageCostPerUnit = avgCost;
-        summary.totalValue = totalVal;
-        summary.earliestExpirationDate = earliest;
-        await qr.manager.save(InventorySummary, summary);
-      } else {
-        await qr.manager.save(InventorySummary, qr.manager.create(InventorySummary, {
-          tenantId, rawMaterialId: dto.rawMaterialId,
-          totalQuantity: totalQty, averageCostPerUnit: avgCost,
-          totalValue: totalVal, earliestExpirationDate: earliest,
-        }));
-      }
+      // Set stock directly to new absolute quantity (physical inventory adjustment)
+      await qr.manager.query(`
+        UPDATE finished_products
+        SET "stockQuantity"      = $1,
+            "totalStockValue"    = $2,
+            "updatedAt"          = NOW()
+        WHERE id = $3 AND "tenantId" = $4`,
+        [newQty, newTotalValue, dto.rawMaterialId, tenantId],
+      );
 
       await qr.commitTransaction();
       return {
         data: {
           rawMaterialId: dto.rawMaterialId,
-          quantityAdjustment: qty,
+          quantityAdjustment: delta,
+          newTotalQuantity: newQty,
           reason: dto.reason,
           notes: dto.notes ?? null,
-          newTotalQuantity: Math.round(totalQty * 100) / 100,
           adjustmentEntryId: saved.id,
           adjustedAt: saved.createdAt,
         },
@@ -215,10 +209,9 @@ export class StockService {
   }
 
   async setThreshold(tenantId: string, rawMaterialId: string, dto: SetThresholdDto) {
-    let summary = await this.summaryRepo.findOne({ where: { tenantId, rawMaterialId } });
-    if (!summary) throw new NotFoundException('inventory_summary_not_found');
-    summary.alertThreshold = dto.alertThreshold;
-    await this.summaryRepo.save(summary);
+    const product = await this.productRepo.findOne({ where: { id: rawMaterialId, tenantId } });
+    if (!product) throw new NotFoundException('product_not_found');
+    await this.productRepo.update({ id: rawMaterialId, tenantId }, { alertThreshold: dto.alertThreshold });
     return { data: { rawMaterialId, alertThreshold: dto.alertThreshold } };
   }
 

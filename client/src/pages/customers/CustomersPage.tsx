@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { customersApi } from '@/lib/api';
+import { customersApi, resolveApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -12,6 +12,8 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search, Users } from 'lucide-react';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -26,6 +28,8 @@ const schema = z.object({
   rc: z.string().optional(),
   ai: z.string().optional(),
   nis: z.string().optional(),
+  isCustomer: z.boolean().optional(),
+  isSupplier: z.boolean().optional(),
 });
 
 const contactSchema = z.object({
@@ -48,6 +52,10 @@ export function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [contactsCustomer, setContactsCustomer] = useState<any>(null);
+  const { visible, toggle, col } = useColumnVisibility(
+    'customers_visible_columns',
+    ['name', 'nif', 'rc', 'phone'],
+  );
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<any>(null);
 
@@ -102,7 +110,7 @@ export function CustomersPage() {
       setEditingContact(null);
       contactForm.reset({});
     },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteContactMutation = useMutation({
@@ -134,10 +142,26 @@ export function CustomersPage() {
         </Button>
       </div>
 
-      <div className="relative w-64">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder={t('common.search')} value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+      <div className="flex items-center gap-3">
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder={t('common.search')} value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+        </div>
+        <div className="ml-auto">
+          <ColumnToggleMenu
+            columns={[
+              { key: 'name', label: t('customers.name') },
+              { key: 'nif', label: t('customers.nif') },
+              { key: 'rc', label: t('customers.rc') },
+              { key: 'phone', label: t('customers.phone') },
+              { key: 'email', label: t('customers.email') },
+              { key: 'city', label: t('customers.city') },
+            ]}
+            visible={visible}
+            onToggle={toggle}
+          />
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
@@ -145,23 +169,27 @@ export function CustomersPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.name')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.nif')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.rc')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.phone')}</th>
+                {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.name')}</th>}
+                {col('nif') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.nif')}</th>}
+                {col('rc') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.rc')}</th>}
+                {col('phone') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.phone')}</th>}
+                {col('email') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.email')}</th>}
+                {col('city') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.city')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
               )}
               {data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{c.nif || '—'}</td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{c.rc || '—'}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>
+                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>}
+                  {col('nif') && <td className="px-4 py-3 font-mono text-muted-foreground">{c.nif || '—'}</td>}
+                  {col('rc') && <td className="px-4 py-3 font-mono text-muted-foreground">{c.rc || '—'}</td>}
+                  {col('phone') && <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>}
+                  {col('email') && <td className="px-4 py-3 text-muted-foreground">{c.email || '—'}</td>}
+                  {col('city') && <td className="px-4 py-3 text-muted-foreground">{c.city || '—'}</td>}
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('customers.contacts')} onClick={() => openContacts(c)}>
@@ -193,6 +221,17 @@ export function CustomersPage() {
             <label className="text-sm font-medium text-foreground">{t('customers.name')} *</label>
             <Input {...register('name')} />
             {errors.name && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+          </div>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isCustomer')} defaultChecked className="rounded" />
+              {t('partners.isCustomer')}
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isSupplier')} className="rounded" />
+              {t('partners.isSupplier')}
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
-import { settingsApi } from '@/lib/api';
+import { settingsApi , resolveApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -77,7 +77,7 @@ export function SettingsPage() {
       });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast(t('settings.saved')); },
-    onError: () => toast(t('errors.generic'), 'error'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   // ── Units helpers ────────────────────────────────────────────────────────

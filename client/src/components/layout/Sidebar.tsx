@@ -30,6 +30,7 @@ const groups = [
     items: [
       { to: '/suppliers', icon: Truck, key: 'nav.suppliers' },
       { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
+      { to: '/purchases/vendor-bills', icon: Receipt, key: 'nav.vendorBills' },
     ],
   },
   {

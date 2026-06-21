@@ -18,6 +18,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   sent: ['cancelled'],
   partial: ['cancelled'],
   overdue: ['cancelled'],
+  cancelled: ['draft'],
 };
 
 interface ComputedItem {
@@ -124,8 +125,8 @@ export class SalesInvoicesService {
       );
       if (!dn.length) throw new NotFoundException('delivery_note_not_found');
       const existing = await qr.query(
-        `SELECT id FROM sales_invoices WHERE "deliveryNoteId" = $1 AND "deletedAt" IS NULL`,
-        [dto.deliveryNoteId],
+        `SELECT id FROM sales_invoices WHERE "deliveryNoteId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        [dto.deliveryNoteId, tenantId],
       );
       if (existing.length) throw new BadRequestException('delivery_note_already_invoiced');
       const items = rows.map((r) => ({
@@ -216,6 +217,7 @@ export class SalesInvoicesService {
 
     const qb = this.invoiceRepo
       .createQueryBuilder('inv')
+      .leftJoinAndSelect('inv.customer', 'customer')
       .where('inv.tenantId = :tenantId', { tenantId })
       .andWhere('inv.deletedAt IS NULL');
 
@@ -224,11 +226,36 @@ export class SalesInvoicesService {
     if (dto.dateFrom) qb.andWhere('inv.invoiceDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('inv.invoiceDate <= :dateTo', { dateTo: dto.dateTo });
 
-    const [data, total] = await qb
+    const [rows, total] = await qb
       .orderBy('inv.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
+
+    // Enrich with blNumber and quoteNumber
+    const blIds = rows.map(r => r.deliveryNoteId).filter(Boolean);
+    const qIds = rows.map(r => r.quoteId).filter(Boolean);
+    let blMap: Record<string, string> = {};
+    let quoteMap: Record<string, string> = {};
+    if (blIds.length) {
+      const bls = await this.dataSource.query(
+        `SELECT id, "blNumber" FROM delivery_notes WHERE id = ANY($1) AND "tenantId" = $2`,
+        [blIds, tenantId],
+      );
+      blMap = Object.fromEntries(bls.map((b: any) => [b.id, b.blNumber]));
+    }
+    if (qIds.length) {
+      const quotes = await this.dataSource.query(
+        `SELECT id, "quoteNumber" FROM quotes WHERE id = ANY($1) AND "tenantId" = $2`,
+        [qIds, tenantId],
+      );
+      quoteMap = Object.fromEntries(quotes.map((q: any) => [q.id, q.quoteNumber]));
+    }
+    const data = rows.map(r => ({
+      ...r,
+      blNumber: r.deliveryNoteId ? blMap[r.deliveryNoteId] ?? null : null,
+      quoteNumber: r.quoteId ? quoteMap[r.quoteId] ?? null : null,
+    }));
 
     return { data, pagination: { total, page, limit } };
   }
@@ -351,7 +378,7 @@ export class SalesInvoicesService {
                COALESCE(s.name, 'Mon Entreprise') AS "companyName",
                (CURRENT_DATE - si."dueDate")::int AS "daysOverdue"
         FROM sales_invoices si
-        JOIN customers c ON c.id = si."customerId"
+        JOIN partners c ON c.id = si."customerId"
         LEFT JOIN settings s ON s."tenantId" = si."tenantId"
         WHERE si.status IN ('sent', 'partial', 'overdue')
           AND si."amountDue" > 0

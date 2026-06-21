@@ -7,6 +7,7 @@ import {
   ApiBearerAuth, ApiOperation, ApiResponse, ApiTags,
 } from '@nestjs/swagger';
 import { QuotesService } from './quotes.service';
+import { DeliveriesService } from '../deliveries/deliveries.service';
 import { InvoicePdfService } from '../invoices/invoice-pdf.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
@@ -24,6 +25,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class QuotesController {
   constructor(
     private readonly quotesService: QuotesService,
+    private readonly deliveriesService: DeliveriesService,
     private readonly pdfService: InvoicePdfService,
   ) {}
 
@@ -77,6 +79,14 @@ export class QuotesController {
   @ApiResponse({ status: 201 })
   convert(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.quotesService.convertToInvoice(id, user.tenantId, user.id);
+  }
+
+  @Post(':id/create-bl')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Créer un bon de livraison depuis un devis (accepté)' })
+  @ApiResponse({ status: 201 })
+  createBl(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.deliveriesService.createFromQuote(id, user.tenantId, user.id);
   }
 
   @Delete(':id')

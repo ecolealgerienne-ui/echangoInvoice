@@ -7,7 +7,6 @@ import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { ReceptionBL } from './entities/reception-bl.entity';
 import { StockEntry } from '../stock/stock-entry.entity';
-import { InventorySummary } from '../stock/inventory-summary.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
@@ -15,11 +14,15 @@ import { PatchPoStatusDto } from './dto/patch-po-status.dto';
 import { CreateReceptionBlDto } from './dto/create-reception-bl.dto';
 import { ListReceptionBlsDto } from './dto/list-reception-bls.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
+import { CreateVendorBillDto } from './dto/create-vendor-bill.dto';
+import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
+import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
   sent: ['received', 'cancelled'],
-  received: [],
+  received: ['invoiced'],
+  invoiced: [],
   cancelled: [],
 };
 
@@ -41,15 +44,15 @@ export class PurchasesService {
 
       const poNumber = await this.generatePoNumber(qr, tenantId);
 
-      // Calculate totals (R008 — backend only)
-      const items = dto.items.map((item) => ({
-        ...item,
-        lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-        tenantId,
-      }));
-      const subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-      // taxAmount will be managed at settings level; here 0 for PO (no TVA on purchase order itself)
-      const taxAmount = 0;
+      // Calculate totals per line (R008 — backend only)
+      const items = dto.items.map((item) => {
+        const lineHT = Number((item.quantity * item.unitPrice).toFixed(2));
+        const itemTaxRate = item.taxRate ?? 0;
+        const itemTaxAmount = Number((lineHT * itemTaxRate / 100).toFixed(2));
+        return { ...item, taxRate: itemTaxRate, taxAmount: itemTaxAmount, lineTotal: Number((lineHT + itemTaxAmount).toFixed(2)), tenantId };
+      });
+      const subtotal = Number(items.reduce((s, i) => s + Number((i.quantity * i.unitPrice).toFixed(2)), 0).toFixed(2));
+      const taxAmount = Number(items.reduce((s, i) => s + i.taxAmount, 0).toFixed(2));
       const total = Number((subtotal + taxAmount).toFixed(2));
 
       const po = qr.manager.create(PurchaseOrder, {
@@ -99,6 +102,7 @@ export class PurchasesService {
       .take(limit);
 
     if (status) qb.andWhere('po.status = :status', { status });
+    if (query.excludeInvoiced) qb.andWhere("po.status NOT IN ('invoiced', 'cancelled')");
     if (supplierId) qb.andWhere('po.supplierId = :supplierId', { supplierId });
     if (dateFrom) qb.andWhere('po.orderDate >= :dateFrom', { dateFrom });
     if (dateTo) qb.andWhere('po.orderDate <= :dateTo', { dateTo });
@@ -160,7 +164,7 @@ export class PurchasesService {
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!po) throw new NotFoundException('errors.purchase_order_not_found');
-    if (po.status !== 'draft') {
+    if (!['draft', 'sent'].includes(po.status)) {
       throw new UnprocessableEntityException('errors.po_cannot_edit_non_draft');
     }
 
@@ -172,18 +176,20 @@ export class PurchasesService {
       if (dto.orderDate !== undefined) po.orderDate = dto.orderDate as unknown as Date;
       if (dto.expectedDeliveryDate !== undefined) po.expectedDeliveryDate = dto.expectedDeliveryDate as unknown as Date ?? null;
       if (dto.notes !== undefined) po.notes = dto.notes ?? null;
+      po.status = 'draft'; // modification remet en brouillon
       po.updatedBy = userId;
 
       if (dto.items && dto.items.length > 0) {
         await qr.manager.delete(PurchaseOrderItem, { purchaseOrderId: id, tenantId });
-        const items = dto.items.map((item) => ({
-          ...item,
-          lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-          tenantId,
-          purchaseOrderId: id,
-        }));
-        po.subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-        po.total = po.subtotal;
+        const items = dto.items.map((item) => {
+          const lineHT = Number((item.quantity * item.unitPrice).toFixed(2));
+          const itemTaxRate = item.taxRate ?? 0;
+          const itemTaxAmount = Number((lineHT * itemTaxRate / 100).toFixed(2));
+          return { ...item, taxRate: itemTaxRate, taxAmount: itemTaxAmount, lineTotal: Number((lineHT + itemTaxAmount).toFixed(2)), tenantId, purchaseOrderId: id };
+        });
+        po.subtotal = Number(items.reduce((s, i) => s + Number((i.quantity * i.unitPrice).toFixed(2)), 0).toFixed(2));
+        po.taxAmount = Number(items.reduce((s, i) => s + i.taxAmount, 0).toFixed(2));
+        po.total = Number((po.subtotal + po.taxAmount).toFixed(2));
         await qr.manager.save(PurchaseOrder, po);
         await qr.manager.save(PurchaseOrderItem, items.map(i => qr.manager.create(PurchaseOrderItem, i)));
       } else {
@@ -205,10 +211,10 @@ export class PurchasesService {
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!po) throw new NotFoundException('errors.purchase_order_not_found');
-    if (!['draft', 'cancelled'].includes(po.status)) {
+    if (!['draft', 'sent', 'cancelled'].includes(po.status)) {
       throw new UnprocessableEntityException('errors.po_cannot_delete');
     }
-    await this.dataSource.manager.softDelete(PurchaseOrder, id);
+    await this.dataSource.manager.softDelete(PurchaseOrder, { id, tenantId });
   }
 
   // ─── Reception BLs ─────────────────────────────────────────────────────────
@@ -271,15 +277,15 @@ export class PurchasesService {
         await qr.manager.save(StockEntry, entry);
         stockEntriesCreated.push(entry);
 
-        // Update InventorySummary (upsert)
-        await this.updateInventorySummary(qr, tenantId, item.rawMaterialId);
-        const summary = await qr.manager.findOne(InventorySummary, {
-          where: { tenantId, rawMaterialId: item.rawMaterialId },
+        // Update product stock fields
+        await this.updateProductStock(qr, tenantId, item.rawMaterialId);
+        const updatedProduct = await qr.manager.findOne(FinishedProduct, {
+          where: { id: item.rawMaterialId, tenantId },
         });
-        if (summary) {
+        if (updatedProduct) {
           inventoryUpdated.push({
             rawMaterialId: item.rawMaterialId,
-            newTotalQuantity: Number(summary.totalQuantity),
+            newTotalQuantity: Number(updatedProduct.stockQuantity),
           });
         }
 
@@ -339,7 +345,331 @@ export class PurchasesService {
     return { data: { ...bl, stockEntries } };
   }
 
+  // ─── Vendor Bills ──────────────────────────────────────────────────────────
+
+  async createVendorBill(dto: CreateVendorBillDto, tenantId: string, userId: string) {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      await qr.query(
+        `SELECT pg_advisory_xact_lock(hashtext('vendor_bill_number_' || $1))`,
+        [tenantId],
+      );
+      const billNumber = await this.generateVendorBillNumber(qr, tenantId);
+
+      const items = dto.items.map((item) => {
+        const lineHT = Math.round(item.quantity * item.unitPrice * 100) / 100;
+        const taxAmount = item.taxRate != null
+          ? Math.round(lineHT * (item.taxRate / 100) * 100) / 100
+          : 0;
+        return { ...item, lineHT, taxAmount, lineTotal: Math.round((lineHT + taxAmount) * 100) / 100 };
+      });
+      const subtotal = Math.round(items.reduce((s, i) => s + i.lineHT, 0) * 100) / 100;
+      const taxAmount = Math.round(items.reduce((s, i) => s + i.taxAmount, 0) * 100) / 100;
+      const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
+
+      const [bill] = await qr.query(`
+        INSERT INTO vendor_bills
+          ("tenantId","billNumber","supplierId","purchaseOrderId","receptionBlId",
+           "billDate","dueDate","subtotal","taxAmount","totalAmount","amountPaid","amountDue",
+           "status","notes","createdBy","updatedBy")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,0,$11,'draft',$12,$13,$13)
+        RETURNING *`,
+        [
+          tenantId, billNumber, dto.supplierId,
+          dto.purchaseOrderId ?? null, dto.receptionBlId ?? null,
+          dto.billDate, dto.dueDate ?? null,
+          subtotal, taxAmount, totalAmount, totalAmount,
+          dto.notes ?? null, userId,
+        ],
+      );
+
+      for (const item of items) {
+        await qr.query(`
+          INSERT INTO vendor_bill_items
+            ("tenantId","vendorBillId","finishedProductId","description",
+             "quantity","unit","unitPrice","taxRate","taxAmount","lineTotal")
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [
+            tenantId, bill.id, item.finishedProductId ?? null, item.description ?? null,
+            item.quantity, item.unit, item.unitPrice,
+            item.taxRate ?? null, item.taxAmount, item.lineTotal,
+          ],
+        );
+      }
+
+      // Mark linked PO as invoiced
+      if (dto.purchaseOrderId) {
+        await qr.query(
+          `UPDATE purchase_orders SET status = 'invoiced', "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`,
+          [dto.purchaseOrderId, tenantId],
+        );
+      }
+
+      await qr.commitTransaction();
+      return this.findOneVendorBill(bill.id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
+  async findAllVendorBills(dto: ListVendorBillsDto, tenantId: string) {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const offset = (page - 1) * limit;
+
+    let where = `vb."tenantId" = $1 AND vb."deletedAt" IS NULL`;
+    const params: any[] = [tenantId];
+    let idx = 2;
+
+    if (dto.status) { where += ` AND vb.status = $${idx++}`; params.push(dto.status); }
+    if (dto.supplierId) { where += ` AND vb."supplierId" = $${idx++}`; params.push(dto.supplierId); }
+    if (dto.dateFrom) { where += ` AND vb."billDate" >= $${idx++}`; params.push(dto.dateFrom); }
+    if (dto.dateTo) { where += ` AND vb."billDate" <= $${idx++}`; params.push(dto.dateTo); }
+
+    const countRow = await this.dataSource.query(
+      `SELECT COUNT(*) AS total FROM vendor_bills vb WHERE ${where}`,
+      params,
+    );
+    const total = parseInt(countRow[0].total);
+
+    const rows = await this.dataSource.query(
+      `SELECT vb.*, s.name AS "supplierName"
+       FROM vendor_bills vb
+       LEFT JOIN partners s ON s.id = vb."supplierId"
+       WHERE ${where}
+       ORDER BY vb."billDate" DESC, vb."createdAt" DESC
+       LIMIT $${idx++} OFFSET $${idx++}`,
+      [...params, limit, offset],
+    );
+
+    return { data: rows, pagination: { total, page, limit } };
+  }
+
+  async findOneVendorBill(id: string, tenantId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT vb.*, s.name AS "supplierName"
+       FROM vendor_bills vb
+       LEFT JOIN partners s ON s.id = vb."supplierId"
+       WHERE vb.id = $1 AND vb."tenantId" = $2 AND vb."deletedAt" IS NULL`,
+      [id, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
+    const bill = rows[0];
+
+    const [items, payments] = await Promise.all([
+      this.dataSource.query(
+        `SELECT vbi.*, fp.name AS "productName"
+         FROM vendor_bill_items vbi
+         LEFT JOIN finished_products fp ON fp.id = vbi."finishedProductId"
+         WHERE vbi."vendorBillId" = $1 ORDER BY vbi."createdAt" ASC`,
+        [id],
+      ),
+      this.dataSource.query(
+        `SELECT * FROM vendor_payments WHERE "vendorBillId" = $1 ORDER BY "paymentDate" ASC`,
+        [id],
+      ),
+    ]);
+
+    return { data: { ...bill, items, payments } };
+  }
+
+  async updateVendorBill(id: string, dto: CreateVendorBillDto, tenantId: string, userId: string) {
+    const bill = await this.dataSource.query(
+      `SELECT * FROM vendor_bills WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+      [id, tenantId],
+    );
+    if (!bill.length) throw new NotFoundException('vendor_bill_not_found');
+    if (bill[0].status !== 'draft') throw new UnprocessableEntityException('vendor_bill_cannot_update');
+
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      await qr.query(`DELETE FROM vendor_bill_items WHERE "vendorBillId" = $1 AND "tenantId" = $2`, [id, tenantId]);
+
+      const items = dto.items.map((item) => {
+        const lineHT = Math.round(item.quantity * item.unitPrice * 100) / 100;
+        const taxAmount = item.taxRate != null
+          ? Math.round(lineHT * (item.taxRate / 100) * 100) / 100
+          : 0;
+        return { ...item, lineHT, taxAmount, lineTotal: Math.round((lineHT + taxAmount) * 100) / 100 };
+      });
+      const subtotal = Math.round(items.reduce((s, i) => s + i.lineHT, 0) * 100) / 100;
+      const taxAmount = Math.round(items.reduce((s, i) => s + i.taxAmount, 0) * 100) / 100;
+      const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
+
+      await qr.query(`
+        UPDATE vendor_bills
+        SET "supplierId"=$1,"purchaseOrderId"=$2,"receptionBlId"=$3,
+            "billDate"=$4,"dueDate"=$5,"subtotal"=$6,"taxAmount"=$7,
+            "totalAmount"=$8,"amountDue"=$9,"notes"=$10,"updatedBy"=$11,"updatedAt"=NOW()
+        WHERE id=$12 AND "tenantId"=$13`,
+        [
+          dto.supplierId, dto.purchaseOrderId ?? null, dto.receptionBlId ?? null,
+          dto.billDate, dto.dueDate ?? null, subtotal, taxAmount, totalAmount, totalAmount,
+          dto.notes ?? null, userId, id, tenantId,
+        ],
+      );
+
+      for (const item of items) {
+        await qr.query(`
+          INSERT INTO vendor_bill_items
+            ("tenantId","vendorBillId","finishedProductId","description",
+             "quantity","unit","unitPrice","taxRate","taxAmount","lineTotal")
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          [
+            tenantId, id, item.finishedProductId ?? null, item.description ?? null,
+            item.quantity, item.unit, item.unitPrice,
+            item.taxRate ?? null, item.taxAmount, item.lineTotal,
+          ],
+        );
+      }
+
+      await qr.commitTransaction();
+      return this.findOneVendorBill(id, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
+  async patchVendorBillStatus(id: string, status: string, tenantId: string, userId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM vendor_bills WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+      [id, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
+    const bill = rows[0];
+
+    const allowed: Record<string, string[]> = {
+      draft: ['validated', 'cancelled'],
+      validated: ['cancelled'],
+      partial: ['cancelled'],
+      cancelled: ['draft'],
+    };
+    if (!(allowed[bill.status] ?? []).includes(status)) {
+      throw new UnprocessableEntityException('invalid_status_transition');
+    }
+
+    await this.dataSource.query(
+      `UPDATE vendor_bills SET status=$1,"updatedBy"=$2,"updatedAt"=NOW() WHERE id=$3 AND "tenantId"=$4`,
+      [status, userId, id, tenantId],
+    );
+
+    if (bill.purchaseOrderId) {
+      if (status === 'cancelled') {
+        // Restore PO to previous status
+        const hasReception = await this.dataSource.query(
+          `SELECT 1 FROM reception_bls WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
+          [bill.purchaseOrderId, tenantId],
+        );
+        const restoredStatus = hasReception.length > 0 ? 'received' : 'sent';
+        await this.dataSource.query(
+          `UPDATE purchase_orders SET status=$1,"updatedAt"=NOW() WHERE id=$2 AND "tenantId"=$3 AND status='invoiced'`,
+          [restoredStatus, bill.purchaseOrderId, tenantId],
+        );
+      } else if (status === 'draft') {
+        // Re-opening: mark PO as invoiced again
+        await this.dataSource.query(
+          `UPDATE purchase_orders SET status='invoiced',"updatedAt"=NOW() WHERE id=$1 AND "tenantId"=$2`,
+          [bill.purchaseOrderId, tenantId],
+        );
+      }
+    }
+
+    return this.findOneVendorBill(id, tenantId);
+  }
+
+  async removeVendorBill(id: string, tenantId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT status FROM vendor_bills WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+      [id, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
+    if (!['draft', 'cancelled'].includes(rows[0].status)) {
+      throw new UnprocessableEntityException('vendor_bill_cannot_delete');
+    }
+    await this.dataSource.query(
+      `UPDATE vendor_bills SET "deletedAt"=NOW() WHERE id=$1 AND "tenantId"=$2`,
+      [id, tenantId],
+    );
+  }
+
+  async recordVendorPayment(billId: string, dto: RecordVendorPaymentDto, tenantId: string, userId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT * FROM vendor_bills WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+      [billId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
+    const bill = rows[0];
+    if (!['validated', 'partial'].includes(bill.status)) {
+      throw new UnprocessableEntityException('vendor_bill_cannot_pay');
+    }
+
+    const currentPaid = parseFloat(bill.amountPaid);
+    const newPaid = Math.round((currentPaid + dto.amount) * 100) / 100;
+    const totalAmount = parseFloat(bill.totalAmount);
+    const amountDue = Math.round((totalAmount - currentPaid) * 100) / 100;
+    if (dto.amount > amountDue) {
+      throw new UnprocessableEntityException(
+        `Montant (${dto.amount}) supérieur au solde dû (${amountDue})`,
+      );
+    }
+    const newDue = Math.round(Math.max(totalAmount - newPaid, 0) * 100) / 100;
+    const newStatus = newDue <= 0 ? 'paid' : 'partial';
+
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      await qr.query(`
+        INSERT INTO vendor_payments
+          ("tenantId","vendorBillId","amount","paymentDate","method","reference","createdBy")
+        VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [tenantId, billId, dto.amount, dto.paymentDate, dto.method, dto.reference ?? null, userId],
+      );
+      await qr.query(`
+        UPDATE vendor_bills
+        SET "amountPaid"=$1,"amountDue"=$2,status=$3,"updatedBy"=$4,"updatedAt"=NOW()
+        WHERE id=$5 AND "tenantId"=$6`,
+        [newPaid, newDue, newStatus, userId, billId, tenantId],
+      );
+      await qr.commitTransaction();
+      return this.findOneVendorBill(billId, tenantId);
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
   // ─── Private helpers ───────────────────────────────────────────────────────
+
+  private async generateVendorBillNumber(
+    qr: ReturnType<DataSource['createQueryRunner']>,
+    tenantId: string,
+  ): Promise<string> {
+    const year = new Date().getFullYear();
+    const yy = String(year).slice(-2);
+    const last: any[] = await qr.query(
+      `SELECT "billNumber" FROM vendor_bills
+       WHERE "tenantId"=$1 AND EXTRACT(YEAR FROM "createdAt")=$2 AND "deletedAt" IS NULL
+       ORDER BY "billNumber" DESC LIMIT 1`,
+      [tenantId, year],
+    );
+    const lastSeq = last.length > 0
+      ? parseInt(last[0].billNumber.split('-')[3] ?? '0', 10)
+      : 0;
+    return `FAC-ACH-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+  }
 
   private async generatePoNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
@@ -377,12 +707,11 @@ export class PurchasesService {
     return `BL-REC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
   }
 
-  private async updateInventorySummary(
+  private async updateProductStock(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
     rawMaterialId: string,
   ): Promise<void> {
-    // Recalculate from all available stock entries (source of truth)
     const entries = await qr.manager
       .createQueryBuilder(StockEntry, 'se')
       .where('se.tenantId = :tenantId', { tenantId })
@@ -401,29 +730,15 @@ export class PurchasesService {
       .sort((a, b) => a.getTime() - b.getTime());
     const earliestExpirationDate = expirations[0] ?? null;
 
-    const existing = await qr.manager.findOne(InventorySummary, {
-      where: { tenantId, rawMaterialId },
-    });
-
-    if (existing) {
-      await qr.manager.update(InventorySummary, { id: existing.id }, {
-        totalQuantity,
-        averageCostPerUnit,
-        totalValue,
-        earliestExpirationDate,
-      });
-    } else {
-      await qr.manager.save(
-        InventorySummary,
-        qr.manager.create(InventorySummary, {
-          tenantId,
-          rawMaterialId,
-          totalQuantity,
-          averageCostPerUnit,
-          totalValue,
-          earliestExpirationDate,
-        }),
-      );
-    }
+    await qr.manager.query(`
+      UPDATE finished_products
+      SET "stockQuantity"          = $1,
+          "averageCostPerUnit"     = $2,
+          "totalStockValue"        = $3,
+          "earliestExpirationDate" = $4,
+          "updatedAt"              = NOW()
+      WHERE id = $5 AND "tenantId" = $6`,
+      [totalQuantity, averageCostPerUnit, totalValue, earliestExpirationDate, rawMaterialId, tenantId],
+    );
   }
 }
