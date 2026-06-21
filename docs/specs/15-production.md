@@ -667,3 +667,37 @@ const { data: settings } = useSettings();
 - Les tables `nomenclatures`, `bom_lines`, `production_orders`, `production_movements` existent en DB même si le module est désactivé — **aucune donnée n'est supprimée** à la désactivation.
 - Les modules existants (stock, achats, ventes, facturation) n'importent aucune dépendance de `ProductionModule` — **zéro impact** sur leur fonctionnement.
 - `ProductionModule` est un module NestJS autonome, importé dans `AppModule` de façon isolée.
+
+---
+
+## 12. OBJECTIFS MÉTIER — VALEUR POUR LE CLIENT
+
+### Problème résolu
+Le client (PME algérienne) gère aujourd'hui sa production à la main — carnet, Excel, ou de tête. Il ne sait pas :
+- Combien de matières premières il faut pour produire X unités
+- Si son stock de MP est suffisant avant de lancer une production
+- Ce que lui coûte réellement la fabrication d'un produit fini
+- Pourquoi son stock de produits finis ne correspond pas à ce qu'il a produit
+
+### Ce que le module apporte concrètement
+
+**Recettes de fabrication (BOM)**
+Le client définit une fois : "pour faire 100 kg de Produit X, il faut 80 kg de MP_A + 5 L de MP_B". Le système fait ensuite tous les calculs automatiquement à chaque production.
+
+**Lancement d'un ordre de production**
+Il crée un ordre "je veux produire 500 kg". Le système vérifie immédiatement si le stock de MP est suffisant et donne le coût estimé avant même de démarrer.
+
+**Suivi en temps réel**
+Pendant la production, le responsable ou chef d'atelier note ce qui a été consommé, produit, rejeté. Le système conserve l'historique complet.
+
+**Clôture automatique**
+À la fin, il saisit la quantité réellement produite. Le système :
+- Décrémente automatiquement le stock des matières premières consommées
+- Incrémente le stock des produits finis
+- Calcule le rendement (ex : 94%) et l'écart coût réel vs estimé
+
+**Traçabilité des coûts**
+Il peut répondre à : "Ce lot de produit fini m'a coûté combien à fabriquer ?" — base indispensable pour fixer correctement son prix de vente.
+
+### Ce que ce module n'est PAS
+Ce n'est pas un outil de planification de lignes de production, de gestion d'équipes, ou de MRP automatique. C'est un **carnet de production numérique** connecté au stock existant — simple, direct, adapté à une PME avec 1 atelier et 5 à 20 opérateurs.
