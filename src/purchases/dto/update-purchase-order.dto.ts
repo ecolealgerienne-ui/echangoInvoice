@@ -23,6 +23,12 @@ export class UpdatePoItemDto {
   @Type(() => Number)
   @IsNumber() @Min(0)
   unitPrice: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber() @Min(0)
+  taxRate?: number;
 }
 
 export class UpdatePurchaseOrderDto {
@@ -50,10 +56,4 @@ export class UpdatePurchaseOrderDto {
   @ValidateNested({ each: true })
   @Type(() => UpdatePoItemDto)
   items?: UpdatePoItemDto[];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber() @Min(0)
-  taxRate?: number;
 }

@@ -35,9 +35,6 @@ export class PurchaseOrder {
   @Column({ type: 'date', nullable: true })
   expectedDeliveryDate: Date | null;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
-  taxRate: number;
-
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   subtotal: number;
 

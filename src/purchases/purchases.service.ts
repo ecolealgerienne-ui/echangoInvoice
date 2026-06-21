@@ -43,15 +43,15 @@ export class PurchasesService {
 
       const poNumber = await this.generatePoNumber(qr, tenantId);
 
-      // Calculate totals (R008 — backend only)
-      const items = dto.items.map((item) => ({
-        ...item,
-        lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-        tenantId,
-      }));
-      const subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-      const taxRate = dto.taxRate ?? 0;
-      const taxAmount = Number((subtotal * taxRate / 100).toFixed(2));
+      // Calculate totals per line (R008 — backend only)
+      const items = dto.items.map((item) => {
+        const lineHT = Number((item.quantity * item.unitPrice).toFixed(2));
+        const itemTaxRate = item.taxRate ?? 0;
+        const itemTaxAmount = Number((lineHT * itemTaxRate / 100).toFixed(2));
+        return { ...item, taxRate: itemTaxRate, taxAmount: itemTaxAmount, lineTotal: Number((lineHT + itemTaxAmount).toFixed(2)), tenantId };
+      });
+      const subtotal = Number(items.reduce((s, i) => s + Number((i.quantity * i.unitPrice).toFixed(2)), 0).toFixed(2));
+      const taxAmount = Number(items.reduce((s, i) => s + i.taxAmount, 0).toFixed(2));
       const total = Number((subtotal + taxAmount).toFixed(2));
 
       const po = qr.manager.create(PurchaseOrder, {
@@ -61,7 +61,6 @@ export class PurchasesService {
         status: 'draft',
         orderDate: dto.orderDate as unknown as Date,
         expectedDeliveryDate: dto.expectedDeliveryDate as unknown as Date ?? null,
-        taxRate,
         subtotal,
         taxAmount,
         total,
@@ -179,15 +178,14 @@ export class PurchasesService {
 
       if (dto.items && dto.items.length > 0) {
         await qr.manager.delete(PurchaseOrderItem, { purchaseOrderId: id, tenantId });
-        const items = dto.items.map((item) => ({
-          ...item,
-          lineTotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-          tenantId,
-          purchaseOrderId: id,
-        }));
-        po.subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-        po.taxRate = dto.taxRate ?? po.taxRate ?? 0;
-        po.taxAmount = Number((po.subtotal * po.taxRate / 100).toFixed(2));
+        const items = dto.items.map((item) => {
+          const lineHT = Number((item.quantity * item.unitPrice).toFixed(2));
+          const itemTaxRate = item.taxRate ?? 0;
+          const itemTaxAmount = Number((lineHT * itemTaxRate / 100).toFixed(2));
+          return { ...item, taxRate: itemTaxRate, taxAmount: itemTaxAmount, lineTotal: Number((lineHT + itemTaxAmount).toFixed(2)), tenantId, purchaseOrderId: id };
+        });
+        po.subtotal = Number(items.reduce((s, i) => s + Number((i.quantity * i.unitPrice).toFixed(2)), 0).toFixed(2));
+        po.taxAmount = Number(items.reduce((s, i) => s + i.taxAmount, 0).toFixed(2));
         po.total = Number((po.subtotal + po.taxAmount).toFixed(2));
         await qr.manager.save(PurchaseOrder, po);
         await qr.manager.save(PurchaseOrderItem, items.map(i => qr.manager.create(PurchaseOrderItem, i)));

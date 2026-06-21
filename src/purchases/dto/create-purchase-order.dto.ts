@@ -23,6 +23,12 @@ export class CreatePurchaseOrderItemDto {
   @Type(() => Number)
   @IsNumber() @Min(0)
   unitPrice: number;
+
+  @ApiPropertyOptional({ example: 19 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber() @Min(0)
+  taxRate?: number;
 }
 
 export class CreatePurchaseOrderDto {
@@ -49,10 +55,4 @@ export class CreatePurchaseOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseOrderItemDto)
   items: CreatePurchaseOrderItemDto[];
-
-  @ApiPropertyOptional({ example: 19, description: 'TVA rate in percent (0–100)' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber() @Min(0)
-  taxRate?: number;
 }
