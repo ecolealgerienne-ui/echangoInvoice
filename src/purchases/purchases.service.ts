@@ -21,7 +21,8 @@ import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
   sent: ['received', 'cancelled'],
-  received: [],
+  received: ['invoiced'],
+  invoiced: [],
   cancelled: [],
 };
 
@@ -101,6 +102,7 @@ export class PurchasesService {
       .take(limit);
 
     if (status) qb.andWhere('po.status = :status', { status });
+    if (query.excludeInvoiced) qb.andWhere("po.status NOT IN ('invoiced', 'cancelled')");
     if (supplierId) qb.andWhere('po.supplierId = :supplierId', { supplierId });
     if (dateFrom) qb.andWhere('po.orderDate >= :dateFrom', { dateFrom });
     if (dateTo) qb.andWhere('po.orderDate <= :dateTo', { dateTo });
@@ -393,6 +395,14 @@ export class PurchasesService {
             item.quantity, item.unit, item.unitPrice,
             item.taxRate ?? null, item.taxAmount, item.lineTotal,
           ],
+        );
+      }
+
+      // Mark linked PO as invoiced
+      if (dto.purchaseOrderId) {
+        await qr.query(
+          `UPDATE purchase_orders SET status = 'invoiced', "updatedAt" = NOW() WHERE id = $1 AND "tenantId" = $2`,
+          [dto.purchaseOrderId, tenantId],
         );
       }
 

@@ -24,10 +24,10 @@ export class PurchaseOrder {
 
   @Column({
     type: 'enum',
-    enum: ['draft', 'sent', 'received', 'cancelled'],
+    enum: ['draft', 'sent', 'received', 'invoiced', 'cancelled'],
     default: 'draft',
   })
-  status: 'draft' | 'sent' | 'received' | 'cancelled';
+  status: 'draft' | 'sent' | 'received' | 'invoiced' | 'cancelled';
 
   @Column({ type: 'date' })
   orderDate: Date;

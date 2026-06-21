@@ -19,7 +19,7 @@ import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
+  draft: 'muted', sent: 'info', received: 'success', invoiced: 'warning', cancelled: 'destructive',
 };
 const REC_STATUS_VARIANT: Record<string, any> = {
   pending: 'warning', partial: 'info', completed: 'success',

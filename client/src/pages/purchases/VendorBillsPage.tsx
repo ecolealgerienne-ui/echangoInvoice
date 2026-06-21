@@ -81,12 +81,6 @@ export function VendorBillsPage() {
   });
   const taxRates: { name: string; rate: number }[] = (settingsData as any)?.data?.taxRates ?? [];
 
-  const { data: ordersData } = useQuery({
-    queryKey: ['purchase-orders-all'],
-    queryFn: () => purchasesApi.listOrders({ page: 1, limit: 500 }),
-  });
-  const allOrders: any[] = ordersData?.data ?? [];
-
   const defaultTaxRate = taxRates.length > 0 ? taxRates[0].rate : 0;
 
   const billForm = useForm<BillFormData>({
@@ -94,6 +88,15 @@ export function VendorBillsPage() {
     defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate }] },
   });
   const { fields, append, remove } = useFieldArray({ control: billForm.control, name: 'items' });
+
+  const watchSupplierId = billForm.watch('supplierId');
+
+  const { data: ordersData } = useQuery({
+    queryKey: ['purchase-orders-for-bill', watchSupplierId],
+    queryFn: () => purchasesApi.listOrders({ page: 1, limit: 500, supplierId: watchSupplierId, excludeInvoiced: true }),
+    enabled: !!watchSupplierId,
+  });
+  const availableOrders: any[] = ordersData?.data ?? [];
 
   const paymentForm = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -127,11 +130,10 @@ export function VendorBillsPage() {
   }
 
   function handlePoSelect(poId: string) {
-    billForm.setValue('purchaseOrderId', poId || undefined as any);
+    billForm.setValue('purchaseOrderId', poId || (undefined as any));
     if (!poId) return;
     purchasesApi.getOrder(poId).then((res: any) => {
       const po = res.data;
-      billForm.setValue('supplierId', po.supplierId);
       if (po.items?.length) {
         billForm.setValue('items', po.items.map((it: any) => ({
           finishedProductId: it.rawMaterialId ?? '',
@@ -316,24 +318,34 @@ export function VendorBillsPage() {
         <form onSubmit={billForm.handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.linkedPO')}</label>
-              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                {...billForm.register('purchaseOrderId')}
-                onChange={e => handlePoSelect(e.target.value)}>
-                <option value="">{t('purchases.noPO')}</option>
-                {allOrders.filter((o: any) => o.status !== 'cancelled').map((o: any) => (
-                  <option key={o.id} value={o.id}>{o.poNumber} — {suppliers.find((s: any) => s.id === o.supplierId)?.name ?? ''}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-span-2">
               <label className="block text-sm font-medium text-foreground mb-1">{t('suppliers.name')}</label>
-              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('supplierId')}>
+              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                {...billForm.register('supplierId')}
+                onChange={e => {
+                  billForm.setValue('supplierId', e.target.value);
+                  billForm.setValue('purchaseOrderId', '');
+                }}>
                 <option value="">{t('common.select')}</option>
                 {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               {billForm.formState.errors.supplierId && <p className="text-xs text-destructive mt-1">{billForm.formState.errors.supplierId.message}</p>}
             </div>
+            {watchSupplierId && (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.linkedPO')}</label>
+                <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  {...billForm.register('purchaseOrderId')}
+                  onChange={e => handlePoSelect(e.target.value)}>
+                  <option value="">{t('purchases.noPO')}</option>
+                  {availableOrders.map((o: any) => (
+                    <option key={o.id} value={o.id}>{o.poNumber}</option>
+                  ))}
+                </select>
+                {availableOrders.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{t('purchases.noPOAvailable')}</p>
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.billDate')}</label>
               <input type="date" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('billDate')} />

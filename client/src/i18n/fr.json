@@ -354,6 +354,7 @@
     "expired": "Expiré",
     "converted": "Converti",
     "received": "Reçu",
+    "invoiced": "Facturé",
     "cancelled": "Annulé",
     "partial": "Partiel",
     "pending": "En attente",
@@ -470,7 +471,15 @@
     "subtotal": "Sous-total HT",
     "taxAmount": "TVA",
     "linkedPO": "Commande fournisseur liée (optionnel)",
-    "noPO": "— Sans commande —"
+    "noPO": "— Sans commande —",
+    "noPOAvailable": "Aucune commande non facturée pour ce fournisseur",
+    "poStatus": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "received": "Reçue",
+      "invoiced": "Facturée",
+      "cancelled": "Annulée"
+    }
   },
   "creditNotes": {
     "title": "Avoirs",
