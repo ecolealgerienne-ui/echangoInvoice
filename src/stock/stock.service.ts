@@ -148,8 +148,8 @@ export class StockService {
     const currentQty = product ? parseFloat(product.stockQuantity as any) : 0;
     const newQty = Math.round(dto.newQuantity * 100) / 100;
     const delta = Math.round((newQty - currentQty) * 100) / 100;
-    const avgCost = product ? parseFloat(product.averageCostPerUnit as any) : 0;
-    const lastCost = product ? parseFloat(product.lastCostPerUnit as any) : 0;
+    const avgCost = product ? (parseFloat(product.averageCostPerUnit as any) || 0) : 0;
+    const lastCost = product ? (parseFloat(product.lastCostPerUnit as any) || 0) : 0;
     const costPerUnit = avgCost > 0 ? avgCost : lastCost;
     const newTotalValue = Math.round(newQty * costPerUnit * 100) / 100;
 
