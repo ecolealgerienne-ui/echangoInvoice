@@ -288,7 +288,7 @@ export function InvoicesPage() {
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('invoices.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('invoices.new')} size="xl">
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1 col-span-1">

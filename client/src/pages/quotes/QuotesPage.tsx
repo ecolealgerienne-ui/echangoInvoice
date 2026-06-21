@@ -317,7 +317,7 @@ export function QuotesPage() {
         <Pagination page={page} total={pagination.total} limit={pagination.limit} onChange={setPage} />
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('quotes.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('quotes.new')} size="xl">
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">

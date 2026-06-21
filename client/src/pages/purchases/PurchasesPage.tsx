@@ -468,7 +468,7 @@ export function PurchasesPage() {
       )}
 
       {/* ── PO Create/Edit Modal ─────────────────────────────────────────── */}
-      <Modal open={poModalOpen} onClose={closePo}
+      <Modal open={poModalOpen} onClose={closePo} size="xl"
         title={editingPo ? `Modifier ${editingPo.poNumber}` : t('purchases.newOrder')}>
         <form onSubmit={poForm.handleSubmit(submitPo)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

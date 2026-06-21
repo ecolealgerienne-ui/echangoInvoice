@@ -282,8 +282,8 @@ export function VendorBillsPage() {
       )}
 
       {/* Create / Edit Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)}
-        title={editTarget ? t('common.edit') : t('purchases.newBill')}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)}
+        title={editTarget ? t('common.edit') : t('purchases.newBill')} size="xl">
         <form onSubmit={billForm.handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -396,7 +396,7 @@ export function VendorBillsPage() {
       </Modal>
 
       {/* Payment Modal */}
-      <Modal isOpen={!!paymentTarget} onClose={() => setPaymentTarget(null)} title={t('purchases.addPayment')}>
+      <Modal open={!!paymentTarget} onClose={() => setPaymentTarget(null)} title={t('purchases.addPayment')}>
         {paymentTarget && (
           <form onSubmit={paymentForm.handleSubmit((d) => paymentMutation.mutate(d))} className="space-y-4">
             <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
@@ -439,7 +439,7 @@ export function VendorBillsPage() {
       </Modal>
 
       {/* View Modal */}
-      <Modal isOpen={!!viewTarget} onClose={() => setViewTarget(null)} title={viewTarget?.billNumber ?? ''}>
+      <Modal open={!!viewTarget} onClose={() => setViewTarget(null)} title={viewTarget?.billNumber ?? ''}>
         {viewTarget && (
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">

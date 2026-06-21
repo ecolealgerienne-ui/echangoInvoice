@@ -299,7 +299,7 @@ export function DeliveryNotesPage() {
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('deliveries.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('deliveries.new')} size="xl">
         <form onSubmit={handleSubmit(d => saveMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
