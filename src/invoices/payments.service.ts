@@ -56,15 +56,6 @@ export class PaymentsService {
       const newAmountDue = Math.round(Math.max(Number(invoice.totalAmount) - newAmountPaid, 0) * 100) / 100;
       const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
 
-      if (newStatus === 'paid' && invoice.deliveryNoteId) {
-        // Transition stock : reserved → sold (R015)
-        await qr.query(
-          `UPDATE stock_entries SET status = 'sold'
-           WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
-          [invoice.deliveryNoteId, tenantId],
-        );
-      }
-
       await qr.manager.update(SalesInvoice, invoice.id, {
         amountPaid: newAmountPaid,
         amountDue: newAmountDue,
@@ -135,15 +126,6 @@ export class PaymentsService {
 
       const newAmountPaid = Math.round(Math.max(Number(invoice.amountPaid) - Number(payment.amount), 0) * 100) / 100;
       const newAmountDue = Math.round((Number(invoice.totalAmount) - newAmountPaid) * 100) / 100;
-
-      // Réverter stock si la facture était paid (R015)
-      if (invoice.status === 'paid' && invoice.deliveryNoteId) {
-        await qr.query(
-          `UPDATE stock_entries SET status = 'reserved'
-           WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'sold'`,
-          [invoice.deliveryNoteId, tenantId],
-        );
-      }
 
       const newStatus = newAmountPaid <= 0 ? 'sent' : 'partial';
       await qr.manager.update(SalesInvoice, invoice.id, {
