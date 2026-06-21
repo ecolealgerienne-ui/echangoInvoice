@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Truck, Box, Layers,
   FileText, BarChart2, Settings, LogOut, ClipboardList,
-  FileSignature, ShoppingCart, Receipt,
+  FileSignature, ShoppingCart, Receipt, Factory,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +31,12 @@ const groups = [
       { to: '/suppliers', icon: Truck, key: 'nav.suppliers' },
       { to: '/purchases', icon: ShoppingCart, key: 'nav.purchases' },
       { to: '/purchases/vendor-bills', icon: Receipt, key: 'nav.vendorBills' },
+    ],
+  },
+  {
+    key: 'nav.group.production',
+    items: [
+      { to: '/production', icon: Factory, key: 'nav.production' },
     ],
   },
   {
