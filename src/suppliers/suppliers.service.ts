@@ -5,7 +5,6 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, IsNull, ILike, DataSource } from 'typeorm';
 import { Contact } from '../contacts/contact.entity';
 import { ContactContact } from '../contacts/entities/contact-contact.entity';
-import { RawMaterial } from '../raw-materials/raw-material.entity';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { ListSuppliersDto } from './dto/list-suppliers.dto';
@@ -18,8 +17,6 @@ export class SuppliersService {
   constructor(
     @InjectRepository(Contact)
     private readonly supplierRepo: Repository<Contact>,
-    @InjectRepository(RawMaterial)
-    private readonly rawMaterialRepo: Repository<RawMaterial>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -66,13 +63,7 @@ export class SuppliersService {
       where: { id, tenantId, isSupplier: true, deletedAt: IsNull() },
     });
     if (!supplier) throw new NotFoundException('errors.supplier_not_found');
-
-    const rawMaterials = await this.rawMaterialRepo.find({
-      where: { supplierId: id, tenantId, deletedAt: IsNull() },
-      order: { name: 'ASC' },
-    });
-
-    return { data: { ...supplier, rawMaterials } };
+    return { data: supplier };
   }
 
   async update(id: string, dto: UpdateSupplierDto, tenantId: string, userId: string) {
