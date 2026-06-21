@@ -524,7 +524,7 @@
     "plannedEnd": "Fin planifiée",
     "actualStart": "Début réel",
     "actualEnd": "Fin réelle",
-    "priority": "Priorité",
+    "priorityLabel": "Priorité",
     "responsible": "Responsable",
     "startProduction": "Démarrer la production",
     "completeProduction": "Clôturer la production",

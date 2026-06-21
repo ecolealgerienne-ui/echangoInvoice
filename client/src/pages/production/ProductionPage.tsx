@@ -647,7 +647,7 @@ export function ProductionPage() {
               <Input type="number" step="0.01" {...orderForm.register('quantityToProduce')} className="mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium">{t('production.priority')}</label>
+              <label className="text-sm font-medium">{t('production.priorityLabel')}</label>
               <Controller
                 control={orderForm.control}
                 name="priority"
