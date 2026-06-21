@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { purchasesApi, suppliersApi, productsApi, resolveApiError } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -73,6 +73,12 @@ export function VendorBillsPage() {
     queryFn: () => productsApi.list({ limit: 500 }),
   });
   const products: any[] = productsData?.data ?? [];
+
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  });
+  const taxRates: { name: string; rate: number }[] = (settingsData as any)?.data?.taxRates ?? [];
 
   const billForm = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
@@ -182,11 +188,12 @@ export function VendorBillsPage() {
   }
 
   const watchItems = billForm.watch('items');
-  const subtotal = watchItems.reduce((s, i) => {
+  const subtotalHT = watchItems.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0), 0);
+  const totalTVA = watchItems.reduce((s, i) => {
     const ht = (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0);
-    const tax = i.taxRate ? ht * (Number(i.taxRate) / 100) : 0;
-    return s + ht + tax;
+    return s + ht * (Number(i.taxRate) || 0) / 100;
   }, 0);
+  const subtotal = subtotalHT + totalTVA;
 
   return (
     <div className="space-y-5">
@@ -342,19 +349,24 @@ export function VendorBillsPage() {
                       {...billForm.register(`items.${idx}.unitPrice`)} />
                   </div>
                   <div className="col-span-2">
-                    <input type="number" step="0.01" placeholder="TVA %"
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                      {...billForm.register(`items.${idx}.taxRate`)} />
+                    <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                      {...billForm.register(`items.${idx}.taxRate`)}>
+                      <option value={0}>0%</option>
+                      {taxRates.map(r => (
+                        <option key={r.rate} value={r.rate}>{r.name} ({r.rate}%)</option>
+                      ))}
+                      {taxRates.length === 0 && <option value={19}>TVA 19%</option>}
+                    </select>
                   </div>
-                  <div className="col-span-2 text-right pt-1.5">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="col-span-2 flex items-center justify-end gap-1">
+                    <span className="text-xs font-medium text-foreground">
                       {formatCurrency(
                         ((Number(watchItems[idx]?.quantity) || 0) * (Number(watchItems[idx]?.unitPrice) || 0)) *
                         (1 + (Number(watchItems[idx]?.taxRate) || 0) / 100)
                       )}
                     </span>
                     {fields.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" className="ml-1 p-0 h-auto" onClick={() => remove(idx)}>
+                      <Button type="button" variant="ghost" size="sm" className="p-0 h-auto" onClick={() => remove(idx)}>
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     )}
@@ -362,8 +374,10 @@ export function VendorBillsPage() {
                 </div>
               ))}
             </div>
-            <div className="text-right mt-2 text-sm font-semibold text-foreground">
-              {t('common.total')}: {formatCurrency(subtotal)}
+            <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
+              <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
+              <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(totalTVA)}</span></span>
+              <span className="font-semibold">Total TTC : {formatCurrency(subtotal)}</span>
             </div>
           </div>
 
