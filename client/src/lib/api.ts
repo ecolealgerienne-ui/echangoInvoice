@@ -121,6 +121,10 @@ export const suppliersApi = {
   create: (body: unknown) => api.post('/suppliers', body).then(r => r.data),
   update: (id: string, body: unknown) => api.put(`/suppliers/${id}`, body).then(r => r.data),
   remove: (id: string) => api.delete(`/suppliers/${id}`).then(r => r.data),
+  listContacts: (id: string) => api.get(`/suppliers/${id}/contacts`).then(r => r.data),
+  createContact: (id: string, body: unknown) => api.post(`/suppliers/${id}/contacts`, body).then(r => r.data),
+  updateContact: (id: string, contactId: string, body: unknown) => api.put(`/suppliers/${id}/contacts/${contactId}`, body).then(r => r.data),
+  removeContact: (id: string, contactId: string) => api.delete(`/suppliers/${id}/contacts/${contactId}`).then(r => r.data),
 };
 
 export const rawMaterialsApi = {
@@ -143,8 +147,11 @@ export const invoicesApi = {
   list: (params?: Record<string, unknown>) => api.get('/invoices/sales-invoices', { params }).then(r => r.data),
   get: (id: string) => api.get(`/invoices/sales-invoices/${id}`).then(r => r.data),
   create: (body: unknown) => api.post('/invoices/sales-invoices', body).then(r => r.data),
-  send: (id: string) => api.patch(`/invoices/sales-invoices/${id}/send`).then(r => r.data),
-  cancel: (id: string) => api.patch(`/invoices/sales-invoices/${id}/cancel`).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/invoices/sales-invoices/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/invoices/sales-invoices/${id}/status`, body).then(r => r.data),
+  send: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'sent' }).then(r => r.data),
+  cancel: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'cancelled' }).then(r => r.data),
+  reopen: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'draft' }).then(r => r.data),
   remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then(r => r.data),
   payments: (invoiceId: string) => api.get(`/invoices/payments`, { params: { invoiceId } }).then(r => r.data),
   addPayment: (body: unknown) => api.post('/invoices/payments', body).then(r => r.data),
@@ -162,8 +169,12 @@ export const deliveriesApi = {
   list: (params?: Record<string, unknown>) => api.get('/deliveries/delivery-notes', { params }).then(r => r.data),
   get: (id: string) => api.get(`/deliveries/delivery-notes/${id}`).then(r => r.data),
   create: (body: unknown) => api.post('/deliveries/delivery-notes', body).then(r => r.data),
+  update: (id: string, body: unknown) => api.put(`/deliveries/delivery-notes/${id}`, body).then(r => r.data),
+  updateStatus: (id: string, body: unknown) => api.patch(`/deliveries/delivery-notes/${id}/status`, body).then(r => r.data),
   cancel: (id: string) => api.patch(`/deliveries/delivery-notes/${id}/cancel`).then(r => r.data),
   remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then(r => r.data),
+  pdf: (id: string) => api.get(`/deliveries/delivery-notes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
+  createInvoice: (id: string) => api.post(`/deliveries/delivery-notes/${id}/create-invoice`).then(r => r.data),
 };
 
 export const expensesApi = {
@@ -202,6 +213,7 @@ export const quotesApi = {
   update: (id: string, body: unknown) => api.put(`/quotes/${id}`, body).then(r => r.data),
   updateStatus: (id: string, body: unknown) => api.patch(`/quotes/${id}/status`, body).then(r => r.data),
   convert: (id: string) => api.post(`/quotes/${id}/convert`).then(r => r.data),
+  createBl: (id: string) => api.post(`/quotes/${id}/create-bl`).then(r => r.data),
   remove: (id: string) => api.delete(`/quotes/${id}`).then(r => r.data),
   pdf: (id: string) => api.get(`/quotes/${id}/pdf`, { responseType: 'blob' }).then(r => r.data),
 };
@@ -216,6 +228,13 @@ export const purchasesApi = {
   listReceptions: (params?: Record<string, unknown>) => api.get('/purchases/reception-bls', { params }).then(r => r.data),
   getReception: (id: string) => api.get(`/purchases/reception-bls/${id}`).then(r => r.data),
   createReception: (body: unknown) => api.post('/purchases/reception-bls', body).then(r => r.data),
+  listBills: (params?: Record<string, unknown>) => api.get('/purchases/vendor-bills', { params }).then(r => r.data),
+  getBill: (id: string) => api.get(`/purchases/vendor-bills/${id}`).then(r => r.data),
+  createBill: (body: unknown) => api.post('/purchases/vendor-bills', body).then(r => r.data),
+  updateBill: (id: string, body: unknown) => api.put(`/purchases/vendor-bills/${id}`, body).then(r => r.data),
+  updateBillStatus: (id: string, status: string) => api.patch(`/purchases/vendor-bills/${id}/status`, { status }).then(r => r.data),
+  removeBill: (id: string) => api.delete(`/purchases/vendor-bills/${id}`).then(r => r.data),
+  addBillPayment: (id: string, body: unknown) => api.post(`/purchases/vendor-bills/${id}/payments`, body).then(r => r.data),
 };
 
 export const creditNotesApi = {

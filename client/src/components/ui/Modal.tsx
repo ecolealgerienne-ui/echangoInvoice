@@ -3,22 +3,31 @@ import { X } from 'lucide-react';
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
+const SIZE_CLASSES = {
+  md:  'max-w-2xl',
+  lg:  'max-w-3xl',
+  xl:  'max-w-5xl',
+  '2xl': 'max-w-7xl',
+} as const;
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   className?: string;
+  size?: keyof typeof SIZE_CLASSES;
 }
 
-export function Modal({ open, onClose, title, children, className }: ModalProps) {
+export function Modal({ open, onClose, title, children, className, size = 'md' }: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={v => !v && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg',
+            'fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg overflow-y-auto max-h-[90vh]',
+            SIZE_CLASSES[size],
             className,
           )}
         >

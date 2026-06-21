@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { purchasesApi, suppliersApi, productsApi , resolveApiError } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,7 +19,7 @@ import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', received: 'success', cancelled: 'destructive',
+  draft: 'muted', sent: 'info', received: 'success', invoiced: 'warning', cancelled: 'destructive',
 };
 const REC_STATUS_VARIANT: Record<string, any> = {
   pending: 'warning', partial: 'info', completed: 'success',
@@ -31,6 +31,7 @@ const poItemSchema = z.object({
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
+  taxRate: z.coerce.number().min(0).default(0),
 });
 const poSchema = z.object({
   supplierId: z.string().uuid(),
@@ -105,6 +106,10 @@ export function PurchasesPage() {
     queryKey: ['products', 1, '', 'all'],
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  });
 
   // Load PO details (items) when reception modal is open with a PO selected
   const { data: recPoDetail } = useQuery({
@@ -130,7 +135,7 @@ export function PurchasesPage() {
   // ── PO form ───────────────────────────────────────────────────────────────
   const poForm = useForm<PoFormData>({
     resolver: zodResolver(poSchema),
-    defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 }] },
+    defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 }] },
   });
   const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
 
@@ -176,7 +181,7 @@ export function PurchasesPage() {
 
   function openCreatePo() {
     setEditingPo(null);
-    poForm.reset({ orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
+    poForm.reset({ orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0, taxRate: 0 }] });
     setPoModalOpen(true);
   }
 
@@ -195,6 +200,7 @@ export function PurchasesPage() {
           quantity: Number(it.quantity),
           unit: it.unit,
           unitPrice: Number(it.unitPrice),
+          taxRate: Number(it.taxRate ?? 0),
         })),
       });
     });
@@ -372,25 +378,25 @@ export function PurchasesPage() {
                         onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {o.status === 'draft' && (
+                      {['draft', 'sent'].includes(o.status) && (
                         <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                       {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" title="Valider (envoyer)"
+                        <Button size="sm" variant="ghost" title="Envoyer"
                           onClick={() => patchStatusMutation.mutate({ id: o.id, status: 'sent' })}>
                           <CheckCircle className="h-4 w-4 text-primary" />
                         </Button>
                       )}
-                      {(o.status === 'draft' || o.status === 'sent') && (
+                      {['draft', 'sent'].includes(o.status) && (
                         <Button size="sm" variant="ghost" title="Réceptionner"
                           onClick={() => openReceptionFor(o.id)}>
                           <PackageCheck className="h-4 w-4 text-success" />
                         </Button>
                       )}
-                      {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" onClick={() => removePoMutation.mutate(o.id)}>
+                      {['draft', 'sent'].includes(o.status) && (
+                        <Button size="sm" variant="ghost" title="Supprimer" onClick={() => removePoMutation.mutate(o.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -462,7 +468,7 @@ export function PurchasesPage() {
       )}
 
       {/* ── PO Create/Edit Modal ─────────────────────────────────────────── */}
-      <Modal open={poModalOpen} onClose={closePo}
+      <Modal open={poModalOpen} onClose={closePo} size="xl"
         title={editingPo ? `Modifier ${editingPo.poNumber}` : t('purchases.newOrder')}>
         <form onSubmit={poForm.handleSubmit(submitPo)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -487,7 +493,7 @@ export function PurchasesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 })}>
+                onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -495,9 +501,16 @@ export function PurchasesPage() {
               {poFields.map((f, i) => {
                 const selectedId = poForm.watch(`items.${i}.rawMaterialId`);
                 const selectedProduct = rawMats.find((m: any) => m.id === selectedId);
+                const qty = Number(poForm.watch(`items.${i}.quantity`)) || 0;
+                const price = Number(poForm.watch(`items.${i}.unitPrice`)) || 0;
+                const lineRate = Number(poForm.watch(`items.${i}.taxRate`)) || 0;
+                const lineHT = qty * price;
+                const lineTVA = lineHT * lineRate / 100;
+                const lineTTC = lineHT + lineTVA;
+                const taxRates: any[] = (settingsData as any)?.data?.taxRates ?? [];
                 return (
-                  <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-4">
+                  <div key={f.id} className="grid gap-2 items-end" style={{gridTemplateColumns: '2fr 70px 60px 100px 160px 110px 32px'}}>
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.product')}</label>}
                       <Select {...poForm.register(`items.${i}.rawMaterialId`)}
                         className="w-full text-xs"
@@ -505,30 +518,46 @@ export function PurchasesPage() {
                           poForm.setValue(`items.${i}.rawMaterialId`, e.target.value);
                           const prod = rawMats.find((m: any) => m.id === e.target.value);
                           if (prod?.unit) poForm.setValue(`items.${i}.unit`, prod.unit);
-                          if (prod?.lastCostPerUnit != null) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
+                          if (prod?.lastCostPerUnit) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
                         }}>
                         <option value="">{t('common.select')}</option>
                         {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </Select>
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.qty')}</label>}
                       <Input type="number" step="0.01" min="0.01"
                         {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('products.unit')}</label>}
                       <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center block">
                         {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
                       </span>
                       <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
                     </div>
-                    <div className="col-span-3">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.unitPrice')}</label>}
                       <Input type="number" step="0.01" min="0"
                         {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
                     </div>
-                    <div className="col-span-1 flex justify-center">
+                    <div>
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.taxRate')}</label>}
+                      <Select {...poForm.register(`items.${i}.taxRate`)} className="w-full text-xs">
+                        <option value={0}>0%</option>
+                        {taxRates.map((tr: any) => (
+                          <option key={tr.id} value={tr.rate}>{tr.name} ({tr.rate}%)</option>
+                        ))}
+                        {taxRates.length === 0 && <option value={19}>TVA 19%</option>}
+                      </Select>
+                    </div>
+                    <div>
+                      {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">TTC</label>}
+                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted font-medium block text-right whitespace-nowrap">
+                        {formatCurrency(lineTTC)}
+                      </span>
+                    </div>
+                    <div className="flex justify-center">
                       {poFields.length > 1 && (
                         <Button type="button" size="sm" variant="ghost" onClick={() => poRemove(i)}>
                           <Trash2 className="h-3 w-3 text-destructive" />
@@ -540,6 +569,24 @@ export function PurchasesPage() {
               })}
             </div>
           </div>
+
+          {/* Totals summary */}
+          {(() => {
+            const watchedItems = poForm.watch('items') ?? [];
+            const subtotal = watchedItems.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+            const taxAmount = watchedItems.reduce((s, it) => {
+              const ht = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0);
+              return s + ht * (Number(it.taxRate) || 0) / 100;
+            }, 0);
+            const total = subtotal + taxAmount;
+            return (
+              <div className="flex justify-end gap-6 text-sm border-t border-border pt-2">
+                <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
+                <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(taxAmount)}</span></span>
+                <span className="font-semibold">Total TTC : {formatCurrency(total)}</span>
+              </div>
+            );
+          })()}
 
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>

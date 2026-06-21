@@ -3,8 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseOrderItem } from './entities/purchase-order-item.entity';
 import { ReceptionBL } from './entities/reception-bl.entity';
+import { VendorBill } from './entities/vendor-bill.entity';
+import { VendorBillItem } from './entities/vendor-bill-item.entity';
+import { VendorPayment } from './entities/vendor-payment.entity';
 import { StockEntry } from '../stock/stock-entry.entity';
-import { InventorySummary } from '../stock/inventory-summary.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { PurchasesController } from './purchases.controller';
 import { PurchasesService } from './purchases.service';
@@ -15,8 +17,10 @@ import { PurchasesService } from './purchases.service';
       PurchaseOrder,
       PurchaseOrderItem,
       ReceptionBL,
+      VendorBill,
+      VendorBillItem,
+      VendorPayment,
       StockEntry,
-      InventorySummary,
       FinishedProduct,
     ]),
   ],

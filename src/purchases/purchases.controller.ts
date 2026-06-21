@@ -1,6 +1,6 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, HttpCode, HttpStatus, UseGuards,
+  Controller, Get, Post, Patch, Delete, Put,
+  Body, Param, Query, HttpCode, HttpStatus, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PurchasesService } from './purchases.service';
@@ -10,6 +10,10 @@ import { PatchPoStatusDto } from './dto/patch-po-status.dto';
 import { CreateReceptionBlDto } from './dto/create-reception-bl.dto';
 import { ListReceptionBlsDto } from './dto/list-reception-bls.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
+import { CreateVendorBillDto } from './dto/create-vendor-bill.dto';
+import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
+import { PatchVendorBillStatusDto } from './dto/patch-vendor-bill-status.dto';
+import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -109,5 +113,69 @@ export class PurchasesController {
   @ApiResponse({ status: 404 })
   findOneBl(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOneReceptionBl(id, user.tenantId);
+  }
+
+  // ── Vendor Bills ─────────────────────────────────────────────────────────────
+
+  @Post('vendor-bills')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Create a vendor bill' })
+  createVendorBill(@Body() dto: CreateVendorBillDto, @CurrentUser() user: JwtPayload) {
+    return this.service.createVendorBill(dto, user.tenantId, user.sub);
+  }
+
+  @Get('vendor-bills')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'List vendor bills (paginated + filters)' })
+  findAllVendorBills(@Query() query: ListVendorBillsDto, @CurrentUser() user: JwtPayload) {
+    return this.service.findAllVendorBills(query, user.tenantId);
+  }
+
+  @Get('vendor-bills/:id')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Get vendor bill with items and payments' })
+  findOneVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.findOneVendorBill(id, user.tenantId);
+  }
+
+  @Put('vendor-bills/:id')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Update draft vendor bill' })
+  updateVendorBill(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateVendorBillDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.updateVendorBill(id, dto, user.tenantId, user.sub);
+  }
+
+  @Patch('vendor-bills/:id/status')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Validate or cancel a vendor bill' })
+  patchVendorBillStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PatchVendorBillStatusDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.patchVendorBillStatus(id, dto.status, user.tenantId, user.sub);
+  }
+
+  @Delete('vendor-bills/:id')
+  @Roles('owner')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete draft or cancelled vendor bill' })
+  removeVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    return this.service.removeVendorBill(id, user.tenantId);
+  }
+
+  @Post('vendor-bills/:id/payments')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Record a payment on a vendor bill' })
+  recordVendorPayment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordVendorPaymentDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.recordVendorPayment(id, dto, user.tenantId, user.sub);
   }
 }

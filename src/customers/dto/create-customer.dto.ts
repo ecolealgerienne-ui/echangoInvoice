@@ -64,4 +64,12 @@ export class CreateCustomerDto {
   @ApiProperty({ required: false, default: true })
   @IsOptional() @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ required: false, default: true })
+  @IsOptional() @IsBoolean()
+  isCustomer?: boolean;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional() @IsBoolean()
+  isSupplier?: boolean;
 }

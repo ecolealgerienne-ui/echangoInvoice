@@ -84,7 +84,7 @@ export class InvoicePdfService {
               NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
               s.logo AS company_logo
        FROM sales_invoices si
-       JOIN customers c ON c.id = si."customerId"
+       JOIN partners c ON c.id = si."customerId"
        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
        WHERE si.id = $1 AND si."tenantId" = $2 AND si."deletedAt" IS NULL`,
       [invoiceId, tenantId],
@@ -181,7 +181,7 @@ export class InvoicePdfService {
               NULL AS company_nif, NULL AS company_rc,
               s.logo AS company_logo
        FROM delivery_notes dn
-       JOIN customers c ON c.id = dn."customerId"
+       JOIN partners c ON c.id = dn."customerId"
        LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
        WHERE dn.id = $1 AND dn."tenantId" = $2 AND dn."deletedAt" IS NULL`,
       [dnId, tenantId],
@@ -275,7 +275,7 @@ export class InvoicePdfService {
       `SELECT si.*, c.name AS customer_name, c.email AS customer_email,
               s."companyName" AS company_name
        FROM sales_invoices si
-       JOIN customers c ON c.id = si."customerId"
+       JOIN partners c ON c.id = si."customerId"
        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
        WHERE si.id = $1 AND si."tenantId" = $2 AND si."deletedAt" IS NULL`,
       [invoiceId, tenantId],
@@ -305,7 +305,7 @@ export class InvoicePdfService {
       `SELECT dn.*, c.name AS customer_name, c.email AS customer_email,
               s."companyName" AS company_name
        FROM delivery_notes dn
-       JOIN customers c ON c.id = dn."customerId"
+       JOIN partners c ON c.id = dn."customerId"
        LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
        WHERE dn.id = $1 AND dn."tenantId" = $2 AND dn."deletedAt" IS NULL`,
       [dnId, tenantId],
@@ -337,7 +337,7 @@ export class InvoicePdfService {
               NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
               s.logo AS company_logo
        FROM quotes q
-       JOIN customers c ON c.id = q."customerId"
+       JOIN partners c ON c.id = q."customerId"
        LEFT JOIN settings s ON s."tenantId" = q."tenantId"
        WHERE q.id = $1 AND q."tenantId" = $2 AND q."deletedAt" IS NULL`,
       [quoteId, tenantId],

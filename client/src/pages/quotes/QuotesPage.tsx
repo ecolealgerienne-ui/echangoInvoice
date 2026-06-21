@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { quotesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { quotesApi, customersApi, productsApi, settingsApi, deliveriesApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -78,7 +78,7 @@ export function QuotesPage() {
     staleTime: 5 * 60 * 1000,
   });
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
-  const defaultTaxRate = taxRates.find(r => r.isDefault)?.rate ?? 19;
+  const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
 
   const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -125,6 +125,20 @@ export function QuotesPage() {
       qc.invalidateQueries({ queryKey: ['quotes'] });
       qc.invalidateQueries({ queryKey: ['invoices'] });
       toast(t('quotes.converted'), 'success');
+    },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const createBlMutation = useMutation({
+    mutationFn: (id: string) => quotesApi.createBl(id),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['quotes'] });
+      qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+      toast(t('quotes.convertedToBl'), 'success');
+      if (res?.warnings?.length) {
+        res.warnings.forEach((w: string) => toast(w, 'warning'));
+      }
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
@@ -277,9 +291,14 @@ export function QuotesPage() {
                         </>
                       )}
                       {q.status === 'accepted' && (
-                        <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
-                          <RefreshCw className="h-4 w-4 text-green-600" />
-                        </Button>
+                        <>
+                          <Button size="sm" variant="ghost" title={t('quotes.createBl')} onClick={() => createBlMutation.mutate(q.id)}>
+                            <Truck className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
+                            <RefreshCw className="h-4 w-4 text-green-600" />
+                          </Button>
+                        </>
                       )}
                       {q.status === 'rejected' && (
                         <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
@@ -302,7 +321,7 @@ export function QuotesPage() {
         <Pagination page={page} total={pagination.total} limit={pagination.limit} onChange={setPage} />
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('quotes.new')}>
+      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('quotes.new')} size="xl">
         <form onSubmit={handleSubmit(d => createMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
@@ -335,19 +354,23 @@ export function QuotesPage() {
             </div>
             {/* Column headers */}
             <div className="grid grid-cols-12 gap-2 mb-1">
-              <div className="col-span-4 text-xs font-medium text-muted-foreground">{t('common.product')}</div>
+              <div className="col-span-3 text-xs font-medium text-muted-foreground">{t('common.product')}</div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('common.qty')}</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('products.unit')}</div>
+              <div className="col-span-1 text-xs font-medium text-muted-foreground">{t('products.unit')}</div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('purchases.unitPrice')}</div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('settings.taxRate')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">TTC</div>
             </div>
             <div className="space-y-2">
               {fields.map((f, i) => {
                 const selId = watchQ(`items.${i}.finishedProductId`);
                 const selProd = (productList as any[]).find((p: any) => p.id === selId);
+                const lineHT = (Number(watchQ(`items.${i}.quantity`)) || 0) * (Number(watchQ(`items.${i}.unitPrice`)) || 0);
+                const lineTaxRate = Number(watchQ(`items.${i}.taxRate1`)) || 0;
+                const lineTTC = lineHT * (1 + lineTaxRate / 100);
                 return (
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <Select {...register(`items.${i}.finishedProductId`)} className="w-full text-xs"
                       onChange={e => {
                         setQValue(`items.${i}.finishedProductId`, e.target.value);
@@ -364,7 +387,7 @@ export function QuotesPage() {
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
                       {selProd?.unit ?? watchQ(`items.${i}.unit`) ?? '—'}
                     </span>
@@ -373,15 +396,16 @@ export function QuotesPage() {
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <Select {...register(`items.${i}.taxRate1`)} className="w-full text-xs">
                       {taxRates.length > 0
-                        ? taxRates.map(r => (
-                            <option key={r.rate} value={String(r.rate)}>{r.rate}%</option>
-                          ))
+                        ? taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{v}%</option>; })
                         : <option value="19">19%</option>
                       }
                     </Select>
+                  </div>
+                  <div className="col-span-1 text-right">
+                    <span className="text-xs font-medium text-foreground text-right whitespace-nowrap block">{formatCurrency(lineTTC)}</span>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     {fields.length > 1 && (
@@ -394,6 +418,22 @@ export function QuotesPage() {
                 );
               })}
             </div>
+            {/* Totals summary */}
+            {(() => {
+              const watchedItems = watchQ('items') ?? [];
+              const subtotalHT = watchedItems.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+              const totalTVA = watchedItems.reduce((s, it) => {
+                const ht = (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0);
+                return s + ht * (Number(it.taxRate1) || 0) / 100;
+              }, 0);
+              return (
+                <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
+                  <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
+                  <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(totalTVA)}</span></span>
+                  <span className="font-semibold">Total TTC : {formatCurrency(subtotalHT + totalTVA)}</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div>

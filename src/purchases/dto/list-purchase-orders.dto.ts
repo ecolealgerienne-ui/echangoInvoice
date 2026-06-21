@@ -11,9 +11,13 @@ export class ListPurchaseOrdersDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(500)
   limit: number = 20;
 
-  @ApiProperty({ required: false, enum: ['draft', 'sent', 'received', 'cancelled'] })
-  @IsOptional() @IsEnum(['draft', 'sent', 'received', 'cancelled'])
+  @ApiProperty({ required: false, enum: ['draft', 'sent', 'received', 'invoiced', 'cancelled'] })
+  @IsOptional() @IsEnum(['draft', 'sent', 'received', 'invoiced', 'cancelled'])
   status?: string;
+
+  @ApiProperty({ required: false, description: 'If true, exclude invoiced and cancelled POs' })
+  @IsOptional()
+  excludeInvoiced?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional() @IsUUID()

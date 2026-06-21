@@ -4,9 +4,9 @@ import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'clas
 export class AdjustStockDto {
   @ApiProperty() @IsUUID() rawMaterialId: string;
 
-  @ApiProperty({ description: 'Positif = ajout, négatif = retrait' })
+  @ApiProperty({ description: 'Nouvelle quantité absolue (inventaire physique)' })
   @IsNumber()
-  quantityAdjustment: number;
+  newQuantity: number;
 
   @ApiProperty({ enum: ['loss', 'breakage', 'physical_count', 'correction', 'other'] })
   @IsEnum(['loss', 'breakage', 'physical_count', 'correction', 'other'])

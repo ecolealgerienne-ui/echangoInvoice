@@ -25,6 +25,7 @@ const schema = z.object({
   unit: z.string().min(1),
   defaultSalesPrice: z.coerce.number().min(0).optional(),
   lastCostPerUnit: z.coerce.number().min(0).optional(),
+  alertThreshold: z.coerce.number().min(0).optional(),
   supplierId: z.string().optional(),
   description: z.string().optional(),
 });
@@ -284,6 +285,12 @@ export function ProductsPage() {
               </select>
             </div>
           )}
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">{t('stock.thresholdLabel')}</label>
+            <Input type="number" step="0.01" min="0" {...register('alertThreshold')} placeholder="0" />
+            <p className="text-xs text-muted-foreground">{t('stock.thresholdHint')}</p>
+          </div>
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('common.description')}</label>

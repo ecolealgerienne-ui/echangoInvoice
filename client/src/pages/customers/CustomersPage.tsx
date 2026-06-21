@@ -28,6 +28,8 @@ const schema = z.object({
   rc: z.string().optional(),
   ai: z.string().optional(),
   nis: z.string().optional(),
+  isCustomer: z.boolean().optional(),
+  isSupplier: z.boolean().optional(),
 });
 
 const contactSchema = z.object({
@@ -219,6 +221,17 @@ export function CustomersPage() {
             <label className="text-sm font-medium text-foreground">{t('customers.name')} *</label>
             <Input {...register('name')} />
             {errors.name && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+          </div>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isCustomer')} defaultChecked className="rounded" />
+              {t('partners.isCustomer')}
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" {...register('isSupplier')} className="rounded" />
+              {t('partners.isSupplier')}
+            </label>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

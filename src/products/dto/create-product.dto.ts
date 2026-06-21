@@ -28,6 +28,10 @@ export class CreateProductDto {
   lastCostPerUnit?: number;
 
   @ApiPropertyOptional()
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  alertThreshold?: number;
+
+  @ApiPropertyOptional()
   @IsOptional() @IsUUID()
   supplierId?: string;
 
