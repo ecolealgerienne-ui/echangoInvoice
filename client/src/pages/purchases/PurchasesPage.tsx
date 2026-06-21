@@ -378,25 +378,25 @@ export function PurchasesPage() {
                         onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {o.status === 'draft' && (
+                      {['draft', 'sent'].includes(o.status) && (
                         <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                       {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" title="Valider (envoyer)"
+                        <Button size="sm" variant="ghost" title="Envoyer"
                           onClick={() => patchStatusMutation.mutate({ id: o.id, status: 'sent' })}>
                           <CheckCircle className="h-4 w-4 text-primary" />
                         </Button>
                       )}
-                      {(o.status === 'draft' || o.status === 'sent') && (
+                      {['draft', 'sent'].includes(o.status) && (
                         <Button size="sm" variant="ghost" title="Réceptionner"
                           onClick={() => openReceptionFor(o.id)}>
                           <PackageCheck className="h-4 w-4 text-success" />
                         </Button>
                       )}
-                      {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" onClick={() => removePoMutation.mutate(o.id)}>
+                      {['draft', 'sent'].includes(o.status) && (
+                        <Button size="sm" variant="ghost" title="Supprimer" onClick={() => removePoMutation.mutate(o.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}

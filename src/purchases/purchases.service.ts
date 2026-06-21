@@ -164,7 +164,7 @@ export class PurchasesService {
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!po) throw new NotFoundException('errors.purchase_order_not_found');
-    if (po.status !== 'draft') {
+    if (!['draft', 'sent'].includes(po.status)) {
       throw new UnprocessableEntityException('errors.po_cannot_edit_non_draft');
     }
 
@@ -176,6 +176,7 @@ export class PurchasesService {
       if (dto.orderDate !== undefined) po.orderDate = dto.orderDate as unknown as Date;
       if (dto.expectedDeliveryDate !== undefined) po.expectedDeliveryDate = dto.expectedDeliveryDate as unknown as Date ?? null;
       if (dto.notes !== undefined) po.notes = dto.notes ?? null;
+      po.status = 'draft'; // modification remet en brouillon
       po.updatedBy = userId;
 
       if (dto.items && dto.items.length > 0) {
@@ -210,7 +211,7 @@ export class PurchasesService {
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!po) throw new NotFoundException('errors.purchase_order_not_found');
-    if (!['draft', 'cancelled'].includes(po.status)) {
+    if (!['draft', 'sent', 'cancelled'].includes(po.status)) {
       throw new UnprocessableEntityException('errors.po_cannot_delete');
     }
     await this.dataSource.manager.softDelete(PurchaseOrder, { id, tenantId });
