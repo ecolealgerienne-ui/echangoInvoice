@@ -51,7 +51,6 @@ type FormData = z.infer<typeof schema>;
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
 const today = new Date().toISOString().split('T')[0];
-const in30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0];
 
 export function InvoicesPage() {
   const { t } = useTranslation();
@@ -92,10 +91,12 @@ export function InvoicesPage() {
   });
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
   const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
+  const paymentDays: number = settingsData?.data?.defaultPaymentTermsDays ?? 30;
+  const inN = new Date(Date.now() + paymentDays * 864e5).toISOString().split('T')[0];
 
   const { register, handleSubmit, control, reset, watch: watchInv, setValue: setInvValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] },
+    defaultValues: { invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
@@ -140,7 +141,7 @@ export function InvoicesPage() {
 
   function openCreate() {
     setEditing(null);
-    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
+    reset({ invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
     setModalOpen(true);
   }
 
@@ -151,7 +152,7 @@ export function InvoicesPage() {
       reset({
         customerId: d.customerId,
         invoiceDate: d.invoiceDate?.slice(0, 10) ?? today,
-        dueDate: d.dueDate?.slice(0, 10) ?? in30,
+        dueDate: d.dueDate?.slice(0, 10) ?? inN,
         notes: d.notes ?? '',
         items: (d.items ?? []).map((it: any) => ({
           finishedProductId: it.finishedProductId,
@@ -168,7 +169,7 @@ export function InvoicesPage() {
   function closeModal() {
     setEditing(null);
     setModalOpen(false);
-    reset({ invoiceDate: today, dueDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
+    reset({ invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
   }
 
   function downloadPdf(id: string, number: string) {
