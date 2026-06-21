@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw } from 'lucide-react';
 
 const BILL_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'destructive',
@@ -187,7 +187,18 @@ export function VendorBillsPage() {
     mutationFn: (id: string) => purchasesApi.updateBillStatus(id, 'cancelled'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       toast(t('purchases.billCancelled'), 'success');
+    },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => purchasesApi.updateBillStatus(id, 'draft'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      toast(t('purchases.billReopened') ?? 'Facture réouverte en brouillon', 'success');
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
@@ -300,6 +311,16 @@ export function VendorBillsPage() {
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => cancelMutation.mutate(bill.id)} title={t('common.cancel')}>
                               <XCircle className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </>
+                        )}
+                        {bill.status === 'cancelled' && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => reopenMutation.mutate(bill.id)} title="Réouvrir en brouillon">
+                              <RotateCcw className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(bill.id)} title={t('common.delete')}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </>
                         )}

@@ -552,6 +552,7 @@ export class PurchasesService {
       draft: ['validated', 'cancelled'],
       validated: ['cancelled'],
       partial: ['cancelled'],
+      cancelled: ['draft'],
     };
     if (!(allowed[bill.status] ?? []).includes(status)) {
       throw new UnprocessableEntityException('invalid_status_transition');
@@ -562,17 +563,25 @@ export class PurchasesService {
       [status, userId, id, tenantId],
     );
 
-    // When cancelling: restore linked PO to its previous status
-    if (status === 'cancelled' && bill.purchaseOrderId) {
-      const hasReception = await this.dataSource.query(
-        `SELECT 1 FROM reception_bls WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
-        [bill.purchaseOrderId, tenantId],
-      );
-      const restoredStatus = hasReception.length > 0 ? 'received' : 'sent';
-      await this.dataSource.query(
-        `UPDATE purchase_orders SET status=$1,"updatedAt"=NOW() WHERE id=$2 AND "tenantId"=$3 AND status='invoiced'`,
-        [restoredStatus, bill.purchaseOrderId, tenantId],
-      );
+    if (bill.purchaseOrderId) {
+      if (status === 'cancelled') {
+        // Restore PO to previous status
+        const hasReception = await this.dataSource.query(
+          `SELECT 1 FROM reception_bls WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
+          [bill.purchaseOrderId, tenantId],
+        );
+        const restoredStatus = hasReception.length > 0 ? 'received' : 'sent';
+        await this.dataSource.query(
+          `UPDATE purchase_orders SET status=$1,"updatedAt"=NOW() WHERE id=$2 AND "tenantId"=$3 AND status='invoiced'`,
+          [restoredStatus, bill.purchaseOrderId, tenantId],
+        );
+      } else if (status === 'draft') {
+        // Re-opening: mark PO as invoiced again
+        await this.dataSource.query(
+          `UPDATE purchase_orders SET status='invoiced',"updatedAt"=NOW() WHERE id=$1 AND "tenantId"=$2`,
+          [bill.purchaseOrderId, tenantId],
+        );
+      }
     }
 
     return this.findOneVendorBill(id, tenantId);
