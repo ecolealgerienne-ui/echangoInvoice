@@ -50,8 +50,8 @@ export class PurchasesService {
         tenantId,
       }));
       const subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-      // taxAmount will be managed at settings level; here 0 for PO (no TVA on purchase order itself)
-      const taxAmount = 0;
+      const taxRate = dto.taxRate ?? 0;
+      const taxAmount = Number((subtotal * taxRate / 100).toFixed(2));
       const total = Number((subtotal + taxAmount).toFixed(2));
 
       const po = qr.manager.create(PurchaseOrder, {
@@ -61,6 +61,7 @@ export class PurchasesService {
         status: 'draft',
         orderDate: dto.orderDate as unknown as Date,
         expectedDeliveryDate: dto.expectedDeliveryDate as unknown as Date ?? null,
+        taxRate,
         subtotal,
         taxAmount,
         total,
@@ -185,7 +186,9 @@ export class PurchasesService {
           purchaseOrderId: id,
         }));
         po.subtotal = Number(items.reduce((s, i) => s + i.lineTotal, 0).toFixed(2));
-        po.total = po.subtotal;
+        po.taxRate = dto.taxRate ?? po.taxRate ?? 0;
+        po.taxAmount = Number((po.subtotal * po.taxRate / 100).toFixed(2));
+        po.total = Number((po.subtotal + po.taxAmount).toFixed(2));
         await qr.manager.save(PurchaseOrder, po);
         await qr.manager.save(PurchaseOrderItem, items.map(i => qr.manager.create(PurchaseOrderItem, i)));
       } else {

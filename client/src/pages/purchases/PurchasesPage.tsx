@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { purchasesApi, suppliersApi, productsApi , resolveApiError } from '@/lib/api';
+import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -37,6 +37,7 @@ const poSchema = z.object({
   orderDate: z.string().min(1),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
+  taxRate: z.coerce.number().min(0).default(0),
   items: z.array(poItemSchema).min(1),
 });
 type PoFormData = z.infer<typeof poSchema>;
@@ -105,6 +106,10 @@ export function PurchasesPage() {
     queryKey: ['products', 1, '', 'all'],
     queryFn: () => productsApi.list({ page: 1, limit: 200 }),
   });
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  });
 
   // Load PO details (items) when reception modal is open with a PO selected
   const { data: recPoDetail } = useQuery({
@@ -130,7 +135,7 @@ export function PurchasesPage() {
   // ── PO form ───────────────────────────────────────────────────────────────
   const poForm = useForm<PoFormData>({
     resolver: zodResolver(poSchema),
-    defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 }] },
+    defaultValues: { orderDate: today, expectedDeliveryDate: today, taxRate: 0, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0 }] },
   });
   const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
 
@@ -176,7 +181,8 @@ export function PurchasesPage() {
 
   function openCreatePo() {
     setEditingPo(null);
-    poForm.reset({ orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
+    const defaultTax = (settingsData as any)?.data?.taxRate ?? 0;
+    poForm.reset({ orderDate: today, expectedDeliveryDate: today, taxRate: defaultTax, items: [{ rawMaterialId: '', quantity: 1, unit: 'kg', unitPrice: 0 }] });
     setPoModalOpen(true);
   }
 
@@ -190,6 +196,7 @@ export function PurchasesPage() {
         orderDate: d.orderDate?.split('T')[0] ?? today,
         expectedDeliveryDate: d.expectedDeliveryDate?.split('T')[0] ?? '',
         notes: d.notes ?? '',
+        taxRate: Number(d.taxRate ?? 0),
         items: (d.items ?? []).map((it: any) => ({
           rawMaterialId: it.rawMaterialId,
           quantity: Number(it.quantity),
@@ -505,7 +512,7 @@ export function PurchasesPage() {
                           poForm.setValue(`items.${i}.rawMaterialId`, e.target.value);
                           const prod = rawMats.find((m: any) => m.id === e.target.value);
                           if (prod?.unit) poForm.setValue(`items.${i}.unit`, prod.unit);
-                          if (prod?.lastCostPerUnit != null) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
+                          if (prod?.lastCostPerUnit) poForm.setValue(`items.${i}.unitPrice`, Number(prod.lastCostPerUnit));
                         }}>
                         <option value="">{t('common.select')}</option>
                         {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
@@ -540,6 +547,35 @@ export function PurchasesPage() {
               })}
             </div>
           </div>
+
+          {/* TVA + totals */}
+          {(() => {
+            const items = poForm.watch('items') ?? [];
+            const taxRate = poForm.watch('taxRate') ?? 0;
+            const subtotal = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+            const taxAmount = subtotal * taxRate / 100;
+            const total = subtotal + taxAmount;
+            const taxRates: any[] = (settingsData as any)?.data?.taxRates ?? [];
+            return (
+              <div className="border border-border rounded-md p-3 space-y-2 bg-muted/30">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium whitespace-nowrap">{t('purchases.taxRate')}</label>
+                  <Select {...poForm.register('taxRate')} className="w-32 text-sm">
+                    <option value={0}>0%</option>
+                    {taxRates.map((tr: any) => (
+                      <option key={tr.id} value={tr.rate}>{tr.name} ({tr.rate}%)</option>
+                    ))}
+                    {taxRates.length === 0 && <option value={19}>TVA (19%)</option>}
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-6 text-sm">
+                  <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
+                  <span className="text-muted-foreground">{t('purchases.taxAmount')} ({taxRate}%) : <span className="font-medium text-foreground">{formatCurrency(taxAmount)}</span></span>
+                  <span className="font-semibold">Total : {formatCurrency(total)}</span>
+                </div>
+              </div>
+            );
+          })()}
 
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>

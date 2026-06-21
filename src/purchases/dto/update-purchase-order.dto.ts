@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsUUID, IsDateString, IsOptional, IsString,
   IsArray, ValidateNested, IsNumber, Min,
@@ -50,4 +50,10 @@ export class UpdatePurchaseOrderDto {
   @ValidateNested({ each: true })
   @Type(() => UpdatePoItemDto)
   items?: UpdatePoItemDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber() @Min(0)
+  taxRate?: number;
 }

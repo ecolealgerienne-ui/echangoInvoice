@@ -465,7 +465,10 @@
     "receptionDate": "Date réception",
     "totalReceived": "Qté reçue",
     "supplier": "Fournisseur",
-    "unitPrice": "Prix unitaire"
+    "unitPrice": "Prix unitaire",
+    "taxRate": "Taux TVA",
+    "subtotal": "Sous-total HT",
+    "taxAmount": "TVA"
   },
   "creditNotes": {
     "title": "Avoirs",
