@@ -87,9 +87,11 @@ export function VendorBillsPage() {
   });
   const allOrders: any[] = ordersData?.data ?? [];
 
+  const defaultTaxRate = taxRates.length > 0 ? taxRates[0].rate : 0;
+
   const billForm = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
-    defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0 }] },
+    defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate }] },
   });
   const { fields, append, remove } = useFieldArray({ control: billForm.control, name: 'items' });
 
@@ -100,7 +102,7 @@ export function VendorBillsPage() {
 
   function openCreate() {
     setEditTarget(null);
-    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0 }] });
+    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate }] });
     setModalOpen(true);
   }
 
@@ -133,11 +135,10 @@ export function VendorBillsPage() {
       if (po.items?.length) {
         billForm.setValue('items', po.items.map((it: any) => ({
           finishedProductId: it.rawMaterialId ?? '',
-          description: products.find((p: any) => p.id === it.rawMaterialId)?.name ?? '',
           quantity: Number(it.quantity),
-          unit: it.unit,
+          unit: it.unit ?? 'pcs',
           unitPrice: Number(it.unitPrice),
-          taxRate: Number(it.taxRate ?? 0) || undefined,
+          taxRate: Number(it.taxRate ?? defaultTaxRate),
         })));
       }
     });
@@ -348,20 +349,34 @@ export function VendorBillsPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-foreground">{t('common.items')}</span>
               <Button type="button" variant="outline" size="sm"
-                onClick={() => append({ quantity: 1, unit: 'pcs', unitPrice: 0 })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
+            {/* Column headers */}
+            <div className="grid gap-2 text-xs font-medium text-muted-foreground mb-1 px-1"
+              style={{ gridTemplateColumns: '2fr 70px 60px 100px 160px 110px 32px' }}>
+              <span>{t('common.product')}</span>
+              <span>{t('common.qty')}</span>
+              <span>{t('common.unit')}</span>
+              <span>{t('common.price')}</span>
+              <span>{t('purchases.taxRate')}</span>
+              <span className="text-right">TTC</span>
+              <span></span>
+            </div>
             <div className="space-y-2">
-              {fields.map((field, idx) => (
-                <div key={field.id} className="grid grid-cols-12 gap-2 items-start">
-                  <div className="col-span-4">
+              {fields.map((field, idx) => {
+                const ht = (Number(watchItems[idx]?.quantity) || 0) * (Number(watchItems[idx]?.unitPrice) || 0);
+                const ttc = ht * (1 + (Number(watchItems[idx]?.taxRate) || 0) / 100);
+                return (
+                  <div key={field.id} className="grid gap-2 items-center"
+                    style={{ gridTemplateColumns: '2fr 70px 60px 100px 160px 110px 32px' }}>
+                    {/* Product */}
                     <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.finishedProductId`)}
                       onChange={(e) => {
                         const p = products.find((p: any) => p.id === e.target.value);
                         if (p) {
-                          billForm.setValue(`items.${idx}.description`, p.name);
                           billForm.setValue(`items.${idx}.unit`, p.unit ?? 'pcs');
                           billForm.setValue(`items.${idx}.unitPrice`, parseFloat(p.lastCostPerUnit ?? 0));
                         }
@@ -370,24 +385,19 @@ export function VendorBillsPage() {
                       <option value="">{t('common.select')}…</option>
                       {products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
-                    <input type="text" placeholder={t('common.description')}
-                      className="w-full mt-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                      {...billForm.register(`items.${idx}.description`)} />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" step="0.01" placeholder={t('common.qty')}
+                    {/* Qty */}
+                    <input type="number" step="0.01"
                       className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.quantity`)} />
-                    <input type="text" placeholder={t('common.unit')}
-                      className="w-full mt-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                      {...billForm.register(`items.${idx}.unit`)} />
-                  </div>
-                  <div className="col-span-2">
-                    <input type="number" step="0.01" placeholder={t('common.price')}
+                    {/* Unit — read-only badge */}
+                    <span className="inline-flex items-center justify-center rounded bg-muted px-1.5 py-1 text-xs text-muted-foreground font-medium truncate">
+                      {watchItems[idx]?.unit || 'pcs'}
+                    </span>
+                    {/* Unit price */}
+                    <input type="number" step="0.01"
                       className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.unitPrice`)} />
-                  </div>
-                  <div className="col-span-2">
+                    {/* TVA dropdown */}
                     <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.taxRate`)}>
                       <option value={0}>0%</option>
@@ -396,22 +406,21 @@ export function VendorBillsPage() {
                       ))}
                       {taxRates.length === 0 && <option value={19}>TVA 19%</option>}
                     </select>
-                  </div>
-                  <div className="col-span-2 flex items-center justify-end gap-1">
-                    <span className="text-xs font-medium text-foreground">
-                      {formatCurrency(
-                        ((Number(watchItems[idx]?.quantity) || 0) * (Number(watchItems[idx]?.unitPrice) || 0)) *
-                        (1 + (Number(watchItems[idx]?.taxRate) || 0) / 100)
-                      )}
+                    {/* TTC */}
+                    <span className="whitespace-nowrap text-xs font-medium text-foreground text-right block">
+                      {formatCurrency(ttc)}
                     </span>
-                    {fields.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" className="p-0 h-auto" onClick={() => remove(idx)}>
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
-                    )}
+                    {/* Delete */}
+                    <div className="flex justify-center">
+                      {fields.length > 1 && (
+                        <Button type="button" variant="ghost" size="sm" className="p-0 h-auto" onClick={() => remove(idx)}>
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
               <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
