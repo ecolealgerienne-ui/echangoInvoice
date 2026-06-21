@@ -352,7 +352,7 @@ export class SalesInvoicesService {
                COALESCE(s.name, 'Mon Entreprise') AS "companyName",
                (CURRENT_DATE - si."dueDate")::int AS "daysOverdue"
         FROM sales_invoices si
-        JOIN customers c ON c.id = si."customerId"
+        JOIN contacts c ON c.id = si."customerId"
         LEFT JOIN settings s ON s."tenantId" = si."tenantId"
         WHERE si.status IN ('sent', 'partial', 'overdue')
           AND si."amountDue" > 0

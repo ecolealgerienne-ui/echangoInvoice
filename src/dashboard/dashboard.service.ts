@@ -42,7 +42,7 @@ export class DashboardService {
       this.ds.query(`
         SELECT inv."customerId", c.name, SUM(inv."totalAmount") AS total
         FROM sales_invoices inv
-        JOIN customers c ON c.id = inv."customerId"
+        JOIN contacts c ON c.id = inv."customerId"
         WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
           AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
         GROUP BY inv."customerId", c.name
@@ -208,7 +208,7 @@ export class DashboardService {
         SELECT inv."customerId", c.name,
                SUM(inv."totalAmount") AS revenue, COUNT(*) AS count
         FROM sales_invoices inv
-        JOIN customers c ON c.id = inv."customerId"
+        JOIN contacts c ON c.id = inv."customerId"
         WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
           AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
         GROUP BY inv."customerId", c.name ORDER BY revenue DESC`,
