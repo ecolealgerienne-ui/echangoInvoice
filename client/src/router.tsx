@@ -18,6 +18,7 @@ import { QuotesPage } from '@/pages/quotes/QuotesPage';
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
+import { ProductionPage } from '@/pages/production/ProductionPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -49,6 +50,7 @@ export function AppRouter() {
       <Route path="/purchases" element={<PrivateRoute><PurchasesPage /></PrivateRoute>} />
       <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />
+      <Route path="/production" element={<PrivateRoute><ProductionPage /></PrivateRoute>} />
     </Routes>
   );
 }

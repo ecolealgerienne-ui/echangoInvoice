@@ -237,6 +237,25 @@ export const purchasesApi = {
   addBillPayment: (id: string, body: unknown) => api.post(`/purchases/vendor-bills/${id}/payments`, body).then(r => r.data),
 };
 
+export const productionApi = {
+  // Nomenclatures
+  listNomenclatures: (params?: Record<string, unknown>) => api.get('/production/nomenclatures', { params }).then(r => r.data),
+  getNomenclature: (id: string) => api.get(`/production/nomenclatures/${id}`).then(r => r.data),
+  createNomenclature: (body: unknown) => api.post('/production/nomenclatures', body).then(r => r.data),
+  updateNomenclature: (id: string, body: unknown) => api.patch(`/production/nomenclatures/${id}`, body).then(r => r.data),
+  deleteNomenclature: (id: string) => api.delete(`/production/nomenclatures/${id}`).then(r => r.data),
+  // Ordres de production
+  listOrders: (params?: Record<string, unknown>) => api.get('/production/orders', { params }).then(r => r.data),
+  getOrder: (id: string) => api.get(`/production/orders/${id}`).then(r => r.data),
+  createOrder: (body: unknown) => api.post('/production/orders', body).then(r => r.data),
+  startOrder: (id: string) => api.patch(`/production/orders/${id}/start`).then(r => r.data),
+  completeOrder: (id: string, body: unknown) => api.patch(`/production/orders/${id}/complete`, body).then(r => r.data),
+  cancelOrder: (id: string, body?: unknown) => api.patch(`/production/orders/${id}/cancel`, body).then(r => r.data),
+  // Mouvements
+  listMovements: (orderId: string) => api.get(`/production/orders/${orderId}/movements`).then(r => r.data),
+  createMovement: (orderId: string, body: unknown) => api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+};
+
 export const creditNotesApi = {
   list: (params?: Record<string, unknown>) => api.get('/invoices/credit-notes', { params }).then(r => r.data),
   get: (id: string) => api.get(`/invoices/credit-notes/${id}`).then(r => r.data),
