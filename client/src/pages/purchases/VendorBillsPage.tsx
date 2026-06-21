@@ -83,9 +83,12 @@ export function VendorBillsPage() {
 
   const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? taxRates[0]?.rate ?? 19));
 
+  const today = new Date().toISOString().slice(0, 10);
+  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
   const billForm = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
-    defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] },
+    defaultValues: { billDate: today, dueDate: in30, items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] },
   });
   const { fields, append, remove } = useFieldArray({ control: billForm.control, name: 'items' });
 
@@ -105,7 +108,7 @@ export function VendorBillsPage() {
 
   function openCreate() {
     setEditTarget(null);
-    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] });
+    billForm.reset({ purchaseOrderId: '', billDate: today, dueDate: in30, items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] });
     setModalOpen(true);
   }
 
