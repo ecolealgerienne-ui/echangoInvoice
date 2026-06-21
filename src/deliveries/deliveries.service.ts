@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Injectable, Logger, NotFoundException,
+  Injectable, Logger, NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -106,7 +106,7 @@ export class DeliveriesService {
     finishedProductId: string,
     quantityNeeded: number,
     deliveryNoteId: string,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const entries: { id: string; quantity: string }[] = await qr.query(
       `SELECT id, quantity FROM stock_entries
        WHERE "tenantId" = $1
@@ -149,27 +149,68 @@ export class DeliveriesService {
       }
     }
 
+    let warning: string | null = null;
     if (remaining > 0.001) {
-      throw new BadRequestException(
-        `Stock insuffisant pour le produit ${finishedProductId} : manque ${remaining.toFixed(2)} unités`,
+      // Allow negative stock: insert a deficit entry and continue
+      warning = `Stock insuffisant pour le produit ${finishedProductId} : manque ${remaining.toFixed(2)} unités`;
+      this.logger.warn(warning);
+      await qr.query(
+        `INSERT INTO stock_entries
+           ("tenantId", "finishedProductId", quantity, "costPerUnit", "totalCost",
+            "enteredAt", status, "reservedByDeliveryNoteId", "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, 0, 0, now(), 'reserved', $4, now(), now())`,
+        [tenantId, finishedProductId, -remaining, deliveryNoteId],
       );
     }
+
+    // Always update finished_products.stockQuantity (may go negative)
+    await qr.query(
+      `UPDATE finished_products
+       SET "stockQuantity" = COALESCE("stockQuantity", 0) - $1,
+           "totalStockValue" = GREATEST(0, COALESCE("stockQuantity", 0) - $1) * COALESCE("averageCostPerUnit", 0),
+           "updatedAt" = NOW()
+       WHERE id = $2 AND "tenantId" = $3`,
+      [quantityNeeded, finishedProductId, tenantId],
+    );
+
+    return warning;
   }
 
   // ─── Libération FIFO (annulation réservation lors de delete/update) ───────
 
   private async releaseFIFO(qr: QueryRunner, deliveryNoteId: string, tenantId: string): Promise<void> {
-    await qr.query(
-      `UPDATE stock_entries SET status = 'available', "reservedByDeliveryNoteId" = NULL
-       WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
+    // Collect per-product quantities to restore before releasing entries
+    const reserved: { finishedProductId: string; qty: string }[] = await qr.query(
+      `SELECT "finishedProductId", SUM(ABS(quantity)) AS qty
+       FROM stock_entries
+       WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'
+       GROUP BY "finishedProductId"`,
       [deliveryNoteId, tenantId],
     );
-    // Remove split zero-quantity entries (cleanup)
+
+    // Restore split entries to available; remove fully-consumed (inserted) reserved entries
+    await qr.query(
+      `UPDATE stock_entries SET status = 'available', "reservedByDeliveryNoteId" = NULL
+       WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved' AND quantity > 0`,
+      [deliveryNoteId, tenantId],
+    );
     await qr.query(
       `DELETE FROM stock_entries
        WHERE "reservedByDeliveryNoteId" = $1 AND "tenantId" = $2 AND status = 'reserved'`,
       [deliveryNoteId, tenantId],
     );
+
+    // Restore stockQuantity on finished_products
+    for (const row of reserved) {
+      await qr.query(
+        `UPDATE finished_products
+         SET "stockQuantity" = COALESCE("stockQuantity", 0) + $1,
+             "totalStockValue" = GREATEST(0, COALESCE("stockQuantity", 0) + $1) * COALESCE("averageCostPerUnit", 0),
+             "updatedAt" = NOW()
+         WHERE id = $2 AND "tenantId" = $3`,
+        [parseFloat(row.qty), row.finishedProductId, tenantId],
+      );
+    }
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -202,12 +243,15 @@ export class DeliveriesService {
       await qr.manager.save(DeliveryNoteItem, items);
 
       // Décrémentation FIFO stock (R005, R015)
+      const warnings: string[] = [];
       for (const item of computed) {
-        await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, dn.id);
+        const w = await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, dn.id);
+        if (w) warnings.push(w);
       }
 
       await qr.commitTransaction();
-      return this.findOne(dn.id, tenantId);
+      const result = await this.findOne(dn.id, tenantId);
+      return warnings.length ? { ...result, warnings } : result;
     } catch (err) {
       await qr.rollbackTransaction();
       throw err;
@@ -299,12 +343,15 @@ export class DeliveriesService {
       await qr.manager.save(DeliveryNoteItem, items);
 
       // Redécrémente FIFO stock
+      const warnings: string[] = [];
       for (const item of computed) {
-        await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, id);
+        const w = await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, id);
+        if (w) warnings.push(w);
       }
 
       await qr.commitTransaction();
-      return this.findOne(id, tenantId);
+      const result = await this.findOne(id, tenantId);
+      return warnings.length ? { ...result, warnings } : result;
     } catch (err) {
       await qr.rollbackTransaction();
       throw err;
@@ -446,8 +493,10 @@ export class DeliveriesService {
       );
       await qr.manager.save(DeliveryNoteItem, dnItems);
 
+      const warnings: string[] = [];
       for (const item of computed) {
-        await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, dn.id);
+        const w = await this.decrementFIFO(qr, tenantId, item.finishedProductId, item.quantity, dn.id);
+        if (w) warnings.push(w);
       }
 
       await qr.query(
@@ -457,7 +506,8 @@ export class DeliveriesService {
       );
 
       await qr.commitTransaction();
-      return this.findOne(dn.id, tenantId);
+      const result = await this.findOne(dn.id, tenantId);
+      return warnings.length ? { ...result, warnings } : result;
     } catch (err) {
       await qr.rollbackTransaction();
       throw err;

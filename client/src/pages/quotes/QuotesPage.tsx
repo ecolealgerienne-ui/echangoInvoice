@@ -131,10 +131,14 @@ export function QuotesPage() {
 
   const createBlMutation = useMutation({
     mutationFn: (id: string) => quotesApi.createBl(id),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['quotes'] });
-      qc.invalidateQueries({ queryKey: ['deliveries'] });
+      qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       toast(t('quotes.convertedToBl'), 'success');
+      if (res?.warnings?.length) {
+        res.warnings.forEach((w: string) => toast(w, 'warning'));
+      }
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });

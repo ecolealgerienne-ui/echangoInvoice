@@ -92,9 +92,13 @@ export function DeliveryNotesPage() {
 
   const saveMutation = useMutation({
     mutationFn: (d: FormData) => editing ? deliveriesApi.update(editing.id, d) : deliveriesApi.create(d),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
       toast(editing ? t('common.save') + ' !' : t('deliveries.created'), 'success');
+      if (res?.warnings?.length) {
+        res.warnings.forEach((w: string) => toast(w, 'warning'));
+      }
       closeModal();
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
