@@ -561,6 +561,20 @@ export class PurchasesService {
       `UPDATE vendor_bills SET status=$1,"updatedBy"=$2,"updatedAt"=NOW() WHERE id=$3 AND "tenantId"=$4`,
       [status, userId, id, tenantId],
     );
+
+    // When cancelling: restore linked PO to its previous status
+    if (status === 'cancelled' && bill.purchaseOrderId) {
+      const hasReception = await this.dataSource.query(
+        `SELECT 1 FROM reception_bls WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL LIMIT 1`,
+        [bill.purchaseOrderId, tenantId],
+      );
+      const restoredStatus = hasReception.length > 0 ? 'received' : 'sent';
+      await this.dataSource.query(
+        `UPDATE purchase_orders SET status=$1,"updatedAt"=NOW() WHERE id=$2 AND "tenantId"=$3 AND status='invoiced'`,
+        [restoredStatus, bill.purchaseOrderId, tenantId],
+      );
+    }
+
     return this.findOneVendorBill(id, tenantId);
   }
 
