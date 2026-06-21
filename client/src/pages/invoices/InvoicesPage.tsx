@@ -316,7 +316,7 @@ export function InvoicesPage() {
                 <Plus className="h-3 w-3" />
               </Button>
             </div>
-            <div className="grid grid-cols-[2fr_60px_55px_80px_60px_70px_32px] gap-2 mb-1">
+            <div className="grid grid-cols-[2fr_70px_60px_100px_130px_110px_32px] gap-2 mb-1">
               <span className="text-xs font-medium text-muted-foreground">{t('common.product')}</span>
               <span className="text-xs font-medium text-muted-foreground">{t('common.qty')}</span>
               <span className="text-xs font-medium text-muted-foreground">{t('products.unit')}</span>
@@ -331,7 +331,7 @@ export function InvoicesPage() {
               const lineTaxRate = Number(watchInv(`items.${i}.taxRate1`)) || 0;
               const lineTTC = lineHT * (1 + lineTaxRate / 100);
               return (
-                <div key={field.id} className="grid grid-cols-[2fr_60px_55px_80px_60px_70px_32px] gap-2 items-center">
+                <div key={field.id} className="grid grid-cols-[2fr_70px_60px_100px_130px_110px_32px] gap-2 items-center">
                   <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                     {...register(`items.${i}.finishedProductId`)}
                     onChange={e => {
@@ -357,7 +357,7 @@ export function InvoicesPage() {
                       : <option value="19">19%</option>
                     }
                   </select>
-                  <span className="text-xs font-medium text-foreground text-right">{formatCurrency(lineTTC)}</span>
+                  <span className="text-xs font-medium text-foreground text-right whitespace-nowrap block">{formatCurrency(lineTTC)}</span>
                   <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

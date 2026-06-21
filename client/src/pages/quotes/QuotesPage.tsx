@@ -401,7 +401,7 @@ export function QuotesPage() {
                     </Select>
                   </div>
                   <div className="col-span-1 text-right">
-                    <span className="text-xs font-medium text-foreground">{formatCurrency(lineTTC)}</span>
+                    <span className="text-xs font-medium text-foreground text-right whitespace-nowrap block">{formatCurrency(lineTTC)}</span>
                   </div>
                   <div className="col-span-1 flex justify-center">
                     {fields.length > 1 && (

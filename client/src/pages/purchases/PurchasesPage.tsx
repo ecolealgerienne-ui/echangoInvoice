@@ -509,8 +509,8 @@ export function PurchasesPage() {
                 const lineTTC = lineHT + lineTVA;
                 const taxRates: any[] = (settingsData as any)?.data?.taxRates ?? [];
                 return (
-                  <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-4">
+                  <div key={f.id} className="grid gap-2 items-end" style={{gridTemplateColumns: '2fr 70px 60px 100px 160px 110px 32px'}}>
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.product')}</label>}
                       <Select {...poForm.register(`items.${i}.rawMaterialId`)}
                         className="w-full text-xs"
@@ -524,24 +524,24 @@ export function PurchasesPage() {
                         {rawMats.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                       </Select>
                     </div>
-                    <div className="col-span-1">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('common.qty')}</label>}
                       <Input type="number" step="0.01" min="0.01"
                         {...poForm.register(`items.${i}.quantity`)} className="text-xs" />
                     </div>
-                    <div className="col-span-1">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('products.unit')}</label>}
                       <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground w-full text-center block">
                         {selectedProduct?.unit ?? poForm.watch(`items.${i}.unit`) ?? '—'}
                       </span>
                       <input type="hidden" {...poForm.register(`items.${i}.unit`)} />
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.unitPrice')}</label>}
                       <Input type="number" step="0.01" min="0"
                         {...poForm.register(`items.${i}.unitPrice`)} className="text-xs" />
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">{t('purchases.taxRate')}</label>}
                       <Select {...poForm.register(`items.${i}.taxRate`)} className="w-full text-xs">
                         <option value={0}>0%</option>
@@ -551,13 +551,13 @@ export function PurchasesPage() {
                         {taxRates.length === 0 && <option value={19}>TVA 19%</option>}
                       </Select>
                     </div>
-                    <div className="col-span-1">
+                    <div>
                       {i === 0 && <label className="text-xs text-muted-foreground mb-1 block">TTC</label>}
-                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted font-medium block text-right">
+                      <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted font-medium block text-right whitespace-nowrap">
                         {formatCurrency(lineTTC)}
                       </span>
                     </div>
-                    <div className="col-span-1 flex justify-center">
+                    <div className="flex justify-center">
                       {poFields.length > 1 && (
                         <Button type="button" size="sm" variant="ghost" onClick={() => poRemove(i)}>
                           <Trash2 className="h-3 w-3 text-destructive" />
