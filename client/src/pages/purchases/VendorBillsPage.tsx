@@ -26,7 +26,7 @@ const billItemSchema = z.object({
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),
-  taxRate: z.coerce.number().min(0).max(100).optional(),
+  taxRate: z.string().optional(),
 });
 
 const billSchema = z.object({
@@ -79,13 +79,13 @@ export function VendorBillsPage() {
     queryKey: ['settings'],
     queryFn: () => settingsApi.get(),
   });
-  const taxRates: { name: string; rate: number }[] = (settingsData as any)?.data?.taxRates ?? [];
+  const taxRates: { name: string; rate: number; isDefault?: boolean }[] = (settingsData as any)?.data?.taxRates ?? [];
 
-  const defaultTaxRate = taxRates.length > 0 ? taxRates[0].rate : 0;
+  const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? taxRates[0]?.rate ?? 19));
 
   const billForm = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
-    defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate }] },
+    defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] },
   });
   const { fields, append, remove } = useFieldArray({ control: billForm.control, name: 'items' });
 
@@ -105,7 +105,7 @@ export function VendorBillsPage() {
 
   function openCreate() {
     setEditTarget(null);
-    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate }] });
+    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) }] });
     setModalOpen(true);
   }
 
@@ -123,7 +123,7 @@ export function VendorBillsPage() {
         quantity: parseFloat(i.quantity),
         unit: i.unit,
         unitPrice: parseFloat(i.unitPrice),
-        taxRate: i.taxRate != null ? parseFloat(i.taxRate) : undefined,
+        taxRate: i.taxRate != null ? String(parseFloat(String(i.taxRate))) : String(defaultTaxRate),
       })),
     });
     setModalOpen(true);
@@ -140,7 +140,7 @@ export function VendorBillsPage() {
           quantity: Number(it.quantity),
           unit: it.unit ?? 'pcs',
           unitPrice: Number(it.unitPrice),
-          taxRate: Number(it.taxRate ?? defaultTaxRate),
+          taxRate: String(parseFloat(String(it.taxRate ?? defaultTaxRate))),
         })));
       }
     });
@@ -155,7 +155,7 @@ export function VendorBillsPage() {
           ...i,
           finishedProductId: i.finishedProductId || undefined,
           description: i.description || undefined,
-          taxRate: i.taxRate ?? undefined,
+          taxRate: i.taxRate != null ? parseFloat(i.taxRate) : undefined,
         })),
       };
       return editTarget
@@ -361,7 +361,7 @@ export function VendorBillsPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-foreground">{t('common.items')}</span>
               <Button type="button" variant="outline" size="sm"
-                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: defaultTaxRate })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'pcs', unitPrice: 0, taxRate: String(defaultTaxRate) })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -412,11 +412,9 @@ export function VendorBillsPage() {
                     {/* TVA dropdown */}
                     <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.taxRate`)}>
-                      <option value={0}>0%</option>
-                      {taxRates.map(r => (
-                        <option key={r.rate} value={r.rate}>{r.name} ({r.rate}%)</option>
-                      ))}
-                      {taxRates.length === 0 && <option value={19}>TVA 19%</option>}
+                      <option value="0">0%</option>
+                      {taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{r.name} ({v}%)</option>; })}
+                      {taxRates.length === 0 && <option value="19">TVA 19%</option>}
                     </select>
                     {/* TTC */}
                     <span className="whitespace-nowrap text-xs font-medium text-foreground text-right block">
