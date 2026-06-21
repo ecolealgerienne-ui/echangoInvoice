@@ -65,7 +65,7 @@ export function InvoicesPage() {
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const { visible, toggle, col } = useColumnVisibility(
     'invoices_visible_columns',
-    ['number', 'customer', 'invoiceDate', 'dueDate', 'amount', 'due', 'status', 'notes'],
+    ['number', 'customer', 'origin', 'invoiceDate', 'dueDate', 'amount', 'due', 'status', 'notes'],
   );
 
   const { data, isLoading } = useQuery({
@@ -205,6 +205,7 @@ export function InvoicesPage() {
             columns={[
               { key: 'number', label: t('invoices.number') },
               { key: 'customer', label: t('invoices.customer') },
+              { key: 'origin', label: t('invoices.origin') },
               { key: 'invoiceDate', label: t('invoices.invoiceDate') },
               { key: 'dueDate', label: t('invoices.dueDate') },
               { key: 'amount', label: t('invoices.amount') },
@@ -225,6 +226,7 @@ export function InvoicesPage() {
               <tr>
                 {col('number') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.number')}</th>}
                 {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.customer')}</th>}
+                {col('origin') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.origin')}</th>}
                 {col('invoiceDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.invoiceDate')}</th>}
                 {col('dueDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.dueDate')}</th>}
                 {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>}
@@ -242,6 +244,7 @@ export function InvoicesPage() {
                 <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
                   {col('number') && <td className="px-4 py-3 font-mono font-medium text-foreground">{inv.invoiceNumber}</td>}
                   {col('customer') && <td className="px-4 py-3 text-foreground">{inv.customer?.name ?? '—'}</td>}
+                  {col('origin') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.blNumber ?? inv.quoteNumber ?? '—'}</td>}
                   {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
                   {col('dueDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
                   {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(inv.totalAmount)}</td>}

@@ -231,11 +231,23 @@ export class DeliveriesService {
     if (dto.dateFrom) qb.andWhere('dn.deliveryDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('dn.deliveryDate <= :dateTo', { dateTo: dto.dateTo });
 
-    const [data, total] = await qb
+    const [rows, total] = await qb
       .orderBy('dn.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
+
+    // Enrich with quoteNumber
+    const quoteIds = rows.map(r => r.quoteId).filter(Boolean);
+    let quoteMap: Record<string, string> = {};
+    if (quoteIds.length) {
+      const quotes = await this.dataSource.query(
+        `SELECT id, "quoteNumber" FROM quotes WHERE id = ANY($1) AND "tenantId" = $2`,
+        [quoteIds, tenantId],
+      );
+      quoteMap = Object.fromEntries(quotes.map((q: any) => [q.id, q.quoteNumber]));
+    }
+    const data = rows.map(r => ({ ...r, quoteNumber: r.quoteId ? quoteMap[r.quoteId] ?? null : null }));
 
     return { data, pagination: { total, page, limit } };
   }
@@ -421,6 +433,7 @@ export class DeliveriesService {
         customerId: quote.customerId,
         deliveryDate: new Date() as any,
         notes: quote.notes ?? null,
+        quoteId,
         ...totals,
         status: 'draft',
         createdBy: userId,
@@ -438,7 +451,7 @@ export class DeliveriesService {
       }
 
       await qr.query(
-        `UPDATE quotes SET "convertedToDeliveryNoteId" = $1, "updatedBy" = $2, "updatedAt" = NOW()
+        `UPDATE quotes SET "convertedToDeliveryNoteId" = $1, status = 'converted', "updatedBy" = $2, "updatedAt" = NOW()
          WHERE id = $3`,
         [dn.id, userId, quoteId],
       );

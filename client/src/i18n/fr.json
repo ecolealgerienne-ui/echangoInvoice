@@ -163,6 +163,7 @@
     "new": "Nouvelle facture",
     "number": "Numéro",
     "customer": "Client",
+    "origin": "Origine (BL / Devis)",
     "invoiceDate": "Date facture",
     "dueDate": "Échéance",
     "amount": "Montant TTC",

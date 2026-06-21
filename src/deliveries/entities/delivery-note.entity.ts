@@ -53,6 +53,9 @@ export class DeliveryNote {
   signedDate: Date | null;
 
   @Column({ type: 'uuid', nullable: true })
+  quoteId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
   convertedToInvoiceId: string | null;
 
   @Column({ type: 'text', nullable: true })

@@ -200,6 +200,7 @@ export function DeliveryNotesPage() {
             columns={[
               { key: 'blNumber', label: t('deliveries.blNumber') },
               { key: 'customer', label: t('common.customer') },
+              { key: 'quote', label: t('quotes.title') },
               { key: 'date', label: t('common.date') },
               { key: 'amount', label: t('common.amount') },
               { key: 'status', label: t('common.status') },
@@ -218,6 +219,7 @@ export function DeliveryNotesPage() {
               <tr>
                 {col('blNumber') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('deliveries.blNumber')}</th>}
                 {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>}
+                {col('quote') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('quotes.title')}</th>}
                 {col('date') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>}
                 {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>}
                 {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
@@ -233,6 +235,7 @@ export function DeliveryNotesPage() {
                 <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
                   {col('blNumber') && <td className="px-4 py-3 font-mono font-medium text-foreground">{bl.blNumber}</td>}
                   {col('customer') && <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>}
+                  {col('quote') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
                   {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
                   {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(bl.total)}</td>}
                   {col('status') && <td className="px-4 py-3 text-center"><Badge variant={STATUS_VARIANT[bl.status] ?? 'muted'}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
