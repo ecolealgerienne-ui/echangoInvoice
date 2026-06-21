@@ -164,48 +164,48 @@ export function VendorBillsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
-      toast({ title: editTarget ? t('purchases.billUpdated') : t('purchases.billCreated'), variant: 'success' });
+      toast(editTarget ? t('purchases.billUpdated') : t('purchases.billCreated'), 'success');
       setModalOpen(false);
     },
-    onError: (err) => toast({ title: resolveApiError(err, t), variant: 'destructive' }),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const validateMutation = useMutation({
     mutationFn: (id: string) => purchasesApi.updateBillStatus(id, 'validated'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
-      toast({ title: t('purchases.billValidated'), variant: 'success' });
+      toast(t('purchases.billValidated'), 'success');
     },
-    onError: (err) => toast({ title: resolveApiError(err, t), variant: 'destructive' }),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => purchasesApi.updateBillStatus(id, 'cancelled'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
-      toast({ title: t('purchases.billCancelled'), variant: 'success' });
+      toast(t('purchases.billCancelled'), 'success');
     },
-    onError: (err) => toast({ title: resolveApiError(err, t), variant: 'destructive' }),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => purchasesApi.removeBill(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
-      toast({ title: t('purchases.billDeleted'), variant: 'success' });
+      toast(t('purchases.billDeleted'), 'success');
     },
-    onError: (err) => toast({ title: resolveApiError(err, t), variant: 'destructive' }),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const paymentMutation = useMutation({
     mutationFn: (data: PaymentFormData) => purchasesApi.addBillPayment(paymentTarget.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
-      toast({ title: t('purchases.paymentAdded'), variant: 'success' });
+      toast(t('purchases.paymentAdded'), 'success');
       setPaymentTarget(null);
       paymentForm.reset({ paymentDate: new Date().toISOString().slice(0, 10), method: 'bank_transfer' });
     },
-    onError: (err) => toast({ title: resolveApiError(err, t), variant: 'destructive' }),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   function openPayment(bill: any) {
