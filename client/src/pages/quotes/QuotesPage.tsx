@@ -430,6 +430,7 @@ export function QuotesPage() {
                 </div>
               );
             })()}
+          </div>
 
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
