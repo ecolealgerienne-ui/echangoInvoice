@@ -17,11 +17,19 @@ Odoo Manufacturing a des Work Centers, Routings, Work Orders, Lot tracking, Vari
 **Ce qu'on fait :** BOM → Ordre de production → Logging → Clôture  
 **Ce qu'on ne fait pas :** MRP automatique, planning de capacité, maintenance équipement, lot tracking
 
+### Activation / désactivation par tenant
+Le module production est **optionnel**. Il s'active depuis les Settings du tenant via un flag `productionModuleEnabled` (booléen). Quand il est désactivé :
+- Les routes `/api/v1/production/*` retournent **403**
+- Le menu Production disparaît du frontend
+- Aucun impact sur les modules existants (stock, achats, ventes, etc.)
+
+Voir section 11 pour l'implémentation du flag.
+
 ### Intégration avec le stock existant
 Ce module s'intègre aux entités **déjà en production** :
 - `raw_materials` → matières premières consommées pendant la production
 - `finished_products` → produits finis créés à la clôture du MO
-- `stock_entries` → lots FIFO pour la décrémentation des MP (R015 respecté)
+- Le stock des MP est décrémenté **directement** sur `raw_materials.stockQuantity` (pas de FIFO — le FIFO a été abandonné pour les matières premières)
 
 ---
 
@@ -285,9 +293,8 @@ Où stockQuantity = somme des stock_entries.quantity WHERE status = 'available'
   Responsable saisit : quantité produite réelle + quantité rejetée
   Système (dans une transaction R005) :
   ├─ Pour chaque MP consommée (somme mouvements mp_consumption) :
-  │   ├─ Décrémente stock_entries via FIFO (R015)
-  │   ├─ raw_materials.reservedQuantity -= quantité libérée
-  │   └─ Recalcule raw_materials.stockQuantity (si applicable)
+  │   ├─ raw_materials.stockQuantity -= quantité consommée (décrémentation directe)
+  │   └─ raw_materials.reservedQuantity -= quantité libérée
   ├─ Pour les productions PF (somme mouvements pf_production - rejets) :
   │   ├─ finished_products.stockQuantity += quantité produite nette
   │   └─ Recalcule finished_products.averageCostPerUnit (coût moyen pondéré)
@@ -425,17 +432,8 @@ GET    /api/v1/production/dashboard
 ### Stock disponible d'une matière première
 
 ```typescript
-// Pas de table réservations — calcul direct
-const stockEntries = await queryRunner.manager
-  .createQueryBuilder(StockEntry, 'se')
-  .where('se.rawMaterialId = :id AND se.tenantId = :tenantId', { id, tenantId })
-  .andWhere('se.status = :status', { status: 'available' })
-  .andWhere('se.deletedAt IS NULL')
-  .getMany();
-
-const physicalStock = stockEntries.reduce((sum, e) => sum + e.quantity, 0);
-const reservedQty = rawMaterial.reservedQuantity; // champ ajouté en migration
-const availableStock = physicalStock - reservedQty;
+// Pas de FIFO, pas de table réservations — calcul direct depuis raw_materials
+const availableStock = rawMaterial.stockQuantity - rawMaterial.reservedQuantity;
 ```
 
 ### Coût moyen pondéré du produit fini (à la clôture)
@@ -550,13 +548,7 @@ client/src/pages/production/
 └── ProductionDashboardPage.tsx → KPIs + stock critique + planning
 ```
 
-**Composant log rapide (mobile-first) :**
-```
-3 boutons larges accessibles depuis mobile :
-[📦 Consommé]  [✅ Produit]  [❌ Rejet / Perte]
-→ Chaque bouton ouvre un mini-formulaire : matière/produit + quantité + raison
-→ Submit = POST /movements → toast succès
-```
+**Note :** L'interface de logging mobile-first (boutons rapides pour opérateurs terrain) est hors scope MVP — Phase 2.
 
 ---
 
@@ -589,3 +581,89 @@ Les fonctionnalités suivantes sont **délibérément absentes** du MVP et ne do
 - ❌ BOM multi-niveaux (un PF comme composant d'un autre PF)
 - ❌ Intégration automatique depuis commandes ventes
 - ❌ Maintenance équipement
+- ❌ Interface mobile-first pour opérateurs terrain (boutons rapides de logging)
+
+---
+
+## 11. ACTIVATION / DÉSACTIVATION DU MODULE
+
+### Principe
+Le module production est un **feature flag par tenant**, stocké dans `settings.productionModuleEnabled`.  
+Il est **désactivé par défaut** — le tenant doit l'activer explicitement depuis ses Settings.
+
+### Changements requis sur le module Settings existant
+
+**Migration :**
+```sql
+ALTER TABLE "settings"
+  ADD COLUMN IF NOT EXISTS "productionModuleEnabled" boolean NOT NULL DEFAULT false;
+```
+
+**Entity `Setting` — ajouter :**
+```typescript
+@Column({ type: 'boolean', default: false })
+productionModuleEnabled: boolean;
+```
+
+**DTO `UpdateSettingsDto` — ajouter :**
+```typescript
+@ApiPropertyOptional()
+@IsOptional() @IsBoolean()
+productionModuleEnabled?: boolean;
+```
+
+**Frontend Settings — ajouter un toggle :**
+```tsx
+// Dans la page Settings, section "Modules"
+<Toggle
+  label={t('settings.productionModule')}
+  value={settings.productionModuleEnabled}
+  onChange={(v) => updateSettings({ productionModuleEnabled: v })}
+/>
+```
+
+### Guard backend — `ProductionModuleGuard`
+
+```typescript
+// src/production/guards/production-module.guard.ts
+@Injectable()
+export class ProductionModuleGuard implements CanActivate {
+  constructor(private readonly settingsService: SettingsService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const tenantId = request.user.tenantId; // depuis JWT (R020)
+    const settings = await this.settingsService.getByTenantId(tenantId);
+
+    if (!settings.productionModuleEnabled) {
+      throw new ForbiddenException('Le module production n\'est pas activé');
+    }
+    return true;
+  }
+}
+```
+
+**Utilisation sur les controllers production :**
+```typescript
+@UseGuards(JwtGuard, RolesGuard, ProductionModuleGuard)
+@Controller('production/nomenclatures')
+export class NomenclatureController { ... }
+```
+
+### Guard frontend — masquage du menu
+
+```typescript
+// Dans AppShell.tsx / sidebar
+const { data: settings } = useSettings();
+
+// Afficher le lien Production uniquement si activé
+{settings?.productionModuleEnabled && (
+  <NavLink to="/production" icon={<Factory />} label={t('nav.production')} />
+)}
+```
+
+### Garanties d'isolation
+
+- Les tables `nomenclatures`, `bom_lines`, `production_orders`, `production_movements` existent en DB même si le module est désactivé — **aucune donnée n'est supprimée** à la désactivation.
+- Les modules existants (stock, achats, ventes, facturation) n'importent aucune dépendance de `ProductionModule` — **zéro impact** sur leur fonctionnement.
+- `ProductionModule` est un module NestJS autonome, importé dans `AppModule` de façon isolée.
