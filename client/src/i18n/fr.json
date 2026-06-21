@@ -108,7 +108,20 @@
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",
-    "address": "Adresse"
+    "address": "Adresse",
+    "addressLine": "Rue, N°...",
+    "city": "Ville",
+    "country": "Pays",
+    "nif": "NIF",
+    "rc": "RC",
+    "ai": "AI (Art. Imposition)",
+    "nis": "NIS",
+    "legalInfo": "Identification fiscale",
+    "contacts": "Contacts",
+    "contactName": "Contact principal",
+    "addContact": "Ajouter un contact",
+    "contactRole": "Fonction",
+    "primary": "Contact principal"
   },
   "rawMaterials": {
     "title": "Matières premières",

@@ -121,6 +121,10 @@ export const suppliersApi = {
   create: (body: unknown) => api.post('/suppliers', body).then(r => r.data),
   update: (id: string, body: unknown) => api.put(`/suppliers/${id}`, body).then(r => r.data),
   remove: (id: string) => api.delete(`/suppliers/${id}`).then(r => r.data),
+  listContacts: (id: string) => api.get(`/suppliers/${id}/contacts`).then(r => r.data),
+  createContact: (id: string, body: unknown) => api.post(`/suppliers/${id}/contacts`, body).then(r => r.data),
+  updateContact: (id: string, contactId: string, body: unknown) => api.put(`/suppliers/${id}/contacts/${contactId}`, body).then(r => r.data),
+  removeContact: (id: string, contactId: string) => api.delete(`/suppliers/${id}/contacts/${contactId}`).then(r => r.data),
 };
 
 export const rawMaterialsApi = {

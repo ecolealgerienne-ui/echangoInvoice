@@ -3,8 +3,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, IsNull, ILike, FindOptionsWhere, DataSource } from 'typeorm';
-import { Customer } from './customer.entity';
-import { CustomerContact } from './entities/customer-contact.entity';
+import { Contact } from '../contacts/contact.entity';
+import { ContactContact } from '../contacts/entities/contact-contact.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
@@ -15,8 +15,8 @@ export class CustomersService {
   private readonly logger = new Logger(CustomersService.name);
 
   constructor(
-    @InjectRepository(Customer)
-    private readonly repo: Repository<Customer>,
+    @InjectRepository(Contact)
+    private readonly repo: Repository<Contact>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -25,6 +25,7 @@ export class CustomersService {
     const customer = this.repo.create({
       ...dto,
       tenantId,
+      isCustomer: true,
       isActive: dto.isActive ?? true,
       createdBy: userId,
       updatedBy: userId,
@@ -38,10 +39,10 @@ export class CustomersService {
     const { page, limit, search, isActive } = query;
     const skip = (page - 1) * limit;
 
-    const base: FindOptionsWhere<Customer> = { tenantId, deletedAt: IsNull() };
+    const base: FindOptionsWhere<Contact> = { tenantId, isCustomer: true, deletedAt: IsNull() };
     if (isActive !== undefined) base.isActive = isActive;
 
-    const where: FindOptionsWhere<Customer>[] = search
+    const where: FindOptionsWhere<Contact>[] = search
       ? [
           { ...base, name: ILike(`%${search}%`) },
           { ...base, contactPerson: ILike(`%${search}%`) },
@@ -62,11 +63,10 @@ export class CustomersService {
 
   async findOne(id: string, tenantId: string) {
     const customer = await this.repo.findOne({
-      where: { id, tenantId, deletedAt: IsNull() },
+      where: { id, tenantId, isCustomer: true, deletedAt: IsNull() },
     });
     if (!customer) throw new NotFoundException('errors.customer_not_found');
 
-    // History: last 5 delivery notes, last 5 invoices, total revenue
     const [deliveryNotes, invoices, revenueResult] = await Promise.all([
       this.dataSource.query(
         `SELECT id, "blNumber", "deliveryDate", total AS "totalAmount", status
@@ -107,7 +107,7 @@ export class CustomersService {
 
   async update(id: string, dto: UpdateCustomerDto, tenantId: string, userId: string) {
     const customer = await this.repo.findOne({
-      where: { id, tenantId, deletedAt: IsNull() },
+      where: { id, tenantId, isCustomer: true, deletedAt: IsNull() },
     });
     if (!customer) throw new NotFoundException('errors.customer_not_found');
     Object.assign(customer, dto, { updatedBy: userId });
@@ -117,7 +117,7 @@ export class CustomersService {
 
   async remove(id: string, tenantId: string) {
     const customer = await this.repo.findOne({
-      where: { id, tenantId, deletedAt: IsNull() },
+      where: { id, tenantId, isCustomer: true, deletedAt: IsNull() },
     });
     if (!customer) throw new NotFoundException('errors.customer_not_found');
 
@@ -135,9 +135,9 @@ export class CustomersService {
   // ─── Contacts ─────────────────────────────────────────────────────────────
 
   async listContacts(customerId: string, tenantId: string) {
-    await this.findOne(customerId, tenantId); // vérifie que le client existe (R020)
-    const contacts = await this.dataSource.manager.find(CustomerContact, {
-      where: { customerId, tenantId, deletedAt: IsNull() },
+    await this.findOne(customerId, tenantId);
+    const contacts = await this.dataSource.manager.find(ContactContact, {
+      where: { contactId: customerId, tenantId, deletedAt: IsNull() },
       order: { isPrimary: 'DESC', createdAt: 'ASC' },
     });
     return { data: contacts };
@@ -148,46 +148,46 @@ export class CustomersService {
 
     if (dto.isPrimary) {
       await this.dataSource.query(
-        `UPDATE customer_contacts SET "isPrimary" = false WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        `UPDATE contact_contacts SET "isPrimary" = false WHERE "contactId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
         [customerId, tenantId],
       );
     }
 
-    const contact = this.dataSource.manager.create(CustomerContact, {
+    const contact = this.dataSource.manager.create(ContactContact, {
       ...dto,
-      customerId,
+      contactId: customerId,
       tenantId,
       isPrimary: dto.isPrimary ?? false,
       createdBy: userId,
       updatedBy: userId,
     });
-    await this.dataSource.manager.save(CustomerContact, contact);
+    await this.dataSource.manager.save(ContactContact, contact);
     return { data: contact };
   }
 
   async updateContact(contactId: string, customerId: string, dto: CreateCustomerContactDto, tenantId: string, userId: string) {
-    const contact = await this.dataSource.manager.findOne(CustomerContact, {
-      where: { id: contactId, customerId, tenantId, deletedAt: IsNull() },
+    const contact = await this.dataSource.manager.findOne(ContactContact, {
+      where: { id: contactId, contactId: customerId, tenantId, deletedAt: IsNull() },
     });
     if (!contact) throw new NotFoundException('errors.contact_not_found');
 
     if (dto.isPrimary && !contact.isPrimary) {
       await this.dataSource.query(
-        `UPDATE customer_contacts SET "isPrimary" = false WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        `UPDATE contact_contacts SET "isPrimary" = false WHERE "contactId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
         [customerId, tenantId],
       );
     }
 
     Object.assign(contact, { ...dto, updatedBy: userId });
-    await this.dataSource.manager.save(CustomerContact, contact);
+    await this.dataSource.manager.save(ContactContact, contact);
     return { data: contact };
   }
 
   async removeContact(contactId: string, customerId: string, tenantId: string) {
-    const contact = await this.dataSource.manager.findOne(CustomerContact, {
-      where: { id: contactId, customerId, tenantId, deletedAt: IsNull() },
+    const contact = await this.dataSource.manager.findOne(ContactContact, {
+      where: { id: contactId, contactId: customerId, tenantId, deletedAt: IsNull() },
     });
     if (!contact) throw new NotFoundException('errors.contact_not_found');
-    await this.dataSource.manager.softDelete(CustomerContact, contactId);
+    await this.dataSource.manager.softDelete(ContactContact, contactId);
   }
 }
