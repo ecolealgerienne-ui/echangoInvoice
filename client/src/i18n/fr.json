@@ -468,7 +468,9 @@
     "unitPrice": "Prix unitaire",
     "taxRate": "Taux TVA",
     "subtotal": "Sous-total HT",
-    "taxAmount": "TVA"
+    "taxAmount": "TVA",
+    "linkedPO": "Commande fournisseur liée (optionnel)",
+    "noPO": "— Sans commande —"
   },
   "creditNotes": {
     "title": "Avoirs",

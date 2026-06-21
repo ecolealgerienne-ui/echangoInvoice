@@ -30,6 +30,7 @@ const billItemSchema = z.object({
 });
 
 const billSchema = z.object({
+  purchaseOrderId: z.string().uuid().optional().or(z.literal('')),
   supplierId: z.string().uuid('Fournisseur requis'),
   billDate: z.string().min(1),
   dueDate: z.string().optional(),
@@ -80,6 +81,12 @@ export function VendorBillsPage() {
   });
   const taxRates: { name: string; rate: number }[] = (settingsData as any)?.data?.taxRates ?? [];
 
+  const { data: ordersData } = useQuery({
+    queryKey: ['purchase-orders-all'],
+    queryFn: () => purchasesApi.listOrders({ page: 1, limit: 500 }),
+  });
+  const allOrders: any[] = ordersData?.data ?? [];
+
   const billForm = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
     defaultValues: { billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0 }] },
@@ -93,13 +100,14 @@ export function VendorBillsPage() {
 
   function openCreate() {
     setEditTarget(null);
-    billForm.reset({ billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0 }] });
+    billForm.reset({ purchaseOrderId: '', billDate: new Date().toISOString().slice(0, 10), items: [{ quantity: 1, unit: 'pcs', unitPrice: 0 }] });
     setModalOpen(true);
   }
 
   function openEdit(bill: any) {
     setEditTarget(bill);
     billForm.reset({
+      purchaseOrderId: bill.purchaseOrderId ?? '',
       supplierId: bill.supplierId,
       billDate: bill.billDate?.slice(0, 10) ?? '',
       dueDate: bill.dueDate?.slice(0, 10) ?? '',
@@ -116,10 +124,30 @@ export function VendorBillsPage() {
     setModalOpen(true);
   }
 
+  function handlePoSelect(poId: string) {
+    billForm.setValue('purchaseOrderId', poId || undefined as any);
+    if (!poId) return;
+    purchasesApi.getOrder(poId).then((res: any) => {
+      const po = res.data;
+      billForm.setValue('supplierId', po.supplierId);
+      if (po.items?.length) {
+        billForm.setValue('items', po.items.map((it: any) => ({
+          finishedProductId: it.rawMaterialId ?? '',
+          description: products.find((p: any) => p.id === it.rawMaterialId)?.name ?? '',
+          quantity: Number(it.quantity),
+          unit: it.unit,
+          unitPrice: Number(it.unitPrice),
+          taxRate: Number(it.taxRate ?? 0) || undefined,
+        })));
+      }
+    });
+  }
+
   const saveMutation = useMutation({
     mutationFn: (data: BillFormData) => {
       const body = {
         ...data,
+        purchaseOrderId: data.purchaseOrderId || undefined,
         items: data.items.map(i => ({
           ...i,
           finishedProductId: i.finishedProductId || undefined,
@@ -286,6 +314,17 @@ export function VendorBillsPage() {
         title={editTarget ? t('common.edit') : t('purchases.newBill')} size="xl">
         <form onSubmit={billForm.handleSubmit((d) => saveMutation.mutate(d))} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.linkedPO')}</label>
+              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                {...billForm.register('purchaseOrderId')}
+                onChange={e => handlePoSelect(e.target.value)}>
+                <option value="">{t('purchases.noPO')}</option>
+                {allOrders.filter((o: any) => o.status !== 'cancelled').map((o: any) => (
+                  <option key={o.id} value={o.id}>{o.poNumber} — {suppliers.find((s: any) => s.id === o.supplierId)?.name ?? ''}</option>
+                ))}
+              </select>
+            </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-foreground mb-1">{t('suppliers.name')}</label>
               <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('supplierId')}>
