@@ -151,16 +151,9 @@ export class DeliveriesService {
 
     let warning: string | null = null;
     if (remaining > 0.001) {
-      // Allow negative stock: insert a deficit entry and continue
+      // Allow negative stock: log warning and continue (no blocking)
       warning = `Stock insuffisant pour le produit ${finishedProductId} : manque ${remaining.toFixed(2)} unités`;
       this.logger.warn(warning);
-      await qr.query(
-        `INSERT INTO stock_entries
-           ("tenantId", "finishedProductId", quantity, "costPerUnit", "totalCost",
-            "enteredAt", status, "reservedByDeliveryNoteId", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, 0, 0, now(), 'reserved', $4, now(), now())`,
-        [tenantId, finishedProductId, -remaining, deliveryNoteId],
-      );
     }
 
     // Always update finished_products.stockQuantity (may go negative)
