@@ -1,1 +1,1 @@
-export { Contact as Supplier } from '../contacts/contact.entity';
+export { Partner as Supplier } from '../partners/partner.entity';

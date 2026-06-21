@@ -42,7 +42,7 @@ export class ReportsService {
                  COALESCE(SUM(inv."amountPaid"),0)  AS paid,
                  COALESCE(SUM(inv."amountDue"),0)   AS due
           FROM sales_invoices inv
-          JOIN contacts c ON c.id = inv."customerId"
+          JOIN partners c ON c.id = inv."customerId"
           WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
             AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
           GROUP BY inv."customerId", c.name ORDER BY revenue DESC`,
@@ -60,7 +60,7 @@ export class ReportsService {
                  inv."invoiceDate", inv."dueDate", inv.status,
                  inv."totalAmount", inv."amountPaid", inv."amountDue"
           FROM sales_invoices inv
-          JOIN contacts c ON c.id = inv."customerId"
+          JOIN partners c ON c.id = inv."customerId"
           WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
             AND inv."deletedAt" IS NULL
           ORDER BY inv."invoiceDate" DESC
@@ -143,7 +143,7 @@ export class ReportsService {
                COALESCE(SUM(po.total),0) AS total
         FROM reception_bls bl
         JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
-        JOIN contacts s ON s.id = po."supplierId"
+        JOIN partners s ON s.id = po."supplierId"
         WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
           AND bl."deletedAt" IS NULL
         GROUP BY po."supplierId", s.name ORDER BY total DESC`,
@@ -165,7 +165,7 @@ export class ReportsService {
                bl."receptionDate", po.total AS "totalAmount", bl.status
         FROM reception_bls bl
         JOIN purchase_orders po ON po.id = bl."purchaseOrderId"
-        JOIN contacts s ON s.id = po."supplierId"
+        JOIN partners s ON s.id = po."supplierId"
         WHERE bl."tenantId"=$1 AND bl."receptionDate" BETWEEN $2 AND $3
           AND bl."deletedAt" IS NULL
         ORDER BY bl."receptionDate" DESC

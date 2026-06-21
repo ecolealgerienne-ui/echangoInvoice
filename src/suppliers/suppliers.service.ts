@@ -3,8 +3,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, IsNull, ILike, DataSource } from 'typeorm';
-import { Contact } from '../contacts/contact.entity';
-import { ContactContact } from '../contacts/entities/contact-contact.entity';
+import { Partner } from '../partners/partner.entity';
+import { PartnerContact } from '../partners/entities/partner-contact.entity';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { ListSuppliersDto } from './dto/list-suppliers.dto';
@@ -15,8 +15,8 @@ export class SuppliersService {
   private readonly logger = new Logger(SuppliersService.name);
 
   constructor(
-    @InjectRepository(Contact)
-    private readonly supplierRepo: Repository<Contact>,
+    @InjectRepository(Partner)
+    private readonly supplierRepo: Repository<Partner>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -99,8 +99,8 @@ export class SuppliersService {
 
   async listContacts(supplierId: string, tenantId: string) {
     await this.findOne(supplierId, tenantId);
-    const contacts = await this.dataSource.manager.find(ContactContact, {
-      where: { contactId: supplierId, tenantId, deletedAt: IsNull() },
+    const contacts = await this.dataSource.manager.find(PartnerContact, {
+      where: { partnerId: supplierId, tenantId, deletedAt: IsNull() },
       order: { isPrimary: 'DESC', createdAt: 'ASC' },
     });
     return { data: contacts };
@@ -111,46 +111,46 @@ export class SuppliersService {
 
     if (dto.isPrimary) {
       await this.dataSource.query(
-        `UPDATE contact_contacts SET "isPrimary" = false WHERE "contactId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        `UPDATE partner_contacts SET "isPrimary" = false WHERE "partnerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
         [supplierId, tenantId],
       );
     }
 
-    const contact = this.dataSource.manager.create(ContactContact, {
+    const contact = this.dataSource.manager.create(PartnerContact, {
       ...dto,
-      contactId: supplierId,
+      partnerId: supplierId,
       tenantId,
       isPrimary: dto.isPrimary ?? false,
       createdBy: userId,
       updatedBy: userId,
     });
-    await this.dataSource.manager.save(ContactContact, contact);
+    await this.dataSource.manager.save(PartnerContact, contact);
     return { data: contact };
   }
 
   async updateContact(contactId: string, supplierId: string, dto: CreateCustomerContactDto, tenantId: string, userId: string) {
-    const contact = await this.dataSource.manager.findOne(ContactContact, {
-      where: { id: contactId, contactId: supplierId, tenantId, deletedAt: IsNull() },
+    const contact = await this.dataSource.manager.findOne(PartnerContact, {
+      where: { id: contactId, partnerId: supplierId, tenantId, deletedAt: IsNull() },
     });
     if (!contact) throw new NotFoundException('errors.contact_not_found');
 
     if (dto.isPrimary && !contact.isPrimary) {
       await this.dataSource.query(
-        `UPDATE contact_contacts SET "isPrimary" = false WHERE "contactId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
+        `UPDATE partner_contacts SET "isPrimary" = false WHERE "partnerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL`,
         [supplierId, tenantId],
       );
     }
 
     Object.assign(contact, { ...dto, updatedBy: userId });
-    await this.dataSource.manager.save(ContactContact, contact);
+    await this.dataSource.manager.save(PartnerContact, contact);
     return { data: contact };
   }
 
   async removeContact(contactId: string, supplierId: string, tenantId: string) {
-    const contact = await this.dataSource.manager.findOne(ContactContact, {
-      where: { id: contactId, contactId: supplierId, tenantId, deletedAt: IsNull() },
+    const contact = await this.dataSource.manager.findOne(PartnerContact, {
+      where: { id: contactId, partnerId: supplierId, tenantId, deletedAt: IsNull() },
     });
     if (!contact) throw new NotFoundException('errors.contact_not_found');
-    await this.dataSource.manager.softDelete(ContactContact, contactId);
+    await this.dataSource.manager.softDelete(PartnerContact, contactId);
   }
 }

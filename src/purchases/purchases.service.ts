@@ -428,7 +428,7 @@ export class PurchasesService {
     const rows = await this.dataSource.query(
       `SELECT vb.*, s.name AS "supplierName"
        FROM vendor_bills vb
-       LEFT JOIN contacts s ON s.id = vb."supplierId"
+       LEFT JOIN partners s ON s.id = vb."supplierId"
        WHERE ${where}
        ORDER BY vb."billDate" DESC, vb."createdAt" DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
@@ -442,7 +442,7 @@ export class PurchasesService {
     const rows = await this.dataSource.query(
       `SELECT vb.*, s.name AS "supplierName"
        FROM vendor_bills vb
-       LEFT JOIN contacts s ON s.id = vb."supplierId"
+       LEFT JOIN partners s ON s.id = vb."supplierId"
        WHERE vb.id = $1 AND vb."tenantId" = $2 AND vb."deletedAt" IS NULL`,
       [id, tenantId],
     );

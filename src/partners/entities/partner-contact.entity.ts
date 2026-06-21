@@ -3,12 +3,12 @@ import {
   CreateDateColumn, UpdateDateColumn, DeleteDateColumn,
   ManyToOne, JoinColumn, Index,
 } from 'typeorm';
-import { Contact } from '../contact.entity';
+import { Partner } from '../partner.entity';
 
-@Index('IDX_contact_contacts_tenant_id', ['tenantId'])
-@Index('IDX_contact_contacts_contact_id', ['contactId'])
-@Entity('contact_contacts')
-export class ContactContact {
+@Index('IDX_partner_contacts_tenant_id', ['tenantId'])
+@Index('IDX_partner_contacts_partner_id', ['partnerId'])
+@Entity('partner_contacts')
+export class PartnerContact {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -16,7 +16,7 @@ export class ContactContact {
   tenantId: string;
 
   @Column({ type: 'uuid' })
-  contactId: string;
+  partnerId: string;
 
   @Column({ type: 'varchar', length: 255 })
   name: string;
@@ -48,7 +48,7 @@ export class ContactContact {
   @DeleteDateColumn({ type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
 
-  @ManyToOne(() => Contact)
-  @JoinColumn({ name: 'contactId' })
-  contact: Contact;
+  @ManyToOne(() => Partner)
+  @JoinColumn({ name: 'partnerId' })
+  partner: Partner;
 }

@@ -3,10 +3,10 @@ import {
   CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Index,
 } from 'typeorm';
 
-@Index('IDX_contacts_tenant_id', ['tenantId'])
-@Index('IDX_contacts_email', ['email'])
-@Entity('contacts')
-export class Contact {
+@Index('IDX_partners_tenant_id', ['tenantId'])
+@Index('IDX_partners_email', ['email'])
+@Entity('partners')
+export class Partner {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

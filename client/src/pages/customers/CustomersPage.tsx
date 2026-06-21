@@ -226,11 +226,11 @@ export function CustomersPage() {
           <div className="flex gap-6">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" {...register('isCustomer')} defaultChecked className="rounded" />
-              {t('contacts.isCustomer')}
+              {t('partners.isCustomer')}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" {...register('isSupplier')} className="rounded" />
-              {t('contacts.isSupplier')}
+              {t('partners.isSupplier')}
             </label>
           </div>
 

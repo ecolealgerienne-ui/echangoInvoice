@@ -222,11 +222,11 @@ export function SuppliersPage() {
           <div className="flex gap-6">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" {...register('isSupplier')} defaultChecked className="rounded" />
-              {t('contacts.isSupplier')}
+              {t('partners.isSupplier')}
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" {...register('isCustomer')} className="rounded" />
-              {t('contacts.isCustomer')}
+              {t('partners.isCustomer')}
             </label>
           </div>
 
