@@ -151,6 +151,7 @@ export const invoicesApi = {
   updateStatus: (id: string, body: unknown) => api.patch(`/invoices/sales-invoices/${id}/status`, body).then(r => r.data),
   send: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'sent' }).then(r => r.data),
   cancel: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'cancelled' }).then(r => r.data),
+  reopen: (id: string) => api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'draft' }).then(r => r.data),
   remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then(r => r.data),
   payments: (invoiceId: string) => api.get(`/invoices/payments`, { params: { invoiceId } }).then(r => r.data),
   addPayment: (body: unknown) => api.post('/invoices/payments', body).then(r => r.data),

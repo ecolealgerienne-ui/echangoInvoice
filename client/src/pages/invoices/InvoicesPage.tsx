@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -124,6 +124,18 @@ export function InvoicesPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: string) => invoicesApi.cancel(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast(t('invoices.status.cancelled'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => invoicesApi.reopen(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast(t('invoices.status.draft'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => invoicesApi.remove(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast(t('common.deleted'), 'success'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -280,6 +292,16 @@ export function InvoicesPage() {
                         <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(inv.id)}>
                           <XCircle className="h-4 w-4 text-destructive" />
                         </Button>
+                      )}
+                      {inv.status === 'cancelled' && (
+                        <>
+                          <Button variant="ghost" size="icon" title={t('common.reopen')} onClick={() => reopenMutation.mutate(inv.id)}>
+                            <RotateCcw className="h-4 w-4 text-primary" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title={t('common.delete')} onClick={() => deleteMutation.mutate(inv.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </td>

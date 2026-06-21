@@ -18,6 +18,7 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   sent: ['cancelled'],
   partial: ['cancelled'],
   overdue: ['cancelled'],
+  cancelled: ['draft'],
 };
 
 interface ComputedItem {
