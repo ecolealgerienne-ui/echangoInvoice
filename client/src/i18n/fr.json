@@ -66,7 +66,19 @@
     "email": "Email",
     "password": "Mot de passe",
     "loginButton": "Se connecter",
-    "loginError": "Email ou mot de passe incorrect"
+    "loginError": "Email ou mot de passe incorrect",
+    "noAccount": "Pas encore de compte ?",
+    "registerLink": "Créer un compte",
+    "createAccount": "Créez votre espace entreprise",
+    "companyName": "Nom de l'entreprise",
+    "confirmPassword": "Confirmer le mot de passe",
+    "passwordMin": "Le mot de passe doit contenir au moins 8 caractères",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "registerButton": "Créer mon compte",
+    "registerError": "Une erreur est survenue. Réessayez.",
+    "registerEmailTaken": "Cet email est déjà utilisé",
+    "alreadyHaveAccount": "Déjà un compte ?",
+    "loginLink": "Se connecter"
   },
   "dashboard": {
     "title": "Tableau de bord",
