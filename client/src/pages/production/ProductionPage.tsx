@@ -175,7 +175,7 @@ export function ProductionPage() {
       finishedProductId: nom.finishedProductId,
       outputQuantity: nom.outputQuantity,
       description: nom.description ?? '',
-      lines: nom.lines?.map((l: any) => ({
+      lines: nom.bomLines?.map((l: any) => ({
         rawMaterialId: l.rawMaterialId,
         quantityPerUnit: l.quantityPerUnit,
         unit: l.unit,
