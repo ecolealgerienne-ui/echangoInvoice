@@ -29,7 +29,7 @@ export class SuppliersController {
   @ApiOperation({ summary: 'Create a supplier' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateSupplierDto, @CurrentUser() user: JwtPayload) {
-    return this.service.create(dto, user.tenantId, user.sub);
+    return this.service.create(dto, user.tenantId!, user.sub);
   }
 
   @Get()
@@ -37,7 +37,7 @@ export class SuppliersController {
   @ApiOperation({ summary: 'List suppliers (paginated)' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListSuppliersDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
@@ -46,7 +46,7 @@ export class SuppliersController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -58,7 +58,7 @@ export class SuppliersController {
     @Body() dto: UpdateSupplierDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.update(id, dto, user.tenantId, user.sub);
+    return this.service.update(id, dto, user.tenantId!, user.sub);
   }
 
   @Delete(':id')
@@ -68,7 +68,7 @@ export class SuppliersController {
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 422, description: 'Supplier has linked purchase orders' })
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.remove(id, user.tenantId);
+    return this.service.remove(id, user.tenantId!);
   }
 
   // ─── Contacts ─────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ export class SuppliersController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les contacts d\'un fournisseur' })
   listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.listContacts(id, user.tenantId);
+    return this.service.listContacts(id, user.tenantId!);
   }
 
   @Post(':id/contacts')
@@ -88,7 +88,7 @@ export class SuppliersController {
     @Body() dto: CreateCustomerContactDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.createContact(id, dto, user.tenantId, user.sub);
+    return this.service.createContact(id, dto, user.tenantId!, user.sub);
   }
 
   @Put(':id/contacts/:contactId')
@@ -100,7 +100,7 @@ export class SuppliersController {
     @Body() dto: CreateCustomerContactDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.updateContact(contactId, id, dto, user.tenantId, user.sub);
+    return this.service.updateContact(contactId, id, dto, user.tenantId!, user.sub);
   }
 
   @Delete(':id/contacts/:contactId')
@@ -112,6 +112,6 @@ export class SuppliersController {
     @Param('contactId') contactId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.removeContact(contactId, id, user.tenantId);
+    return this.service.removeContact(contactId, id, user.tenantId!);
   }
 }

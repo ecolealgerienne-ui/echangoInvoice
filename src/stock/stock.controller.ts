@@ -23,21 +23,21 @@ export class StockController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Inventaire courant par matière première' })
   getInventory(@Query() query: ListInventoryDto, @CurrentUser() user: any) {
-    return this.service.getInventory(user.tenantId, query);
+    return this.service.getInventory(user.tenantId!, query);
   }
 
   @Get('alerts')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Alertes stock (expiration et seuil bas)' })
   getAlerts(@CurrentUser() user: any) {
-    return this.service.getAlerts(user.tenantId);
+    return this.service.getAlerts(user.tenantId!);
   }
 
   @Post('adjust')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Ajustement manuel du stock' })
   adjust(@Body() dto: AdjustStockDto, @CurrentUser() user: any) {
-    return this.service.adjust(user.tenantId, dto, user.id);
+    return this.service.adjust(user.tenantId!, dto, user.id);
   }
 
   @Patch('inventory/:rawMaterialId/threshold')
@@ -48,7 +48,7 @@ export class StockController {
     @Body() dto: SetThresholdDto,
     @CurrentUser() user: any,
   ) {
-    return this.service.setThreshold(user.tenantId, rawMaterialId, dto);
+    return this.service.setThreshold(user.tenantId!, rawMaterialId, dto);
   }
 
   @Get('entries/:rawMaterialId')
@@ -60,6 +60,6 @@ export class StockController {
     @Query('limit') limit: string,
     @CurrentUser() user: any,
   ) {
-    return this.service.listEntries(user.tenantId, rawMaterialId, parseInt(page) || 1, parseInt(limit) || 20);
+    return this.service.listEntries(user.tenantId!, rawMaterialId, parseInt(page) || 1, parseInt(limit) || 20);
   }
 }

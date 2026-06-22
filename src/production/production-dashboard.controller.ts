@@ -20,6 +20,6 @@ export class ProductionDashboardController {
   @ApiOperation({ summary: 'Dashboard production : KPIs, stock critique, production/jour' })
   @ApiResponse({ status: 200 })
   getDashboard(@CurrentUser() user: JwtPayload) {
-    return this.service.getDashboard(user.tenantId);
+    return this.service.getDashboard(user.tenantId!);
   }
 }

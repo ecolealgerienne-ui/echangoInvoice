@@ -68,7 +68,7 @@ export class AuthController {
     return {
       data: {
         id: user.sub,
-        tenantId: user.tenantId,
+        tenantId: user.tenantId!,
         email: user.email,
         role: user.role,
       },
@@ -95,7 +95,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Inviter un collaborateur (envoie un email avec lien)' })
   @ApiResponse({ status: 201 })
   async invite(@Body() dto: InviteDto, @CurrentUser() user: JwtPayload) {
-    return this.authService.invite(dto, user.tenantId, user.sub);
+    return this.authService.invite(dto, user.tenantId!, user.sub);
   }
 
   @Post('accept-invite')

@@ -22,7 +22,7 @@ export class ExpensesController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Créer une dépense' })
   create(@Body() dto: CreateExpenseDto, @CurrentUser() user: any) {
-    return this.service.create(dto, user.tenantId, user.id);
+    return this.service.create(dto, user.tenantId!, user.id);
   }
 
   @Get('summary')
@@ -31,21 +31,21 @@ export class ExpensesController {
   @ApiQuery({ name: 'month', example: '2024-06' })
   getSummary(@Query('month') month: string, @CurrentUser() user: any) {
     const m = month ?? new Date().toISOString().slice(0, 7);
-    return this.service.getSummary(user.tenantId, m);
+    return this.service.getSummary(user.tenantId!, m);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les dépenses' })
   findAll(@Query() query: ListExpensesDto, @CurrentUser() user: any) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'une dépense' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -56,14 +56,14 @@ export class ExpensesController {
     @Body() dto: CreateExpenseDto,
     @CurrentUser() user: any,
   ) {
-    return this.service.update(id, dto, user.tenantId, user.id);
+    return this.service.update(id, dto, user.tenantId!, user.id);
   }
 
   @Patch(':id/approve')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Approuver une dépense' })
   approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.approve(id, user.tenantId, user.id);
+    return this.service.approve(id, user.tenantId!, user.id);
   }
 
   @Delete(':id')
@@ -71,6 +71,6 @@ export class ExpensesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Supprimer une dépense (non approuvée uniquement)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.remove(id, user.tenantId, user.id);
+    return this.service.remove(id, user.tenantId!, user.id);
   }
 }

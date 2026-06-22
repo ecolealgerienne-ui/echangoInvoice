@@ -25,14 +25,14 @@ export class RawMaterialsController {
   @ApiOperation({ summary: 'Create a raw material' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateRawMaterialDto, @CurrentUser() user: JwtPayload) {
-    return this.service.create(dto, user.tenantId, user.sub);
+    return this.service.create(dto, user.tenantId!, user.sub);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'List raw materials (paginated)' })
   findAll(@Query() query: ListRawMaterialsDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
@@ -41,7 +41,7 @@ export class RawMaterialsController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -52,7 +52,7 @@ export class RawMaterialsController {
     @Body() dto: UpdateRawMaterialDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.update(id, dto, user.tenantId, user.sub);
+    return this.service.update(id, dto, user.tenantId!, user.sub);
   }
 
   @Delete(':id')
@@ -61,6 +61,6 @@ export class RawMaterialsController {
   @ApiOperation({ summary: 'Soft delete raw material' })
   @ApiResponse({ status: 204 })
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.remove(id, user.tenantId);
+    return this.service.remove(id, user.tenantId!);
   }
 }

@@ -29,21 +29,21 @@ export class DeliveriesController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Créer un bon de livraison (décrémente stock FIFO)' })
   create(@Body() dto: CreateDeliveryNoteDto, @CurrentUser() user: any) {
-    return this.deliveriesService.create(dto, user.tenantId, user.id);
+    return this.deliveriesService.create(dto, user.tenantId!, user.id);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les bons de livraison' })
   findAll(@Query() query: ListDeliveryNotesDto, @CurrentUser() user: any) {
-    return this.deliveriesService.findAll(query, user.tenantId);
+    return this.deliveriesService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'un bon de livraison' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.deliveriesService.findOne(id, user.tenantId);
+    return this.deliveriesService.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -54,7 +54,7 @@ export class DeliveriesController {
     @Body() dto: CreateDeliveryNoteDto,
     @CurrentUser() user: any,
   ) {
-    return this.deliveriesService.update(id, dto, user.tenantId, user.id);
+    return this.deliveriesService.update(id, dto, user.tenantId!, user.id);
   }
 
   @Patch(':id/status')
@@ -65,7 +65,7 @@ export class DeliveriesController {
     @Body() dto: UpdateDeliveryNoteStatusDto,
     @CurrentUser() user: any,
   ) {
-    return this.deliveriesService.updateStatus(id, dto, user.tenantId, user.id);
+    return this.deliveriesService.updateStatus(id, dto, user.tenantId!, user.id);
   }
 
   @Patch(':id/signature')
@@ -76,14 +76,14 @@ export class DeliveriesController {
     @Body() dto: SignDeliveryNoteDto,
     @CurrentUser() user: any,
   ) {
-    return this.deliveriesService.sign(id, dto, user.tenantId, user.id);
+    return this.deliveriesService.sign(id, dto, user.tenantId!, user.id);
   }
 
   @Delete(':id')
   @Roles('owner')
   @ApiOperation({ summary: 'Supprimer un BL (draft uniquement, libère stock)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.deliveriesService.remove(id, user.tenantId, user.id);
+    return this.deliveriesService.remove(id, user.tenantId!, user.id);
   }
 
   @Get(':id/pdf')
@@ -94,7 +94,7 @@ export class DeliveriesController {
     @CurrentUser() user: any,
     @Res() reply: FastifyReply,
   ) {
-    const { buffer, filename } = await this.pdfService.generateDeliveryNotePdf(id, user.tenantId);
+    const { buffer, filename } = await this.pdfService.generateDeliveryNotePdf(id, user.tenantId!);
     void reply
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="${filename}"`)
@@ -105,7 +105,7 @@ export class DeliveriesController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Créer une facture depuis un BL (signé ou livré)' })
   createInvoice(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.deliveriesService.createInvoice(id, user.tenantId, user.id);
+    return this.deliveriesService.createInvoice(id, user.tenantId!, user.id);
   }
 
   @Post(':id/send-email')
@@ -113,6 +113,6 @@ export class DeliveriesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer le BL par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId);
+    await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId!);
   }
 }

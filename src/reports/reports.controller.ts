@@ -18,34 +18,34 @@ export class ReportsController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Rapport des ventes sur une période' })
   getSales(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
-    return this.service.getSalesReport(user.tenantId, query);
+    return this.service.getSalesReport(user.tenantId!, query);
   }
 
   @Get('purchases')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Rapport des achats sur une période' })
   getPurchases(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
-    return this.service.getPurchasesReport(user.tenantId, query);
+    return this.service.getPurchasesReport(user.tenantId!, query);
   }
 
   @Get('expenses')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Rapport des dépenses sur une période' })
   getExpenses(@Query() query: ExpenseReportQueryDto, @CurrentUser() user: any) {
-    return this.service.getExpensesReport(user.tenantId, query);
+    return this.service.getExpensesReport(user.tenantId!, query);
   }
 
   @Get('stock')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'État courant du stock' })
   getStock(@CurrentUser() user: any) {
-    return this.service.getStockReport(user.tenantId);
+    return this.service.getStockReport(user.tenantId!);
   }
 
   @Get('tax-summary')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Résumé TVA par taux et par mois (déclaration DGI)' })
   getTaxSummary(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
-    return this.service.getTaxSummary(user.tenantId, query);
+    return this.service.getTaxSummary(user.tenantId!, query);
   }
 }

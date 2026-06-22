@@ -19,7 +19,7 @@ export class DashboardController {
   @ApiQuery({ name: 'month', example: '2024-06' })
   getStats(@Query('month') month: string, @CurrentUser() user: any) {
     const m = month ?? new Date().toISOString().slice(0, 7);
-    return this.service.getStats(user.tenantId, m);
+    return this.service.getStats(user.tenantId!, m);
   }
 
   @Get('charts/sales')
@@ -28,13 +28,13 @@ export class DashboardController {
   @ApiQuery({ name: 'month', example: '2024-06' })
   getSalesChart(@Query('month') month: string, @CurrentUser() user: any) {
     const m = month ?? new Date().toISOString().slice(0, 7);
-    return this.service.getSalesChart(user.tenantId, m);
+    return this.service.getSalesChart(user.tenantId!, m);
   }
 
   @Get('charts/stock')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Données graphiques du stock' })
   getStockChart(@CurrentUser() user: any) {
-    return this.service.getStockChart(user.tenantId);
+    return this.service.getStockChart(user.tenantId!);
   }
 }

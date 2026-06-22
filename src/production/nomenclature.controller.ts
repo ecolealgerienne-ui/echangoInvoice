@@ -32,7 +32,7 @@ export class NomenclatureController {
     @Query('status') status?: string,
     @Query('finishedProductId') finishedProductId?: string,
   ) {
-    return this.service.findAll(user.tenantId, page, limit, search, status, finishedProductId);
+    return this.service.findAll(user.tenantId!, page, limit, search, status, finishedProductId);
   }
 
   @Get(':id')
@@ -41,7 +41,7 @@ export class NomenclatureController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'nomenclature_not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Post()
@@ -50,7 +50,7 @@ export class NomenclatureController {
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 404, description: 'raw_material_not_found' })
   create(@Body() dto: CreateNomenclatureDto, @CurrentUser() user: JwtPayload) {
-    return this.service.create(dto, user.tenantId, user.sub);
+    return this.service.create(dto, user.tenantId!, user.sub);
   }
 
   @Patch(':id')
@@ -62,7 +62,7 @@ export class NomenclatureController {
     @Body() dto: UpdateNomenclatureDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.update(id, dto, user.tenantId, user.sub);
+    return this.service.update(id, dto, user.tenantId!, user.sub);
   }
 
   @Delete(':id')
@@ -72,6 +72,6 @@ export class NomenclatureController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 409, description: 'nomenclature_has_active_orders' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.remove(id, user.tenantId);
+    return this.service.remove(id, user.tenantId!);
   }
 }
