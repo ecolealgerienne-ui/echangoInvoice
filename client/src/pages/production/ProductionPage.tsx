@@ -565,7 +565,14 @@ export function ProductionPage() {
                       control={nomForm.control}
                       name={`lines.${idx}.rawMaterialId`}
                       render={({ field: f }) => (
-                        <Select value={f.value ?? ''} onChange={f.onChange}>
+                        <Select
+                          value={f.value ?? ''}
+                          onChange={val => {
+                            f.onChange(val);
+                            const rm = rawMaterials.find((r: any) => r.id === val);
+                            if (rm?.unit) nomForm.setValue(`lines.${idx}.unit`, rm.unit);
+                          }}
+                        >
                           <option value="">{t('production.rawMaterial')}...</option>
                           {rawMaterials.map((rm: any) => (
                             <option key={rm.id} value={rm.id}>{rm.name}</option>
@@ -585,6 +592,8 @@ export function ProductionPage() {
                   <div className="w-20">
                     <Input
                       placeholder="Unité"
+                      readOnly
+                      className="bg-muted/50 text-muted-foreground cursor-default"
                       {...nomForm.register(`lines.${idx}.unit`)}
                     />
                   </div>
