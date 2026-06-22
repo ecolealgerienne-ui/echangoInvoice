@@ -170,10 +170,12 @@ export class ProductionOrderService {
           .execute();
       }
 
-      order.status = 'in_progress';
-      order.actualStartDate = new Date();
-      order.updatedBy = userId;
-      await qr.manager.save(ProductionOrder, order);
+      await qr.manager
+        .createQueryBuilder()
+        .update(ProductionOrder)
+        .set({ status: 'in_progress', actualStartDate: new Date(), updatedBy: userId })
+        .where('id = :id AND "tenantId" = :tenantId', { id, tenantId })
+        .execute();
 
       await qr.commitTransaction();
       this.logger.log(`ProductionOrder started: ${order.ref}`);
@@ -294,15 +296,21 @@ export class ProductionOrderService {
           ? Math.round((qtyProduced / Number(order.quantityToProduce)) * 10000) / 100
           : 0;
 
-      order.status = 'completed';
-      order.quantityProduced = qtyProduced;
-      order.quantityRejected = qtyRejected;
-      order.yieldPercentage = yieldPct;
-      order.actualCost = actualCost;
-      order.actualEndDate = new Date();
-      if (dto.notes) order.notes = dto.notes;
-      order.updatedBy = userId;
-      await qr.manager.save(ProductionOrder, order);
+      await qr.manager
+        .createQueryBuilder()
+        .update(ProductionOrder)
+        .set({
+          status: 'completed',
+          quantityProduced: qtyProduced,
+          quantityRejected: qtyRejected,
+          yieldPercentage: yieldPct,
+          actualCost,
+          actualEndDate: new Date(),
+          notes: dto.notes ?? order.notes ?? null,
+          updatedBy: userId,
+        })
+        .where('id = :id AND "tenantId" = :tenantId', { id, tenantId })
+        .execute();
 
       await qr.commitTransaction();
       this.logger.log(
@@ -342,10 +350,12 @@ export class ProductionOrderService {
         }
       }
 
-      order.status = 'cancelled';
-      if (reason) order.notes = reason;
-      order.updatedBy = userId;
-      await qr.manager.save(ProductionOrder, order);
+      await qr.manager
+        .createQueryBuilder()
+        .update(ProductionOrder)
+        .set({ status: 'cancelled', notes: reason ?? order.notes ?? null, updatedBy: userId })
+        .where('id = :id AND "tenantId" = :tenantId', { id, tenantId })
+        .execute();
 
       await qr.commitTransaction();
       this.logger.log(`ProductionOrder cancelled: ${order.ref}`);
