@@ -1183,42 +1183,6 @@ export function ProductionPage() {
         {/* ── SIMPLE FORM (other movement types) ── */}
         {movType !== 'mp_consumption' && (
           <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
-            {movType === 'mp_loss' && (
-              <div>
-                <label className="text-sm font-medium">{t('production.rawMaterial')}</label>
-                <Controller
-                  control={movForm.control}
-                  name="rawMaterialId"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                      <option value="">{t('common.select')}</option>
-                      {rawMaterials.map((rm: any) => (
-                        <option key={rm.id} value={rm.id}>{rm.name}</option>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </div>
-            )}
-
-            {(movType === 'pf_production' || movType === 'rejection') && (
-              <div>
-                <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
-                <Controller
-                  control={movForm.control}
-                  name="finishedProductId"
-                  render={({ field }) => (
-                    <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                      <option value="">{t('common.select')}</option>
-                      {finishedProducts.map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">{t('production.quantity')}</label>
@@ -1231,12 +1195,10 @@ export function ProductionPage() {
               </div>
             </div>
 
-            {(movType === 'rejection' || movType === 'mp_loss') && (
-              <div>
-                <label className="text-sm font-medium">{t('production.reason')} *</label>
-                <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-medium">{t('production.reason')}</label>
+              <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
+            </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
