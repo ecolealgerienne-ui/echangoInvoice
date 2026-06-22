@@ -207,73 +207,68 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // 1. Aggregate mp_consumption movements
-      const consumptionRows: { rawMaterialId: string; totalQty: string }[] = await qr.query(
-        `SELECT "rawMaterialId", SUM("quantity") as "totalQty"
+      // 1. Aggregate mp_consumption + mp_loss movements per material
+      const movementRows: { rawMaterialId: string; type: string; totalQty: string }[] = await qr.query(
+        `SELECT "rawMaterialId", type, SUM("quantity") as "totalQty"
          FROM "production_movements"
-         WHERE "productionOrderId" = $1 AND "type" = 'mp_consumption'
-         GROUP BY "rawMaterialId"`,
+         WHERE "productionOrderId" = $1 AND type IN ('mp_consumption', 'mp_loss')
+         GROUP BY "rawMaterialId", type`,
         [id],
       );
 
-      let actualCost = 0;
+      // Group by material: total to deduct from stock = consumption + loss
+      const materialTotals: Record<string, { consumption: number; loss: number }> = {};
+      for (const row of movementRows) {
+        if (!materialTotals[row.rawMaterialId]) materialTotals[row.rawMaterialId] = { consumption: 0, loss: 0 };
+        if (row.type === 'mp_consumption') materialTotals[row.rawMaterialId].consumption += Number(row.totalQty);
+        if (row.type === 'mp_loss') materialTotals[row.rawMaterialId].loss += Number(row.totalQty);
+      }
 
-      for (const row of consumptionRows) {
-        const consumed = Number(row.totalQty);
+      let actualCost = 0;
+      const hasMovements = Object.keys(materialTotals).length > 0;
+
+      for (const [materialId, totals] of Object.entries(materialTotals)) {
+        const totalDeducted = totals.consumption + totals.loss;
         const material = await qr.manager.findOne(FinishedProduct, {
-          where: { id: row.rawMaterialId, tenantId, deletedAt: IsNull() },
+          where: { id: materialId, tenantId, deletedAt: IsNull() },
         });
         if (!material) continue;
 
-        actualCost += consumed * Number(material.lastCostPerUnit);
+        // Cost = (consumption + loss) × average cost — losses are absorbed into actual cost
+        actualCost += totalDeducted * Number(material.averageCostPerUnit);
 
-        // Decrement stock_entries FIFO (oldest first, may span multiple entries)
-        let remaining = consumed;
-        const entries: { id: string; quantity: string }[] = await qr.query(
-          `SELECT id, quantity FROM stock_entries
-           WHERE "rawMaterialId" = $1 AND status = 'available' AND "deletedAt" IS NULL
-           ORDER BY "enteredAt" ASC`,
-          [row.rawMaterialId],
-        );
-        for (const entry of entries) {
-          if (remaining <= 0) break;
-          const entryQty = Number(entry.quantity);
-          const deduct = Math.min(remaining, entryQty);
-          await qr.query(
-            `UPDATE stock_entries SET quantity = quantity - $1 WHERE id = $2`,
-            [deduct, entry.id],
-          );
-          remaining -= deduct;
-        }
-
-        // Update material stockQuantity and release reservation
+        // Decrement stock (consumption + loss both exit inventory)
         await qr.manager
           .createQueryBuilder()
           .update(FinishedProduct)
           .set({
-            stockQuantity: () => `GREATEST(0, "stockQuantity" - ${consumed})`,
-            reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${consumed})`,
+            stockQuantity: () => `GREATEST(0, "stockQuantity" - ${totalDeducted})`,
+            reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${totals.consumption})`,
           })
           .where('id = :id', { id: material.id })
           .execute();
       }
 
-      // If no movements logged, fall back to BOM × quantityToProduce for reservations release
-      if (consumptionRows.length === 0) {
+      // If no movements logged, fall back to BOM × quantityToProduce
+      if (!hasMovements) {
         for (const line of nom.bomLines) {
           const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
           await qr.manager
             .createQueryBuilder()
             .update(FinishedProduct)
-            .set({ reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${needed})` })
+            .set({
+              stockQuantity: () => `GREATEST(0, "stockQuantity" - ${needed})`,
+              reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${needed})`,
+            })
             .where('id = :id AND "tenantId" = :tenantId', { id: line.rawMaterialId, tenantId })
             .execute();
         }
-        // Estimate actualCost from BOM
         actualCost = Number(nom.estimatedCostPerUnit) * Number(order.quantityToProduce);
       }
 
       // 2. Update finished product stock + average cost
+      // qtyNet = good units only (rejections don't go to stock)
+      // unit cost = actualCost / qtyNet → rejections increase unit cost of good units
       const qtyProduced = Number(dto.quantityProduced);
       const qtyRejected = Number(dto.quantityRejected ?? 0);
       const qtyNet = Math.max(0, qtyProduced - qtyRejected);
