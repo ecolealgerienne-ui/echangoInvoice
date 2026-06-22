@@ -444,7 +444,7 @@ export function ProductionPage() {
                       </td>
                       <td className="px-4 py-3 text-right">{formatCurrency(order.estimatedCost)}</td>
                       <td className="px-4 py-3 text-center">
-                        {order.status === 'completed' ? (
+                        {Number(order.yieldPercentage) > 0 ? (
                           <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-green-600' : Number(order.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
                             {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
@@ -764,13 +764,13 @@ export function ProductionPage() {
               <KpiCard label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
               <KpiCard
                 label={t('production.actualCost')}
-                value={orderDetail.status === 'completed' ? formatCurrency(orderDetail.actualCost) : '—'}
+                value={Number(orderDetail.actualCost) > 0 ? formatCurrency(orderDetail.actualCost) : '—'}
               />
               <KpiCard
                 label={t('production.yieldPct')}
-                value={orderDetail.status === 'completed' ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
+                value={Number(orderDetail.yieldPercentage) > 0 ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
-                  orderDetail.status !== 'completed' ? '' :
+                  Number(orderDetail.yieldPercentage) === 0 ? '' :
                   Number(orderDetail.yieldPercentage) >= 90 ? 'text-green-600' :
                   Number(orderDetail.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'
                 }
