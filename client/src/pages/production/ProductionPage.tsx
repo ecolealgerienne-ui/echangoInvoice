@@ -454,13 +454,47 @@ export function ProductionPage() {
                         {order.plannedStartDate ? formatDate(order.plannedStartDate) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setViewOrder(order); setViewOrderOpen(true); }}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {order.status === 'planned' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.startProduction')}
+                              onClick={() => { setViewOrder(order); startOrderMutation.mutate(order.id); }}
+                              disabled={startOrderMutation.isPending}
+                            >
+                              <Play className="h-3.5 w-3.5 text-blue-600" />
+                            </Button>
+                          )}
+                          {order.status === 'in_progress' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.completeOrder')}
+                              onClick={() => { setViewOrder(order); setCompleteModalOpen(true); }}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                            </Button>
+                          )}
+                          {(order.status === 'planned' || order.status === 'in_progress') && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.cancelOrder')}
+                              onClick={() => { setViewOrder(order); setCancelModalOpen(true); }}
+                            >
+                              <XCircle className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title={t('common.view')}
+                            onClick={() => { setViewOrder(order); setViewOrderOpen(true); }}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

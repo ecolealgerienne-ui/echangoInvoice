@@ -23,6 +23,26 @@ export class ProductionOrderService {
     @InjectDataSource() private readonly ds: DataSource,
   ) {}
 
+  private async enrichOrders(orders: ProductionOrder[], tenantId: string) {
+    const nomIds = [...new Set(orders.map(o => o.nomenclatureId).filter(Boolean))];
+    const fpIds = [...new Set(orders.map(o => o.finishedProductId).filter(Boolean))];
+    const nomMap: Record<string, string> = {};
+    const fpMap: Record<string, string> = {};
+    if (nomIds.length > 0) {
+      const noms = await this.nomRepo.findByIds(nomIds);
+      noms.forEach(n => { nomMap[n.id] = n.name; });
+    }
+    if (fpIds.length > 0) {
+      const fps = await this.fpRepo.findByIds(fpIds);
+      fps.forEach(fp => { fpMap[fp.id] = fp.name; });
+    }
+    return orders.map(o => ({
+      ...o,
+      nomenclatureName: nomMap[o.nomenclatureId] ?? null,
+      finishedProductName: fpMap[o.finishedProductId] ?? null,
+    }));
+  }
+
   async findAll(query: ListProductionOrdersDto, tenantId: string) {
     const { page = 1, limit = 20, search, status, priority, from, to } = query;
     const qb = this.repo
@@ -35,13 +55,14 @@ export class ProductionOrderService {
     if (to) qb.andWhere('o.createdAt <= :to', { to });
     qb.orderBy('o.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
     const [data, total] = await qb.getManyAndCount();
-    return { data, pagination: { total, page, limit } };
+    return { data: await this.enrichOrders(data, tenantId), pagination: { total, page, limit } };
   }
 
   async findOne(id: string, tenantId: string) {
     const order = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!order) throw new NotFoundException('production_order_not_found');
-    return { data: order };
+    const [enriched] = await this.enrichOrders([order], tenantId);
+    return { data: enriched };
   }
 
   async create(dto: CreateProductionOrderDto, tenantId: string, userId: string) {
