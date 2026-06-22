@@ -31,6 +31,7 @@ export class NomenclatureService {
   ) {
     const qb = this.repo
       .createQueryBuilder('n')
+      .leftJoinAndSelect('n.bomLines', 'bl')
       .where('n.tenantId = :tenantId AND n.deletedAt IS NULL', { tenantId });
     if (search) qb.andWhere('(n.name ILIKE :s OR n.code ILIKE :s)', { s: `%${search}%` });
     if (status) qb.andWhere('n.status = :status', { status });
