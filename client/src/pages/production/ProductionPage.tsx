@@ -306,18 +306,18 @@ export function ProductionPage() {
   };
   const [consLines, setConsLines] = useState<ConsLine[]>([]);
 
-  function openConsumptionModal() {
+  function openBomModal(type: 'mp_consumption' | 'mp_loss') {
     const qty = Number(orderDetail?.quantityToProduce) || 1;
-    const alreadyConsumed: Record<string, number> = {};
+    const alreadyLogged: Record<string, number> = {};
     movements
-      .filter((m: any) => m.type === 'mp_consumption')
+      .filter((m: any) => m.type === type)
       .forEach((m: any) => {
-        alreadyConsumed[m.rawMaterialId] = (alreadyConsumed[m.rawMaterialId] ?? 0) + Number(m.quantity);
+        alreadyLogged[m.rawMaterialId] = (alreadyLogged[m.rawMaterialId] ?? 0) + Number(m.quantity);
       });
     const bomLines: ConsLine[] = (orderNomenclature?.bomLines ?? []).map((l: any) => {
       const rm = rawMaterials.find((r: any) => r.id === l.rawMaterialId);
       const planned = Number(l.quantityPerUnit) * qty;
-      const remaining = Math.max(0, planned - (alreadyConsumed[l.rawMaterialId] ?? 0));
+      const remaining = Math.max(0, planned - (alreadyLogged[l.rawMaterialId] ?? 0));
       return {
         rawMaterialId: l.rawMaterialId,
         name: rm?.name ?? l.rawMaterialId,
@@ -328,9 +328,11 @@ export function ProductionPage() {
       };
     });
     setConsLines(bomLines);
-    movForm.reset({ type: 'mp_consumption', quantity: 1, unit: '' });
+    movForm.reset({ type, quantity: 1, unit: '' });
     setMovModalOpen(true);
   }
+
+  function openConsumptionModal() { openBomModal('mp_consumption'); }
 
   function addExtraLine() {
     setConsLines(prev => [...prev, { rawMaterialId: '', name: '', plannedQty: 0, consumedQty: '', unit: '', isExtra: true }]);
@@ -354,13 +356,13 @@ export function ProductionPage() {
     const items = consLines
       .filter(l => l.rawMaterialId && Number(l.consumedQty) > 0)
       .map(l => ({
-        type: 'mp_consumption',
+        type: movType,
         rawMaterialId: l.rawMaterialId,
         quantity: Number(l.consumedQty),
         unit: l.unit,
       }));
     if (items.length === 0) {
-      toast('Aucune consommation à enregistrer', 'error');
+      toast('Aucune quantité à enregistrer', 'error');
       return;
     }
     batchMovMutation.mutate(items);
@@ -1032,8 +1034,8 @@ export function ProductionPage() {
       <Modal
         open={movModalOpen}
         onClose={() => setMovModalOpen(false)}
-        title={movType === 'mp_consumption' ? t('production.logConsumption') : t('production.logMovement')}
-        size={movType === 'mp_consumption' ? 'xl' : 'md'}
+        title={(movType === 'mp_consumption' || movType === 'mp_loss') ? t('production.logConsumption') : t('production.logMovement')}
+        size={(movType === 'mp_consumption' || movType === 'mp_loss') ? 'xl' : 'md'}
       >
         {/* ── Type selector (always visible) ── */}
         <div className="mb-5">
@@ -1045,8 +1047,14 @@ export function ProductionPage() {
               <Select
                 value={field.value}
                 onChange={e => {
+                  const newType = e.target.value;
                   field.onChange(e);
-                  if (e.target.value === 'mp_consumption') openConsumptionModal();
+                  if (newType === 'mp_consumption' || newType === 'mp_loss') {
+                    openBomModal(newType as 'mp_consumption' | 'mp_loss');
+                  } else {
+                    const fp = finishedProducts.find((p: any) => p.id === orderDetail?.finishedProductId);
+                    movForm.setValue('unit', fp?.unit ?? '');
+                  }
                 }}
                 className="mt-1"
               >
@@ -1058,8 +1066,8 @@ export function ProductionPage() {
           />
         </div>
 
-        {/* ── GUIDED CONSUMPTION TABLE (mp_consumption) ── */}
-        {movType === 'mp_consumption' && (
+        {/* ── GUIDED BOM TABLE (mp_consumption / mp_loss) ── */}
+        {(movType === 'mp_consumption' || movType === 'mp_loss') && (
           <div className="space-y-4">
             {/* Context banner */}
             <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
@@ -1076,7 +1084,7 @@ export function ProductionPage() {
                   <tr>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">Consommé</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">{movType === 'mp_loss' ? 'Perdue' : 'Consommé'}</th>
                     <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
                     <th className="w-8" />
                   </tr>
@@ -1180,8 +1188,8 @@ export function ProductionPage() {
           </div>
         )}
 
-        {/* ── SIMPLE FORM (other movement types) ── */}
-        {movType !== 'mp_consumption' && (
+        {/* ── SIMPLE FORM (pf_production / rejection) ── */}
+        {movType !== 'mp_consumption' && movType !== 'mp_loss' && (
           <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
