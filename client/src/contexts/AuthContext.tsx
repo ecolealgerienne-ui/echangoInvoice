@@ -13,7 +13,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isSuperAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ role: string }>;
   logout: () => Promise<void>;
 }
 
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
+    return { role: data.user.role };
   }
 
   async function logout() {

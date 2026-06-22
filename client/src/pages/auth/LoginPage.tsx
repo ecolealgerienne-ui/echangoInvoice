@@ -30,8 +30,8 @@ export function LoginPage() {
   async function onSubmit(data: FormData) {
     setLoading(true);
     try {
-      await login(data.email, data.password);
-      navigate('/dashboard');
+      const { role } = await login(data.email, data.password);
+      navigate(role === 'superadmin' ? '/admin/dashboard' : '/dashboard');
     } catch {
       toast(t('auth.loginError'), 'error');
     } finally {
