@@ -38,7 +38,18 @@ export class NomenclatureService {
     if (finishedProductId) qb.andWhere('n.finishedProductId = :finishedProductId', { finishedProductId });
     qb.orderBy('n.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
     const [data, total] = await qb.getManyAndCount();
-    return { data, pagination: { total, page, limit } };
+
+    const fpIds = [...new Set(data.map(n => n.finishedProductId).filter(Boolean))];
+    const fpMap: Record<string, string> = {};
+    if (fpIds.length > 0) {
+      const fps = await this.fpRepo.findByIds(fpIds);
+      fps.forEach(fp => { fpMap[fp.id] = fp.name; });
+    }
+
+    return {
+      data: data.map(n => ({ ...n, finishedProductName: fpMap[n.finishedProductId] ?? null })),
+      pagination: { total, page, limit },
+    };
   }
 
   async findOne(id: string, tenantId: string) {

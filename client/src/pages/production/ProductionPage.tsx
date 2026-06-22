@@ -355,7 +355,8 @@ export function ProductionPage() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.outputQuantity')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.estimatedCost')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût / unité</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût total lot</th>
                     <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
                   </tr>
@@ -368,6 +369,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
                       <td className="px-4 py-3 text-right">{nom.outputQuantity}</td>
                       <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
+                      <td className="px-4 py-3 text-right font-medium text-primary">{formatCurrency(Number(nom.estimatedCostPerUnit) * Number(nom.outputQuantity))}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
                           {String(t(`production.nomStatus.${nom.status}`, nom.status))}
