@@ -797,3 +797,98 @@ Il peut répondre à : "Ce lot de produit fini m'a coûté combien à fabriquer 
 
 ### Ce que ce module n'est PAS
 Ce n'est pas un outil de planification de lignes de production, de gestion d'équipes, ou de MRP automatique. C'est un **carnet de production numérique** connecté au stock existant — simple, direct, adapté à une PME avec 1 atelier et 5 à 20 opérateurs.
+
+---
+
+## ANNEXE A — Modèle de calcul des coûts de production
+
+### A.1 Principes fondamentaux
+
+Le module utilise le modèle **CMUP (Coût Moyen Unitaire Pondéré)** pour valoriser les matières premières consommées. Ce choix est cohérent avec le modèle de stock global de l'application.
+
+**Il n'y a pas de FIFO** dans le calcul des coûts de production. Le stock physique est décrémenté directement via `stockQuantity` sur la matière, sans traçabilité lot par lot.
+
+---
+
+### A.2 Types de mouvements et leur impact
+
+| Type | Description | Impact stock matière | Impact coût réel |
+|------|-------------|---------------------|-----------------|
+| `mp_consumption` | Matière consommée normalement | − quantité | ✅ inclus |
+| `mp_loss` | Matière perdue (casse, évaporation…) | − quantité | ✅ inclus |
+| `rejection` | Unités produites non conformes | aucun | ✅ indirect (via qtyNet) |
+
+> **Règle clé :** les pertes (`mp_loss`) sont absorbées dans le coût réel. Elles ont consommé de la matière réelle et ce coût doit être porté par les unités bonnes produites.
+
+---
+
+### A.3 Formule du coût réel
+
+```
+Coût réel total = Σ ( (mp_consumption_qty + mp_loss_qty) × averageCostPerUnit )
+                  pour chaque matière première
+```
+
+**Exemple :**
+- Fer consommé : 150 g, Fer perdu : 40 g → (150 + 40) × 10 DA = 1 900 DA
+- Zinc consommé : 110 g, Zinc perdu : 40 g → (110 + 40) × 20 DA = 3 000 DA
+- **Coût réel total = 4 900 DA**
+
+---
+
+### A.4 Impact des rejets sur le coût unitaire
+
+Les unités rejetées ont consommé des matières comme les bonnes unités. Leur coût n'est pas annulé — il est **absorbé par les unités conformes**, ce qui augmente leur coût unitaire.
+
+```
+Quantité nette = quantityProduced − quantityRejected
+Coût unitaire PF = Coût réel total / Quantité nette
+```
+
+**Exemple (suite) :**
+- Quantité produite : 10 pcs, Quantité rejetée : 1 pcs
+- Quantité nette (→ stock) : **9 pcs**
+- Coût unitaire = 4 900 / 9 = **544,44 DA/pcs**
+
+> Plus le taux de rejet est élevé, plus le coût unitaire des bonnes unités augmente. C'est la réalité industrielle.
+
+---
+
+### A.5 Mise à jour du stock à la clôture
+
+**Matières premières** (pour chaque matière du journal) :
+```
+stockQuantity     -= (mp_consumption + mp_loss)
+reservedQuantity  -= mp_consumption  (les pertes n'étaient pas réservées)
+```
+
+**Produit fini** :
+```
+stockQuantity     += qtyNet  (uniquement les unités conformes)
+averageCostPerUnit = (prevQty × prevAvg + actualCost) / (prevQty + qtyNet)
+totalStockValue    = stockQuantity × averageCostPerUnit
+```
+
+---
+
+### A.6 Fallback sans mouvements
+
+Si aucun mouvement n'a été enregistré pendant la production (journal vide), le système utilise le BOM comme estimation :
+
+```
+actualCost = estimatedCostPerUnit × quantityToProduce
+stockQuantity matière -= quantityPerUnit × quantityToProduce  (pour chaque ligne BOM)
+```
+
+Ce fallback garantit que le stock reste cohérent même si l'opérateur n'a pas tenu le journal de production.
+
+---
+
+### A.7 Coût estimé vs coût réel
+
+| | Formule |
+|---|---|
+| **Coût estimé** | `Σ (quantityPerUnit × averageCostPerUnit) × quantityToProduce` — calculé à la création de l'ordre depuis le BOM |
+| **Coût réel** | `Σ ((mp_consumption + mp_loss) × averageCostPerUnit)` — calculé à la clôture depuis le journal |
+
+L'écart entre les deux mesure l'efficacité de la production. Il est visible sur la fiche de l'ordre.
