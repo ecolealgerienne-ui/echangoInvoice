@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
@@ -18,6 +19,7 @@ import { QuotesPage } from '@/pages/quotes/QuotesPage';
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
+import { ProductionPage } from '@/pages/production/ProductionPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -33,6 +35,7 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
       <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
@@ -49,6 +52,7 @@ export function AppRouter() {
       <Route path="/purchases" element={<PrivateRoute><PurchasesPage /></PrivateRoute>} />
       <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />
+      <Route path="/production" element={<PrivateRoute><ProductionPage /></PrivateRoute>} />
     </Routes>
   );
 }

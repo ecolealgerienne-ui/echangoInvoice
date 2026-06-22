@@ -51,6 +51,7 @@ export class SettingsService {
       if (dto.logo !== undefined) setting.logo = dto.logo;
       if (dto.defaultUnit !== undefined) setting.defaultUnit = dto.defaultUnit;
       if (dto.defaultPaymentTermsDays !== undefined) setting.defaultPaymentTermsDays = dto.defaultPaymentTermsDays;
+      if (dto.productionModuleEnabled !== undefined) setting.productionModuleEnabled = dto.productionModuleEnabled;
       setting.updatedBy = userId;
 
       const saved = await qr.manager.save(Setting, setting);

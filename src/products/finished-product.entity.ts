@@ -61,6 +61,9 @@ export class FinishedProduct {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   alertThreshold: number | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  reservedQuantity: number;
+
   @Column({ type: 'varchar', nullable: true })
   createdBy: string | null;
 

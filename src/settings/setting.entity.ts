@@ -58,6 +58,9 @@ export class Setting {
   @Column({ type: 'int', default: 30 })
   defaultPaymentTermsDays: number;
 
+  @Column({ type: 'boolean', default: false })
+  productionModuleEnabled: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   updatedBy: string | null;
 

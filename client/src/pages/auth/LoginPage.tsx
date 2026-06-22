@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -64,6 +64,13 @@ export function LoginPage() {
             {loading ? t('common.loading') : t('auth.loginButton')}
           </Button>
         </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          {t('auth.noAccount')}{' '}
+          <Link to="/register" className="text-primary hover:underline font-medium">
+            {t('auth.registerLink')}
+          </Link>
+        </p>
       </div>
     </div>
   );
