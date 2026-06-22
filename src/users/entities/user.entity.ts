@@ -12,8 +12,8 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid' })
-  tenantId: string;
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
 
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
@@ -26,10 +26,10 @@ export class User {
 
   @Column({
     type: 'enum',
-    enum: ['owner', 'manager', 'agent'],
+    enum: ['owner', 'manager', 'agent', 'superadmin'],
     default: 'agent',
   })
-  role: 'owner' | 'manager' | 'agent';
+  role: 'owner' | 'manager' | 'agent' | 'superadmin';
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

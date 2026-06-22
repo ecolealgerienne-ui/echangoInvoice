@@ -19,6 +19,7 @@ import { StockModule } from './stock/stock.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
 import { ProductionModule } from './production/production.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ProductionModule } from './production/production.module';
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
     AuthModule,
+    AdminModule,
     TenantsModule,
     UsersModule,
     SuppliersModule,

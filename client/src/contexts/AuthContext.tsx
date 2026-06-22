@@ -5,13 +5,14 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'owner' | 'manager' | 'agent';
-  tenantId: string;
+  role: 'owner' | 'manager' | 'agent' | 'superadmin';
+  tenantId: string | null;
 }
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -48,8 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  const isSuperAdmin = user?.role === 'superadmin';
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isSuperAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

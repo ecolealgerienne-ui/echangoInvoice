@@ -264,6 +264,48 @@ export const productionApi = {
   getDashboard: () => api.get('/production/dashboard').then(r => r.data),
 };
 
+export const adminApi = {
+  // Auth
+  login: (email: string, password: string) =>
+    api.post('/admin/auth/login', { email, password }).then(r => r.data.data),
+  refresh: (refreshToken: string) =>
+    api.post('/admin/auth/refresh', { refreshToken }).then(r => r.data.data),
+
+  // Stats
+  getStats: () => api.get('/admin/stats').then(r => r.data),
+
+  // Tenants
+  listTenants: (params?: Record<string, unknown>) =>
+    api.get('/admin/tenants', { params }).then(r => r.data),
+  getTenantDetail: (id: string) =>
+    api.get(`/admin/tenants/${id}`).then(r => r.data),
+  patchTenantStatus: (id: string, status: string) =>
+    api.patch(`/admin/tenants/${id}/status`, { status }).then(r => r.data),
+  deleteTenant: (id: string) =>
+    api.delete(`/admin/tenants/${id}`).then(r => r.data),
+
+  // Subscriptions
+  patchSubscription: (id: string, dto: Record<string, unknown>) =>
+    api.patch(`/admin/subscriptions/${id}`, dto).then(r => r.data),
+
+  // Plans
+  listPlans: () => api.get('/admin/plans').then(r => r.data),
+  updatePlan: (id: string, dto: Record<string, unknown>) =>
+    api.put(`/admin/plans/${id}`, dto).then(r => r.data),
+
+  // SaaS payments
+  listSaasPayments: (params?: Record<string, unknown>) =>
+    api.get('/admin/saas-payments', { params }).then(r => r.data),
+  createSaasPayment: (dto: Record<string, unknown>) =>
+    api.post('/admin/saas-payments', dto).then(r => r.data),
+  getSaasPaymentSummary: () =>
+    api.get('/admin/saas-payments/summary').then(r => r.data),
+
+  // Audit logs
+  listAuditLogs: (params?: Record<string, unknown>) =>
+    api.get('/admin/audit-logs', { params }).then(r => r.data),
+};
+
 export const creditNotesApi = {
   list: (params?: Record<string, unknown>) => api.get('/invoices/credit-notes', { params }).then(r => r.data),
   get: (id: string) => api.get(`/invoices/credit-notes/${id}`).then(r => r.data),

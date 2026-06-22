@@ -58,6 +58,12 @@
       "purchases": "Achats",
       "production": "Production",
       "finance": "Finance"
+    },
+    "admin": {
+      "group": "Administration",
+      "dashboard": "Tableau de bord admin",
+      "tenants": "Clients",
+      "plans": "Plans"
     }
   },
   "auth": {
@@ -592,5 +598,64 @@
     "reason": "Motif",
     "issue": "Émettre",
     "cancel": "Annuler"
+  },
+  "admin": {
+    "dashboard": {
+      "title": "Administration SaaS"
+    },
+    "stats": {
+      "mrrActual": "MRR réel (ce mois)",
+      "mrrContractual": "MRR contractuel",
+      "arr": "ARR réel",
+      "activeTenants": "Clients actifs",
+      "trialTenants": "En période d'essai",
+      "suspendedTenants": "Suspendus",
+      "newThisMonth": "Nouveaux ce mois",
+      "churnThisMonth": "Churns ce mois",
+      "invoicesThisMonth": "Factures (mois)",
+      "topTenants": "Top 5 clients par usage"
+    },
+    "tenants": {
+      "title": "Clients (Tenants)",
+      "status": {
+        "trial": "Essai",
+        "active": "Actif",
+        "suspended": "Suspendu"
+      },
+      "actions": {
+        "detail": "Détail",
+        "suspend": "Suspendre",
+        "activate": "Réactiver",
+        "delete": "Supprimer"
+      },
+      "detail": {
+        "company": "Société",
+        "users": "Utilisateurs",
+        "userName": "Nom",
+        "userEmail": "Email",
+        "userRole": "Rôle"
+      }
+    },
+    "plans": {
+      "title": "Plans tarifaires",
+      "pricePerMonth": "Prix / mois (DA)",
+      "invoiceLimit": "Limite factures / mois",
+      "usersLimit": "Limite utilisateurs",
+      "unlimited": "Illimité"
+    },
+    "payment": {
+      "record": "Enregistrer un paiement",
+      "history": "Historique des paiements",
+      "amount": "Montant (DA)",
+      "reference": "Référence",
+      "monthsCovered": "Mois couverts",
+      "method": {
+        "label": "Méthode",
+        "bank_transfer": "Virement bancaire",
+        "cash": "Espèces",
+        "check": "Chèque",
+        "ccp": "CCP"
+      }
+    }
   }
 }

@@ -15,7 +15,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<JwtPayload> {
-    if (!payload.sub || !payload.tenantId) {
+    if (!payload.sub) {
+      throw new UnauthorizedException('errors.invalid_token');
+    }
+    // superadmin has tenantId = null — that is valid
+    if (payload.role !== 'superadmin' && !payload.tenantId) {
       throw new UnauthorizedException('errors.invalid_token');
     }
     return payload;

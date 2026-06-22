@@ -13,8 +13,8 @@ export class RefreshToken {
   @Column({ type: 'uuid' })
   userId: string;
 
-  @Column({ type: 'uuid' })
-  tenantId: string;
+  @Column({ type: 'uuid', nullable: true })
+  tenantId: string | null;
 
   @Column({ type: 'varchar', length: 255 })
   tokenHash: string;

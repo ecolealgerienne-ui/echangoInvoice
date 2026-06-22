@@ -20,6 +20,10 @@ import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
 import { ProductionPage } from '@/pages/production/ProductionPage';
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
+import { AdminTenantsPage } from '@/pages/admin/AdminTenantsPage';
+import { AdminTenantDetailPage } from '@/pages/admin/AdminTenantDetailPage';
+import { AdminPlansPage } from '@/pages/admin/AdminPlansPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -28,15 +32,31 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <AppShell>{children}</AppShell>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading, isSuperAdmin } = useAuth();
+  if (loading) return <LoadingSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isSuperAdmin) return <Navigate to="/dashboard" replace />;
+  return <AppShell>{children}</AppShell>;
+}
+
 export function AppRouter() {
-  const { user, loading } = useAuth();
+  const { user, loading, isSuperAdmin } = useAuth();
   if (loading) return <LoadingSpinner />;
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/login" element={user ? <Navigate to={isSuperAdmin ? '/admin/dashboard' : '/dashboard'} replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to={isSuperAdmin ? '/admin/dashboard' : '/dashboard'} replace />} />
+
+      {/* Admin routes */}
+      <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+      <Route path="/admin/tenants" element={<AdminRoute><AdminTenantsPage /></AdminRoute>} />
+      <Route path="/admin/tenants/:id" element={<AdminRoute><AdminTenantDetailPage /></AdminRoute>} />
+      <Route path="/admin/plans" element={<AdminRoute><AdminPlansPage /></AdminRoute>} />
+
+      {/* Tenant routes */}
       <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
       <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
       <Route path="/suppliers" element={<PrivateRoute><SuppliersPage /></PrivateRoute>} />
