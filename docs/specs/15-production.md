@@ -74,6 +74,7 @@ UNIQUE ("code", "tenantId")
 INDEX IDX_nomenclatures_tenant_id ("tenantId")
 INDEX IDX_nomenclatures_finished_product_id ("finishedProductId")
 INDEX IDX_nomenclatures_status ("status")
+INDEX IDX_nomenclatures_deleted_at ("deletedAt")   -- R011 / R016
 ```
 
 ---
@@ -171,7 +172,9 @@ INDEX IDX_production_orders_tenant_id ("tenantId")
 INDEX IDX_production_orders_status ("status")
 INDEX IDX_production_orders_nomenclature_id ("nomenclatureId")
 INDEX IDX_production_orders_finished_product_id ("finishedProductId")
+INDEX IDX_production_orders_responsible_user_id ("responsibleUserId")
 INDEX IDX_production_orders_created_at ("createdAt")
+INDEX IDX_production_orders_deleted_at ("deletedAt")   -- R011 / R016
 ```
 
 ---
@@ -315,9 +318,9 @@ Où stockQuantity = somme des stock_entries.quantity WHERE status = 'available'
 
 | Trigger | Side effects dans transaction |
 |---|---|
-| `PATCH /production/orders/:id/start` | `raw_materials.reservedQuantity +=` pour chaque MP de la BOM |
-| `PATCH /production/orders/:id/complete` | Décrémente stock MP via FIFO + libère reservedQuantity + incrémente `finished_products.stockQuantity` + recalcule `averageCostPerUnit` |
-| `PATCH /production/orders/:id/cancel` | Si `in_progress` : libère `reservedQuantity` |
+| `PATCH /production/orders/:id/start` | `raw_materials.reservedQuantity +=` pour chaque MP de la BOM × quantityToProduce |
+| `PATCH /production/orders/:id/complete` | Décrémente `raw_materials.stockQuantity` directement (pas de FIFO) + libère `reservedQuantity` + incrémente `finished_products.stockQuantity` + recalcule `averageCostPerUnit` + `totalStockValue` |
+| `PATCH /production/orders/:id/cancel` | Si `in_progress` : libère `reservedQuantity` sur chaque MP |
 
 ---
 
@@ -462,13 +465,15 @@ yieldPercentage = (quantityProduced / quantityToProduce) * 100;
 
 ```typescript
 // Format: MO-YY-### (ex: MO-26-001)
+// Lock scopé par tenant ET par année — évite les doublons en concurrence multi-tenant
 await queryRunner.query(
-  `SELECT pg_advisory_xact_lock(hashtext('production_order_ref_' || $1))`,
-  [tenantId]
+  `SELECT pg_advisory_xact_lock(hashtext('mo_ref_' || $1 || '_' || $2))`,
+  [tenantId, year]
 );
 const last = await queryRunner.manager
   .createQueryBuilder(ProductionOrder, 'po')
   .where('po.tenantId = :tenantId', { tenantId })
+  .andWhere('po.deletedAt IS NULL')           // R011
   .andWhere('EXTRACT(YEAR FROM po.createdAt) = :year', { year })
   .orderBy('po.ref', 'DESC')
   .limit(1)
@@ -479,7 +484,98 @@ return `MO-${String(year).slice(-2)}-${String(next).padStart(3, '0')}`;
 
 ---
 
-## 6. MIGRATIONS REQUISES (R002)
+## 6. NORMES OBLIGATOIRES À L'IMPLÉMENTATION
+
+Rappel des invariants CLAUDE.md applicables à ce module. Toute violation = rejet du code.
+
+### R001 — Types TypeORM explicites
+Chaque `@Column()` doit avoir un type explicite. Exemples attendus :
+```typescript
+@Column({ type: 'varchar', length: 50 }) code: string;
+@Column({ type: 'decimal', precision: 10, scale: 2, default: 0 }) quantityPerUnit: number;
+@Column({ type: 'enum', enum: ['planned', 'in_progress', 'completed', 'cancelled'], default: 'planned' }) status: string;
+@Column({ type: 'timestamptz', nullable: true }) plannedStartDate: Date | null;
+```
+
+### R004 — NestJS Logger uniquement
+```typescript
+private readonly logger = new Logger(ProductionOrderService.name);
+this.logger.warn(`Stock insuffisant pour MO ${ref} — MP ${rawMaterialId}`);
+// ❌ console.log, console.error interdits
+```
+
+### R006 — Gestion d'erreur centralisée
+Les services doivent lever des exceptions NestJS typées, jamais de catch silencieux :
+```typescript
+if (!nomenclature) throw new NotFoundException(`Nomenclature ${id} introuvable`);
+if (order.status !== 'planned') throw new ConflictException('invalid_status_transition');
+// AllExceptionsFilter global gère le format de réponse → pas besoin de try/catch dans les services
+```
+Codes DB à mapper : `23505` (unique constraint) → HTTP 409 ; `23503` (FK) → HTTP 422.
+
+### R007 — Swagger obligatoire sur tous les controllers
+```typescript
+@ApiTags('Production')
+@ApiOperation({ summary: 'Créer un ordre de production' })
+@ApiResponse({ status: 201, description: 'Ordre créé' })
+@ApiResponse({ status: 409, description: 'Stock insuffisant' })
+```
+
+### R009 — Timezone
+- Stockage : toujours `timestamptz` (UTC en base) — ✅ déjà le cas dans les entités
+- Frontend : toutes les dates de production affichées via `formatDate()` du projet (qui utilise `Africa/Algiers`)
+
+### R011 — Soft delete — filtre explicite obligatoire
+Toute query sur `nomenclatures` ou `production_orders` doit filtrer :
+```typescript
+.andWhere('po.deletedAt IS NULL')
+// ou
+{ where: { id, tenantId, deletedAt: IsNull() } }
+```
+`bom_lines` et `production_movements` : pas de soft delete (suppression en cascade ou immutabilité).
+
+### R012 — Audit trail via interceptor
+`createdBy` et `updatedBy` sont alimentés automatiquement par `AuditInterceptor` (déjà global).  
+**Ne jamais** écrire `entity.createdBy = userId` dans un service.
+
+### R017 — Validation sur tous les DTOs
+Chaque DTO doit utiliser `class-validator` :
+```typescript
+export class CreateProductionOrderDto {
+  @ApiProperty() @IsUUID() nomenclatureId: string;
+  @ApiProperty() @IsNumber() @Min(0.01) @Type(() => Number) quantityToProduce: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() plannedStartDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsEnum(['normal', 'urgent']) priority?: string;
+}
+// ValidationPipe global (whitelist: true, forbidNonWhitelisted: true) filtre automatiquement
+```
+
+### R018 — i18n frontend
+Zéro string hardcodée dans les composants React. Toutes les clés sont dans `fr.json` section `production`.  
+Les messages d'erreur backend (dans les exceptions NestJS) peuvent être en anglais technique — ils sont traduits côté frontend via `t(\`errors.${error.code}\`)`.
+
+### R019 — Zéro logique métier dans les controllers
+```typescript
+// ✅ Controller : HTTP uniquement
+@Post()
+async create(@Body() dto: CreateProductionOrderDto, @CurrentUser() user: User) {
+  return this.productionOrderService.create(dto, user.tenantId, user.id);
+}
+// ❌ Interdit : calculs, conditions métier, accès repo direct dans le controller
+```
+
+### R020 — tenantId dans TOUTES les queries
+```typescript
+// ✅ Toujours depuis le JWT via @CurrentUser()
+async findAll(tenantId: string, dto: ListOrdersDto) {
+  return this.repo.find({ where: { tenantId, deletedAt: IsNull() } });
+}
+// ❌ Jamais depuis l'URL ou le body
+```
+
+---
+
+## 7. MIGRATIONS REQUISES (R002)
 
 ```
 Migration 1: CreateNomenclaturesTable
@@ -701,3 +797,98 @@ Il peut répondre à : "Ce lot de produit fini m'a coûté combien à fabriquer 
 
 ### Ce que ce module n'est PAS
 Ce n'est pas un outil de planification de lignes de production, de gestion d'équipes, ou de MRP automatique. C'est un **carnet de production numérique** connecté au stock existant — simple, direct, adapté à une PME avec 1 atelier et 5 à 20 opérateurs.
+
+---
+
+## ANNEXE A — Modèle de calcul des coûts de production
+
+### A.1 Principes fondamentaux
+
+Le module utilise le modèle **CMUP (Coût Moyen Unitaire Pondéré)** pour valoriser les matières premières consommées. Ce choix est cohérent avec le modèle de stock global de l'application.
+
+**Il n'y a pas de FIFO** dans le calcul des coûts de production. Le stock physique est décrémenté directement via `stockQuantity` sur la matière, sans traçabilité lot par lot.
+
+---
+
+### A.2 Types de mouvements et leur impact
+
+| Type | Description | Impact stock matière | Impact coût réel |
+|------|-------------|---------------------|-----------------|
+| `mp_consumption` | Matière consommée normalement | − quantité | ✅ inclus |
+| `mp_loss` | Matière perdue (casse, évaporation…) | − quantité | ✅ inclus |
+| `rejection` | Unités produites non conformes | aucun | ✅ indirect (via qtyNet) |
+
+> **Règle clé :** les pertes (`mp_loss`) sont absorbées dans le coût réel. Elles ont consommé de la matière réelle et ce coût doit être porté par les unités bonnes produites.
+
+---
+
+### A.3 Formule du coût réel
+
+```
+Coût réel total = Σ ( (mp_consumption_qty + mp_loss_qty) × averageCostPerUnit )
+                  pour chaque matière première
+```
+
+**Exemple :**
+- Fer consommé : 150 g, Fer perdu : 40 g → (150 + 40) × 10 DA = 1 900 DA
+- Zinc consommé : 110 g, Zinc perdu : 40 g → (110 + 40) × 20 DA = 3 000 DA
+- **Coût réel total = 4 900 DA**
+
+---
+
+### A.4 Impact des rejets sur le coût unitaire
+
+Les unités rejetées ont consommé des matières comme les bonnes unités. Leur coût n'est pas annulé — il est **absorbé par les unités conformes**, ce qui augmente leur coût unitaire.
+
+```
+Quantité nette = quantityProduced − quantityRejected
+Coût unitaire PF = Coût réel total / Quantité nette
+```
+
+**Exemple (suite) :**
+- Quantité produite : 10 pcs, Quantité rejetée : 1 pcs
+- Quantité nette (→ stock) : **9 pcs**
+- Coût unitaire = 4 900 / 9 = **544,44 DA/pcs**
+
+> Plus le taux de rejet est élevé, plus le coût unitaire des bonnes unités augmente. C'est la réalité industrielle.
+
+---
+
+### A.5 Mise à jour du stock à la clôture
+
+**Matières premières** (pour chaque matière du journal) :
+```
+stockQuantity     -= (mp_consumption + mp_loss)
+reservedQuantity  -= mp_consumption  (les pertes n'étaient pas réservées)
+```
+
+**Produit fini** :
+```
+stockQuantity     += qtyNet  (uniquement les unités conformes)
+averageCostPerUnit = (prevQty × prevAvg + actualCost) / (prevQty + qtyNet)
+totalStockValue    = stockQuantity × averageCostPerUnit
+```
+
+---
+
+### A.6 Fallback sans mouvements
+
+Si aucun mouvement n'a été enregistré pendant la production (journal vide), le système utilise le BOM comme estimation :
+
+```
+actualCost = estimatedCostPerUnit × quantityToProduce
+stockQuantity matière -= quantityPerUnit × quantityToProduce  (pour chaque ligne BOM)
+```
+
+Ce fallback garantit que le stock reste cohérent même si l'opérateur n'a pas tenu le journal de production.
+
+---
+
+### A.7 Coût estimé vs coût réel
+
+| | Formule |
+|---|---|
+| **Coût estimé** | `Σ (quantityPerUnit × averageCostPerUnit) × quantityToProduce` — calculé à la création de l'ordre depuis le BOM |
+| **Coût réel** | `Σ ((mp_consumption + mp_loss) × averageCostPerUnit)` — calculé à la clôture depuis le journal |
+
+L'écart entre les deux mesure l'efficacité de la production. Il est visible sur la fiche de l'ordre.

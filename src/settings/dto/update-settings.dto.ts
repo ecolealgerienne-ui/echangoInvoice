@@ -58,4 +58,8 @@ export class UpdateSettingsDto {
   @ApiPropertyOptional({ type: [TaxRateDto] })
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => TaxRateDto)
   taxRates?: TaxRateDto[];
+
+  @ApiPropertyOptional({ description: 'Activer ou désactiver le module production' })
+  @IsOptional() @IsBoolean()
+  productionModuleEnabled?: boolean;
 }

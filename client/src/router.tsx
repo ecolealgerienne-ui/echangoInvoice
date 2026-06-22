@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
@@ -34,6 +35,7 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
       <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />

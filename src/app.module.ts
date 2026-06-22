@@ -18,6 +18,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { StockModule } from './stock/stock.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
+import { ProductionModule } from './production/production.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { SettingsModule } from './settings/settings.module';
     StockModule,
     ReportsModule,
     SettingsModule,
+    ProductionModule,
   ],
 })
 export class AppModule {}

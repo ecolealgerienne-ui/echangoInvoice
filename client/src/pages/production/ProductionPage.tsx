@@ -36,7 +36,6 @@ const NOM_STATUS_VARIANT: Record<string, any> = {
 };
 const MOV_TYPE_VARIANT: Record<string, any> = {
   mp_consumption: 'info',
-  pf_production: 'success',
   rejection: 'destructive',
   mp_loss: 'warning',
 };
@@ -52,7 +51,6 @@ const nomenclatureSchema = z.object({
   code: z.string().min(1, 'Code requis').max(50),
   name: z.string().min(2, 'Nom requis').max(255),
   finishedProductId: z.string().uuid({ message: 'Produit fini requis' }),
-  outputQuantity: z.coerce.number().positive('Quantité produite > 0'),
   description: z.string().optional(),
   lines: z.array(bomLineSchema).min(1, 'Au moins un composant requis'),
 });
@@ -76,7 +74,7 @@ const completeSchema = z.object({
 type CompleteFormData = z.infer<typeof completeSchema>;
 
 const movementSchema = z.object({
-  type: z.enum(['mp_consumption', 'pf_production', 'rejection', 'mp_loss']),
+  type: z.enum(['mp_consumption', 'rejection', 'mp_loss']),
   rawMaterialId: z.string().optional(),
   finishedProductId: z.string().optional(),
   quantity: z.coerce.number().positive('Quantité > 0'),
@@ -117,6 +115,12 @@ export function ProductionPage() {
     enabled: tab === 'nomenclatures',
   });
 
+  // Always-on query for order form BOM selector (independent of active tab)
+  const { data: allNomenclaturesData } = useQuery({
+    queryKey: ['production-nomenclatures-all'],
+    queryFn: () => productionApi.listNomenclatures({ page: 1, limit: 200 }),
+  });
+
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['production-orders', page, search],
     queryFn: () => productionApi.listOrders({ page, limit: 20, search: search || undefined }),
@@ -135,6 +139,13 @@ export function ProductionPage() {
     enabled: !!viewOrder?.id && viewOrderOpen,
   });
 
+  const { data: orderNomenclatureData } = useQuery({
+    queryKey: ['nomenclature', viewOrder?.nomenclatureId],
+    queryFn: () => productionApi.getNomenclature(viewOrder.nomenclatureId),
+    enabled: !!viewOrder?.nomenclatureId && viewOrderOpen,
+  });
+  const orderNomenclature: any = orderNomenclatureData?.data ?? null;
+
   const { data: rawMaterialsData } = useQuery({
     queryKey: ['raw-materials-all'],
     queryFn: () => rawMaterialsApi.list({ limit: 200 }),
@@ -148,6 +159,7 @@ export function ProductionPage() {
   const rawMaterials: any[] = rawMaterialsData?.data ?? [];
   const finishedProducts: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'product' || p.type === 'both');
   const nomenclatures: any[] = nomenclaturesData?.data ?? [];
+  const allNomenclatures: any[] = allNomenclaturesData?.data ?? [];
   const orders: any[] = ordersData?.data ?? [];
   const orderDetail: any = orderDetailData?.data ?? viewOrder;
   const movements: any[] = movementsData?.data ?? [];
@@ -155,14 +167,14 @@ export function ProductionPage() {
   // ── Nomenclature form ───────────────────────────────────────────────────────
   const nomForm = useForm<NomenclatureFormData>({
     resolver: zodResolver(nomenclatureSchema),
-    defaultValues: { outputQuantity: 1, lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] },
+    defaultValues: { lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] },
   });
   const { fields: bomLines, append: appendLine, remove: removeLine } = useFieldArray({
     control: nomForm.control, name: 'lines',
   });
 
   function openNomCreate() {
-    nomForm.reset({ outputQuantity: 1, lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] });
+    nomForm.reset({ lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] });
     setEditingNom(null);
     setNomModalOpen(true);
   }
@@ -173,9 +185,8 @@ export function ProductionPage() {
       code: nom.code,
       name: nom.name,
       finishedProductId: nom.finishedProductId,
-      outputQuantity: nom.outputQuantity,
       description: nom.description ?? '',
-      lines: nom.lines?.map((l: any) => ({
+      lines: nom.bomLines?.map((l: any) => ({
         rawMaterialId: l.rawMaterialId,
         quantityPerUnit: l.quantityPerUnit,
         unit: l.unit,
@@ -290,6 +301,84 @@ export function ProductionPage() {
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
 
+  // ── Consumption lines (guided BOM table) ────────────────────────────────────
+  type ConsLine = {
+    rawMaterialId: string;
+    name: string;
+    plannedQty: number;   // BOM prévu (mp_consumption only)
+    alreadyQty: number;   // Σ mouvements passés du même type (read-only)
+    newQty: string;       // saisie de ce mouvement
+    unit: string;
+    isExtra: boolean;
+  };
+  const [consLines, setConsLines] = useState<ConsLine[]>([]);
+
+  function openBomModal(type: 'mp_consumption' | 'mp_loss') {
+    const qty = Number(orderDetail?.quantityToProduce) || 1;
+    const alreadyLogged: Record<string, number> = {};
+    movements
+      .filter((m: any) => m.type === type)
+      .forEach((m: any) => {
+        alreadyLogged[m.rawMaterialId] = (alreadyLogged[m.rawMaterialId] ?? 0) + Number(m.quantity);
+      });
+    const bomLines: ConsLine[] = (orderNomenclature?.bomLines ?? []).map((l: any) => {
+      const rm = rawMaterials.find((r: any) => r.id === l.rawMaterialId);
+      const planned = Number(l.quantityPerUnit) * qty;
+      const already = alreadyLogged[l.rawMaterialId] ?? 0;
+      const defaultNew = type === 'mp_consumption'
+        ? String(Math.max(0, planned - already))
+        : '0';
+      return {
+        rawMaterialId: l.rawMaterialId,
+        name: rm?.name ?? l.rawMaterialId,
+        plannedQty: planned,
+        alreadyQty: already,
+        newQty: defaultNew,
+        unit: l.unit,
+        isExtra: false,
+      };
+    });
+    setConsLines(bomLines);
+    movForm.reset({ type, quantity: 1, unit: '' });
+    setMovModalOpen(true);
+  }
+
+  function openConsumptionModal() { openBomModal('mp_consumption'); }
+
+  function addExtraLine() {
+    setConsLines(prev => [...prev, { rawMaterialId: '', name: '', plannedQty: 0, alreadyQty: 0, newQty: '', unit: '', isExtra: true }]);
+  }
+
+  function removeExtraLine(idx: number) {
+    setConsLines(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  const batchMovMutation = useMutation({
+    mutationFn: (items: object[]) => productionApi.createMovementBatch(viewOrder.id, items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
+      toast(t('production.movementLogged'), 'success');
+      setMovModalOpen(false);
+    },
+    onError: (e: any) => toast(resolveApiError(e, t), 'error'),
+  });
+
+  function submitConsumptions() {
+    const items = consLines
+      .filter(l => l.rawMaterialId && Number(l.newQty) > 0)
+      .map(l => ({
+        type: movType,
+        rawMaterialId: l.rawMaterialId,
+        quantity: Number(l.newQty),
+        unit: l.unit,
+      }));
+    if (items.length === 0) {
+      toast('Aucune quantité à enregistrer', 'error');
+      return;
+    }
+    batchMovMutation.mutate(items);
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -354,8 +443,7 @@ export function ProductionPage() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.code')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.outputQuantity')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.estimatedCost')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût / unité</th>
                     <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
                   </tr>
@@ -366,11 +454,10 @@ export function ProductionPage() {
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{nom.code}</td>
                       <td className="px-4 py-3 font-medium">{nom.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">{nom.outputQuantity}</td>
                       <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
-                          {t(`production.nomStatus.${nom.status}`, nom.status)}
+                          {String(t(`production.nomStatus.${nom.status}`, nom.status))}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -399,7 +486,7 @@ export function ProductionPage() {
               page={nomenclaturesData.pagination.page}
               total={nomenclaturesData.pagination.total}
               limit={nomenclaturesData.pagination.limit}
-              onPageChange={setPage}
+              onChange={setPage}
             />
           )}
         </>
@@ -439,7 +526,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Badge variant={ORDER_STATUS_VARIANT[order.status] ?? 'muted'}>
-                            {t(`production.status.${order.status}`, order.status)}
+                            {String(t(`production.status.${order.status}`, order.status))}
                           </Badge>
                           {order.priority === 'urgent' && (
                             <Badge variant="destructive">!</Badge>
@@ -448,9 +535,9 @@ export function ProductionPage() {
                       </td>
                       <td className="px-4 py-3 text-right">{formatCurrency(order.estimatedCost)}</td>
                       <td className="px-4 py-3 text-center">
-                        {order.yieldPercentage != null ? (
-                          <span className={`font-medium ${order.yieldPercentage >= 90 ? 'text-green-600' : order.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
-                            {order.yieldPercentage.toFixed(1)}%
+                        {Number(order.yieldPercentage) > 0 ? (
+                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-green-600' : Number(order.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
+                            {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
                         ) : '—'}
                       </td>
@@ -458,13 +545,47 @@ export function ProductionPage() {
                         {order.plannedStartDate ? formatDate(order.plannedStartDate) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { setViewOrder(order); setViewOrderOpen(true); }}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          {order.status === 'planned' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.startProduction')}
+                              onClick={() => { setViewOrder(order); startOrderMutation.mutate(order.id); }}
+                              disabled={startOrderMutation.isPending}
+                            >
+                              <Play className="h-3.5 w-3.5 text-blue-600" />
+                            </Button>
+                          )}
+                          {order.status === 'in_progress' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.completeOrder')}
+                              onClick={() => { setViewOrder(order); setCompleteModalOpen(true); }}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                            </Button>
+                          )}
+                          {(order.status === 'planned' || order.status === 'in_progress') && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={t('production.cancelOrder')}
+                              onClick={() => { setViewOrder(order); setCancelModalOpen(true); }}
+                            >
+                              <XCircle className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title={t('common.view')}
+                            onClick={() => { setViewOrder(order); setViewOrderOpen(true); }}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -477,7 +598,7 @@ export function ProductionPage() {
               page={ordersData.pagination.page}
               total={ordersData.pagination.total}
               limit={ordersData.pagination.limit}
-              onPageChange={setPage}
+              onChange={setPage}
             />
           )}
         </>
@@ -506,28 +627,21 @@ export function ProductionPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
-              <Controller
-                control={nomForm.control}
-                name="finishedProductId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {finishedProducts.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
-              {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
-            </div>
-            <div>
-              <label className="text-sm font-medium">{t('production.outputQuantity')}</label>
-              <Input type="number" step="0.01" {...nomForm.register('outputQuantity')} className="mt-1" />
-              {nomForm.formState.errors.outputQuantity && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.outputQuantity.message}</p>}
-            </div>
+          <div>
+            <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
+            <Controller
+              control={nomForm.control}
+              name="finishedProductId"
+              render={({ field }) => (
+                <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
+                  <option value="">{t('common.select')}</option>
+                  {finishedProducts.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+              )}
+            />
+            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
           </div>
 
           <div>
@@ -557,24 +671,38 @@ export function ProductionPage() {
             {nomForm.formState.errors.lines?.root && (
               <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message}</p>
             )}
+            {/* En-tête colonnes */}
+            <div className="grid grid-cols-12 gap-2 px-3 mb-1">
+              <div className="col-span-5 text-xs font-medium text-muted-foreground">Matière première</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">Qté / unité</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">Unité</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût / unité</div>
+              <div className="col-span-1" />
+            </div>
             <div className="space-y-2">
-              {bomLines.map((field, idx) => (
-                <div key={field.id} className="flex gap-2 items-start p-3 bg-muted/30 rounded-md">
-                  <div className="flex-1 min-w-0">
-                    <Controller
-                      control={nomForm.control}
-                      name={`lines.${idx}.rawMaterialId`}
-                      render={({ field: f }) => (
-                        <Select value={f.value ?? ''} onChange={f.onChange}>
-                          <option value="">{t('production.rawMaterial')}...</option>
-                          {rawMaterials.map((rm: any) => (
-                            <option key={rm.id} value={rm.id}>{rm.name}</option>
-                          ))}
-                        </Select>
-                      )}
-                    />
+              {bomLines.map((field, idx) => {
+                const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
+                const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
+                const selRm = rawMaterials.find((r: any) => r.id === selRmId);
+                const unitCost = qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
+                return (
+                <div key={field.id} className="grid grid-cols-12 gap-2 items-center p-3 bg-muted/30 rounded-md">
+                  <div className="col-span-5">
+                    <Select
+                      {...nomForm.register(`lines.${idx}.rawMaterialId`)}
+                      onChange={e => {
+                        nomForm.setValue(`lines.${idx}.rawMaterialId`, e.target.value);
+                        const rm = rawMaterials.find((r: any) => r.id === e.target.value);
+                        if (rm?.unit) nomForm.setValue(`lines.${idx}.unit`, rm.unit);
+                      }}
+                    >
+                      <option value="">{t('production.rawMaterial')}...</option>
+                      {rawMaterials.map((rm: any) => (
+                        <option key={rm.id} value={rm.id}>{rm.name}</option>
+                      ))}
+                    </Select>
                   </div>
-                  <div className="w-28">
+                  <div className="col-span-2">
                     <Input
                       type="number"
                       step="0.01"
@@ -582,25 +710,47 @@ export function ProductionPage() {
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
-                  <div className="w-20">
-                    <Input
-                      placeholder="Unité"
-                      {...nomForm.register(`lines.${idx}.unit`)}
-                    />
+                  <div className="col-span-2">
+                    <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
+                      {selRm?.unit ?? '—'}
+                    </span>
+                    <input type="hidden" {...nomForm.register(`lines.${idx}.unit`)} />
                   </div>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive shrink-0"
-                    onClick={() => removeLine(idx)}
-                    disabled={bomLines.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="col-span-2 text-right text-sm font-medium">
+                    {selRm ? formatCurrency(unitCost) : '—'}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeLine(idx)}
+                      disabled={bomLines.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+            {/* Totaux */}
+            {(() => {
+              const totalUnit = bomLines.reduce((sum, _, idx) => {
+                const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
+                const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
+                const selRm = rawMaterials.find((r: any) => r.id === selRmId);
+                return sum + qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
+              }, 0);
+              return (
+                <div className="grid grid-cols-12 gap-2 px-3 pt-2 border-t border-border mt-2">
+                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">Total / unité produite</div>
+                  <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}</div>
+                  <div className="col-span-1" />
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -630,7 +780,7 @@ export function ProductionPage() {
               render={({ field }) => (
                 <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
                   <option value="">{t('common.select')}</option>
-                  {nomenclatures.map((n: any) => (
+                  {allNomenclatures.map((n: any) => (
                     <option key={n.id} value={n.id}>{n.name} ({n.code})</option>
                   ))}
                 </Select>
@@ -705,15 +855,15 @@ export function ProductionPage() {
               <KpiCard label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
               <KpiCard
                 label={t('production.actualCost')}
-                value={orderDetail.actualCost ? formatCurrency(orderDetail.actualCost) : '—'}
+                value={Number(orderDetail.actualCost) > 0 ? formatCurrency(orderDetail.actualCost) : '—'}
               />
               <KpiCard
                 label={t('production.yieldPct')}
-                value={orderDetail.yieldPercentage != null ? `${orderDetail.yieldPercentage.toFixed(1)}%` : '—'}
+                value={Number(orderDetail.yieldPercentage) > 0 ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
-                  orderDetail.yieldPercentage == null ? '' :
-                  orderDetail.yieldPercentage >= 90 ? 'text-green-600' :
-                  orderDetail.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-destructive'
+                  Number(orderDetail.yieldPercentage) === 0 ? '' :
+                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-green-600' :
+                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'
                 }
               />
             </div>
@@ -725,7 +875,7 @@ export function ProductionPage() {
                 <InfoRow label={t('production.finishedProduct')} value={orderDetail.finishedProductName ?? '—'} />
                 <InfoRow label={t('common.status')}>
                   <Badge variant={ORDER_STATUS_VARIANT[orderDetail.status] ?? 'muted'}>
-                    {t(`production.status.${orderDetail.status}`, orderDetail.status)}
+                    {String(t(`production.status.${orderDetail.status}`, orderDetail.status))}
                   </Badge>
                 </InfoRow>
               </div>
@@ -751,7 +901,16 @@ export function ProductionPage() {
               {orderDetail.status === 'in_progress' && (
                 <>
                   <Button
-                    onClick={() => { completeForm.reset({ quantityRejected: 0 }); setCompleteModalOpen(true); }}
+                    onClick={() => {
+                      const rejectionTotal = movements
+                        .filter((m: any) => m.type === 'rejection')
+                        .reduce((sum: number, m: any) => sum + Number(m.quantity), 0);
+                      completeForm.reset({
+                        quantityProduced: Number(orderDetail?.quantityToProduce) || undefined,
+                        quantityRejected: rejectionTotal,
+                      });
+                      setCompleteModalOpen(true);
+                    }}
                     className="gap-2"
                   >
                     <CheckCircle className="h-4 w-4" />
@@ -759,7 +918,7 @@ export function ProductionPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setMovModalOpen(true)}
+                    onClick={openConsumptionModal}
                     className="gap-2"
                   >
                     <Plus className="h-4 w-4" />
@@ -778,6 +937,123 @@ export function ProductionPage() {
                 </Button>
               )}
             </div>
+
+            {/* Production summary */}
+            {movements.length > 0 && (() => {
+              // Aggregate by type and material
+              const consMap: Record<string, { name: string; consumed: number; unit: string }> = {};
+              const lossMap: Record<string, { name: string; lost: number; unit: string }> = {};
+              let totalRejection = 0;
+              let rejectionUnit = '';
+
+              movements.forEach((m: any) => {
+                const name = m.rawMaterialName ?? m.finishedProductName ?? m.rawMaterialId ?? '—';
+                if (m.type === 'mp_consumption') {
+                  const key = m.rawMaterialId ?? name;
+                  if (!consMap[key]) consMap[key] = { name, consumed: 0, unit: m.unit };
+                  consMap[key].consumed += Number(m.quantity);
+                } else if (m.type === 'mp_loss') {
+                  const key = m.rawMaterialId ?? name;
+                  if (!lossMap[key]) lossMap[key] = { name, lost: 0, unit: m.unit };
+                  lossMap[key].lost += Number(m.quantity);
+                } else if (m.type === 'rejection') {
+                  totalRejection += Number(m.quantity);
+                  rejectionUnit = m.unit;
+                }
+              });
+
+              const qty = Number(orderDetail?.quantityToProduce) || 1;
+              const bomMap: Record<string, number> = {};
+              (orderNomenclature?.bomLines ?? []).forEach((l: any) => {
+                bomMap[l.rawMaterialId] = Number(l.quantityPerUnit) * qty;
+              });
+
+              const consRows = Object.entries(consMap);
+              const lossRows = Object.entries(lossMap);
+              const hasLoss = lossRows.length > 0;
+              const hasRejection = totalRejection > 0;
+
+              if (!consRows.length && !hasLoss && !hasRejection) return null;
+
+              return (
+                <div className="mb-5 space-y-3">
+                  {/* Consommation MP */}
+                  {consRows.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Consommation MP</p>
+                      <div className="rounded-md border border-border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Prévu</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Consommé</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Écart</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {consRows.map(([id, row]) => {
+                              const planned = bomMap[id] ?? null;
+                              const ecart = planned !== null ? row.consumed - planned : null;
+                              return (
+                                <tr key={id}>
+                                  <td className="px-3 py-1.5 font-medium">{row.name}</td>
+                                  <td className="px-3 py-1.5 text-right text-muted-foreground">{planned !== null ? planned.toFixed(2) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right font-semibold">{row.consumed.toFixed(2)}</td>
+                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-amber-600' : ecart < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                    {ecart === null ? '—' : ecart > 0 ? `+${ecart.toFixed(2)}` : ecart.toFixed(2)}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pertes MP */}
+                  {hasLoss && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pertes MP</p>
+                      <div className="rounded-md border border-amber-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-amber-50/60">
+                            <tr>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Total perdu</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {lossRows.map(([id, row]) => (
+                              <tr key={id}>
+                                <td className="px-3 py-1.5 font-medium">{row.name}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-amber-700">{row.lost.toFixed(2)}</td>
+                                <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejets */}
+                  {hasRejection && (
+                    <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-destructive/30 bg-destructive/5 text-sm">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rejets</span>
+                      <span className="font-semibold text-destructive">{totalRejection.toFixed(2)} {rejectionUnit}</span>
+                      <span className="text-muted-foreground text-xs">({((totalRejection / qty) * 100).toFixed(1)}% de la production planifiée)</span>
+                    </div>
+                  )}
+
+                  <hr className="border-border" />
+                </div>
+              );
+            })()}
 
             {/* Movements journal */}
             <div>
@@ -804,7 +1080,7 @@ export function ProductionPage() {
                         <tr key={mv.id} className="hover:bg-muted/20">
                           <td className="px-3 py-2">
                             <Badge variant={MOV_TYPE_VARIANT[mv.type] ?? 'muted'}>
-                              {t(`production.movType.${mv.type}`, mv.type)}
+                              {String(t(`production.movType.${mv.type}`, mv.type))}
                             </Badge>
                           </td>
                           <td className="px-3 py-2">{mv.rawMaterialName ?? mv.finishedProductName ?? '—'}</td>
@@ -895,90 +1171,204 @@ export function ProductionPage() {
       <Modal
         open={movModalOpen}
         onClose={() => setMovModalOpen(false)}
-        title={t('production.logMovement')}
-        size="md"
+        title={(movType === 'mp_consumption' || movType === 'mp_loss') ? t('production.logConsumption') : t('production.logMovement')}
+        size={(movType === 'mp_consumption' || movType === 'mp_loss') ? 'xl' : 'md'}
       >
-        <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">{t('production.movementType')}</label>
-            <Controller
-              control={movForm.control}
-              name="type"
-              render={({ field }) => (
-                <Select value={field.value} onChange={field.onChange} className="mt-1">
-                  {['mp_consumption', 'pf_production', 'rejection', 'mp_loss'].map(type => (
-                    <option key={type} value={type}>{t(`production.movType.${type}`)}</option>
-                  ))}
-                </Select>
-              )}
-            />
+        {/* ── Type selector (always visible) ── */}
+        <div className="mb-5">
+          <label className="text-sm font-medium">{t('production.movementType')}</label>
+          <Controller
+            control={movForm.control}
+            name="type"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onChange={e => {
+                  const newType = e.target.value;
+                  field.onChange(e);
+                  if (newType === 'mp_consumption' || newType === 'mp_loss') {
+                    openBomModal(newType as 'mp_consumption' | 'mp_loss');
+                  } else {
+                    const fp = finishedProducts.find((p: any) => p.id === orderDetail?.finishedProductId);
+                    movForm.setValue('unit', fp?.unit ?? '');
+                  }
+                }}
+                className="mt-1"
+              >
+                {['mp_consumption', 'rejection', 'mp_loss'].map(type => (
+                  <option key={type} value={type}>{t(`production.movType.${type}`)}</option>
+                ))}
+              </Select>
+            )}
+          />
+        </div>
+
+        {/* ── GUIDED BOM TABLE (mp_consumption / mp_loss) ── */}
+        {(movType === 'mp_consumption' || movType === 'mp_loss') && (
+          <div className="space-y-4">
+            {/* Context banner */}
+            <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
+              <span className="text-muted-foreground">Ordre :</span>
+              <span className="font-semibold">{viewOrder?.ref}</span>
+              <span className="text-muted-foreground ml-2">Qté à produire :</span>
+              <span className="font-semibold">{viewOrder?.quantityToProduce}</span>
+            </div>
+
+            {/* BOM lines table */}
+            <div className="rounded-md border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
+                    {movType === 'mp_consumption' && (
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
+                    )}
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">
+                      {movType === 'mp_loss' ? 'Total perdu' : 'Déjà consommé'}
+                    </th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
+                      {movType === 'mp_loss' ? 'Nouvelle perte' : 'À consommer'}
+                    </th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {consLines.map((line, idx) => {
+                    const newQtyNum = Number(line.newQty) || 0;
+                    const hasDeviation = movType === 'mp_consumption' && !line.isExtra &&
+                      Math.abs((line.alreadyQty + newQtyNum) - line.plannedQty) > 0.001;
+                    return (
+                    <tr key={idx} className={line.isExtra ? 'bg-blue-50/30' : ''}>
+                      {/* Composant */}
+                      <td className="px-3 py-2">
+                        {line.isExtra ? (
+                          <Select
+                            value={line.rawMaterialId}
+                            onChange={e => {
+                              const rm = rawMaterials.find((r: any) => r.id === e.target.value);
+                              setConsLines(prev => prev.map((l, i) => i === idx ? {
+                                ...l,
+                                rawMaterialId: e.target.value,
+                                name: rm?.name ?? '',
+                                unit: rm?.unit ?? l.unit,
+                              } : l));
+                            }}
+                          >
+                            <option value="">— Sélectionner —</option>
+                            {rawMaterials.map((rm: any) => (
+                              <option key={rm.id} value={rm.id}>{rm.name}</option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <span className="font-medium">{line.name}</span>
+                        )}
+                      </td>
+                      {/* Prévu (mp_consumption only) */}
+                      {movType === 'mp_consumption' && (
+                        <td className="px-3 py-2 text-right text-muted-foreground">
+                          {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
+                        </td>
+                      )}
+                      {/* Déjà consommé / Total perdu (read-only) */}
+                      <td className="px-3 py-2 text-right text-muted-foreground">
+                        {line.isExtra ? '—' : line.alreadyQty.toFixed(2)}
+                      </td>
+                      {/* À consommer / Nouvelle perte (editable) */}
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={line.newQty}
+                          onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, newQty: e.target.value } : l))}
+                          className={`text-right ${hasDeviation ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                        />
+                      </td>
+                      {/* Unité */}
+                      <td className="px-3 py-2 text-center">
+                        {line.isExtra ? (
+                          <Input
+                            value={line.unit}
+                            onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, unit: e.target.value } : l))}
+                            placeholder="kg"
+                            className="text-center w-16"
+                          />
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-mono">{line.unit}</span>
+                        )}
+                      </td>
+                      {/* Supprimer (extra only) */}
+                      <td className="px-2 py-2 text-center">
+                        {line.isExtra && (
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeExtraLine(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Légende écart (mp_consumption only) */}
+            {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Écart entre prévu et consommé
+              </p>
+            )}
+
+            {/* Bouton hors-BOM */}
+            <button
+              type="button"
+              onClick={addExtraLine}
+              className="flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Ajouter une consommation hors-BOM
+            </button>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
+              <Button
+                type="button"
+                onClick={submitConsumptions}
+                disabled={batchMovMutation.isPending}
+              >
+                {t('common.save')}
+              </Button>
+            </div>
           </div>
+        )}
 
-          {(movType === 'mp_consumption' || movType === 'mp_loss') && (
-            <div>
-              <label className="text-sm font-medium">{t('production.rawMaterial')}</label>
-              <Controller
-                control={movForm.control}
-                name="rawMaterialId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {rawMaterials.map((rm: any) => (
-                      <option key={rm.id} value={rm.id}>{rm.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
+        {/* ── SIMPLE FORM (rejection) ── */}
+        {movType !== 'mp_consumption' && movType !== 'mp_loss' && (
+          <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">{t('production.quantity')}</label>
+                <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
+                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t('common.unit')}</label>
+                <Input {...movForm.register('unit')} placeholder="kg, pcs..." className="mt-1" />
+              </div>
             </div>
-          )}
 
-          {(movType === 'pf_production' || movType === 'rejection') && (
             <div>
-              <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
-              <Controller
-                control={movForm.control}
-                name="finishedProductId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {finishedProducts.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{t('production.quantity')}</label>
-              <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
-              {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
-            </div>
-            <div>
-              <label className="text-sm font-medium">{t('common.unit')}</label>
-              <Input {...movForm.register('unit')} placeholder="kg, pcs..." className="mt-1" />
-            </div>
-          </div>
-
-          {(movType === 'rejection' || movType === 'mp_loss') && (
-            <div>
-              <label className="text-sm font-medium">{t('production.reason')} *</label>
+              <label className="text-sm font-medium">{t('production.reason')}</label>
               <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
             </div>
-          )}
 
-          <div>
-            <label className="text-sm font-medium">{t('production.location')}</label>
-            <Input {...movForm.register('location')} placeholder="Zone A, Bac 3... (optionnel)" className="mt-1" />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={createMovMutation.isPending}>{t('common.save')}</Button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={createMovMutation.isPending}>{t('common.save')}</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

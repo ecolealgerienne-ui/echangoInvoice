@@ -99,6 +99,8 @@ export default api;
 export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }).then(r => r.data.data),
+  register: (companyName: string, email: string, password: string) =>
+    api.post('/auth/register', { companyName, email, password }).then(r => r.data.data),
   logout: () => api.post('/auth/logout').then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data.data),
 };
@@ -252,8 +254,14 @@ export const productionApi = {
   completeOrder: (id: string, body: unknown) => api.patch(`/production/orders/${id}/complete`, body).then(r => r.data),
   cancelOrder: (id: string, body?: unknown) => api.patch(`/production/orders/${id}/cancel`, body).then(r => r.data),
   // Mouvements
-  listMovements: (orderId: string) => api.get(`/production/orders/${orderId}/movements`).then(r => r.data),
-  createMovement: (orderId: string, body: unknown) => api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+  listMovements: (orderId: string, params?: Record<string, unknown>) =>
+    api.get(`/production/orders/${orderId}/movements`, { params }).then(r => r.data),
+  createMovement: (orderId: string, body: unknown) =>
+    api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+  createMovementBatch: (orderId: string, items: unknown[]) =>
+    api.post(`/production/orders/${orderId}/movements/batch`, { items }).then(r => r.data),
+  // Dashboard
+  getDashboard: () => api.get('/production/dashboard').then(r => r.data),
 };
 
 export const creditNotesApi = {
