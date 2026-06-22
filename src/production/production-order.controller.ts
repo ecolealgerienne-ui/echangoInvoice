@@ -6,6 +6,7 @@ import { ProductionOrderService } from './production-order.service';
 import { ProductionMovementService } from './production-movement.service';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
+import { CancelProductionOrderDto } from './dto/cancel-production-order.dto';
 import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
@@ -79,8 +80,12 @@ export class ProductionOrderController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Annuler un ordre (libère les réservations si in_progress)' })
   @ApiResponse({ status: 200 })
-  cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.orderService.cancel(id, user.tenantId, user.sub);
+  cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CancelProductionOrderDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.orderService.cancel(id, user.tenantId, user.sub, dto.reason);
   }
 
   // ── Movements ──────────────────────────────────────────────────────────────

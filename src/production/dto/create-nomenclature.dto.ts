@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID,
+  ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID,
   Min, ValidateNested,
 } from 'class-validator';
 
@@ -19,6 +19,6 @@ export class CreateNomenclatureDto {
   @ApiProperty() @IsUUID() finishedProductId: string;
   @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) outputQuantity: number;
   @ApiProperty({ type: [BomLineDto] })
-  @IsArray() @ValidateNested({ each: true }) @Type(() => BomLineDto)
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => BomLineDto)
   lines: BomLineDto[];
 }

@@ -10,6 +10,7 @@ import { RawMaterial } from '../raw-materials/raw-material.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
+import { CancelProductionOrderDto } from './dto/cancel-production-order.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 
 @Injectable()
@@ -123,9 +124,22 @@ export class ProductionOrderService {
         });
         if (!rm) throw new NotFoundException(`raw_material_not_found:${line.rawMaterialId}`);
 
-        if (Number(rm.reservedQuantity) + needed < 0) {
+        // Calcul stock disponible = somme stock_entries - reservedQuantity
+        const stockRows: { total: string }[] = await qr.query(
+          `SELECT COALESCE(SUM(quantity), 0) AS total
+           FROM stock_entries
+           WHERE "rawMaterialId" = $1 AND status = 'available' AND "deletedAt" IS NULL`,
+          [rm.id],
+        );
+        const stockQty = Number(stockRows[0]?.total ?? 0);
+        const available = stockQty - Number(rm.reservedQuantity);
+
+        if (available <= 0) {
+          throw new BadRequestException(`insufficient_stock:${rm.id}`);
+        }
+        if (available < needed) {
           this.logger.warn(
-            `Stock insuffisant pour MO ${order.ref} — MP ${rm.id}`,
+            `Stock insuffisant pour MO ${order.ref} — MP ${rm.id}: disponible=${available}, besoin=${needed}`,
           );
         }
 
@@ -192,7 +206,20 @@ export class ProductionOrderService {
 
         actualCost += consumed * Number(rm.lastCostPerUnit);
 
-        // Decrement stockQuantity directly (no FIFO)
+        // Decrement stockQuantity directly (no FIFO) and release reservation
+        await qr.query(
+          `UPDATE stock_entries
+           SET quantity = GREATEST(0, quantity - $1)
+           WHERE "rawMaterialId" = $2 AND status = 'available' AND "deletedAt" IS NULL
+             AND ctid IN (
+               SELECT ctid FROM stock_entries
+               WHERE "rawMaterialId" = $2 AND status = 'available' AND "deletedAt" IS NULL
+               ORDER BY "enteredAt" ASC
+               LIMIT 1
+             )`,
+          [consumed, row.rawMaterialId],
+        );
+
         await qr.manager
           .createQueryBuilder()
           .update(RawMaterial)
@@ -271,7 +298,7 @@ export class ProductionOrderService {
     }
   }
 
-  async cancel(id: string, tenantId: string, userId: string) {
+  async cancel(id: string, tenantId: string, userId: string, reason?: string) {
     const order = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!order) throw new NotFoundException('production_order_not_found');
     if (order.status === 'completed') throw new BadRequestException('production_order_already_completed');
@@ -282,7 +309,7 @@ export class ProductionOrderService {
     await qr.startTransaction();
     try {
       if (order.status === 'in_progress') {
-        const nom = await this.nomRepo.findOne({ where: { id: order.nomenclatureId } });
+        const nom = await this.nomRepo.findOne({ where: { id: order.nomenclatureId, tenantId } });
         if (nom) {
           for (const line of nom.bomLines) {
             const reserved = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
@@ -297,6 +324,7 @@ export class ProductionOrderService {
       }
 
       order.status = 'cancelled';
+      if (reason) order.notes = reason;
       order.updatedBy = userId;
       await qr.manager.save(ProductionOrder, order);
 
