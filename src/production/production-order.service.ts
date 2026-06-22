@@ -227,24 +227,31 @@ export class ProductionOrderService {
 
         actualCost += consumed * Number(material.lastCostPerUnit);
 
-        // Decrement stock_entries (oldest first) and release reservation
-        await qr.query(
-          `UPDATE stock_entries
-           SET quantity = GREATEST(0, quantity - $1)
-           WHERE "rawMaterialId" = $2 AND status = 'available' AND "deletedAt" IS NULL
-             AND ctid IN (
-               SELECT ctid FROM stock_entries
-               WHERE "rawMaterialId" = $2 AND status = 'available' AND "deletedAt" IS NULL
-               ORDER BY "enteredAt" ASC
-               LIMIT 1
-             )`,
-          [consumed, row.rawMaterialId],
+        // Decrement stock_entries FIFO (oldest first, may span multiple entries)
+        let remaining = consumed;
+        const entries: { id: string; quantity: string }[] = await qr.query(
+          `SELECT id, quantity FROM stock_entries
+           WHERE "rawMaterialId" = $1 AND status = 'available' AND "deletedAt" IS NULL
+           ORDER BY "enteredAt" ASC`,
+          [row.rawMaterialId],
         );
+        for (const entry of entries) {
+          if (remaining <= 0) break;
+          const entryQty = Number(entry.quantity);
+          const deduct = Math.min(remaining, entryQty);
+          await qr.query(
+            `UPDATE stock_entries SET quantity = quantity - $1 WHERE id = $2`,
+            [deduct, entry.id],
+          );
+          remaining -= deduct;
+        }
 
+        // Update material stockQuantity and release reservation
         await qr.manager
           .createQueryBuilder()
           .update(FinishedProduct)
           .set({
+            stockQuantity: () => `GREATEST(0, "stockQuantity" - ${consumed})`,
             reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${consumed})`,
           })
           .where('id = :id', { id: material.id })
