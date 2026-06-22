@@ -28,9 +28,6 @@ export class RawMaterial {
   @Column({ type: 'uuid', nullable: true })
   supplierId?: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  reservedQuantity: number;
-
   @Column({ type: 'text', nullable: true })
   description?: string;
 

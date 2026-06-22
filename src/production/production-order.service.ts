@@ -6,7 +6,6 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import { ProductionOrder } from './production-order.entity';
 import { ProductionMovement } from './production-movement.entity';
 import { Nomenclature } from './nomenclature.entity';
-import { RawMaterial } from '../raw-materials/raw-material.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
@@ -20,7 +19,6 @@ export class ProductionOrderService {
   constructor(
     @InjectRepository(ProductionOrder) private readonly repo: Repository<ProductionOrder>,
     @InjectRepository(Nomenclature) private readonly nomRepo: Repository<Nomenclature>,
-    @InjectRepository(RawMaterial) private readonly rmRepo: Repository<RawMaterial>,
     @InjectRepository(FinishedProduct) private readonly fpRepo: Repository<FinishedProduct>,
     @InjectDataSource() private readonly ds: DataSource,
   ) {}
@@ -119,35 +117,35 @@ export class ProductionOrderService {
     try {
       for (const line of nom.bomLines) {
         const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
-        const rm = await qr.manager.findOne(RawMaterial, {
+        const material = await qr.manager.findOne(FinishedProduct, {
           where: { id: line.rawMaterialId, tenantId, deletedAt: IsNull() },
         });
-        if (!rm) throw new NotFoundException(`raw_material_not_found:${line.rawMaterialId}`);
+        if (!material) throw new NotFoundException(`raw_material_not_found:${line.rawMaterialId}`);
 
         // Calcul stock disponible = somme stock_entries - reservedQuantity
         const stockRows: { total: string }[] = await qr.query(
           `SELECT COALESCE(SUM(quantity), 0) AS total
            FROM stock_entries
            WHERE "rawMaterialId" = $1 AND status = 'available' AND "deletedAt" IS NULL`,
-          [rm.id],
+          [material.id],
         );
         const stockQty = Number(stockRows[0]?.total ?? 0);
-        const available = stockQty - Number(rm.reservedQuantity);
+        const available = stockQty - Number(material.reservedQuantity);
 
         if (available <= 0) {
-          throw new BadRequestException(`insufficient_stock:${rm.id}`);
+          throw new BadRequestException(`insufficient_stock:${material.id}`);
         }
         if (available < needed) {
           this.logger.warn(
-            `Stock insuffisant pour MO ${order.ref} — MP ${rm.id}: disponible=${available}, besoin=${needed}`,
+            `Stock insuffisant pour MO ${order.ref} — MP ${material.id}: disponible=${available}, besoin=${needed}`,
           );
         }
 
         await qr.manager
           .createQueryBuilder()
-          .update(RawMaterial)
+          .update(FinishedProduct)
           .set({ reservedQuantity: () => `"reservedQuantity" + ${needed}` })
-          .where('id = :id', { id: rm.id })
+          .where('id = :id', { id: material.id })
           .execute();
       }
 
@@ -199,14 +197,14 @@ export class ProductionOrderService {
 
       for (const row of consumptionRows) {
         const consumed = Number(row.totalQty);
-        const rm = await qr.manager.findOne(RawMaterial, {
+        const material = await qr.manager.findOne(FinishedProduct, {
           where: { id: row.rawMaterialId, tenantId, deletedAt: IsNull() },
         });
-        if (!rm) continue;
+        if (!material) continue;
 
-        actualCost += consumed * Number(rm.lastCostPerUnit);
+        actualCost += consumed * Number(material.lastCostPerUnit);
 
-        // Decrement stockQuantity directly (no FIFO) and release reservation
+        // Decrement stock_entries (oldest first) and release reservation
         await qr.query(
           `UPDATE stock_entries
            SET quantity = GREATEST(0, quantity - $1)
@@ -222,11 +220,11 @@ export class ProductionOrderService {
 
         await qr.manager
           .createQueryBuilder()
-          .update(RawMaterial)
+          .update(FinishedProduct)
           .set({
             reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${consumed})`,
           })
-          .where('id = :id', { id: rm.id })
+          .where('id = :id', { id: material.id })
           .execute();
       }
 
@@ -236,7 +234,7 @@ export class ProductionOrderService {
           const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
           await qr.manager
             .createQueryBuilder()
-            .update(RawMaterial)
+            .update(FinishedProduct)
             .set({ reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${needed})` })
             .where('id = :id AND "tenantId" = :tenantId', { id: line.rawMaterialId, tenantId })
             .execute();
@@ -315,9 +313,9 @@ export class ProductionOrderService {
             const reserved = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
             await qr.manager
               .createQueryBuilder()
-              .update(RawMaterial)
+              .update(FinishedProduct)
               .set({ reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${reserved})` })
-              .where('id = :id', { id: line.rawMaterialId })
+              .where('id = :id AND "tenantId" = :tenantId', { id: line.rawMaterialId, tenantId })
               .execute();
           }
         }

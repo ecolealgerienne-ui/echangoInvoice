@@ -5,7 +5,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { Nomenclature } from './nomenclature.entity';
 import { BomLine } from './bom-line.entity';
-import { RawMaterial } from '../raw-materials/raw-material.entity';
+import { FinishedProduct } from '../products/finished-product.entity';
 import { ProductionOrder } from './production-order.entity';
 import { CreateNomenclatureDto } from './dto/create-nomenclature.dto';
 import { UpdateNomenclatureDto } from './dto/update-nomenclature.dto';
@@ -16,7 +16,7 @@ export class NomenclatureService {
 
   constructor(
     @InjectRepository(Nomenclature) private readonly repo: Repository<Nomenclature>,
-    @InjectRepository(RawMaterial) private readonly rmRepo: Repository<RawMaterial>,
+    @InjectRepository(FinishedProduct) private readonly fpRepo: Repository<FinishedProduct>,
     @InjectRepository(ProductionOrder) private readonly orderRepo: Repository<ProductionOrder>,
     @InjectDataSource() private readonly ds: DataSource,
   ) {}
@@ -69,7 +69,7 @@ export class NomenclatureService {
       let estimatedCost = 0;
       const lines = await Promise.all(
         dto.lines.map(async (l, idx) => {
-          const rm = await qr.manager.findOne(RawMaterial, {
+          const rm = await qr.manager.findOne(FinishedProduct, {
             where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
           });
           if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);
@@ -127,7 +127,7 @@ export class NomenclatureService {
         const outputQty = dto.outputQuantity ?? Number(existing.outputQuantity);
         const lines = await Promise.all(
           dto.lines.map(async (l, idx) => {
-            const rm = await qr.manager.findOne(RawMaterial, {
+            const rm = await qr.manager.findOne(FinishedProduct, {
               where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
             });
             if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);

@@ -12,7 +12,6 @@ import { NomenclatureController } from './nomenclature.controller';
 import { ProductionOrderController } from './production-order.controller';
 import { ProductionDashboardController } from './production-dashboard.controller';
 import { ProductionModuleGuard } from './production-module.guard';
-import { RawMaterial } from '../raw-materials/raw-material.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { Setting } from '../settings/setting.entity';
 
@@ -23,7 +22,6 @@ import { Setting } from '../settings/setting.entity';
       BomLine,
       ProductionOrder,
       ProductionMovement,
-      RawMaterial,
       FinishedProduct,
       Setting,
     ]),
