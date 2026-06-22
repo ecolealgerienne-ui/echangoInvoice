@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ProductionOrder } from './production-order.entity';
 import { ProductionMovement } from './production-movement.entity';
+import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
 import { BatchCreateMovementsDto } from './dto/batch-create-movements.dto';
 
@@ -15,6 +16,7 @@ export class ProductionMovementService {
   constructor(
     @InjectRepository(ProductionOrder) private readonly orderRepo: Repository<ProductionOrder>,
     @InjectRepository(ProductionMovement) private readonly repo: Repository<ProductionMovement>,
+    @InjectRepository(FinishedProduct) private readonly fpRepo: Repository<FinishedProduct>,
   ) {}
 
   async findByOrder(orderId: string, tenantId: string, type?: string, from?: string, to?: string) {
@@ -25,7 +27,27 @@ export class ProductionMovementService {
     if (from) qb.andWhere('m.movedAt >= :from', { from });
     if (to) qb.andWhere('m.movedAt <= :to', { to });
     qb.orderBy('m.movedAt', 'ASC');
-    const data = await qb.getMany();
+    const movements = await qb.getMany();
+
+    const productIds = [
+      ...new Set([
+        ...movements.map(m => m.rawMaterialId).filter(Boolean),
+        ...movements.map(m => m.finishedProductId).filter(Boolean),
+      ]),
+    ] as string[];
+
+    const nameMap: Record<string, string> = {};
+    if (productIds.length > 0) {
+      const products = await this.fpRepo.findByIds(productIds);
+      products.forEach(p => { nameMap[p.id] = p.name; });
+    }
+
+    const data = movements.map(m => ({
+      ...m,
+      rawMaterialName: m.rawMaterialId ? (nameMap[m.rawMaterialId] ?? null) : null,
+      finishedProductName: m.finishedProductId ? (nameMap[m.finishedProductId] ?? null) : null,
+    }));
+
     return { data };
   }
 
