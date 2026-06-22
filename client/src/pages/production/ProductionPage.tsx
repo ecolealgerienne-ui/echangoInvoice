@@ -558,28 +558,25 @@ export function ProductionPage() {
               <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message}</p>
             )}
             <div className="space-y-2">
-              {bomLines.map((field, idx) => (
-                <div key={field.id} className="flex gap-2 items-start p-3 bg-muted/30 rounded-md">
+              {bomLines.map((field, idx) => {
+                const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
+                const selRm = rawMaterials.find((r: any) => r.id === selRmId);
+                return (
+                <div key={field.id} className="flex gap-2 items-center p-3 bg-muted/30 rounded-md">
                   <div className="flex-1 min-w-0">
-                    <Controller
-                      control={nomForm.control}
-                      name={`lines.${idx}.rawMaterialId`}
-                      render={({ field: f }) => (
-                        <Select
-                          value={f.value ?? ''}
-                          onChange={val => {
-                            f.onChange(val);
-                            const rm = rawMaterials.find((r: any) => r.id === val);
-                            if (rm?.unit) nomForm.setValue(`lines.${idx}.unit`, rm.unit);
-                          }}
-                        >
-                          <option value="">{t('production.rawMaterial')}...</option>
-                          {rawMaterials.map((rm: any) => (
-                            <option key={rm.id} value={rm.id}>{rm.name}</option>
-                          ))}
-                        </Select>
-                      )}
-                    />
+                    <Select
+                      {...nomForm.register(`lines.${idx}.rawMaterialId`)}
+                      onChange={e => {
+                        nomForm.setValue(`lines.${idx}.rawMaterialId`, e.target.value);
+                        const rm = rawMaterials.find((r: any) => r.id === e.target.value);
+                        if (rm?.unit) nomForm.setValue(`lines.${idx}.unit`, rm.unit);
+                      }}
+                    >
+                      <option value="">{t('production.rawMaterial')}...</option>
+                      {rawMaterials.map((rm: any) => (
+                        <option key={rm.id} value={rm.id}>{rm.name}</option>
+                      ))}
+                    </Select>
                   </div>
                   <div className="w-28">
                     <Input
@@ -589,13 +586,11 @@ export function ProductionPage() {
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
-                  <div className="w-20">
-                    <Input
-                      placeholder="Unité"
-                      readOnly
-                      className="bg-muted/50 text-muted-foreground cursor-default"
-                      {...nomForm.register(`lines.${idx}.unit`)}
-                    />
+                  <div className="w-24">
+                    <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
+                      {selRm?.unit ?? '—'}
+                    </span>
+                    <input type="hidden" {...nomForm.register(`lines.${idx}.unit`)} />
                   </div>
                   <Button
                     type="button"
@@ -608,7 +603,8 @@ export function ProductionPage() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
