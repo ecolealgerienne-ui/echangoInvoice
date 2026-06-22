@@ -134,6 +134,13 @@ export function ProductionPage() {
     enabled: !!viewOrder?.id && viewOrderOpen,
   });
 
+  const { data: orderNomenclatureData } = useQuery({
+    queryKey: ['nomenclature', orderDetail?.nomenclatureId],
+    queryFn: () => productionApi.getNomenclature(orderDetail.nomenclatureId),
+    enabled: !!orderDetail?.nomenclatureId && viewOrderOpen,
+  });
+  const orderNomenclature: any = orderNomenclatureData?.data ?? null;
+
   const { data: rawMaterialsData } = useQuery({
     queryKey: ['raw-materials-all'],
     queryFn: () => rawMaterialsApi.list({ limit: 200 }),
@@ -287,6 +294,70 @@ export function ProductionPage() {
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
+
+  // ── Consumption lines (guided BOM table) ────────────────────────────────────
+  type ConsLine = {
+    rawMaterialId: string;
+    name: string;
+    plannedQty: number;
+    consumedQty: string;
+    unit: string;
+    isExtra: boolean;
+  };
+  const [consLines, setConsLines] = useState<ConsLine[]>([]);
+
+  function openConsumptionModal() {
+    const qty = Number(orderDetail?.quantityToProduce) || 1;
+    const bomLines: ConsLine[] = (orderNomenclature?.bomLines ?? []).map((l: any) => {
+      const rm = rawMaterials.find((r: any) => r.id === l.rawMaterialId);
+      const planned = Number(l.quantityPerUnit) * qty;
+      return {
+        rawMaterialId: l.rawMaterialId,
+        name: rm?.name ?? l.rawMaterialId,
+        plannedQty: planned,
+        consumedQty: String(planned),
+        unit: l.unit,
+        isExtra: false,
+      };
+    });
+    setConsLines(bomLines);
+    movForm.reset({ type: 'mp_consumption', quantity: 1, unit: '' });
+    setMovModalOpen(true);
+  }
+
+  function addExtraLine() {
+    setConsLines(prev => [...prev, { rawMaterialId: '', name: '', plannedQty: 0, consumedQty: '', unit: '', isExtra: true }]);
+  }
+
+  function removeExtraLine(idx: number) {
+    setConsLines(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  const batchMovMutation = useMutation({
+    mutationFn: (items: object[]) => productionApi.createMovementBatch(viewOrder.id, items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
+      toast(t('production.movementLogged'), 'success');
+      setMovModalOpen(false);
+    },
+    onError: (e: any) => toast(resolveApiError(e, t), 'error'),
+  });
+
+  function submitConsumptions() {
+    const items = consLines
+      .filter(l => l.rawMaterialId && Number(l.consumedQty) > 0)
+      .map(l => ({
+        type: 'mp_consumption',
+        rawMaterialId: l.rawMaterialId,
+        quantity: Number(l.consumedQty),
+        unit: l.unit,
+      }));
+    if (items.length === 0) {
+      toast('Aucune consommation à enregistrer', 'error');
+      return;
+    }
+    batchMovMutation.mutate(items);
+  }
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -818,7 +889,7 @@ export function ProductionPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setMovModalOpen(true)}
+                    onClick={openConsumptionModal}
                     className="gap-2"
                   >
                     <Plus className="h-4 w-4" />
@@ -954,90 +1025,218 @@ export function ProductionPage() {
       <Modal
         open={movModalOpen}
         onClose={() => setMovModalOpen(false)}
-        title={t('production.logMovement')}
-        size="md"
+        title={movType === 'mp_consumption' ? t('production.logConsumption') : t('production.logMovement')}
+        size={movType === 'mp_consumption' ? 'xl' : 'md'}
       >
-        <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">{t('production.movementType')}</label>
-            <Controller
-              control={movForm.control}
-              name="type"
-              render={({ field }) => (
-                <Select value={field.value} onChange={field.onChange} className="mt-1">
-                  {['mp_consumption', 'pf_production', 'rejection', 'mp_loss'].map(type => (
-                    <option key={type} value={type}>{t(`production.movType.${type}`)}</option>
+        {/* ── Type selector (always visible) ── */}
+        <div className="mb-5">
+          <label className="text-sm font-medium">{t('production.movementType')}</label>
+          <Controller
+            control={movForm.control}
+            name="type"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onChange={e => {
+                  field.onChange(e);
+                  if (e.target.value === 'mp_consumption') openConsumptionModal();
+                }}
+                className="mt-1"
+              >
+                {['mp_consumption', 'pf_production', 'rejection', 'mp_loss'].map(type => (
+                  <option key={type} value={type}>{t(`production.movType.${type}`)}</option>
+                ))}
+              </Select>
+            )}
+          />
+        </div>
+
+        {/* ── GUIDED CONSUMPTION TABLE (mp_consumption) ── */}
+        {movType === 'mp_consumption' && (
+          <div className="space-y-4">
+            {/* Context banner */}
+            <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
+              <span className="text-muted-foreground">Ordre :</span>
+              <span className="font-semibold">{viewOrder?.ref}</span>
+              <span className="text-muted-foreground ml-2">Qté à produire :</span>
+              <span className="font-semibold">{viewOrder?.quantityToProduce}</span>
+            </div>
+
+            {/* BOM lines table */}
+            <div className="rounded-md border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">Consommé</th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {consLines.map((line, idx) => (
+                    <tr key={idx} className={line.isExtra ? 'bg-blue-50/30' : ''}>
+                      {/* Composant */}
+                      <td className="px-3 py-2">
+                        {line.isExtra ? (
+                          <Select
+                            value={line.rawMaterialId}
+                            onChange={e => {
+                              const rm = rawMaterials.find((r: any) => r.id === e.target.value);
+                              setConsLines(prev => prev.map((l, i) => i === idx ? {
+                                ...l,
+                                rawMaterialId: e.target.value,
+                                name: rm?.name ?? '',
+                                unit: rm?.unit ?? l.unit,
+                              } : l));
+                            }}
+                          >
+                            <option value="">— Sélectionner —</option>
+                            {rawMaterials.map((rm: any) => (
+                              <option key={rm.id} value={rm.id}>{rm.name}</option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <span className="font-medium">{line.name}</span>
+                        )}
+                      </td>
+                      {/* Prévu */}
+                      <td className="px-3 py-2 text-right text-muted-foreground">
+                        {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
+                      </td>
+                      {/* Consommé */}
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={line.consumedQty}
+                          onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, consumedQty: e.target.value } : l))}
+                          className={`text-right ${!line.isExtra && Number(line.consumedQty) !== line.plannedQty ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                        />
+                      </td>
+                      {/* Unité */}
+                      <td className="px-3 py-2 text-center">
+                        {line.isExtra ? (
+                          <Input
+                            value={line.unit}
+                            onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, unit: e.target.value } : l))}
+                            placeholder="kg"
+                            className="text-center w-16"
+                          />
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-mono">{line.unit}</span>
+                        )}
+                      </td>
+                      {/* Supprimer (extra only) */}
+                      <td className="px-2 py-2 text-center">
+                        {line.isExtra && (
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeExtraLine(idx)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
                   ))}
-                </Select>
-              )}
-            />
-          </div>
-
-          {(movType === 'mp_consumption' || movType === 'mp_loss') && (
-            <div>
-              <label className="text-sm font-medium">{t('production.rawMaterial')}</label>
-              <Controller
-                control={movForm.control}
-                name="rawMaterialId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {rawMaterials.map((rm: any) => (
-                      <option key={rm.id} value={rm.id}>{rm.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
+                </tbody>
+              </table>
             </div>
-          )}
 
-          {(movType === 'pf_production' || movType === 'rejection') && (
-            <div>
-              <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
-              <Controller
-                control={movForm.control}
-                name="finishedProductId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {finishedProducts.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
-            </div>
-          )}
+            {/* Légende écart */}
+            {consLines.some(l => !l.isExtra && Number(l.consumedQty) !== l.plannedQty) && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Écart entre prévu et consommé
+              </p>
+            )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{t('production.quantity')}</label>
-              <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
-              {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
-            </div>
-            <div>
-              <label className="text-sm font-medium">{t('common.unit')}</label>
-              <Input {...movForm.register('unit')} placeholder="kg, pcs..." className="mt-1" />
+            {/* Bouton hors-BOM */}
+            <button
+              type="button"
+              onClick={addExtraLine}
+              className="flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Ajouter une consommation hors-BOM
+            </button>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
+              <Button
+                type="button"
+                onClick={submitConsumptions}
+                disabled={batchMovMutation.isPending}
+              >
+                {t('common.save')}
+              </Button>
             </div>
           </div>
+        )}
 
-          {(movType === 'rejection' || movType === 'mp_loss') && (
-            <div>
-              <label className="text-sm font-medium">{t('production.reason')} *</label>
-              <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
+        {/* ── SIMPLE FORM (other movement types) ── */}
+        {movType !== 'mp_consumption' && (
+          <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
+            {movType === 'mp_loss' && (
+              <div>
+                <label className="text-sm font-medium">{t('production.rawMaterial')}</label>
+                <Controller
+                  control={movForm.control}
+                  name="rawMaterialId"
+                  render={({ field }) => (
+                    <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
+                      <option value="">{t('common.select')}</option>
+                      {rawMaterials.map((rm: any) => (
+                        <option key={rm.id} value={rm.id}>{rm.name}</option>
+                      ))}
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
+
+            {(movType === 'pf_production' || movType === 'rejection') && (
+              <div>
+                <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
+                <Controller
+                  control={movForm.control}
+                  name="finishedProductId"
+                  render={({ field }) => (
+                    <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
+                      <option value="">{t('common.select')}</option>
+                      {finishedProducts.map((p: any) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">{t('production.quantity')}</label>
+                <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
+                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t('common.unit')}</label>
+                <Input {...movForm.register('unit')} placeholder="kg, pcs..." className="mt-1" />
+              </div>
             </div>
-          )}
 
-          <div>
-            <label className="text-sm font-medium">{t('production.location')}</label>
-            <Input {...movForm.register('location')} placeholder="Zone A, Bac 3... (optionnel)" className="mt-1" />
-          </div>
+            {(movType === 'rejection' || movType === 'mp_loss') && (
+              <div>
+                <label className="text-sm font-medium">{t('production.reason')} *</label>
+                <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
+              </div>
+            )}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
-            <Button type="submit" disabled={createMovMutation.isPending}>{t('common.save')}</Button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setMovModalOpen(false)}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={createMovMutation.isPending}>{t('common.save')}</Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

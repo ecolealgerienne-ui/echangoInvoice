@@ -6,6 +6,7 @@ import { IsNull, Repository } from 'typeorm';
 import { ProductionOrder } from './production-order.entity';
 import { ProductionMovement } from './production-movement.entity';
 import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
+import { BatchCreateMovementsDto } from './dto/batch-create-movements.dto';
 
 @Injectable()
 export class ProductionMovementService {
@@ -59,5 +60,41 @@ export class ProductionMovementService {
     await this.repo.save(movement);
     this.logger.log(`Movement logged: ${dto.type} on order ${orderId}`);
     return { data: movement };
+  }
+
+  async createBatch(
+    orderId: string,
+    dto: BatchCreateMovementsDto,
+    tenantId: string,
+    userId: string,
+  ) {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId, tenantId, deletedAt: IsNull() },
+    });
+    if (!order) throw new NotFoundException('production_order_not_found');
+    if (order.status !== 'in_progress') {
+      throw new BadRequestException('production_order_not_in_progress');
+    }
+
+    const now = new Date();
+    const movements = dto.items.map(item =>
+      this.repo.create({
+        tenantId,
+        productionOrderId: orderId,
+        rawMaterialId: item.rawMaterialId ?? null,
+        finishedProductId: item.finishedProductId ?? null,
+        type: item.type as any,
+        quantity: item.quantity,
+        unit: item.unit,
+        reason: item.reason ?? null,
+        location: null,
+        notes: item.notes ?? null,
+        loggedBy: userId,
+        movedAt: now,
+      }),
+    );
+    const saved = await this.repo.save(movements);
+    this.logger.log(`Batch of ${saved.length} movements logged on order ${orderId}`);
+    return { data: saved };
   }
 }

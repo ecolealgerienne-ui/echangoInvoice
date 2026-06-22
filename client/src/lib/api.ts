@@ -258,6 +258,8 @@ export const productionApi = {
     api.get(`/production/orders/${orderId}/movements`, { params }).then(r => r.data),
   createMovement: (orderId: string, body: unknown) =>
     api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+  createMovementBatch: (orderId: string, items: unknown[]) =>
+    api.post(`/production/orders/${orderId}/movements/batch`, { items }).then(r => r.data),
   // Dashboard
   getDashboard: () => api.get('/production/dashboard').then(r => r.data),
 };

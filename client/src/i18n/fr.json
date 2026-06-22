@@ -546,6 +546,7 @@
     "cancelOrder": "Annuler l'ordre",
     "movements": "Journal de production",
     "logMovement": "Enregistrer un mouvement",
+    "logConsumption": "Enregistrer les consommations",
     "movementType": "Type de mouvement",
     "quantity": "Quantité",
     "reason": "Raison",

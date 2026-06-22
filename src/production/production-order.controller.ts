@@ -8,6 +8,7 @@ import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
 import { CancelProductionOrderDto } from './dto/cancel-production-order.dto';
 import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
+import { BatchCreateMovementsDto } from './dto/batch-create-movements.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -115,5 +116,18 @@ export class ProductionOrderController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.movementService.create(id, dto, user.tenantId, user.sub);
+  }
+
+  @Post(':id/movements/batch')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Enregistrer plusieurs mouvements en une fois' })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400, description: 'production_order_not_in_progress' })
+  addMovementBatch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BatchCreateMovementsDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.movementService.createBatch(id, dto, user.tenantId, user.sub);
   }
 }
