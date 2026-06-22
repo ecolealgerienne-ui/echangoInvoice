@@ -299,8 +299,9 @@ export function ProductionPage() {
   type ConsLine = {
     rawMaterialId: string;
     name: string;
-    plannedQty: number;
-    consumedQty: string;
+    plannedQty: number;   // BOM prévu (mp_consumption only)
+    alreadyQty: number;   // Σ mouvements passés du même type (read-only)
+    newQty: string;       // saisie de ce mouvement
     unit: string;
     isExtra: boolean;
   };
@@ -317,12 +318,16 @@ export function ProductionPage() {
     const bomLines: ConsLine[] = (orderNomenclature?.bomLines ?? []).map((l: any) => {
       const rm = rawMaterials.find((r: any) => r.id === l.rawMaterialId);
       const planned = Number(l.quantityPerUnit) * qty;
-      const remaining = Math.max(0, planned - (alreadyLogged[l.rawMaterialId] ?? 0));
+      const already = alreadyLogged[l.rawMaterialId] ?? 0;
+      const defaultNew = type === 'mp_consumption'
+        ? String(Math.max(0, planned - already))
+        : '0';
       return {
         rawMaterialId: l.rawMaterialId,
         name: rm?.name ?? l.rawMaterialId,
         plannedQty: planned,
-        consumedQty: String(remaining),
+        alreadyQty: already,
+        newQty: defaultNew,
         unit: l.unit,
         isExtra: false,
       };
@@ -335,7 +340,7 @@ export function ProductionPage() {
   function openConsumptionModal() { openBomModal('mp_consumption'); }
 
   function addExtraLine() {
-    setConsLines(prev => [...prev, { rawMaterialId: '', name: '', plannedQty: 0, consumedQty: '', unit: '', isExtra: true }]);
+    setConsLines(prev => [...prev, { rawMaterialId: '', name: '', plannedQty: 0, alreadyQty: 0, newQty: '', unit: '', isExtra: true }]);
   }
 
   function removeExtraLine(idx: number) {
@@ -354,11 +359,11 @@ export function ProductionPage() {
 
   function submitConsumptions() {
     const items = consLines
-      .filter(l => l.rawMaterialId && Number(l.consumedQty) > 0)
+      .filter(l => l.rawMaterialId && Number(l.newQty) > 0)
       .map(l => ({
         type: movType,
         rawMaterialId: l.rawMaterialId,
-        quantity: Number(l.consumedQty),
+        quantity: Number(l.newQty),
         unit: l.unit,
       }));
     if (items.length === 0) {
@@ -1083,14 +1088,25 @@ export function ProductionPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">{movType === 'mp_loss' ? 'Perdue' : 'Consommé'}</th>
+                    {movType === 'mp_consumption' && (
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
+                    )}
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">
+                      {movType === 'mp_loss' ? 'Total perdu' : 'Déjà consommé'}
+                    </th>
+                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
+                      {movType === 'mp_loss' ? 'Nouvelle perte' : 'À consommer'}
+                    </th>
                     <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {consLines.map((line, idx) => (
+                  {consLines.map((line, idx) => {
+                    const newQtyNum = Number(line.newQty) || 0;
+                    const hasDeviation = movType === 'mp_consumption' && !line.isExtra &&
+                      Math.abs((line.alreadyQty + newQtyNum) - line.plannedQty) > 0.001;
+                    return (
                     <tr key={idx} className={line.isExtra ? 'bg-blue-50/30' : ''}>
                       {/* Composant */}
                       <td className="px-3 py-2">
@@ -1116,19 +1132,25 @@ export function ProductionPage() {
                           <span className="font-medium">{line.name}</span>
                         )}
                       </td>
-                      {/* Prévu */}
+                      {/* Prévu (mp_consumption only) */}
+                      {movType === 'mp_consumption' && (
+                        <td className="px-3 py-2 text-right text-muted-foreground">
+                          {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
+                        </td>
+                      )}
+                      {/* Déjà consommé / Total perdu (read-only) */}
                       <td className="px-3 py-2 text-right text-muted-foreground">
-                        {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
+                        {line.isExtra ? '—' : line.alreadyQty.toFixed(2)}
                       </td>
-                      {/* Consommé */}
+                      {/* À consommer / Nouvelle perte (editable) */}
                       <td className="px-3 py-2">
                         <Input
                           type="number"
                           step="0.01"
                           min="0"
-                          value={line.consumedQty}
-                          onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, consumedQty: e.target.value } : l))}
-                          className={`text-right ${!line.isExtra && Number(line.consumedQty) !== line.plannedQty ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                          value={line.newQty}
+                          onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, newQty: e.target.value } : l))}
+                          className={`text-right ${hasDeviation ? 'border-amber-400 focus:ring-amber-400' : ''}`}
                         />
                       </td>
                       {/* Unité */}
@@ -1153,13 +1175,14 @@ export function ProductionPage() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Légende écart */}
-            {consLines.some(l => !l.isExtra && Number(l.consumedQty) !== l.plannedQty) && (
+            {/* Légende écart (mp_consumption only) */}
+            {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
               <p className="text-xs text-amber-600 flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> Écart entre prévu et consommé
               </p>
