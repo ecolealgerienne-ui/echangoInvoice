@@ -445,8 +445,8 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-right">{formatCurrency(order.estimatedCost)}</td>
                       <td className="px-4 py-3 text-center">
                         {order.yieldPercentage != null ? (
-                          <span className={`font-medium ${order.yieldPercentage >= 90 ? 'text-green-600' : order.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
-                            {order.yieldPercentage.toFixed(1)}%
+                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-green-600' : Number(order.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
+                            {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
                         ) : '—'}
                       </td>
@@ -734,11 +734,11 @@ export function ProductionPage() {
               />
               <KpiCard
                 label={t('production.yieldPct')}
-                value={orderDetail.yieldPercentage != null ? `${orderDetail.yieldPercentage.toFixed(1)}%` : '—'}
+                value={orderDetail.yieldPercentage != null ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
                   orderDetail.yieldPercentage == null ? '' :
-                  orderDetail.yieldPercentage >= 90 ? 'text-green-600' :
-                  orderDetail.yieldPercentage >= 70 ? 'text-yellow-600' : 'text-destructive'
+                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-green-600' :
+                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'
                 }
               />
             </div>
