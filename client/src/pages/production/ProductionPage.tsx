@@ -931,6 +931,123 @@ export function ProductionPage() {
               )}
             </div>
 
+            {/* Production summary */}
+            {movements.length > 0 && (() => {
+              // Aggregate by type and material
+              const consMap: Record<string, { name: string; consumed: number; unit: string }> = {};
+              const lossMap: Record<string, { name: string; lost: number; unit: string }> = {};
+              let totalRejection = 0;
+              let rejectionUnit = '';
+
+              movements.forEach((m: any) => {
+                const name = m.rawMaterialName ?? m.finishedProductName ?? m.rawMaterialId ?? '—';
+                if (m.type === 'mp_consumption') {
+                  const key = m.rawMaterialId ?? name;
+                  if (!consMap[key]) consMap[key] = { name, consumed: 0, unit: m.unit };
+                  consMap[key].consumed += Number(m.quantity);
+                } else if (m.type === 'mp_loss') {
+                  const key = m.rawMaterialId ?? name;
+                  if (!lossMap[key]) lossMap[key] = { name, lost: 0, unit: m.unit };
+                  lossMap[key].lost += Number(m.quantity);
+                } else if (m.type === 'rejection') {
+                  totalRejection += Number(m.quantity);
+                  rejectionUnit = m.unit;
+                }
+              });
+
+              const qty = Number(orderDetail?.quantityToProduce) || 1;
+              const bomMap: Record<string, number> = {};
+              (orderNomenclature?.bomLines ?? []).forEach((l: any) => {
+                bomMap[l.rawMaterialId] = Number(l.quantityPerUnit) * qty;
+              });
+
+              const consRows = Object.entries(consMap);
+              const lossRows = Object.entries(lossMap);
+              const hasLoss = lossRows.length > 0;
+              const hasRejection = totalRejection > 0;
+
+              if (!consRows.length && !hasLoss && !hasRejection) return null;
+
+              return (
+                <div className="mb-5 space-y-3">
+                  {/* Consommation MP */}
+                  {consRows.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Consommation MP</p>
+                      <div className="rounded-md border border-border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/50">
+                            <tr>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Prévu</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Consommé</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Écart</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {consRows.map(([id, row]) => {
+                              const planned = bomMap[id] ?? null;
+                              const ecart = planned !== null ? row.consumed - planned : null;
+                              return (
+                                <tr key={id}>
+                                  <td className="px-3 py-1.5 font-medium">{row.name}</td>
+                                  <td className="px-3 py-1.5 text-right text-muted-foreground">{planned !== null ? planned.toFixed(2) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right font-semibold">{row.consumed.toFixed(2)}</td>
+                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-amber-600' : ecart < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                    {ecart === null ? '—' : ecart > 0 ? `+${ecart.toFixed(2)}` : ecart.toFixed(2)}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pertes MP */}
+                  {hasLoss && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pertes MP</p>
+                      <div className="rounded-md border border-amber-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-amber-50/60">
+                            <tr>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Total perdu</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {lossRows.map(([id, row]) => (
+                              <tr key={id}>
+                                <td className="px-3 py-1.5 font-medium">{row.name}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-amber-700">{row.lost.toFixed(2)}</td>
+                                <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rejets */}
+                  {hasRejection && (
+                    <div className="flex items-center gap-3 px-3 py-2 rounded-md border border-destructive/30 bg-destructive/5 text-sm">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rejets</span>
+                      <span className="font-semibold text-destructive">{totalRejection.toFixed(2)} {rejectionUnit}</span>
+                      <span className="text-muted-foreground text-xs">({((totalRejection / qty) * 100).toFixed(1)}% de la production planifiée)</span>
+                    </div>
+                  )}
+
+                  <hr className="border-border" />
+                </div>
+              );
+            })()}
+
             {/* Movements journal */}
             <div>
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
