@@ -19,7 +19,7 @@ export class CreateBomLinesTable1750011000000 implements MigrationInterface {
         CONSTRAINT "FK_bom_lines_nomenclature"
           FOREIGN KEY ("nomenclatureId") REFERENCES "nomenclatures"("id") ON DELETE CASCADE,
         CONSTRAINT "FK_bom_lines_rawMaterial"
-          FOREIGN KEY ("rawMaterialId") REFERENCES "raw_materials"("id") ON DELETE RESTRICT
+          FOREIGN KEY ("rawMaterialId") REFERENCES "finished_products"("id") ON DELETE RESTRICT
       )
     `);
 

@@ -22,7 +22,7 @@ export class CreateProductionMovementsTable1750013000000 implements MigrationInt
         CONSTRAINT "FK_production_movements_order"
           FOREIGN KEY ("productionOrderId") REFERENCES "production_orders"("id") ON DELETE CASCADE,
         CONSTRAINT "FK_production_movements_rawMaterial"
-          FOREIGN KEY ("rawMaterialId") REFERENCES "raw_materials"("id") ON DELETE RESTRICT,
+          FOREIGN KEY ("rawMaterialId") REFERENCES "finished_products"("id") ON DELETE RESTRICT,
         CONSTRAINT "FK_production_movements_finishedProduct"
           FOREIGN KEY ("finishedProductId") REFERENCES "finished_products"("id") ON DELETE RESTRICT
       )
