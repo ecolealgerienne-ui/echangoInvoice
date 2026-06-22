@@ -308,14 +308,21 @@ export function ProductionPage() {
 
   function openConsumptionModal() {
     const qty = Number(orderDetail?.quantityToProduce) || 1;
+    const alreadyConsumed: Record<string, number> = {};
+    movements
+      .filter((m: any) => m.type === 'mp_consumption')
+      .forEach((m: any) => {
+        alreadyConsumed[m.rawMaterialId] = (alreadyConsumed[m.rawMaterialId] ?? 0) + Number(m.quantity);
+      });
     const bomLines: ConsLine[] = (orderNomenclature?.bomLines ?? []).map((l: any) => {
       const rm = rawMaterials.find((r: any) => r.id === l.rawMaterialId);
       const planned = Number(l.quantityPerUnit) * qty;
+      const remaining = Math.max(0, planned - (alreadyConsumed[l.rawMaterialId] ?? 0));
       return {
         rawMaterialId: l.rawMaterialId,
         name: rm?.name ?? l.rawMaterialId,
         plannedQty: planned,
-        consumedQty: String(planned),
+        consumedQty: String(remaining),
         unit: l.unit,
         isExtra: false,
       };
