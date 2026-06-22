@@ -101,7 +101,7 @@ export const authApi = {
     api.post('/auth/login', { email, password }).then(r => r.data.data),
   register: (companyName: string, email: string, password: string) =>
     api.post('/auth/register', { companyName, email, password }).then(r => r.data.data),
-  logout: () => api.post('/auth/logout').then(r => r.data),
+  logout: () => api.post('/auth/logout', { refreshToken: localStorage.getItem('refreshToken') }).then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data.data),
 };
 
