@@ -20,6 +20,7 @@ export class AdminPlansController {
   @Put(':id')
   @ApiOperation({ summary: 'Update a plan' })
   update(@Param('id') id: string, @Body() dto: UpdatePlanDto, @Request() req: any) {
-    return this.service.update(id, dto, req.user.email);
+    const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ?? req.ip ?? null;
+    return this.service.update(id, dto, req.user.sub, req.user.email, ip);
   }
 }

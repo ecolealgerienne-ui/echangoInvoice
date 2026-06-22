@@ -18,13 +18,12 @@ import { Tenant } from '../tenants/entities/tenant.entity';
 import { Subscription } from '../tenants/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { Plan } from '../admin/entities/plan.entity';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { requireEnv } from '../config/env.config';
 import { EmailService } from '../common/email.service';
 
 const SALT_ROUNDS = 12;
-const FREEMIUM_INVOICE_LIMIT = 10;
-const FREEMIUM_USER_LIMIT = 5;
 
 @Injectable()
 export class AuthService {
@@ -66,14 +65,16 @@ export class AuthService {
       });
       await qr.manager.save(Tenant, tenant);
 
+      const starterPlan = await qr.manager.findOne(Plan, { where: { slug: 'starter' } });
       const subscription = qr.manager.create(Subscription, {
         tenantId: tenant.id,
-        plan: 'freemium',
+        plan: 'starter',
+        planId: starterPlan?.id,
         status: 'active',
         invoicesThisMonth: 0,
-        invoiceLimit: FREEMIUM_INVOICE_LIMIT,
+        invoiceLimit: starterPlan?.invoiceLimit ?? 30,
         usersCount: 1,
-        usersLimit: FREEMIUM_USER_LIMIT,
+        usersLimit: starterPlan?.usersLimit ?? 3,
       });
       await qr.manager.save(Subscription, subscription);
 
