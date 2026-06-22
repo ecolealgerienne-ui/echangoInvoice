@@ -116,18 +116,18 @@ export class AuthService {
   }
 
   async refresh(rawToken: string) {
-    // Find matching non-revoked token by comparing hash
-    const candidates = await this.dataSource.manager.find(RefreshToken, {
-      where: { revoked: false },
-    });
-
-    let found: RefreshToken | null = null;
-    for (const t of candidates) {
-      if (await bcrypt.compare(rawToken, t.tokenHash)) {
-        found = t;
-        break;
-      }
+    let jti: string;
+    try {
+      const decoded = this.jwtService.decode(rawToken) as { jti?: string };
+      if (!decoded?.jti) throw new Error();
+      jti = decoded.jti;
+    } catch {
+      throw new UnauthorizedException('errors.invalid_refresh_token');
     }
+
+    const found = await this.dataSource.manager.findOne(RefreshToken, {
+      where: { jti, revoked: false },
+    });
 
     if (!found || new Date() > found.expiresAt) {
       throw new UnauthorizedException('errors.invalid_refresh_token');
@@ -146,16 +146,16 @@ export class AuthService {
   }
 
   async logout(rawToken: string): Promise<void> {
-    const candidates = await this.dataSource.manager.find(RefreshToken, {
-      where: { revoked: false },
-    });
-    for (const t of candidates) {
-      if (await bcrypt.compare(rawToken, t.tokenHash)) {
-        t.revoked = true;
-        await this.dataSource.manager.save(RefreshToken, t);
-        break;
-      }
+    let jti: string | undefined;
+    try {
+      const decoded = this.jwtService.decode(rawToken) as { jti?: string };
+      jti = decoded?.jti;
+    } catch {
+      return;
     }
+    if (!jti) return;
+
+    await this.dataSource.manager.update(RefreshToken, { jti, revoked: false }, { revoked: true });
   }
 
   private async generateTokens(user: User, manager: EntityManager) {
@@ -168,8 +168,9 @@ export class AuthService {
 
     const accessToken = this.jwtService.sign(payload);
 
+    const jti = crypto.randomUUID();
     const rawRefresh = this.jwtService.sign(
-      { sub: user.id, type: 'refresh' },
+      { sub: user.id, jti, type: 'refresh' },
       { expiresIn: parseInt(requireEnv('REFRESH_TOKEN_EXPIRY'), 10) },
     );
 
@@ -181,6 +182,7 @@ export class AuthService {
     const rt = manager.create(RefreshToken, {
       userId: user.id,
       tenantId: user.tenantId,
+      jti,
       tokenHash,
       revoked: false,
       expiresAt,
