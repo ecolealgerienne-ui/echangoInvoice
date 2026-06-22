@@ -6,7 +6,6 @@ import { ProductionOrder } from './production-order.entity';
 
 export type ProductionMovementType =
   | 'mp_consumption'
-  | 'pf_production'
   | 'rejection'
   | 'mp_loss';
 

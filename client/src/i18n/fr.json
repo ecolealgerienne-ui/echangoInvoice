@@ -573,7 +573,6 @@
     },
     "movType": {
       "mp_consumption": "Consommation MP",
-      "pf_production": "Production PF",
       "rejection": "Rejet",
       "mp_loss": "Perte MP"
     },

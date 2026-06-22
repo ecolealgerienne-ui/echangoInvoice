@@ -36,7 +36,6 @@ const NOM_STATUS_VARIANT: Record<string, any> = {
 };
 const MOV_TYPE_VARIANT: Record<string, any> = {
   mp_consumption: 'info',
-  pf_production: 'success',
   rejection: 'destructive',
   mp_loss: 'warning',
 };
@@ -75,7 +74,7 @@ const completeSchema = z.object({
 type CompleteFormData = z.infer<typeof completeSchema>;
 
 const movementSchema = z.object({
-  type: z.enum(['mp_consumption', 'pf_production', 'rejection', 'mp_loss']),
+  type: z.enum(['mp_consumption', 'rejection', 'mp_loss']),
   rawMaterialId: z.string().optional(),
   finishedProductId: z.string().optional(),
   quantity: z.coerce.number().positive('Quantité > 0'),
@@ -895,7 +894,16 @@ export function ProductionPage() {
               {orderDetail.status === 'in_progress' && (
                 <>
                   <Button
-                    onClick={() => { completeForm.reset({ quantityRejected: 0 }); setCompleteModalOpen(true); }}
+                    onClick={() => {
+                      const rejectionTotal = movements
+                        .filter((m: any) => m.type === 'rejection')
+                        .reduce((sum: number, m: any) => sum + Number(m.quantity), 0);
+                      completeForm.reset({
+                        quantityProduced: Number(orderDetail?.quantityToProduce) || undefined,
+                        quantityRejected: rejectionTotal,
+                      });
+                      setCompleteModalOpen(true);
+                    }}
                     className="gap-2"
                   >
                     <CheckCircle className="h-4 w-4" />
@@ -1063,7 +1071,7 @@ export function ProductionPage() {
                 }}
                 className="mt-1"
               >
-                {['mp_consumption', 'pf_production', 'rejection', 'mp_loss'].map(type => (
+                {['mp_consumption', 'rejection', 'mp_loss'].map(type => (
                   <option key={type} value={type}>{t(`production.movType.${type}`)}</option>
                 ))}
               </Select>
@@ -1211,7 +1219,7 @@ export function ProductionPage() {
           </div>
         )}
 
-        {/* ── SIMPLE FORM (pf_production / rejection) ── */}
+        {/* ── SIMPLE FORM (rejection) ── */}
         {movType !== 'mp_consumption' && movType !== 'mp_loss' && (
           <form onSubmit={movForm.handleSubmit(data => createMovMutation.mutate(data))} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

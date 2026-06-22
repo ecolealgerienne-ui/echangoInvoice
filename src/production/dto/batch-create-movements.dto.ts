@@ -6,8 +6,8 @@ import {
 } from 'class-validator';
 
 export class BatchMovementItemDto {
-  @ApiProperty({ enum: ['mp_consumption', 'pf_production', 'rejection', 'mp_loss'] })
-  @IsIn(['mp_consumption', 'pf_production', 'rejection', 'mp_loss'])
+  @ApiProperty({ enum: ['mp_consumption', 'rejection', 'mp_loss'] })
+  @IsIn(['mp_consumption', 'rejection', 'mp_loss'])
   type: string;
 
   @ApiPropertyOptional() @IsOptional() @IsUUID() rawMaterialId?: string;
