@@ -31,9 +31,6 @@ export class Nomenclature {
   @Column({ type: 'uuid' })
   finishedProductId: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 1 })
-  outputQuantity: number;
-
   @Column({ type: 'int', default: 1 })
   version: number;
 

@@ -69,7 +69,6 @@ export class NomenclatureService {
         name: dto.name,
         description: dto.description ?? null,
         finishedProductId: dto.finishedProductId,
-        outputQuantity: dto.outputQuantity,
         version: 1,
         status: 'active',
         estimatedCostPerUnit: 0,
@@ -129,13 +128,11 @@ export class NomenclatureService {
       if (dto.name !== undefined) existing.name = dto.name;
       if (dto.description !== undefined) existing.description = dto.description ?? null;
       if (dto.finishedProductId !== undefined) existing.finishedProductId = dto.finishedProductId;
-      if (dto.outputQuantity !== undefined) existing.outputQuantity = dto.outputQuantity;
       existing.updatedBy = userId;
 
       if (dto.lines !== undefined) {
         await qr.manager.delete(BomLine, { nomenclatureId: id });
         let estimatedCost = 0;
-        const outputQty = dto.outputQuantity ?? Number(existing.outputQuantity);
         const lines = await Promise.all(
           dto.lines.map(async (l, idx) => {
             const rm = await qr.manager.findOne(FinishedProduct, {
@@ -171,7 +168,6 @@ export class NomenclatureService {
           name: existing.name,
           description: existing.description,
           finishedProductId: existing.finishedProductId,
-          outputQuantity: existing.outputQuantity,
           estimatedCostPerUnit: existing.estimatedCostPerUnit,
           updatedBy: userId,
         })

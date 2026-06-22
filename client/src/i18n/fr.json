@@ -521,7 +521,6 @@
     "code": "Code BOM",
     "name": "Nom",
     "finishedProduct": "Produit fini",
-    "outputQuantity": "Qté produite / exécution",
     "estimatedCost": "Coût estimé",
     "actualCost": "Coût réel",
     "version": "Version",

@@ -17,7 +17,6 @@ export class CreateNomenclatureDto {
   @ApiProperty() @IsString() @IsNotEmpty() name: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
   @ApiProperty() @IsUUID() finishedProductId: string;
-  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) outputQuantity: number;
   @ApiProperty({ type: [BomLineDto] })
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => BomLineDto)
   lines: BomLineDto[];

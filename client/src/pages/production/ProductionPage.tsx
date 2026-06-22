@@ -52,7 +52,6 @@ const nomenclatureSchema = z.object({
   code: z.string().min(1, 'Code requis').max(50),
   name: z.string().min(2, 'Nom requis').max(255),
   finishedProductId: z.string().uuid({ message: 'Produit fini requis' }),
-  outputQuantity: z.coerce.number().positive('Quantité produite > 0'),
   description: z.string().optional(),
   lines: z.array(bomLineSchema).min(1, 'Au moins un composant requis'),
 });
@@ -155,14 +154,14 @@ export function ProductionPage() {
   // ── Nomenclature form ───────────────────────────────────────────────────────
   const nomForm = useForm<NomenclatureFormData>({
     resolver: zodResolver(nomenclatureSchema),
-    defaultValues: { outputQuantity: 1, lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] },
+    defaultValues: { lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] },
   });
   const { fields: bomLines, append: appendLine, remove: removeLine } = useFieldArray({
     control: nomForm.control, name: 'lines',
   });
 
   function openNomCreate() {
-    nomForm.reset({ outputQuantity: 1, lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] });
+    nomForm.reset({ lines: [{ rawMaterialId: '', quantityPerUnit: 1, unit: '' }] });
     setEditingNom(null);
     setNomModalOpen(true);
   }
@@ -173,7 +172,6 @@ export function ProductionPage() {
       code: nom.code,
       name: nom.name,
       finishedProductId: nom.finishedProductId,
-      outputQuantity: nom.outputQuantity,
       description: nom.description ?? '',
       lines: nom.bomLines?.map((l: any) => ({
         rawMaterialId: l.rawMaterialId,
@@ -354,9 +352,7 @@ export function ProductionPage() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.code')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.outputQuantity')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût / unité</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût total lot</th>
                     <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
                   </tr>
@@ -367,9 +363,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{nom.code}</td>
                       <td className="px-4 py-3 font-medium">{nom.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">{nom.outputQuantity}</td>
                       <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-primary">{formatCurrency(Number(nom.estimatedCostPerUnit) * Number(nom.outputQuantity))}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
                           {String(t(`production.nomStatus.${nom.status}`, nom.status))}
@@ -508,28 +502,21 @@ export function ProductionPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
-              <Controller
-                control={nomForm.control}
-                name="finishedProductId"
-                render={({ field }) => (
-                  <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
-                    <option value="">{t('common.select')}</option>
-                    {finishedProducts.map((p: any) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </Select>
-                )}
-              />
-              {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
-            </div>
-            <div>
-              <label className="text-sm font-medium">{t('production.outputQuantity')}</label>
-              <Input type="number" step="0.01" {...nomForm.register('outputQuantity')} className="mt-1" />
-              {nomForm.formState.errors.outputQuantity && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.outputQuantity.message}</p>}
-            </div>
+          <div>
+            <label className="text-sm font-medium">{t('production.finishedProduct')}</label>
+            <Controller
+              control={nomForm.control}
+              name="finishedProductId"
+              render={({ field }) => (
+                <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
+                  <option value="">{t('common.select')}</option>
+                  {finishedProducts.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+              )}
+            />
+            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
           </div>
 
           <div>
@@ -561,24 +548,21 @@ export function ProductionPage() {
             )}
             {/* En-tête colonnes */}
             <div className="grid grid-cols-12 gap-2 px-3 mb-1">
-              <div className="col-span-4 text-xs font-medium text-muted-foreground">Matière première</div>
+              <div className="col-span-5 text-xs font-medium text-muted-foreground">Matière première</div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground">Qté / unité</div>
-              <div className="col-span-1 text-xs font-medium text-muted-foreground">Unité</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">Unité</div>
               <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût / unité</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût lot</div>
               <div className="col-span-1" />
             </div>
             <div className="space-y-2">
               {bomLines.map((field, idx) => {
                 const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
                 const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
-                const outputQty = Number(nomForm.watch('outputQuantity')) || 0;
                 const selRm = rawMaterials.find((r: any) => r.id === selRmId);
                 const unitCost = qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
-                const lotCost = unitCost * outputQty;
                 return (
                 <div key={field.id} className="grid grid-cols-12 gap-2 items-center p-3 bg-muted/30 rounded-md">
-                  <div className="col-span-4">
+                  <div className="col-span-5">
                     <Select
                       {...nomForm.register(`lines.${idx}.rawMaterialId`)}
                       onChange={e => {
@@ -601,7 +585,7 @@ export function ProductionPage() {
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
-                  <div className="col-span-1">
+                  <div className="col-span-2">
                     <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
                       {selRm?.unit ?? '—'}
                     </span>
@@ -609,9 +593,6 @@ export function ProductionPage() {
                   </div>
                   <div className="col-span-2 text-right text-sm font-medium">
                     {selRm ? formatCurrency(unitCost) : '—'}
-                  </div>
-                  <div className="col-span-2 text-right text-sm font-medium text-primary">
-                    {selRm && outputQty > 0 ? formatCurrency(lotCost) : '—'}
                   </div>
                   <div className="col-span-1 flex justify-end">
                     <Button
@@ -631,19 +612,16 @@ export function ProductionPage() {
             </div>
             {/* Totaux */}
             {(() => {
-              const outputQty = Number(nomForm.watch('outputQuantity')) || 0;
               const totalUnit = bomLines.reduce((sum, _, idx) => {
                 const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
                 const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
                 const selRm = rawMaterials.find((r: any) => r.id === selRmId);
                 return sum + qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
               }, 0);
-              const totalLot = totalUnit * outputQty;
               return (
                 <div className="grid grid-cols-12 gap-2 px-3 pt-2 border-t border-border mt-2">
-                  <div className="col-span-7 text-xs font-semibold text-muted-foreground text-right">Total</div>
-                  <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}<span className="text-xs font-normal text-muted-foreground"> /unité</span></div>
-                  <div className="col-span-2 text-right text-sm font-bold text-primary">{outputQty > 0 ? formatCurrency(totalLot) : '—'}<span className="text-xs font-normal text-muted-foreground"> /lot</span></div>
+                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">Total / unité produite</div>
+                  <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}</div>
                   <div className="col-span-1" />
                 </div>
               );
