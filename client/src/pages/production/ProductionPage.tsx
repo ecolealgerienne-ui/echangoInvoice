@@ -115,6 +115,12 @@ export function ProductionPage() {
     enabled: tab === 'nomenclatures',
   });
 
+  // Always-on query for order form BOM selector (independent of active tab)
+  const { data: allNomenclaturesData } = useQuery({
+    queryKey: ['production-nomenclatures-all'],
+    queryFn: () => productionApi.listNomenclatures({ page: 1, limit: 200 }),
+  });
+
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['production-orders', page, search],
     queryFn: () => productionApi.listOrders({ page, limit: 20, search: search || undefined }),
@@ -153,6 +159,7 @@ export function ProductionPage() {
   const rawMaterials: any[] = rawMaterialsData?.data ?? [];
   const finishedProducts: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'product' || p.type === 'both');
   const nomenclatures: any[] = nomenclaturesData?.data ?? [];
+  const allNomenclatures: any[] = allNomenclaturesData?.data ?? [];
   const orders: any[] = ordersData?.data ?? [];
   const orderDetail: any = orderDetailData?.data ?? viewOrder;
   const movements: any[] = movementsData?.data ?? [];
@@ -773,7 +780,7 @@ export function ProductionPage() {
               render={({ field }) => (
                 <Select value={field.value ?? ''} onChange={field.onChange} className="mt-1">
                   <option value="">{t('common.select')}</option>
-                  {nomenclatures.map((n: any) => (
+                  {allNomenclatures.map((n: any) => (
                     <option key={n.id} value={n.id}>{n.name} ({n.code})</option>
                   ))}
                 </Select>
