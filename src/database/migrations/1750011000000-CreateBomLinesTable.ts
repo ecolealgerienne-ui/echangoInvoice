@@ -7,10 +7,12 @@ export class CreateBomLinesTable1750011000000 implements MigrationInterface {
         "id"              uuid            NOT NULL DEFAULT gen_random_uuid(),
         "tenantId"        uuid            NOT NULL,
         "nomenclatureId"  uuid            NOT NULL,
+        "order"           int             NOT NULL DEFAULT 1,
         "rawMaterialId"   uuid            NOT NULL,
-        "quantity"        decimal(10,2)   NOT NULL,
+        "quantityPerUnit" decimal(10,2)   NOT NULL,
         "unit"            varchar(50)     NOT NULL,
-        "notes"           text,
+        "unitCost"        decimal(10,2)   NOT NULL DEFAULT 0,
+        "lineCost"        decimal(12,2)   NOT NULL DEFAULT 0,
         "createdAt"       timestamptz     NOT NULL DEFAULT now(),
         "updatedAt"       timestamptz     NOT NULL DEFAULT now(),
         CONSTRAINT "PK_bom_lines_id" PRIMARY KEY ("id"),
@@ -22,9 +24,9 @@ export class CreateBomLinesTable1750011000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_bom_lines_tenantId" ON "bom_lines" ("tenantId");
-      CREATE INDEX "IDX_bom_lines_nomenclatureId" ON "bom_lines" ("nomenclatureId");
-      CREATE INDEX "IDX_bom_lines_rawMaterialId" ON "bom_lines" ("rawMaterialId");
+      CREATE INDEX "IDX_bom_lines_tenantId"        ON "bom_lines" ("tenantId");
+      CREATE INDEX "IDX_bom_lines_nomenclatureId"  ON "bom_lines" ("nomenclatureId");
+      CREATE INDEX "IDX_bom_lines_rawMaterialId"   ON "bom_lines" ("rawMaterialId");
     `);
   }
 

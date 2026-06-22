@@ -7,14 +7,14 @@ import {
 export class CreateProductionOrderDto {
   @ApiProperty() @IsUUID() nomenclatureId: string;
 
-  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) quantityOrdered: number;
+  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) quantityToProduce: number;
 
   @ApiPropertyOptional({ enum: ['normal', 'urgent'] })
   @IsOptional() @IsIn(['normal', 'urgent'])
   priority?: 'normal' | 'urgent';
 
-  @ApiPropertyOptional() @IsOptional() @IsDateString() scheduledStartDate?: string;
-  @ApiPropertyOptional() @IsOptional() @IsDateString() scheduledEndDate?: string;
-
+  @ApiPropertyOptional() @IsOptional() @IsUUID() responsibleUserId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() plannedStartDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() plannedEndDate?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @IsNotEmpty() notes?: string;
 }

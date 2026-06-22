@@ -1,10 +1,12 @@
 import {
-  Injectable, Logger, NotFoundException, UnprocessableEntityException,
+  ConflictException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { Nomenclature } from './nomenclature.entity';
 import { BomLine } from './bom-line.entity';
+import { RawMaterial } from '../raw-materials/raw-material.entity';
+import { ProductionOrder } from './production-order.entity';
 import { CreateNomenclatureDto } from './dto/create-nomenclature.dto';
 import { UpdateNomenclatureDto } from './dto/update-nomenclature.dto';
 
@@ -14,14 +16,25 @@ export class NomenclatureService {
 
   constructor(
     @InjectRepository(Nomenclature) private readonly repo: Repository<Nomenclature>,
+    @InjectRepository(RawMaterial) private readonly rmRepo: Repository<RawMaterial>,
+    @InjectRepository(ProductionOrder) private readonly orderRepo: Repository<ProductionOrder>,
     @InjectDataSource() private readonly ds: DataSource,
   ) {}
 
-  async findAll(tenantId: string, page = 1, limit = 20, search?: string) {
+  async findAll(
+    tenantId: string,
+    page = 1,
+    limit = 20,
+    search?: string,
+    status?: string,
+    finishedProductId?: string,
+  ) {
     const qb = this.repo
       .createQueryBuilder('n')
       .where('n.tenantId = :tenantId AND n.deletedAt IS NULL', { tenantId });
-    if (search) qb.andWhere('n.name ILIKE :search', { search: `%${search}%` });
+    if (search) qb.andWhere('(n.name ILIKE :s OR n.code ILIKE :s)', { s: `%${search}%` });
+    if (status) qb.andWhere('n.status = :status', { status });
+    if (finishedProductId) qb.andWhere('n.finishedProductId = :finishedProductId', { finishedProductId });
     qb.orderBy('n.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
     const [data, total] = await qb.getManyAndCount();
     return { data, pagination: { total, page, limit } };
@@ -29,7 +42,7 @@ export class NomenclatureService {
 
   async findOne(id: string, tenantId: string) {
     const nom = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!nom) throw new NotFoundException(`nomenclature_not_found`);
+    if (!nom) throw new NotFoundException('nomenclature_not_found');
     return { data: nom };
   }
 
@@ -40,26 +53,47 @@ export class NomenclatureService {
     try {
       const nom = qr.manager.create(Nomenclature, {
         tenantId,
-        finishedProductId: dto.finishedProductId,
+        code: dto.code ?? null,
         name: dto.name,
         description: dto.description ?? null,
-        isActive: true,
+        finishedProductId: dto.finishedProductId,
+        outputQuantity: dto.outputQuantity,
+        version: 1,
+        status: 'active',
+        estimatedCostPerUnit: 0,
         createdBy: userId,
         updatedBy: userId,
       });
       const saved = await qr.manager.save(Nomenclature, nom);
 
-      const lines = dto.bomLines.map(l =>
-        qr.manager.create(BomLine, {
-          tenantId,
-          nomenclatureId: saved.id,
-          rawMaterialId: l.rawMaterialId,
-          quantity: l.quantity,
-          unit: l.unit,
-          notes: l.notes ?? null,
+      let estimatedCost = 0;
+      const lines = await Promise.all(
+        dto.lines.map(async (l, idx) => {
+          const rm = await qr.manager.findOne(RawMaterial, {
+            where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
+          });
+          if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);
+          const unitCost = Number(rm.lastCostPerUnit);
+          const lineCost = Number(l.quantityPerUnit) * unitCost;
+          estimatedCost += lineCost;
+          return qr.manager.create(BomLine, {
+            tenantId,
+            nomenclatureId: saved.id,
+            order: l.order ?? idx + 1,
+            rawMaterialId: l.rawMaterialId,
+            quantityPerUnit: l.quantityPerUnit,
+            unit: l.unit,
+            unitCost,
+            lineCost,
+          });
         }),
       );
       await qr.manager.save(BomLine, lines);
+
+      saved.estimatedCostPerUnit = dto.outputQuantity > 0
+        ? estimatedCost / Number(dto.outputQuantity)
+        : 0;
+      await qr.manager.save(Nomenclature, saved);
 
       await qr.commitTransaction();
       this.logger.log(`Nomenclature created: ${saved.id} for tenant ${tenantId}`);
@@ -74,33 +108,49 @@ export class NomenclatureService {
 
   async update(id: string, dto: UpdateNomenclatureDto, tenantId: string, userId: string) {
     const existing = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!existing) throw new NotFoundException(`nomenclature_not_found`);
+    if (!existing) throw new NotFoundException('nomenclature_not_found');
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
+      if (dto.code !== undefined) existing.code = dto.code ?? null;
       if (dto.name !== undefined) existing.name = dto.name;
       if (dto.description !== undefined) existing.description = dto.description ?? null;
       if (dto.finishedProductId !== undefined) existing.finishedProductId = dto.finishedProductId;
+      if (dto.outputQuantity !== undefined) existing.outputQuantity = dto.outputQuantity;
       existing.updatedBy = userId;
-      await qr.manager.save(Nomenclature, existing);
 
-      if (dto.bomLines !== undefined) {
+      if (dto.lines !== undefined) {
         await qr.manager.delete(BomLine, { nomenclatureId: id });
-        const lines = dto.bomLines.map(l =>
-          qr.manager.create(BomLine, {
-            tenantId,
-            nomenclatureId: id,
-            rawMaterialId: l.rawMaterialId,
-            quantity: l.quantity,
-            unit: l.unit,
-            notes: l.notes ?? null,
+        let estimatedCost = 0;
+        const outputQty = dto.outputQuantity ?? Number(existing.outputQuantity);
+        const lines = await Promise.all(
+          dto.lines.map(async (l, idx) => {
+            const rm = await qr.manager.findOne(RawMaterial, {
+              where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
+            });
+            if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);
+            const unitCost = Number(rm.lastCostPerUnit);
+            const lineCost = Number(l.quantityPerUnit) * unitCost;
+            estimatedCost += lineCost;
+            return qr.manager.create(BomLine, {
+              tenantId,
+              nomenclatureId: id,
+              order: l.order ?? idx + 1,
+              rawMaterialId: l.rawMaterialId,
+              quantityPerUnit: l.quantityPerUnit,
+              unit: l.unit,
+              unitCost,
+              lineCost,
+            });
           }),
         );
         if (lines.length > 0) await qr.manager.save(BomLine, lines);
+        existing.estimatedCostPerUnit = outputQty > 0 ? estimatedCost / outputQty : 0;
       }
 
+      await qr.manager.save(Nomenclature, existing);
       await qr.commitTransaction();
       return this.findOne(id, tenantId);
     } catch (err) {
@@ -113,7 +163,18 @@ export class NomenclatureService {
 
   async remove(id: string, tenantId: string) {
     const nom = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!nom) throw new NotFoundException(`nomenclature_not_found`);
+    if (!nom) throw new NotFoundException('nomenclature_not_found');
+
+    const activeOrders = await this.orderRepo.count({
+      where: [
+        { nomenclatureId: id, status: 'planned', deletedAt: IsNull() },
+        { nomenclatureId: id, status: 'in_progress', deletedAt: IsNull() },
+      ],
+    });
+    if (activeOrders > 0) {
+      throw new ConflictException('nomenclature_has_active_orders');
+    }
+
     await this.repo.softDelete(id);
     this.logger.log(`Nomenclature soft-deleted: ${id}`);
     return { data: { success: true } };

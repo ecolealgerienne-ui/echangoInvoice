@@ -252,8 +252,12 @@ export const productionApi = {
   completeOrder: (id: string, body: unknown) => api.patch(`/production/orders/${id}/complete`, body).then(r => r.data),
   cancelOrder: (id: string, body?: unknown) => api.patch(`/production/orders/${id}/cancel`, body).then(r => r.data),
   // Mouvements
-  listMovements: (orderId: string) => api.get(`/production/orders/${orderId}/movements`).then(r => r.data),
-  createMovement: (orderId: string, body: unknown) => api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+  listMovements: (orderId: string, params?: Record<string, unknown>) =>
+    api.get(`/production/orders/${orderId}/movements`, { params }).then(r => r.data),
+  createMovement: (orderId: string, body: unknown) =>
+    api.post(`/production/orders/${orderId}/movements`, body).then(r => r.data),
+  // Dashboard
+  getDashboard: () => api.get('/production/dashboard').then(r => r.data),
 };
 
 export const creditNotesApi = {

@@ -12,8 +12,11 @@ export class CreateProductionMovementsTable1750013000000 implements MigrationInt
         "type"                varchar(30)     NOT NULL,
         "quantity"            decimal(10,2)   NOT NULL,
         "unit"                varchar(50)     NOT NULL,
-        "notes"               text,
-        "createdBy"           varchar         NULL,
+        "reason"              varchar(255)    NULL,
+        "location"            varchar(255)    NULL,
+        "notes"               text            NULL,
+        "loggedBy"            varchar         NULL,
+        "movedAt"             timestamptz     NOT NULL DEFAULT now(),
         "createdAt"           timestamptz     NOT NULL DEFAULT now(),
         CONSTRAINT "PK_production_movements_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_production_movements_order"
@@ -26,10 +29,11 @@ export class CreateProductionMovementsTable1750013000000 implements MigrationInt
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_production_movements_tenantId" ON "production_movements" ("tenantId");
+      CREATE INDEX "IDX_production_movements_tenantId"          ON "production_movements" ("tenantId");
       CREATE INDEX "IDX_production_movements_productionOrderId" ON "production_movements" ("productionOrderId");
-      CREATE INDEX "IDX_production_movements_rawMaterialId" ON "production_movements" ("rawMaterialId");
-      CREATE INDEX "IDX_production_movements_type" ON "production_movements" ("type");
+      CREATE INDEX "IDX_production_movements_rawMaterialId"     ON "production_movements" ("rawMaterialId");
+      CREATE INDEX "IDX_production_movements_type"              ON "production_movements" ("type");
+      CREATE INDEX "IDX_production_movements_movedAt"           ON "production_movements" ("movedAt");
     `);
   }
 

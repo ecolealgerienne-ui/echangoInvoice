@@ -6,17 +6,19 @@ import {
 } from 'class-validator';
 
 class BomLineDto {
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) order?: number;
   @ApiProperty() @IsUUID() rawMaterialId: string;
-  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) quantity: number;
+  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) quantityPerUnit: number;
   @ApiProperty() @IsString() @IsNotEmpty() unit: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
 }
 
 export class CreateNomenclatureDto {
-  @ApiProperty() @IsUUID() finishedProductId: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() code?: string;
   @ApiProperty() @IsString() @IsNotEmpty() name: string;
   @ApiPropertyOptional() @IsOptional() @IsString() description?: string;
+  @ApiProperty() @IsUUID() finishedProductId: string;
+  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) outputQuantity: number;
   @ApiProperty({ type: [BomLineDto] })
   @IsArray() @ValidateNested({ each: true }) @Type(() => BomLineDto)
-  bomLines: BomLineDto[];
+  lines: BomLineDto[];
 }

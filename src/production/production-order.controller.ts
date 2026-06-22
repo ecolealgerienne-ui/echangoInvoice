@@ -1,8 +1,9 @@
 import {
-  Controller, Get, Post, Body, Param, Query, ParseUUIDPipe, UseGuards, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Body, Param, Query, ParseUUIDPipe, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductionOrderService } from './production-order.service';
+import { ProductionMovementService } from './production-movement.service';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
 import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
@@ -14,77 +15,100 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { ProductionModuleGuard } from './production-module.guard';
 
-@ApiTags('production/orders')
+@ApiTags('Production — Ordres')
 @ApiBearerAuth()
 @UseGuards(JwtGuard, RolesGuard, ProductionModuleGuard)
 @Controller('production/orders')
 export class ProductionOrderController {
-  constructor(private readonly service: ProductionOrderService) {}
+  constructor(
+    private readonly orderService: ProductionOrderService,
+    private readonly movementService: ProductionMovementService,
+  ) {}
 
   @Get()
   @Roles('owner', 'manager', 'agent')
-  @ApiOperation({ summary: 'List production orders' })
+  @ApiOperation({ summary: 'Liste des ordres de production' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListProductionOrdersDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAll(query, user.tenantId);
+    return this.orderService.findAll(query, user.tenantId);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
-  @ApiOperation({ summary: 'Get a production order' })
+  @ApiOperation({ summary: 'Détail d\'un ordre de production' })
   @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 404, description: 'production_order_not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOne(id, user.tenantId);
+    return this.orderService.findOne(id, user.tenantId);
   }
 
   @Post()
   @Roles('owner', 'manager')
-  @ApiOperation({ summary: 'Create a production order' })
+  @ApiOperation({ summary: 'Créer un ordre de production' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateProductionOrderDto, @CurrentUser() user: JwtPayload) {
-    return this.service.create(dto, user.tenantId, user.sub);
+    return this.orderService.create(dto, user.tenantId, user.sub);
   }
 
-  @Post(':id/start')
+  @Patch(':id/start')
   @Roles('owner', 'manager')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Start a production order (reserve raw materials)' })
+  @ApiOperation({ summary: 'Démarrer un ordre (planned → in_progress, réserve MP)' })
   @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 400, description: 'production_order_not_planned' })
   start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.start(id, user.tenantId, user.sub);
+    return this.orderService.start(id, user.tenantId, user.sub);
   }
 
-  @Post(':id/complete')
+  @Patch(':id/complete')
   @Roles('owner', 'manager')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Complete a production order (decrement stock, update finished product)' })
+  @ApiOperation({ summary: 'Clôturer un ordre (in_progress → completed)' })
   @ApiResponse({ status: 200 })
+  @ApiResponse({ status: 400, description: 'production_order_not_in_progress' })
   complete(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CompleteProductionOrderDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.complete(id, dto, user.tenantId, user.sub);
+    return this.orderService.complete(id, dto, user.tenantId, user.sub);
   }
 
-  @Post(':id/cancel')
+  @Patch(':id/cancel')
   @Roles('owner', 'manager')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cancel a production order' })
+  @ApiOperation({ summary: 'Annuler un ordre (libère les réservations si in_progress)' })
   @ApiResponse({ status: 200 })
   cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.cancel(id, user.tenantId, user.sub);
+    return this.orderService.cancel(id, user.tenantId, user.sub);
+  }
+
+  // ── Movements ──────────────────────────────────────────────────────────────
+
+  @Get(':id/movements')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: 'Journal des mouvements d\'un ordre' })
+  @ApiResponse({ status: 200 })
+  getMovements(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Query('type') type?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.movementService.findByOrder(id, user.tenantId, type, from, to);
   }
 
   @Post(':id/movements')
   @Roles('owner', 'manager', 'agent')
-  @ApiOperation({ summary: 'Log a production movement' })
+  @ApiOperation({ summary: 'Loguer un mouvement de production' })
   @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400, description: 'production_order_not_in_progress' })
   addMovement(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateProductionMovementDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.addMovement(id, dto, user.tenantId, user.sub);
+    return this.movementService.create(id, dto, user.tenantId, user.sub);
   }
 }

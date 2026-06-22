@@ -5,15 +5,16 @@ import {
 import { ProductionOrder } from './production-order.entity';
 
 export type ProductionMovementType =
-  | 'raw_material_consumption'
-  | 'finished_product_output'
-  | 'scrap'
-  | 'adjustment';
+  | 'mp_consumption'
+  | 'pf_production'
+  | 'rejection'
+  | 'mp_loss';
 
 @Index('IDX_production_movements_tenantId', ['tenantId'])
 @Index('IDX_production_movements_productionOrderId', ['productionOrderId'])
 @Index('IDX_production_movements_rawMaterialId', ['rawMaterialId'])
 @Index('IDX_production_movements_type', ['type'])
+@Index('IDX_production_movements_movedAt', ['movedAt'])
 @Entity('production_movements')
 export class ProductionMovement {
   @PrimaryGeneratedColumn('uuid')
@@ -40,11 +41,20 @@ export class ProductionMovement {
   @Column({ type: 'varchar', length: 50 })
   unit: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reason: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  location: string | null;
+
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  createdBy: string | null;
+  loggedBy: string | null;
+
+  @Column({ type: 'timestamptz' })
+  movedAt: Date;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

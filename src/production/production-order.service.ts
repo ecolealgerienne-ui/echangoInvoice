@@ -10,7 +10,6 @@ import { RawMaterial } from '../raw-materials/raw-material.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
-import { CreateProductionMovementDto } from './dto/create-production-movement.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 
 @Injectable()
@@ -26,12 +25,15 @@ export class ProductionOrderService {
   ) {}
 
   async findAll(query: ListProductionOrdersDto, tenantId: string) {
-    const { page = 1, limit = 20, search, status } = query;
+    const { page = 1, limit = 20, search, status, priority, from, to } = query;
     const qb = this.repo
       .createQueryBuilder('o')
       .where('o.tenantId = :tenantId AND o.deletedAt IS NULL', { tenantId });
-    if (search) qb.andWhere('o.reference ILIKE :search', { search: `%${search}%` });
+    if (search) qb.andWhere('o.ref ILIKE :search', { search: `%${search}%` });
     if (status) qb.andWhere('o.status = :status', { status });
+    if (priority) qb.andWhere('o.priority = :priority', { priority });
+    if (from) qb.andWhere('o.createdAt >= :from', { from });
+    if (to) qb.andWhere('o.createdAt <= :to', { to });
     qb.orderBy('o.createdAt', 'DESC').skip((page - 1) * limit).take(limit);
     const [data, total] = await qb.getManyAndCount();
     return { data, pagination: { total, page, limit } };
@@ -62,32 +64,35 @@ export class ProductionOrderService {
       const yy = String(year).slice(-2);
       const last = await qr.manager
         .createQueryBuilder(ProductionOrder, 'o')
-        .where('o.tenantId = :tenantId', { tenantId })
-        .andWhere(`EXTRACT(YEAR FROM o.createdAt) = :year`, { year })
-        .orderBy('o.reference', 'DESC')
+        .where('o.tenantId = :tenantId AND o.deletedAt IS NULL', { tenantId })
+        .andWhere('EXTRACT(YEAR FROM o.createdAt) = :year', { year })
+        .orderBy('o.ref', 'DESC')
         .getOne();
-      const seq = last
-        ? parseInt(last.reference.split('-').pop() ?? '0') + 1
-        : 1;
-      const reference = `MO-${yy}-${String(seq).padStart(3, '0')}`;
+      const seq = last ? parseInt(last.ref.split('-').pop() ?? '0') + 1 : 1;
+      const ref = `MO-${yy}-${String(seq).padStart(3, '0')}`;
+
+      const estimatedCost =
+        Number(nom.estimatedCostPerUnit) * Number(dto.quantityToProduce);
 
       const order = qr.manager.create(ProductionOrder, {
         tenantId,
-        reference,
+        ref,
         nomenclatureId: nom.id,
         finishedProductId: nom.finishedProductId,
-        quantityOrdered: dto.quantityOrdered,
+        quantityToProduce: dto.quantityToProduce,
         priority: dto.priority ?? 'normal',
-        scheduledStartDate: dto.scheduledStartDate ? new Date(dto.scheduledStartDate) : null,
-        scheduledEndDate: dto.scheduledEndDate ? new Date(dto.scheduledEndDate) : null,
-        status: 'draft',
+        responsibleUserId: dto.responsibleUserId ?? null,
+        plannedStartDate: dto.plannedStartDate ? new Date(dto.plannedStartDate) : null,
+        plannedEndDate: dto.plannedEndDate ? new Date(dto.plannedEndDate) : null,
+        estimatedCost,
+        status: 'planned',
         createdBy: userId,
         updatedBy: userId,
       });
       const saved = await qr.manager.save(ProductionOrder, order);
 
       await qr.commitTransaction();
-      this.logger.log(`ProductionOrder created: ${saved.reference} for tenant ${tenantId}`);
+      this.logger.log(`ProductionOrder created: ${ref} for tenant ${tenantId}`);
       return this.findOne(saved.id, tenantId);
     } catch (err) {
       await qr.rollbackTransaction();
@@ -100,7 +105,7 @@ export class ProductionOrderService {
   async start(id: string, tenantId: string, userId: string) {
     const order = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!order) throw new NotFoundException('production_order_not_found');
-    if (order.status !== 'draft') throw new BadRequestException('production_order_not_draft');
+    if (order.status !== 'planned') throw new BadRequestException('production_order_not_planned');
 
     const nom = await this.nomRepo.findOne({
       where: { id: order.nomenclatureId, tenantId, deletedAt: IsNull() },
@@ -111,19 +116,25 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // Reserve raw materials
       for (const line of nom.bomLines) {
-        const needed = Number(line.quantity) * Number(order.quantityOrdered);
+        const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
         const rm = await qr.manager.findOne(RawMaterial, {
           where: { id: line.rawMaterialId, tenantId, deletedAt: IsNull() },
         });
         if (!rm) throw new NotFoundException(`raw_material_not_found:${line.rawMaterialId}`);
-        await qr.manager.increment(
-          RawMaterial,
-          { id: rm.id },
-          'reservedQuantity',
-          needed,
-        );
+
+        if (Number(rm.reservedQuantity) + needed < 0) {
+          this.logger.warn(
+            `Stock insuffisant pour MO ${order.ref} — MP ${rm.id}`,
+          );
+        }
+
+        await qr.manager
+          .createQueryBuilder()
+          .update(RawMaterial)
+          .set({ reservedQuantity: () => `"reservedQuantity" + ${needed}` })
+          .where('id = :id', { id: rm.id })
+          .execute();
       }
 
       order.status = 'in_progress';
@@ -132,7 +143,7 @@ export class ProductionOrderService {
       await qr.manager.save(ProductionOrder, order);
 
       await qr.commitTransaction();
-      this.logger.log(`ProductionOrder started: ${order.reference}`);
+      this.logger.log(`ProductionOrder started: ${order.ref}`);
       return this.findOne(id, tenantId);
     } catch (err) {
       await qr.rollbackTransaction();
@@ -142,12 +153,7 @@ export class ProductionOrderService {
     }
   }
 
-  async complete(
-    id: string,
-    dto: CompleteProductionOrderDto,
-    tenantId: string,
-    userId: string,
-  ) {
+  async complete(id: string, dto: CompleteProductionOrderDto, tenantId: string, userId: string) {
     const order = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!order) throw new NotFoundException('production_order_not_found');
     if (order.status !== 'in_progress') throw new BadRequestException('production_order_not_in_progress');
@@ -166,80 +172,96 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // 1. Decrement raw materials stock + release reservations
-      let totalCost = 0;
-      for (const line of nom.bomLines) {
-        const consumed = Number(line.quantity) * Number(order.quantityOrdered);
-        const rm = await qr.manager.findOne(RawMaterial, {
-          where: { id: line.rawMaterialId, tenantId, deletedAt: IsNull() },
-        });
-        if (!rm) throw new NotFoundException(`raw_material_not_found:${line.rawMaterialId}`);
-        totalCost += consumed * Number(rm.lastCostPerUnit);
+      // 1. Aggregate mp_consumption movements
+      const consumptionRows: { rawMaterialId: string; totalQty: string }[] = await qr.query(
+        `SELECT "rawMaterialId", SUM("quantity") as "totalQty"
+         FROM "production_movements"
+         WHERE "productionOrderId" = $1 AND "type" = 'mp_consumption'
+         GROUP BY "rawMaterialId"`,
+        [id],
+      );
 
+      let actualCost = 0;
+
+      for (const row of consumptionRows) {
+        const consumed = Number(row.totalQty);
+        const rm = await qr.manager.findOne(RawMaterial, {
+          where: { id: row.rawMaterialId, tenantId, deletedAt: IsNull() },
+        });
+        if (!rm) continue;
+
+        actualCost += consumed * Number(rm.lastCostPerUnit);
+
+        // Decrement stockQuantity directly (no FIFO)
         await qr.manager
           .createQueryBuilder()
           .update(RawMaterial)
           .set({
-            reservedQuantity: () => `"reservedQuantity" - ${consumed}`,
+            reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${consumed})`,
           })
           .where('id = :id', { id: rm.id })
           .execute();
+      }
 
-        // Log consumption movement
-        await qr.manager.save(ProductionMovement, qr.manager.create(ProductionMovement, {
-          tenantId,
-          productionOrderId: order.id,
-          rawMaterialId: rm.id,
-          type: 'raw_material_consumption',
-          quantity: consumed,
-          unit: line.unit,
-          notes: `Clôture MO ${order.reference}`,
-          createdBy: userId,
-        }));
+      // If no movements logged, fall back to BOM × quantityToProduce for reservations release
+      if (consumptionRows.length === 0) {
+        for (const line of nom.bomLines) {
+          const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
+          await qr.manager
+            .createQueryBuilder()
+            .update(RawMaterial)
+            .set({ reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${needed})` })
+            .where('id = :id AND "tenantId" = :tenantId', { id: line.rawMaterialId, tenantId })
+            .execute();
+        }
+        // Estimate actualCost from BOM
+        actualCost = Number(nom.estimatedCostPerUnit) * Number(order.quantityToProduce);
       }
 
       // 2. Update finished product stock + average cost
       const qtyProduced = Number(dto.quantityProduced);
+      const qtyRejected = Number(dto.quantityRejected ?? 0);
+      const qtyNet = Math.max(0, qtyProduced - qtyRejected);
+
       const prevQty = Number(fp.stockQuantity);
       const prevAvg = Number(fp.averageCostPerUnit);
-      const newAvgCost = qtyProduced > 0
-        ? (prevQty * prevAvg + totalCost) / (prevQty + qtyProduced)
-        : prevAvg;
+      const newTotalQty = prevQty + qtyNet;
+      const newAvgCost = newTotalQty > 0
+        ? (prevQty * prevAvg + actualCost) / newTotalQty
+        : 0;
 
       await qr.manager
         .createQueryBuilder()
         .update(FinishedProduct)
         .set({
-          stockQuantity: () => `"stockQuantity" + ${qtyProduced}`,
+          stockQuantity: newTotalQty,
           averageCostPerUnit: newAvgCost,
-          totalStockValue: () => `("stockQuantity" + ${qtyProduced}) * ${newAvgCost}`,
+          totalStockValue: newTotalQty * newAvgCost,
           updatedBy: userId,
         })
         .where('id = :id', { id: fp.id })
         .execute();
 
-      // Log output movement
-      await qr.manager.save(ProductionMovement, qr.manager.create(ProductionMovement, {
-        tenantId,
-        productionOrderId: order.id,
-        finishedProductId: fp.id,
-        type: 'finished_product_output',
-        quantity: qtyProduced,
-        unit: fp.unit,
-        notes: dto.notes ?? `Clôture MO ${order.reference}`,
-        createdBy: userId,
-      }));
-
       // 3. Update order
+      const yieldPct =
+        Number(order.quantityToProduce) > 0
+          ? Math.round((qtyProduced / Number(order.quantityToProduce)) * 10000) / 100
+          : 0;
+
       order.status = 'completed';
       order.quantityProduced = qtyProduced;
+      order.quantityRejected = qtyRejected;
+      order.yieldPercentage = yieldPct;
+      order.actualCost = actualCost;
       order.actualEndDate = new Date();
-      order.notes = dto.notes ?? order.notes;
+      if (dto.notes) order.notes = dto.notes;
       order.updatedBy = userId;
       await qr.manager.save(ProductionOrder, order);
 
       await qr.commitTransaction();
-      this.logger.log(`ProductionOrder completed: ${order.reference}, produced=${qtyProduced}`);
+      this.logger.log(
+        `ProductionOrder completed: ${order.ref} — produced=${qtyProduced}, yield=${yieldPct}%`,
+      );
       return this.findOne(id, tenantId);
     } catch (err) {
       await qr.rollbackTransaction();
@@ -259,12 +281,11 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // Release reservations if was in_progress
       if (order.status === 'in_progress') {
         const nom = await this.nomRepo.findOne({ where: { id: order.nomenclatureId } });
         if (nom) {
           for (const line of nom.bomLines) {
-            const reserved = Number(line.quantity) * Number(order.quantityOrdered);
+            const reserved = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
             await qr.manager
               .createQueryBuilder()
               .update(RawMaterial)
@@ -280,7 +301,7 @@ export class ProductionOrderService {
       await qr.manager.save(ProductionOrder, order);
 
       await qr.commitTransaction();
-      this.logger.log(`ProductionOrder cancelled: ${order.reference}`);
+      this.logger.log(`ProductionOrder cancelled: ${order.ref}`);
       return this.findOne(id, tenantId);
     } catch (err) {
       await qr.rollbackTransaction();
@@ -288,30 +309,5 @@ export class ProductionOrderService {
     } finally {
       await qr.release();
     }
-  }
-
-  async addMovement(
-    id: string,
-    dto: CreateProductionMovementDto,
-    tenantId: string,
-    userId: string,
-  ) {
-    const order = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!order) throw new NotFoundException('production_order_not_found');
-    if (order.status !== 'in_progress') throw new BadRequestException('production_order_not_in_progress');
-
-    const movement = this.ds.manager.create(ProductionMovement, {
-      tenantId,
-      productionOrderId: id,
-      rawMaterialId: dto.rawMaterialId ?? null,
-      finishedProductId: dto.finishedProductId ?? null,
-      type: dto.type as any,
-      quantity: dto.quantity,
-      unit: dto.unit,
-      notes: dto.notes ?? null,
-      createdBy: userId,
-    });
-    await this.ds.manager.save(ProductionMovement, movement);
-    return { data: movement };
   }
 }

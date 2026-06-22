@@ -18,17 +18,23 @@ export class BomLine {
   @Column({ type: 'uuid' })
   nomenclatureId: string;
 
+  @Column({ type: 'int', default: 1 })
+  order: number;
+
   @Column({ type: 'uuid' })
   rawMaterialId: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
-  quantity: number;
+  quantityPerUnit: number;
 
   @Column({ type: 'varchar', length: 50 })
   unit: string;
 
-  @Column({ type: 'text', nullable: true })
-  notes: string | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  unitCost: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  lineCost: number;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
