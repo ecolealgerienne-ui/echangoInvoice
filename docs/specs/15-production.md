@@ -74,6 +74,7 @@ UNIQUE ("code", "tenantId")
 INDEX IDX_nomenclatures_tenant_id ("tenantId")
 INDEX IDX_nomenclatures_finished_product_id ("finishedProductId")
 INDEX IDX_nomenclatures_status ("status")
+INDEX IDX_nomenclatures_deleted_at ("deletedAt")   -- R011 / R016
 ```
 
 ---
@@ -171,7 +172,9 @@ INDEX IDX_production_orders_tenant_id ("tenantId")
 INDEX IDX_production_orders_status ("status")
 INDEX IDX_production_orders_nomenclature_id ("nomenclatureId")
 INDEX IDX_production_orders_finished_product_id ("finishedProductId")
+INDEX IDX_production_orders_responsible_user_id ("responsibleUserId")
 INDEX IDX_production_orders_created_at ("createdAt")
+INDEX IDX_production_orders_deleted_at ("deletedAt")   -- R011 / R016
 ```
 
 ---
@@ -315,9 +318,9 @@ Où stockQuantity = somme des stock_entries.quantity WHERE status = 'available'
 
 | Trigger | Side effects dans transaction |
 |---|---|
-| `PATCH /production/orders/:id/start` | `raw_materials.reservedQuantity +=` pour chaque MP de la BOM |
-| `PATCH /production/orders/:id/complete` | Décrémente stock MP via FIFO + libère reservedQuantity + incrémente `finished_products.stockQuantity` + recalcule `averageCostPerUnit` |
-| `PATCH /production/orders/:id/cancel` | Si `in_progress` : libère `reservedQuantity` |
+| `PATCH /production/orders/:id/start` | `raw_materials.reservedQuantity +=` pour chaque MP de la BOM × quantityToProduce |
+| `PATCH /production/orders/:id/complete` | Décrémente `raw_materials.stockQuantity` directement (pas de FIFO) + libère `reservedQuantity` + incrémente `finished_products.stockQuantity` + recalcule `averageCostPerUnit` + `totalStockValue` |
+| `PATCH /production/orders/:id/cancel` | Si `in_progress` : libère `reservedQuantity` sur chaque MP |
 
 ---
 
@@ -462,13 +465,15 @@ yieldPercentage = (quantityProduced / quantityToProduce) * 100;
 
 ```typescript
 // Format: MO-YY-### (ex: MO-26-001)
+// Lock scopé par tenant ET par année — évite les doublons en concurrence multi-tenant
 await queryRunner.query(
-  `SELECT pg_advisory_xact_lock(hashtext('production_order_ref_' || $1))`,
-  [tenantId]
+  `SELECT pg_advisory_xact_lock(hashtext('mo_ref_' || $1 || '_' || $2))`,
+  [tenantId, year]
 );
 const last = await queryRunner.manager
   .createQueryBuilder(ProductionOrder, 'po')
   .where('po.tenantId = :tenantId', { tenantId })
+  .andWhere('po.deletedAt IS NULL')           // R011
   .andWhere('EXTRACT(YEAR FROM po.createdAt) = :year', { year })
   .orderBy('po.ref', 'DESC')
   .limit(1)
@@ -479,7 +484,98 @@ return `MO-${String(year).slice(-2)}-${String(next).padStart(3, '0')}`;
 
 ---
 
-## 6. MIGRATIONS REQUISES (R002)
+## 6. NORMES OBLIGATOIRES À L'IMPLÉMENTATION
+
+Rappel des invariants CLAUDE.md applicables à ce module. Toute violation = rejet du code.
+
+### R001 — Types TypeORM explicites
+Chaque `@Column()` doit avoir un type explicite. Exemples attendus :
+```typescript
+@Column({ type: 'varchar', length: 50 }) code: string;
+@Column({ type: 'decimal', precision: 10, scale: 2, default: 0 }) quantityPerUnit: number;
+@Column({ type: 'enum', enum: ['planned', 'in_progress', 'completed', 'cancelled'], default: 'planned' }) status: string;
+@Column({ type: 'timestamptz', nullable: true }) plannedStartDate: Date | null;
+```
+
+### R004 — NestJS Logger uniquement
+```typescript
+private readonly logger = new Logger(ProductionOrderService.name);
+this.logger.warn(`Stock insuffisant pour MO ${ref} — MP ${rawMaterialId}`);
+// ❌ console.log, console.error interdits
+```
+
+### R006 — Gestion d'erreur centralisée
+Les services doivent lever des exceptions NestJS typées, jamais de catch silencieux :
+```typescript
+if (!nomenclature) throw new NotFoundException(`Nomenclature ${id} introuvable`);
+if (order.status !== 'planned') throw new ConflictException('invalid_status_transition');
+// AllExceptionsFilter global gère le format de réponse → pas besoin de try/catch dans les services
+```
+Codes DB à mapper : `23505` (unique constraint) → HTTP 409 ; `23503` (FK) → HTTP 422.
+
+### R007 — Swagger obligatoire sur tous les controllers
+```typescript
+@ApiTags('Production')
+@ApiOperation({ summary: 'Créer un ordre de production' })
+@ApiResponse({ status: 201, description: 'Ordre créé' })
+@ApiResponse({ status: 409, description: 'Stock insuffisant' })
+```
+
+### R009 — Timezone
+- Stockage : toujours `timestamptz` (UTC en base) — ✅ déjà le cas dans les entités
+- Frontend : toutes les dates de production affichées via `formatDate()` du projet (qui utilise `Africa/Algiers`)
+
+### R011 — Soft delete — filtre explicite obligatoire
+Toute query sur `nomenclatures` ou `production_orders` doit filtrer :
+```typescript
+.andWhere('po.deletedAt IS NULL')
+// ou
+{ where: { id, tenantId, deletedAt: IsNull() } }
+```
+`bom_lines` et `production_movements` : pas de soft delete (suppression en cascade ou immutabilité).
+
+### R012 — Audit trail via interceptor
+`createdBy` et `updatedBy` sont alimentés automatiquement par `AuditInterceptor` (déjà global).  
+**Ne jamais** écrire `entity.createdBy = userId` dans un service.
+
+### R017 — Validation sur tous les DTOs
+Chaque DTO doit utiliser `class-validator` :
+```typescript
+export class CreateProductionOrderDto {
+  @ApiProperty() @IsUUID() nomenclatureId: string;
+  @ApiProperty() @IsNumber() @Min(0.01) @Type(() => Number) quantityToProduce: number;
+  @ApiPropertyOptional() @IsOptional() @IsDateString() plannedStartDate?: string;
+  @ApiPropertyOptional() @IsOptional() @IsEnum(['normal', 'urgent']) priority?: string;
+}
+// ValidationPipe global (whitelist: true, forbidNonWhitelisted: true) filtre automatiquement
+```
+
+### R018 — i18n frontend
+Zéro string hardcodée dans les composants React. Toutes les clés sont dans `fr.json` section `production`.  
+Les messages d'erreur backend (dans les exceptions NestJS) peuvent être en anglais technique — ils sont traduits côté frontend via `t(\`errors.${error.code}\`)`.
+
+### R019 — Zéro logique métier dans les controllers
+```typescript
+// ✅ Controller : HTTP uniquement
+@Post()
+async create(@Body() dto: CreateProductionOrderDto, @CurrentUser() user: User) {
+  return this.productionOrderService.create(dto, user.tenantId, user.id);
+}
+// ❌ Interdit : calculs, conditions métier, accès repo direct dans le controller
+```
+
+### R020 — tenantId dans TOUTES les queries
+```typescript
+// ✅ Toujours depuis le JWT via @CurrentUser()
+async findAll(tenantId: string, dto: ListOrdersDto) {
+  return this.repo.find({ where: { tenantId, deletedAt: IsNull() } });
+}
+// ❌ Jamais depuis l'URL ou le body
+```
+
+---
+
+## 7. MIGRATIONS REQUISES (R002)
 
 ```
 Migration 1: CreateNomenclaturesTable
