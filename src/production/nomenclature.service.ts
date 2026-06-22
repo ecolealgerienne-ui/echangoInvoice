@@ -150,8 +150,22 @@ export class NomenclatureService {
         existing.estimatedCostPerUnit = estimatedCost;
       }
 
-      existing.bomLines = []; // évite la cascade sur les anciennes lignes déjà supprimées
-      await qr.manager.save(Nomenclature, existing);
+      // UPDATE direct sans passer par save() pour éviter que TypeORM cascade
+      // et orpheline les nouvelles bomLines qu'on vient d'insérer
+      await qr.manager
+        .createQueryBuilder()
+        .update(Nomenclature)
+        .set({
+          code: existing.code,
+          name: existing.name,
+          description: existing.description,
+          finishedProductId: existing.finishedProductId,
+          outputQuantity: existing.outputQuantity,
+          estimatedCostPerUnit: existing.estimatedCostPerUnit,
+          updatedBy: userId,
+        })
+        .where('id = :id AND "tenantId" = :tenantId', { id, tenantId })
+        .execute();
       await qr.commitTransaction();
       return this.findOne(id, tenantId);
     } catch (err) {
