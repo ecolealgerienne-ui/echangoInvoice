@@ -5,8 +5,10 @@ import {
   FileText, BarChart2, Settings, LogOut, ClipboardList,
   FileSignature, ShoppingCart, Receipt, Factory,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { settingsApi } from '@/lib/api';
 
 const groups = [
   {
@@ -51,6 +53,8 @@ const groups = [
 export function Sidebar() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
+  const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get, staleTime: 60_000 });
+  const productionEnabled = settingsData?.data?.productionModuleEnabled ?? false;
 
   return (
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -75,7 +79,7 @@ export function Sidebar() {
           {t('nav.dashboard')}
         </NavLink>
 
-        {groups.map((group) => (
+        {groups.filter(g => g.key !== 'nav.group.production' || productionEnabled).map((group) => (
           <div key={group.key} className="mt-3">
             <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
               {t(group.key)}

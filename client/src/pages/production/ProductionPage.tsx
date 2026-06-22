@@ -370,7 +370,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
-                          {t(`production.nomStatus.${nom.status}`, nom.status)}
+                          {String(t(`production.nomStatus.${nom.status}`, nom.status))}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -399,7 +399,7 @@ export function ProductionPage() {
               page={nomenclaturesData.pagination.page}
               total={nomenclaturesData.pagination.total}
               limit={nomenclaturesData.pagination.limit}
-              onPageChange={setPage}
+              onChange={setPage}
             />
           )}
         </>
@@ -439,7 +439,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Badge variant={ORDER_STATUS_VARIANT[order.status] ?? 'muted'}>
-                            {t(`production.status.${order.status}`, order.status)}
+                            {String(t(`production.status.${order.status}`, order.status))}
                           </Badge>
                           {order.priority === 'urgent' && (
                             <Badge variant="destructive">!</Badge>
@@ -477,7 +477,7 @@ export function ProductionPage() {
               page={ordersData.pagination.page}
               total={ordersData.pagination.total}
               limit={ordersData.pagination.limit}
-              onPageChange={setPage}
+              onChange={setPage}
             />
           )}
         </>
@@ -725,7 +725,7 @@ export function ProductionPage() {
                 <InfoRow label={t('production.finishedProduct')} value={orderDetail.finishedProductName ?? '—'} />
                 <InfoRow label={t('common.status')}>
                   <Badge variant={ORDER_STATUS_VARIANT[orderDetail.status] ?? 'muted'}>
-                    {t(`production.status.${orderDetail.status}`, orderDetail.status)}
+                    {String(t(`production.status.${orderDetail.status}`, orderDetail.status))}
                   </Badge>
                 </InfoRow>
               </div>
@@ -804,7 +804,7 @@ export function ProductionPage() {
                         <tr key={mv.id} className="hover:bg-muted/20">
                           <td className="px-3 py-2">
                             <Badge variant={MOV_TYPE_VARIANT[mv.type] ?? 'muted'}>
-                              {t(`production.movType.${mv.type}`, mv.type)}
+                              {String(t(`production.movType.${mv.type}`, mv.type))}
                             </Badge>
                           </td>
                           <td className="px-3 py-2">{mv.rawMaterialName ?? mv.finishedProductName ?? '—'}</td>
