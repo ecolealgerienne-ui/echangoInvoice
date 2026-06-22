@@ -135,9 +135,9 @@ export function ProductionPage() {
   });
 
   const { data: orderNomenclatureData } = useQuery({
-    queryKey: ['nomenclature', orderDetail?.nomenclatureId],
-    queryFn: () => productionApi.getNomenclature(orderDetail.nomenclatureId),
-    enabled: !!orderDetail?.nomenclatureId && viewOrderOpen,
+    queryKey: ['nomenclature', viewOrder?.nomenclatureId],
+    queryFn: () => productionApi.getNomenclature(viewOrder.nomenclatureId),
+    enabled: !!viewOrder?.nomenclatureId && viewOrderOpen,
   });
   const orderNomenclature: any = orderNomenclatureData?.data ?? null;
 
