@@ -91,9 +91,8 @@ export class NomenclatureService {
       );
       await qr.manager.save(BomLine, lines);
 
-      saved.estimatedCostPerUnit = dto.outputQuantity > 0
-        ? estimatedCost / Number(dto.outputQuantity)
-        : 0;
+      // estimatedCostPerUnit = coût total pour 1 unité finie = Σ(quantityPerUnit × lastCostPerUnit)
+      saved.estimatedCostPerUnit = estimatedCost;
       await qr.manager.save(Nomenclature, saved);
 
       await qr.commitTransaction();
@@ -148,7 +147,7 @@ export class NomenclatureService {
           }),
         );
         if (lines.length > 0) await qr.manager.save(BomLine, lines);
-        existing.estimatedCostPerUnit = outputQty > 0 ? estimatedCost / outputQty : 0;
+        existing.estimatedCostPerUnit = estimatedCost;
       }
 
       await qr.manager.save(Nomenclature, existing);

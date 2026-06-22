@@ -557,13 +557,26 @@ export function ProductionPage() {
             {nomForm.formState.errors.lines?.root && (
               <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message}</p>
             )}
+            {/* En-tête colonnes */}
+            <div className="grid grid-cols-12 gap-2 px-3 mb-1">
+              <div className="col-span-4 text-xs font-medium text-muted-foreground">Matière première</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">Qté / unité</div>
+              <div className="col-span-1 text-xs font-medium text-muted-foreground">Unité</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût / unité</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût lot</div>
+              <div className="col-span-1" />
+            </div>
             <div className="space-y-2">
               {bomLines.map((field, idx) => {
                 const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
+                const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
+                const outputQty = Number(nomForm.watch('outputQuantity')) || 0;
                 const selRm = rawMaterials.find((r: any) => r.id === selRmId);
+                const unitCost = qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
+                const lotCost = unitCost * outputQty;
                 return (
-                <div key={field.id} className="flex gap-2 items-center p-3 bg-muted/30 rounded-md">
-                  <div className="flex-1 min-w-0">
+                <div key={field.id} className="grid grid-cols-12 gap-2 items-center p-3 bg-muted/30 rounded-md">
+                  <div className="col-span-4">
                     <Select
                       {...nomForm.register(`lines.${idx}.rawMaterialId`)}
                       onChange={e => {
@@ -578,7 +591,7 @@ export function ProductionPage() {
                       ))}
                     </Select>
                   </div>
-                  <div className="w-28">
+                  <div className="col-span-2">
                     <Input
                       type="number"
                       step="0.01"
@@ -586,26 +599,53 @@ export function ProductionPage() {
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
-                  <div className="w-24">
+                  <div className="col-span-1">
                     <span className="text-xs px-2 py-1.5 rounded-md border border-input bg-muted text-muted-foreground block text-center truncate">
                       {selRm?.unit ?? '—'}
                     </span>
                     <input type="hidden" {...nomForm.register(`lines.${idx}.unit`)} />
                   </div>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive shrink-0"
-                    onClick={() => removeLine(idx)}
-                    disabled={bomLines.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="col-span-2 text-right text-sm font-medium">
+                    {selRm ? formatCurrency(unitCost) : '—'}
+                  </div>
+                  <div className="col-span-2 text-right text-sm font-medium text-primary">
+                    {selRm && outputQty > 0 ? formatCurrency(lotCost) : '—'}
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeLine(idx)}
+                      disabled={bomLines.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 );
               })}
             </div>
+            {/* Totaux */}
+            {(() => {
+              const outputQty = Number(nomForm.watch('outputQuantity')) || 0;
+              const totalUnit = bomLines.reduce((sum, _, idx) => {
+                const selRmId = nomForm.watch(`lines.${idx}.rawMaterialId`);
+                const qtyPerUnit = Number(nomForm.watch(`lines.${idx}.quantityPerUnit`)) || 0;
+                const selRm = rawMaterials.find((r: any) => r.id === selRmId);
+                return sum + qtyPerUnit * Number(selRm?.lastCostPerUnit ?? 0);
+              }, 0);
+              const totalLot = totalUnit * outputQty;
+              return (
+                <div className="grid grid-cols-12 gap-2 px-3 pt-2 border-t border-border mt-2">
+                  <div className="col-span-7 text-xs font-semibold text-muted-foreground text-right">Total</div>
+                  <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}<span className="text-xs font-normal text-muted-foreground"> /unité</span></div>
+                  <div className="col-span-2 text-right text-sm font-bold text-primary">{outputQty > 0 ? formatCurrency(totalLot) : '—'}<span className="text-xs font-normal text-muted-foreground"> /lot</span></div>
+                  <div className="col-span-1" />
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
