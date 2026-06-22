@@ -3,6 +3,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class RenameSubscriptionPlans1750016000000 implements MigrationInterface {
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TYPE subscription_plan_enum_new AS ENUM ('starter', 'pro', 'enterprise')`);
+    // Drop default before altering column type (PostgreSQL cannot auto-cast defaults)
+    await queryRunner.query(`ALTER TABLE subscriptions ALTER COLUMN plan DROP DEFAULT`);
     await queryRunner.query(`
       ALTER TABLE subscriptions
         ALTER COLUMN plan TYPE subscription_plan_enum_new
@@ -13,12 +15,14 @@ export class RenameSubscriptionPlans1750016000000 implements MigrationInterface 
           END
         )::subscription_plan_enum_new
     `);
+    await queryRunner.query(`ALTER TABLE subscriptions ALTER COLUMN plan SET DEFAULT 'starter'`);
     await queryRunner.query(`DROP TYPE subscription_plan_enum`);
     await queryRunner.query(`ALTER TYPE subscription_plan_enum_new RENAME TO subscription_plan_enum`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TYPE subscription_plan_enum_old AS ENUM ('freemium', 'pro')`);
+    await queryRunner.query(`ALTER TABLE subscriptions ALTER COLUMN plan DROP DEFAULT`);
     await queryRunner.query(`
       ALTER TABLE subscriptions
         ALTER COLUMN plan TYPE subscription_plan_enum_old
@@ -29,6 +33,7 @@ export class RenameSubscriptionPlans1750016000000 implements MigrationInterface 
           END
         )::subscription_plan_enum_old
     `);
+    await queryRunner.query(`ALTER TABLE subscriptions ALTER COLUMN plan SET DEFAULT 'freemium'`);
     await queryRunner.query(`DROP TYPE subscription_plan_enum`);
     await queryRunner.query(`ALTER TYPE subscription_plan_enum_old RENAME TO subscription_plan_enum`);
   }
