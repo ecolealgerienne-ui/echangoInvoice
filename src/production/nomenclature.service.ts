@@ -150,6 +150,7 @@ export class NomenclatureService {
         existing.estimatedCostPerUnit = estimatedCost;
       }
 
+      existing.bomLines = []; // évite la cascade sur les anciennes lignes déjà supprimées
       await qr.manager.save(Nomenclature, existing);
       await qr.commitTransaction();
       return this.findOne(id, tenantId);
