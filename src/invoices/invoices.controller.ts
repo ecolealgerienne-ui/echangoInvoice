@@ -28,21 +28,21 @@ export class InvoicesController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Créer une facture (standalone, depuis BL, ou depuis devis)' })
   create(@Body() dto: CreateSalesInvoiceDto, @CurrentUser() user: any) {
-    return this.service.create(dto, user.tenantId, user.id);
+    return this.service.create(dto, user.tenantId!, user.id);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les factures' })
   findAll(@Query() query: ListInvoicesDto, @CurrentUser() user: any) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'une facture' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -53,7 +53,7 @@ export class InvoicesController {
     @Body() dto: CreateSalesInvoiceDto,
     @CurrentUser() user: any,
   ) {
-    return this.service.update(id, dto, user.tenantId, user.id);
+    return this.service.update(id, dto, user.tenantId!, user.id);
   }
 
   @Patch(':id/status')
@@ -64,7 +64,7 @@ export class InvoicesController {
     @Body() dto: UpdateInvoiceStatusDto,
     @CurrentUser() user: any,
   ) {
-    return this.service.updateStatus(id, dto, user.tenantId, user.id);
+    return this.service.updateStatus(id, dto, user.tenantId!, user.id);
   }
 
   @Delete(':id')
@@ -72,7 +72,7 @@ export class InvoicesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Supprimer une facture (draft uniquement)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.remove(id, user.tenantId, user.id);
+    return this.service.remove(id, user.tenantId!, user.id);
   }
 
   @Get(':id/pdf')
@@ -83,7 +83,7 @@ export class InvoicesController {
     @CurrentUser() user: any,
     @Res() reply: FastifyReply,
   ) {
-    const { buffer, filename } = await this.pdfService.generateInvoicePdf(id, user.tenantId);
+    const { buffer, filename } = await this.pdfService.generateInvoicePdf(id, user.tenantId!);
     void reply
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="${filename}"`)
@@ -95,6 +95,6 @@ export class InvoicesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer la facture par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendInvoiceEmail(id, user.tenantId);
+    await this.pdfService.sendInvoiceEmail(id, user.tenantId!);
   }
 }

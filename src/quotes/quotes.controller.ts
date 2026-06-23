@@ -34,21 +34,21 @@ export class QuotesController {
   @ApiOperation({ summary: 'Créer un devis' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateQuoteDto, @CurrentUser() user: any) {
-    return this.quotesService.create(dto, user.tenantId, user.id);
+    return this.quotesService.create(dto, user.tenantId!, user.id);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les devis' })
   findAll(@Query() query: ListQuotesDto, @CurrentUser() user: any) {
-    return this.quotesService.findAll(query, user.tenantId);
+    return this.quotesService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'un devis' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.quotesService.findOne(id, user.tenantId);
+    return this.quotesService.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
@@ -59,7 +59,7 @@ export class QuotesController {
     @Body() dto: UpdateQuoteDto,
     @CurrentUser() user: any,
   ) {
-    return this.quotesService.update(id, dto, user.tenantId, user.id);
+    return this.quotesService.update(id, dto, user.tenantId!, user.id);
   }
 
   @Patch(':id/status')
@@ -70,7 +70,7 @@ export class QuotesController {
     @Body() dto: UpdateQuoteStatusDto,
     @CurrentUser() user: any,
   ) {
-    return this.quotesService.updateStatus(id, dto, user.tenantId, user.id);
+    return this.quotesService.updateStatus(id, dto, user.tenantId!, user.id);
   }
 
   @Post(':id/convert')
@@ -78,7 +78,7 @@ export class QuotesController {
   @ApiOperation({ summary: 'Convertir un devis en facture' })
   @ApiResponse({ status: 201 })
   convert(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.quotesService.convertToInvoice(id, user.tenantId, user.id);
+    return this.quotesService.convertToInvoice(id, user.tenantId!, user.id);
   }
 
   @Post(':id/create-bl')
@@ -86,14 +86,14 @@ export class QuotesController {
   @ApiOperation({ summary: 'Créer un bon de livraison depuis un devis (accepté)' })
   @ApiResponse({ status: 201 })
   createBl(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.deliveriesService.createFromQuote(id, user.tenantId, user.id);
+    return this.deliveriesService.createFromQuote(id, user.tenantId!, user.id);
   }
 
   @Delete(':id')
   @Roles('owner')
   @ApiOperation({ summary: 'Supprimer un devis (draft ou rejected)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.quotesService.remove(id, user.tenantId, user.id);
+    return this.quotesService.remove(id, user.tenantId!, user.id);
   }
 
   @Get(':id/pdf')
@@ -104,7 +104,7 @@ export class QuotesController {
     @CurrentUser() user: any,
     @Res() reply: FastifyReply,
   ) {
-    const { buffer, filename } = await this.pdfService.generateQuotePdf(id, user.tenantId);
+    const { buffer, filename } = await this.pdfService.generateQuotePdf(id, user.tenantId!);
     void reply
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="${filename}"`)

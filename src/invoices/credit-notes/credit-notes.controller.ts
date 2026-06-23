@@ -21,7 +21,7 @@ export class CreditNotesController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Créer un avoir (note de crédit)' })
   create(@Body() dto: CreateCreditNoteDto, @CurrentUser() user: any) {
-    return this.service.create(dto, user.tenantId, user.id);
+    return this.service.create(dto, user.tenantId!, user.id);
   }
 
   @Get()
@@ -32,34 +32,34 @@ export class CreditNotesController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.service.findAll(user.tenantId, page ? parseInt(page) : 1, limit ? parseInt(limit) : 20);
+    return this.service.findAll(user.tenantId!, page ? parseInt(page) : 1, limit ? parseInt(limit) : 20);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'un avoir' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Patch(':id/issue')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Émettre un avoir (draft → issued)' })
   issue(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.issue(id, user.tenantId, user.id);
+    return this.service.issue(id, user.tenantId!, user.id);
   }
 
   @Patch(':id/cancel')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Annuler un avoir' })
   cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.cancel(id, user.tenantId, user.id);
+    return this.service.cancel(id, user.tenantId!, user.id);
   }
 
   @Delete(':id')
   @Roles('owner')
   @ApiOperation({ summary: 'Supprimer un avoir (draft uniquement)' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.remove(id, user.tenantId, user.id);
+    return this.service.remove(id, user.tenantId!, user.id);
   }
 }

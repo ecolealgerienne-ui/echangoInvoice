@@ -32,7 +32,7 @@ export class ProductionOrderController {
   @ApiOperation({ summary: 'Liste des ordres de production' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListProductionOrdersDto, @CurrentUser() user: JwtPayload) {
-    return this.orderService.findAll(query, user.tenantId);
+    return this.orderService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
@@ -41,7 +41,7 @@ export class ProductionOrderController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'production_order_not_found' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.orderService.findOne(id, user.tenantId);
+    return this.orderService.findOne(id, user.tenantId!);
   }
 
   @Post()
@@ -49,7 +49,7 @@ export class ProductionOrderController {
   @ApiOperation({ summary: 'Créer un ordre de production' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateProductionOrderDto, @CurrentUser() user: JwtPayload) {
-    return this.orderService.create(dto, user.tenantId, user.sub);
+    return this.orderService.create(dto, user.tenantId!, user.sub);
   }
 
   @Patch(':id/start')
@@ -59,7 +59,7 @@ export class ProductionOrderController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400, description: 'production_order_not_planned' })
   start(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.orderService.start(id, user.tenantId, user.sub);
+    return this.orderService.start(id, user.tenantId!, user.sub);
   }
 
   @Patch(':id/complete')
@@ -73,7 +73,7 @@ export class ProductionOrderController {
     @Body() dto: CompleteProductionOrderDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.orderService.complete(id, dto, user.tenantId, user.sub);
+    return this.orderService.complete(id, dto, user.tenantId!, user.sub);
   }
 
   @Patch(':id/cancel')
@@ -86,7 +86,7 @@ export class ProductionOrderController {
     @Body() dto: CancelProductionOrderDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.orderService.cancel(id, user.tenantId, user.sub, dto.reason);
+    return this.orderService.cancel(id, user.tenantId!, user.sub, dto.reason);
   }
 
   // ── Movements ──────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export class ProductionOrderController {
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
-    return this.movementService.findByOrder(id, user.tenantId, type, from, to);
+    return this.movementService.findByOrder(id, user.tenantId!, type, from, to);
   }
 
   @Post(':id/movements')
@@ -115,7 +115,7 @@ export class ProductionOrderController {
     @Body() dto: CreateProductionMovementDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.movementService.create(id, dto, user.tenantId, user.sub);
+    return this.movementService.create(id, dto, user.tenantId!, user.sub);
   }
 
   @Post(':id/movements/batch')
@@ -128,6 +128,6 @@ export class ProductionOrderController {
     @Body() dto: BatchCreateMovementsDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.movementService.createBatch(id, dto, user.tenantId, user.sub);
+    return this.movementService.createBatch(id, dto, user.tenantId!, user.sub);
   }
 }

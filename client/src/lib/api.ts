@@ -101,7 +101,7 @@ export const authApi = {
     api.post('/auth/login', { email, password }).then(r => r.data.data),
   register: (companyName: string, email: string, password: string) =>
     api.post('/auth/register', { companyName, email, password }).then(r => r.data.data),
-  logout: () => api.post('/auth/logout').then(r => r.data),
+  logout: () => api.post('/auth/logout', { refreshToken: localStorage.getItem('refreshToken') }).then(r => r.data),
   me: () => api.get('/auth/me').then(r => r.data.data),
 };
 
@@ -262,6 +262,48 @@ export const productionApi = {
     api.post(`/production/orders/${orderId}/movements/batch`, { items }).then(r => r.data),
   // Dashboard
   getDashboard: () => api.get('/production/dashboard').then(r => r.data),
+};
+
+export const adminApi = {
+  // Auth
+  login: (email: string, password: string) =>
+    api.post('/admin/auth/login', { email, password }).then(r => r.data.data),
+  refresh: (refreshToken: string) =>
+    api.post('/admin/auth/refresh', { refreshToken }).then(r => r.data.data),
+
+  // Stats
+  getStats: () => api.get('/admin/stats').then(r => r.data),
+
+  // Tenants
+  listTenants: (params?: Record<string, unknown>) =>
+    api.get('/admin/tenants', { params }).then(r => r.data),
+  getTenantDetail: (id: string) =>
+    api.get(`/admin/tenants/${id}`).then(r => r.data),
+  patchTenantStatus: (id: string, status: string) =>
+    api.patch(`/admin/tenants/${id}/status`, { status }).then(r => r.data),
+  deleteTenant: (id: string) =>
+    api.delete(`/admin/tenants/${id}`).then(r => r.data),
+
+  // Subscriptions
+  patchSubscription: (id: string, dto: Record<string, unknown>) =>
+    api.patch(`/admin/subscriptions/${id}`, dto).then(r => r.data),
+
+  // Plans
+  listPlans: () => api.get('/admin/plans').then(r => r.data),
+  updatePlan: (id: string, dto: Record<string, unknown>) =>
+    api.put(`/admin/plans/${id}`, dto).then(r => r.data),
+
+  // SaaS payments
+  listSaasPayments: (params?: Record<string, unknown>) =>
+    api.get('/admin/saas-payments', { params }).then(r => r.data),
+  createSaasPayment: (dto: Record<string, unknown>) =>
+    api.post('/admin/saas-payments', dto).then(r => r.data),
+  getSaasPaymentSummary: () =>
+    api.get('/admin/saas-payments/summary').then(r => r.data),
+
+  // Audit logs
+  listAuditLogs: (params?: Record<string, unknown>) =>
+    api.get('/admin/audit-logs', { params }).then(r => r.data),
 };
 
 export const creditNotesApi = {

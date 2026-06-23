@@ -25,14 +25,14 @@ export class ProductsController {
   @ApiOperation({ summary: 'Create a finished product' })
   @ApiResponse({ status: 201 })
   create(@Body() dto: CreateProductDto, @CurrentUser() user: JwtPayload) {
-    return this.service.create(dto, user.tenantId, user.sub);
+    return this.service.create(dto, user.tenantId!, user.sub);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'List finished products (paginated)' })
   findAll(@Query() query: ListProductsDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
@@ -41,14 +41,14 @@ export class ProductsController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
   findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Put(':id')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Update finished product' })
   update(@Param('id') id: string, @Body() dto: UpdateProductDto, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, dto, user.tenantId, user.sub);
+    return this.service.update(id, dto, user.tenantId!, user.sub);
   }
 
   @Delete(':id')
@@ -58,6 +58,6 @@ export class ProductsController {
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 422 })
   remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.remove(id, user.tenantId);
+    return this.service.remove(id, user.tenantId!);
   }
 }

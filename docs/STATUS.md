@@ -1,6 +1,6 @@
 # STATUS.md — Echango Invoice · État de l'implémentation
 
-> Dernière mise à jour : 2026-06-19
+> Dernière mise à jour : 2026-06-22
 
 ## Légende
 
@@ -166,6 +166,30 @@
 | GET /settings | ✅ | |
 | PUT /settings | ✅ | |
 
+### Vendor Bills / Factures fournisseurs
+| Endpoint | Statut | Notes |
+|----------|--------|-------|
+| GET /purchases/vendor-bills | ✅ | Pagination + filtres |
+| POST /purchases/vendor-bills | ✅ | Numérotation VF-YY-###, lock DB, TVA calculée |
+| GET /purchases/vendor-bills/:id | ✅ | |
+| PATCH /purchases/vendor-bills/:id/status | ✅ | draft → received → paid |
+| DELETE /purchases/vendor-bills/:id | ✅ | Draft uniquement |
+
+### Production
+| Endpoint | Statut | Notes |
+|----------|--------|-------|
+| GET /production/nomenclatures | ✅ | BOM — recette par unité produite |
+| POST /production/nomenclatures | ✅ | |
+| PUT /production/nomenclatures/:id | ✅ | |
+| DELETE /production/nomenclatures/:id | ✅ | |
+| GET /production/orders | ✅ | |
+| POST /production/orders | ✅ | planned → in_progress (réserve stock) |
+| PATCH /production/orders/:id/start | ✅ | planned → in_progress |
+| PATCH /production/orders/:id/complete | ✅ | in_progress → completed, décrémente stock MP, incrémente stock PF |
+| PATCH /production/orders/:id/cancel | ✅ | Libère le stock réservé |
+| POST /production/orders/:id/movements | ✅ | mp_consumption, mp_loss (guidé BOM), rejection |
+| GET /production/orders/:id/movements | ✅ | Journal des mouvements |
+
 ---
 
 ## Frontend
@@ -174,11 +198,11 @@
 |------|--------|-------|
 | Login | ✅ | |
 | Dashboard | ✅ | Stats + graphiques |
-| Customers | ✅ | CRUD complet + champs NIF/RC/AI/NIS |
-| Suppliers | ✅ | CRUD complet |
-| Raw Materials | ✅ | CRUD complet |
-| Products | ✅ | CRUD complet |
-| Stock | ✅ | Inventaire + alertes + ajustements |
+| Customers | ✅ | CRUD complet + NIF/RC/AI/NIS + adresse livraison + contacts multiples |
+| Suppliers | ✅ | CRUD complet + contacts multiples |
+| Raw Materials | ✅ | CRUD complet (fusionné dans Products avec type='material') |
+| Products | ✅ | CRUD complet + alertes stock + seuil d'alerte |
+| Stock | ✅ | Inventaire + alertes + ajustements + cloche header |
 | Delivery Notes | ✅ | Création + liste + annulation + bouton PDF |
 | Invoices | ✅ | Création + liste + envoi + annulation + bouton PDF |
 | Expenses | ✅ | CRUD complet |
@@ -187,7 +211,11 @@
 | Credit Notes (Avoirs) | ✅ | Création + liste + émettre + annuler |
 | Purchase Orders | ✅ | Création + liste (onglet Achats) |
 | Reception BLs | ✅ | Création + liste (onglet Achats) |
+| Vendor Bills | ✅ | Création + liste + changer statut (onglet Achats) |
 | Quotes | ✅ | Création + liste + PDF + convertir en facture |
+| Production — BOM | ✅ | Création + liste nomenclatures |
+| Production — Ordres | ✅ | Création + démarrer + clôturer + annuler |
+| Production — Mouvements | ✅ | Journal + saisie mp_consumption / mp_loss / rejection |
 
 ---
 
@@ -203,14 +231,13 @@
 | Helmet + CORS | ✅ | |
 | Rate limiting /auth | ✅ | @nestjs/throttler |
 | Soft delete filtré | ✅ | deletedAt IS NULL sur toutes les queries |
-| Transactions multi-tables | ✅ | QueryRunner sur opérations FIFO, payment, credit-notes |
+| Transactions multi-tables | ✅ | QueryRunner sur opérations FIFO, payment, credit-notes, production |
 | FIFO stock | ✅ | decrementFIFO + releaseFIFO |
-| Auto-numérotation avec lock DB | ✅ | pg_advisory_xact_lock — FAC, BL, AV, PO |
+| Auto-numérotation avec lock DB | ✅ | pg_advisory_xact_lock — FAC, BL, AV, PO, VF |
 | Freemium quota check | ✅ | Sur POST /invoices |
-| PDF génération | ✅ | Puppeteer — Factures + BL, archivage ARCHIVES/YYYY/MM/TYPE/ |
-| PDF Devis | ❌ | Service disponible, template à créer |
-| Email envoi | ❌ | |
-| Migrations pending | ⚠️ | Exécuter `npm run migration:run` (stock_entries.deletedAt + NIF/RC + credit_notes) |
+| PDF génération | ✅ | Puppeteer — Factures + BL + Devis, archivage ARCHIVES/YYYY/MM/TYPE/ |
+| Email envoi | ✅ | Nodemailer — Factures + BL |
+| Migrations | ✅ | 29 migrations (1709980000000 → 1750014000000) |
 
 ---
 
@@ -227,6 +254,6 @@
 ### 🟡 Restant
 | # | Gap | Notes |
 |---|-----|-------|
-| 1 | **Contacts multiples par client** | Table `customer_contacts` |
-| 2 | **Adresse livraison sur client** | Champs `shippingAddress`, `shippingCity` |
-| 3 | **Migrations pending** | `npm run migration:run` à lancer en environnement avec DB |
+| — | ~~Contacts multiples par client~~ | ✅ Implémenté — table `partner_contacts` (migration 1750003000000) |
+| — | ~~Adresse livraison sur client~~ | ✅ Implémenté — champs `shippingAddress`, `shippingCity` (migration 1709981200000) |
+| — | ~~Migrations pending~~ | ✅ Toutes les migrations sont présentes (1709980000000 → 1750014000000) |

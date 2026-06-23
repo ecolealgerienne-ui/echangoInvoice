@@ -4,15 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { stockApi } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
 
   const { data: alertData } = useQuery({
     queryKey: ['stock-alerts'],
     queryFn: () => stockApi.alerts(),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 4 * 60 * 1000,
+    enabled: !isSuperAdmin,
   });
 
   const lowStockCount: number = alertData?.data?.summary?.totalLowStock ?? 0;

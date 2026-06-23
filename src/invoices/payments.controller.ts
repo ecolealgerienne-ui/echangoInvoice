@@ -22,21 +22,21 @@ export class PaymentsController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Enregistrer un paiement (met à jour amountPaid/Due + status)' })
   create(@Body() dto: CreatePaymentDto, @CurrentUser() user: any) {
-    return this.service.create(dto, user.tenantId, user.id);
+    return this.service.create(dto, user.tenantId!, user.id);
   }
 
   @Get()
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Lister les paiements' })
   findAll(@Query() query: ListPaymentsDto, @CurrentUser() user: any) {
-    return this.service.findAll(query, user.tenantId);
+    return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Détail d\'un paiement' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.findOne(id, user.tenantId);
+    return this.service.findOne(id, user.tenantId!);
   }
 
   @Delete(':id')
@@ -44,6 +44,6 @@ export class PaymentsController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Annuler un paiement (inverse les effets sur stock + facture)' })
   cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.service.cancel(id, user.tenantId, user.id);
+    return this.service.cancel(id, user.tenantId!, user.id);
   }
 }

@@ -34,14 +34,14 @@ export class PurchasesController {
   @ApiOperation({ summary: 'Create a purchase order with items' })
   @ApiResponse({ status: 201 })
   createPo(@Body() dto: CreatePurchaseOrderDto, @CurrentUser() user: JwtPayload) {
-    return this.service.createPurchaseOrder(dto, user.tenantId, user.sub);
+    return this.service.createPurchaseOrder(dto, user.tenantId!, user.sub);
   }
 
   @Get('purchase-orders')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'List purchase orders (paginated + filters)' })
   findAllPos(@Query() query: ListPurchaseOrdersDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAllPurchaseOrders(query, user.tenantId);
+    return this.service.findAllPurchaseOrders(query, user.tenantId!);
   }
 
   @Get('purchase-orders/:id')
@@ -50,7 +50,7 @@ export class PurchasesController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
   findOnePo(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOnePurchaseOrder(id, user.tenantId);
+    return this.service.findOnePurchaseOrder(id, user.tenantId!);
   }
 
   @Patch('purchase-orders/:id')
@@ -63,7 +63,7 @@ export class PurchasesController {
     @Body() dto: UpdatePurchaseOrderDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.updatePurchaseOrder(id, dto, user.tenantId, user.sub);
+    return this.service.updatePurchaseOrder(id, dto, user.tenantId!, user.sub);
   }
 
   @Patch('purchase-orders/:id/status')
@@ -76,7 +76,7 @@ export class PurchasesController {
     @Body() dto: PatchPoStatusDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.patchPoStatus(id, dto, user.tenantId, user.sub);
+    return this.service.patchPoStatus(id, dto, user.tenantId!, user.sub);
   }
 
   @Delete('purchase-orders/:id')
@@ -86,7 +86,7 @@ export class PurchasesController {
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 422 })
   removePo(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.removePurchaseOrder(id, user.tenantId);
+    return this.service.removePurchaseOrder(id, user.tenantId!);
   }
 
   // ── Reception BLs ───────────────────────────────────────────────────────────
@@ -96,14 +96,14 @@ export class PurchasesController {
   @ApiOperation({ summary: 'Create reception BL — creates StockEntries + updates InventorySummary' })
   @ApiResponse({ status: 201 })
   createReceptionBl(@Body() dto: CreateReceptionBlDto, @CurrentUser() user: JwtPayload) {
-    return this.service.createReceptionBl(dto, user.tenantId, user.sub);
+    return this.service.createReceptionBl(dto, user.tenantId!, user.sub);
   }
 
   @Get('reception-bls')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'List reception BLs (paginated)' })
   findAllBls(@Query() query: ListReceptionBlsDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAllReceptionBls(query, user.tenantId);
+    return this.service.findAllReceptionBls(query, user.tenantId!);
   }
 
   @Get('reception-bls/:id')
@@ -112,7 +112,7 @@ export class PurchasesController {
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
   findOneBl(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOneReceptionBl(id, user.tenantId);
+    return this.service.findOneReceptionBl(id, user.tenantId!);
   }
 
   // ── Vendor Bills ─────────────────────────────────────────────────────────────
@@ -121,21 +121,21 @@ export class PurchasesController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Create a vendor bill' })
   createVendorBill(@Body() dto: CreateVendorBillDto, @CurrentUser() user: JwtPayload) {
-    return this.service.createVendorBill(dto, user.tenantId, user.sub);
+    return this.service.createVendorBill(dto, user.tenantId!, user.sub);
   }
 
   @Get('vendor-bills')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'List vendor bills (paginated + filters)' })
   findAllVendorBills(@Query() query: ListVendorBillsDto, @CurrentUser() user: JwtPayload) {
-    return this.service.findAllVendorBills(query, user.tenantId);
+    return this.service.findAllVendorBills(query, user.tenantId!);
   }
 
   @Get('vendor-bills/:id')
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Get vendor bill with items and payments' })
   findOneVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.findOneVendorBill(id, user.tenantId);
+    return this.service.findOneVendorBill(id, user.tenantId!);
   }
 
   @Put('vendor-bills/:id')
@@ -146,7 +146,7 @@ export class PurchasesController {
     @Body() dto: CreateVendorBillDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.updateVendorBill(id, dto, user.tenantId, user.sub);
+    return this.service.updateVendorBill(id, dto, user.tenantId!, user.sub);
   }
 
   @Patch('vendor-bills/:id/status')
@@ -157,7 +157,7 @@ export class PurchasesController {
     @Body() dto: PatchVendorBillStatusDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.patchVendorBillStatus(id, dto.status, user.tenantId, user.sub);
+    return this.service.patchVendorBillStatus(id, dto.status, user.tenantId!, user.sub);
   }
 
   @Delete('vendor-bills/:id')
@@ -165,7 +165,7 @@ export class PurchasesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete draft or cancelled vendor bill' })
   removeVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
-    return this.service.removeVendorBill(id, user.tenantId);
+    return this.service.removeVendorBill(id, user.tenantId!);
   }
 
   @Post('vendor-bills/:id/payments')
@@ -176,6 +176,6 @@ export class PurchasesController {
     @Body() dto: RecordVendorPaymentDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.recordVendorPayment(id, dto, user.tenantId, user.sub);
+    return this.service.recordVendorPayment(id, dto, user.tenantId!, user.sub);
   }
 }

@@ -5,14 +5,15 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'owner' | 'manager' | 'agent';
-  tenantId: string;
+  role: 'owner' | 'manager' | 'agent' | 'superadmin';
+  tenantId: string | null;
 }
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  isSuperAdmin: boolean;
+  login: (email: string, password: string) => Promise<{ role: string }>;
   logout: () => Promise<void>;
 }
 
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
+    return { role: data.user.role };
   }
 
   async function logout() {
@@ -48,8 +50,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  const isSuperAdmin = user?.role === 'superadmin';
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isSuperAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

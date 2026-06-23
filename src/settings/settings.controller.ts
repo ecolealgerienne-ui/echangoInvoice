@@ -18,13 +18,13 @@ export class SettingsController {
   @Roles('owner', 'manager', 'agent')
   @ApiOperation({ summary: 'Paramètres du tenant courant' })
   get(@CurrentUser() user: any) {
-    return this.service.get(user.tenantId);
+    return this.service.get(user.tenantId!);
   }
 
   @Put()
   @Roles('owner')
   @ApiOperation({ summary: 'Mettre à jour les paramètres (OWNER uniquement)' })
   update(@Body() dto: UpdateSettingsDto, @CurrentUser() user: any) {
-    return this.service.update(user.tenantId, dto, user.id);
+    return this.service.update(user.tenantId!, dto, user.id);
   }
 }

@@ -4,7 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Plan } from '../../admin/entities/plan.entity';
 
 @Entity('subscriptions')
 export class Subscription {
@@ -16,17 +19,24 @@ export class Subscription {
 
   @Column({
     type: 'enum',
-    enum: ['freemium', 'pro'],
-    default: 'freemium',
+    enum: ['starter', 'pro', 'enterprise'],
+    default: 'starter',
   })
-  plan: 'freemium' | 'pro';
+  plan: 'starter' | 'pro' | 'enterprise';
+
+  @Column({ type: 'uuid', nullable: true })
+  planId?: string;
+
+  @ManyToOne(() => Plan, { nullable: true })
+  @JoinColumn({ name: 'planId' })
+  planRef?: Plan;
 
   @Column({
     type: 'enum',
-    enum: ['active', 'expired', 'cancelled'],
+    enum: ['active', 'expired', 'cancelled', 'suspended'],
     default: 'active',
   })
-  status: 'active' | 'expired' | 'cancelled';
+  status: 'active' | 'expired' | 'cancelled' | 'suspended';
 
   @Column({ type: 'int', default: 0 })
   invoicesThisMonth: number;
@@ -41,10 +51,13 @@ export class Subscription {
   usersLimit?: number;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  pricePerMonth?: number;
+  customPricePerMonth?: number;
 
   @Column({ type: 'timestamptz', nullable: true })
-  renewalDate?: Date;
+  currentPeriodEnd?: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastResetAt?: Date;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
