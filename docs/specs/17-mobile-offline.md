@@ -1,1821 +1,927 @@
-# 17 — Mobile Offline-First + Synchronisation "First Write Wins"
+# 17 — Mobile Offline-First · Spec Finale Arbitrée
 
-**Projet:** echangoInvoice — Invoicing SaaS pour PME algériennes  
-**Stack actuelle:** NestJS + React + PostgreSQL + JWT  
-**Nouvelle feature:** Application mobile iOS/Android offline-first avec sync asynchrone  
-**Stratégie de conflit:** "First Write Wins" — le premier arrivé écrase, sans résolution complexe  
+> **Statut :** Spec validée — prête à implémenter  
+> **Date d'arbitrage :** 2026-06-23  
+> **Modèle recommandé pour l'implémentation :** Opus (nouveau module multi-fichiers)
+
+---
+
+## 0. TABLEAU DES DÉCISIONS ARBITRÉES
+
+| # | Désaccord | Décision finale | Justification |
+|---|-----------|-----------------|---------------|
+| D1 | Framework mobile : Expo SDK 52 vs Capacitor/PWA | **Capacitor** | L'équipe est React (pas React Native). Capacitor réutilise 90 % du code web existant. JSI vs bridge : écart de performance non démontré sur les volumes de données de ce projet (<5 000 enregistrements locaux). Expo exigerait une réécriture complète de l'UI. |
+| D2 | DB locale : expo-sqlite + Drizzle vs WatermelonDB | **@capacitor-community/sqlite + Drizzle ORM** | expo-sqlite est un module Expo/React Native — incompatible avec Capacitor. WatermelonDB contraint le schéma de sync. Drizzle est TypeScript-first, <35 kb, migrations typesafes, et fonctionne parfaitement avec capacitor-community/sqlite. |
+| D3 | Numérotation offline : TMP- vs pool pré-alloué | **Pool de numéros pré-alloués** | Le numéro apparaît sur un document papier signé par le client. Afficher `TMP-26-001` sur un BL signé est inacceptable en contexte légal algérien. Le pool est alloué au login (10 numéros par agent par type de document) et rechargé à la sync. |
+| D4 | Transaction batch push : une seule vs une par opération | **Une transaction par opération** | Conforme R005. Un échec d'une opération ne doit pas annuler les 49 autres. Chaque résultat est retourné individuellement dans `results[]`. |
+| D5 | Notification conflits FWW : temps réel vs différé | **Différé, au retour de sync, en langage métier** | Les conflits FWW sont rares. Interrompre l'agent en zone blanche est inutile. Au retour réseau, afficher un journal d'activité listant les documents où "une version plus récente a été enregistrée par [Nom de l'agent]". Jamais le mot "conflit". |
+| D6 | Première synchronisation : tout l'historique vs fenêtre glissante | **90 derniers jours** | Protège la mémoire des appareils d'entrée de gamme (Redmi 9A, Galaxy A12). Au-delà, accès web uniquement. |
+| D7 | PDF offline | **Jamais généré offline** | Conforme R014. Le PDF est généré côté serveur lors de la sync ou à la demande. L'agent peut imprimer/partager une version HTML simplifiée en offline si besoin. |
+| D8 | Calculs financiers offline | **TVA 19 % calculée localement pour affichage** | Conforme R008 : les montants locaux sont indicatifs. Le serveur recalcule et écrase lors de la sync. Le payload push n'envoie jamais `subtotal`/`taxAmount`/`totalAmount` — uniquement les lignes brutes. |
+| D9 | Monorepo | **Oui — packages/shared, packages/mobile, packages/web, packages/backend** | Partage des types DTO et des validateurs. Évite la divergence silencieuse des contrats d'API. |
 
 ---
 
 ## TABLE DES MATIÈRES
 
-1. [Choix technologique mobile](#1-choix-technologique-mobile)
-2. [Architecture de synchronisation](#2-architecture-de-synchronisation-first-write-wins)
-3. [Entités à synchroniser](#3-entités-à-synchroniser)
-4. [Gestion des conflits](#4-gestion-des-conflits-first-write-wins)
-5. [Sécurité et authentification offline](#5-sécurité-et-authentification-offline)
-6. [API de synchronisation backend](#6-api-de-synchronisation-backend)
-7. [Impact sur le backend existant](#7-impact-sur-le-backend-existant)
+1. [Stack technique](#1-stack-technique)
+2. [Architecture de synchronisation](#2-architecture-de-synchronisation)
+3. [Pool de numérotation offline](#3-pool-de-numérotation-offline)
+4. [Schéma SQLite local](#4-schéma-sqlite-local)
+5. [API backend — module src/sync/](#5-api-backend--module-srcsync)
+6. [Sécurité — 6 blocants critiques](#6-sécurité--6-blocants-critiques)
+7. [Entités synchronisées](#7-entités-synchronisées)
 8. [Fonctionnalités offline vs online-only](#8-fonctionnalités-offline-vs-online-only)
-9. [Plan d'implémentation par phases](#9-plan-dimplémentation-par-phases)
+9. [UX offline](#9-ux-offline)
+10. [Plan d'implémentation](#10-plan-dimplémentation)
+11. [Tests](#11-tests)
+12. [Déploiement stores](#12-déploiement-stores)
 
 ---
 
-## 1. Choix technologique mobile
+## 1. Stack technique
 
-### 1.1 Comparaison des approches
+### 1.1 Frontend mobile
 
-| Approche | Avantages | Inconvénients | Recommandation |
-|----------|-----------|--------------|---|
-| **React Native (bare)** | Réutilise code React web, équipe déjà React | Setup complexe, module natif lourd, offline/sync à implémenter soi-même | ❌ Trop coûteux en setup pour MVP |
-| **Expo + Expo Go** | Rapid prototyping, déploiement facile, SDK complet | Limites sur modules natifs, performances, lock-in Expo | ⚠️ Pour prototype rapide uniquement |
-| **PWA (Progressive Web App)** | Zéro Native, offline facile (Service Worker), déploie comme web | Limites UX mobile, pas app store, stockage limité (~50MB) | ✅ Viabilité pour MVP + test marché |
-| **Capacitor (Ionic)** | Web-first, meilleur des deux mondes, stockage + plugins natifs | Overhead Ionic framework, dépendance Capacitor | ⚠️ Option crédible si PWA insuffisante |
-| **Flutter** | Performances, UI riche, très bonne sync | Équipe doit apprendre Dart, zéro réutilisabilité React | ❌ Décalage technologique |
-| **WatermelonDB/PowerSync** | DB locale avec sync server ultra-optimisée | Apprentissage courbe, prix ($) pour PowerSync | ✅ Meilleure pour sync complexe |
+| Composant | Choix | Version |
+|-----------|-------|---------|
+| Framework | **Capacitor** | 6.x |
+| Base React | Même que le web (Vite + React 19) | — |
+| DB locale | **@capacitor-community/sqlite** | 6.x |
+| ORM local | **Drizzle ORM** (SQLite dialect) | 0.30.x |
+| Chiffrement DB | **SQLCipher** (via capacitor-community/sqlite option) | — |
+| Stockage sécurisé | **@capacitor/preferences** (clé de chiffrement) | — |
+| Réseau | Axios (même intercepteur que le web) | — |
+| Build | **EAS Build** (Expo Application Services) ou Capacitor CLI | — |
+| OTA | Capacitor Live Update (Appflow) ou déploiement APK direct | — |
 
-### 1.2 Recommandation : **PWA + Capacitor (MVP) → React Native (future)**
+### 1.2 Backend (nouveau module)
 
-**Phase 1 (MVPs iOS/Android rapides):** PWA + Capacitor  
-- Réutilise 90% du code React web
-- Stockage local via `expo-sqlite` + `WatermelonDB`
-- Offline-first hors de la boîte
-- Déploiement rapide sur app stores (via Capacitor)
-- Équipe = développeurs React/TypeScript existants
-
-**Phase 2 (Performance à la production):** React Native Bare  
-- Réinvestissement progressif une fois le product-market fit validé
-- Même pattern sync que Phase 1
-- Plus haute performance
-
-### 1.3 Stack technique recommandé (Phase 1 : PWA + Capacitor)
-
-```typescript
-// Dependencies
-{
-  // UI Framework
-  "react": "^19.0.0",
-  "react-dom": "^19.0.0",
-  "react-router-dom": "^6.27.0",
-  
-  // Offline DB Local
-  "@nozbe/watermelondb": "^0.28.0",      // Sync-ready SQLite wrapper
-  "expo-sqlite": "^14.0.0",               // SQLite pour Expo + Capacitor
-  
-  // API & Sync
-  "@tanstack/react-query": "^5.59.0",
-  "axios": "^1.7.7",
-  
-  // State Management
-  "zustand": "^4.5.0",                    // Gestion sync queue
-  
-  // Capacitor (déploiement app store)
-  "@capacitor/core": "^6.0.0",
-  "@capacitor/app": "^6.0.0",
-  "@capacitor/storage": "^6.0.0",
-  "@capacitor/network": "^6.0.0",
-  "@capacitor/preferences": "^6.0.0",
-  
-  // Utils
-  "uuid": "^9.0.0",
-  "date-fns": "^4.1.0",
-  "zod": "^3.23.8",
-  
-  // Vite (unchanged)
-  "vite": "^5.4.10"
-}
 ```
-
-### 1.4 Database locale : WatermelonDB vs alternatives
-
-| BDD locale | Sync-ready | Offline-first | Performance | Taille DB | Recommandé |
-|-----------|-----------|--------------|-------------|-----------|-----------|
-| **WatermelonDB** | ✅ Natif | ✅✅ Excellent | ✅ Très rapide | 50-500MB | ✅✅✅ |
-| **SQLite via expo-sqlite** | ⚠️ Manuel | ✅ Bon | ✅ Rapide | 500MB+ | ✅✅ (fondation) |
-| **PowerSync** | ✅✅ Ultra-sync | ✅✅ Réel-temps | ✅✅ Optimisé | 1GB+ | ⚠️ Payant ($) |
-| **RxDB** | ✅ Plugins | ✅ Bon | ⚠️ Lent | 100-200MB | ⚠️ Complexe |
-| **MMKV + SQLite** | ⚠️ Manuel | ⚠️ Partiel | ✅✅ Rapide | 50MB | ❌ Pas para sync |
-
-### 1.5 Choix final
-
-**WatermelonDB + SQLite via Capacitor**
-
-```typescript
-// src/mobile/db/watermelon.ts
-import { Database } from '@nozbe/watermelondb';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite/index';
-import schema from './schema';
-import migrations from './migrations';
-
-const adapter = new SQLiteAdapter({
-  schema,
-  migrations,
-  // Capacitor SQLite pour iOS/Android
-  dbName: 'echango_invoice',
-});
-
-export const database = new Database({
-  adapter,
-  modelClasses: [
-    SalesInvoiceModel,
-    DeliveryNoteModel,
-    CustomerModel,
-    // ... autres modèles
-  ],
-});
+src/sync/
+├── sync.module.ts
+├── sync.controller.ts          ← routes pull/push, décorateurs Swagger
+├── sync.service.ts             ← orchestration
+├── conflict-resolver.ts        ← logique FWW (voir §2.3)
+├── entity-registry.ts          ← map entité → service/repo
+├── number-pool.service.ts      ← allocation + recharge pool offline
+├── dto/
+│   ├── pull-query.dto.ts
+│   ├── push-batch.dto.ts
+│   └── push-item.dto.ts
+├── interfaces/
+│   ├── sync-entity.interface.ts
+│   └── push-result.interface.ts
+├── strategies/                 ← une stratégie par entité si logique spécifique
+│   ├── delivery-note.strategy.ts
+│   ├── invoice.strategy.ts
+│   └── payment.strategy.ts
+└── __tests__/
+    ├── conflict-resolver.spec.ts
+    ├── sync.service.spec.ts
+    └── number-pool.service.spec.ts
 ```
 
 ---
 
-## 2. Architecture de synchronisation "First Write Wins"
+## 2. Architecture de synchronisation
 
-### 2.1 Principes fondamentaux
-
-**"First Write Wins"** signifie :
-- Le **premier** appareil à envoyer une modification au serveur **gagne**
-- Les modifications ultérieures sur le même objet par d'autres appareils sont **écrasées**
-- **Pas de fusion** de champs, **pas de resolution dialog** pour l'utilisateur
-- **Notification simple** : "Votre modif a été écrasée par une autre"
-
-**Cas d'usage typique :**
-1. Agent mobile crée facture FAC-24-001 à 14h00 UTC (offline)
-2. Manager web crée aussi facture FAC-24-001 à 14h05 UTC (online)
-3. Agent se reconnecte à 15h00
-4. Sync voit : serveur `updatedAt=14h05`, local `updatedAt=14h00`
-5. **Décision :** Local est plus ancien → **rejeter, notifier agent "Facture mise à jour par manager"**
-
-### 2.2 Rôle du champ `updatedAt` (timestamp)
-
-**EXISTING:** Toutes les entités ont déjà `@UpdateDateColumn()` en UTC (R009)
-
-```typescript
-@UpdateDateColumn({ type: 'timestamptz' })
-updatedAt: Date;  // Automatiquement mis à jour à chaque save()
-```
-
-**Utilisation pour First-Write-Wins :**
-
-```typescript
-// Côté mobile (WatermelonDB)
-interface SyncableEntity {
-  id: string;           // UUID v4 générés côté client
-  tenantId: string;     // Obligatoire (R020)
-  updatedAt: number;    // Timestamp Unix millisecondes (local first-write)
-  version: number;      // Optionnel : incremental counter pour break-ties
-  _status: 'pending' | 'synced' | 'conflict';
-}
-
-// Côté serveur (TypeORM)
-@UpdateDateColumn({ type: 'timestamptz' })
-updatedAt: Date;  // Date object, auto-update, milliseconde précision
-```
-
-**Comparaison lors du push :**
-
-```typescript
-// Backend sync/service.ts
-async pushChanges(clientUpdate: SyncPushPayload, tenantId: string) {
-  const serverVersion = await this.repo.findOne({
-    where: { id: clientUpdate.id, tenantId }
-  });
-
-  if (!serverVersion) {
-    // Créer (cas nouveau document)
-    return this.repo.save(clientUpdate);
-  }
-
-  // FIRST-WRITE-WINS : comparer updatedAt
-  const clientTime = new Date(clientUpdate.updatedAt).getTime();
-  const serverTime = serverVersion.updatedAt.getTime();
-
-  if (clientTime < serverTime) {
-    // Client est plus vieux → son modif a été perdue
-    // Retourner la version serveur actuelle + signaler conflit
-    return {
-      conflict: true,
-      serverVersion: serverVersion,
-      clientVersion: clientUpdate,
-    };
-  } else if (clientTime > serverTime) {
-    // Client est plus récent → il gagne
-    return this.repo.save({
-      ...serverVersion,
-      ...clientUpdate,
-      updatedAt: new Date(), // Timestamp serveur
-    });
-  } else {
-    // Même timestamp (cas très rare)
-    // Tiebreaker : UUID binaire comparaison (déterministe)
-    if (clientUpdate.id > serverVersion.id) {
-      return this.repo.save({ ...clientUpdate, updatedAt: new Date() });
-    } else {
-      return { conflict: true, serverVersion };
-    }
-  }
-}
-```
-
-### 2.3 Queue de sync côté mobile (Outbox Pattern)
-
-**Outbox Pattern :** Les modifications locales sont écrites d'abord en DB locale, puis dans une "queue" distincte. Le sync poussera batch-iquement la queue vers le serveur.
-
-```typescript
-// src/mobile/db/outbox.model.ts
-export interface OutboxRecord {
-  id: string;           // UUID v4
-  entityId: string;     // ID de l'entité (facture, BL, etc)
-  entityType: 'SalesInvoice' | 'DeliveryNote' | 'Customer' | ...;
-  operation: 'create' | 'update' | 'delete';
-  payload: Record<string, any>; // Data complète
-  createdAt: number;    // Timestamp local quand la queue entry a été créée
-  attempt: number;      // Nombre de tentatives sync
-  lastError: string;    // Dernier erreur (si sync échoué)
-  status: 'pending' | 'syncing' | 'synced' | 'failed';
-}
-
-// WatermelonDB Model
-import { Model, Q } from '@nozbe/watermelondb';
-
-export class OutboxRecord extends Model {
-  static table = 'outbox_records';
-  
-  @field('entityId') entityId: string;
-  @field('entityType') entityType: string;
-  @field('operation') operation: 'create' | 'update' | 'delete';
-  @json('payload') payload: Record<string, any>;
-  @field('createdAt') createdAt: number;
-  @field('attempt') attempt: number;
-  @field('lastError') lastError: string | null;
-  @field('status') status: 'pending' | 'syncing' | 'synced' | 'failed';
-  @readonly
-  @field('createdAt') createdAt: number; // Auto-set on creation
-  @readonly
-  @field('updatedAt') updatedAt: number;
-}
-```
-
-**Workflow outbox :**
+### 2.1 Vue d'ensemble
 
 ```
-1. User crée facture offline
-   ├─ Écrire en WatermelonDB: SalesInvoice (id, items, tenantId, updatedAt)
-   └─ Écrire en Outbox: { entityId: id, operation: 'create', payload: {...} }
-
-2. Network devient disponible
-   ├─ SyncService.pullChanges() → récupère deltas serveur
-   └─ SyncService.pushChanges() → traite outbox en batch
-
-3. Push changes
-   ├─ Filtrer: WHERE status = 'pending' LIMIT 50
-   ├─ POST /api/v1/sync/push { operations: [...] }
-   └─ Si succès : UPDATE outbox SET status='synced', attempt=0
-      Si conflit : UPDATE outbox SET status='failed', lastError='...'
-
-4. Conflit détecté
-   ├─ Marquer locale comme @conflict
-   ├─ Notifier user: "Sync conflict: facture mise à jour par [user]"
-   └─ Afficher dialog: [Voir serveur] [Refuser] [Forcer réécriture]
-       ↓ (user click)
-       ├─ Voir serveur: Afficher version serveur, user peut rejeter
-       ├─ Refuser: Ignorer modif locale, accepter serveur
-       └─ Forcer: Rejeter version serveur (créer nouveau conflit) → notifier serveur
+[Mobile — SQLite local]
+        │
+        │  PUSH batch (≤50 ops)      PULL delta (200 rec/page)
+        │ ─────────────────────────► ◄─────────────────────────
+        │
+[Backend — src/sync/]
+        │
+        ├─ TenantOwnershipValidator  (sécurité FK cross-tenant)
+        ├─ WhitelistFieldFilter       (sécurité champs par rôle)
+        ├─ ConflictResolver FWW       (comparaison timestamps corrects)
+        ├─ NumberPoolService          (allocation numéros)
+        └─ Side effects per entité    (FIFO, TVA, PDF…)
 ```
 
-### 2.4 Gestion des deltas : Full sync vs Delta sync
-
-**Full Sync :** Télécharger *toutes* les données depuis `updatedAt=0`
-
-**Delta Sync :** Télécharger uniquement les changements depuis `updatedAt=lastSync`
-
-**Stratégie recommandée :**
-
-```typescript
-// src/mobile/services/sync.service.ts
-
-interface SyncState {
-  lastSyncAt: Record<string, number>;  // Par entité type
-  // e.g. { 'SalesInvoice': 1719086400000, 'Customer': 1719090000000 }
-  
-  isSyncing: boolean;
-  lastSyncError?: string;
-}
-
-export class SyncService {
-  async pullChanges(tenantId: string) {
-    const syncState = await this.getSyncState(tenantId);
-    
-    // Construire requête delta pour chaque entité
-    const entities = [
-      'SalesInvoice',
-      'DeliveryNote',
-      'Customer',
-      'Partner',      // Supplier + Customer in one
-      'FinishedProduct',
-      'Payment',
-    ];
-
-    const deltas = {};
-    for (const entity of entities) {
-      const since = syncState.lastSyncAt[entity] || 0;
-      deltas[entity] = await this.fetchDelta(tenantId, entity, since);
-    }
-
-    // Merge deltas en DB locale
-    await this.mergeDeltas(deltas, tenantId);
-
-    // Maj lastSyncAt
-    await this.updateSyncState(tenantId, {
-      lastSyncAt: {
-        ...syncState.lastSyncAt,
-        ...Object.fromEntries(
-          entities.map(e => [e, Date.now()])
-        )
-      },
-      isSyncing: false,
-    });
-  }
-
-  async fetchDelta(tenantId: string, entityType: string, since: number) {
-    // GET /api/v1/sync/pull?tenantId=...&entity=SalesInvoice&since=...
-    const response = await axios.get(
-      `/api/v1/sync/pull`,
-      {
-        params: {
-          entity: entityType,
-          since,      // Unix timestamp (ms)
-          tenantId,
-        },
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        }
-      }
-    );
-    return response.data.data;
-  }
-}
-```
-
-### 2.5 Structure des endpoints de sync backend
-
-**Voir section 6 ci-dessous** pour les détails complets.
-
-### 2.6 Gestion des entités supprimées (soft delete + sync)
-
-**Pattern :**
-
-```typescript
-// Backend : Toutes les entités ont soft delete (R011)
-@DeleteDateColumn({ type: 'timestamptz', nullable: true })
-deletedAt: Date | null;
-
-// Lors du pull, inclure les supprimés récents
-GET /api/v1/sync/pull?entity=SalesInvoice&since=1719086400000
-
-// Response inclut :
-{
-  "data": {
-    "created": [...],
-    "updated": [...],
-    "deleted": [     // ← Important !
-      { "id": "uuid-1", "deletedAt": "2024-06-24T10:00:00Z" },
-      { "id": "uuid-2", "deletedAt": "2024-06-24T11:00:00Z" },
-    ]
-  }
-}
-
-// Mobile : appliquer les deletes en local
-for (const deleted of response.deleted) {
-  await db.batch(
-    db.get('sales_invoices').prepareMarkAsDeleted(deleted.id)
-  );
-}
-```
-
-### 2.7 Gestion du tenantId (R020 — sécurité)
-
-**Invariant R020 :** Le tenantId doit **toujours** être présent dans chaque query, jamais depuis l'URL/body falsifiable.
-
-**Côté mobile :**
-
-```typescript
-// src/mobile/services/sync.service.ts
-
-export class SyncService {
-  private tenantId: string; // Extrait du JWT au login
-  
-  async pushChanges() {
-    const outbox = await this.db
-      .get('outbox_records')
-      .query(Q.where('status', 'pending'))
-      .fetch();
-
-    // IMPORTANT : Tous les payloads incluent tenantId
-    const operations = outbox.map(record => ({
-      ...record,
-      tenantId: this.tenantId,  // ← Injecté côté client
-    }));
-
-    return axios.post('/api/v1/sync/push', {
-      operations,
-      tenantId: this.tenantId,  // ← Double-check au serveur
-    });
-  }
-}
-
-// Côté backend : Valider tenantId depuis JWT
-@Post('sync/push')
-@UseGuards(JwtGuard)
-async pushSync(
-  @Body() payload: SyncPushDto,
-  @CurrentUser() user: JwtPayload,  // tenantId du JWT
-) {
-  // R020 : Rejeter si payload.tenantId !== user.tenantId
-  if (payload.tenantId !== user.tenantId) {
-    throw new ForbiddenException('tenantId mismatch');
-  }
-  
-  // Traiter sync
-  return this.syncService.processOperations(
-    payload.operations,
-    user.tenantId
-  );
-}
-```
-
----
-
-## 3. Entités à synchroniser
-
-### 3.1 Matrice sync : read-only vs read-write
-
-| Entité | Offline | Read-only? | Critique? | Volumineuse? | Phase |
-|--------|---------|-----------|-----------|--------------|-------|
-| **SalesInvoice** | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **SalesInvoiceItem** | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **DeliveryNote** | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **DeliveryNoteItem** | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **Quote** | ✅ | Non | ✅ Important | Petite | 3 |
-| **QuoteItem** | ✅ | Non | ✅ Important | Petite | 3 |
-| **Partner** (Customer/Supplier) | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **FinishedProduct** | ✅ | Oui (readonly) | ✅ Important | Petite-Moy | 2 |
-| **RawMaterial** | ✅ | Oui (readonly) | ⚠️ Achat interne | Petite | 4 |
-| **StockEntry** | ❌ | Oui (readonly) | ❌ Trop complexe | Grande | - |
-| **Payment** | ✅ | Non | ✅✅ Critique | Petite | 2 |
-| **Expense** | ✅ | Non | ⚠️ Optionnel | Petite | 4 |
-| **InventorySummary** | ❌ | Oui (readonly) | ❌ Volatile | N/A | - |
-| **User** | ❌ | Oui (readonly) | ⚠️ Équipe | Petite | - |
-| **Tenant** | ❌ | Oui (readonly) | ⚠️ Config | Très petite | - |
-| **Setting** | ✅ | Oui (readonly) | ⚠️ Config | Très petite | 2 |
-| **PurchaseOrder** | ❌ | Oui (readonly) | ❌ Interne | Petite | - |
-| **ReceptionBL** | ❌ | Oui (readonly) | ❌ Achat interne | Petite | - |
-
-### 3.2 Entités critiques (Phase 2)
-
-**Doivent être syncées en priorité** (cas d'usage offline core) :
-
-```typescript
-// PHASE 2 : Création de factures offline
-
-// 1. SalesInvoice (lecture + création)
-{
-  id: "uuid-1",
-  tenantId: "tenant-1",
-  invoiceNumber: "FAC-24-001",    // Généré offline en UUID
-  customerId: "uuid-customer",
-  invoiceDate: Date,
-  dueDate: Date,
-  status: "draft",
-  subtotal: 1000.00,
-  taxAmount: 190.00,
-  totalAmount: 1190.00,
-  amountPaid: 0,
-  amountDue: 1190.00,
-  notes: "...",
-  createdBy: "user-1",
-  updatedBy: "user-1",
-  createdAt: Date,
-  updatedAt: Date,
-  deletedAt: null,
-}
-
-// 2. SalesInvoiceItem (lecture + création)
-{
-  id: "uuid-2",
-  tenantId: "tenant-1",
-  salesInvoiceId: "uuid-1",
-  finishedProductId: "uuid-product",
-  quantity: 5,
-  unit: "kg",
-  unitPrice: 200.00,
-  taxName1: "TVA",
-  taxRate1: 19.0,
-  taxAmount1: 190.00,
-  lineTaxTotal: 190.00,
-  lineTotal: 1190.00,
-  createdAt: Date,
-  updatedAt: Date,
-}
-
-// 3. Partner/Customer (lecture + création + mise à jour)
-{
-  id: "uuid-customer",
-  tenantId: "tenant-1",
-  isCustomer: true,
-  isSupplier: false,
-  name: "Client ABC",
-  contactPerson: "Ahmed",
-  email: "ahmed@abc.dz",
-  phone: "+213 555 111111",
-  nif: "123456789",
-  address: "...",
-  isActive: true,
-  createdAt: Date,
-  updatedAt: Date,
-  deletedAt: null,
-}
-
-// 4. FinishedProduct (lecture seule)
-{
-  id: "uuid-product",
-  tenantId: "tenant-1",
-  type: "product",
-  name: "Produit X",
-  code: "PX-001",
-  unit: "kg",
-  defaultSalesPrice: 200.00,
-  stockQuantity: 100.00,
-  averageCostPerUnit: 150.00,
-  isActive: true,
-  createdAt: Date,
-  updatedAt: Date,
-  deletedAt: null,
-}
-
-// 5. Payment (lecture + création)
-{
-  id: "uuid-payment",
-  tenantId: "tenant-1",
-  salesInvoiceId: "uuid-1",
-  amount: 1190.00,
-  paymentDate: Date,
-  paymentMethod: "cash",
-  status: "recorded",
-  createdBy: "user-1",
-  updatedBy: "user-1",
-  createdAt: Date,
-  updatedAt: Date,
-  deletedAt: null,
-}
-```
-
-### 3.3 Entités trop volumineuses (exclure de sync)
-
-**StockEntry :** Peut atteindre des millions de lignes (historique FIFO). Surtout utile en backend pour calculs.
-
-**Solution :** Envoyer uniquement les **summaires** via `InventorySummary`:
-
-```typescript
-// Mobile ne sync que les sommaires
-{
-  id: "uuid-summary",
-  tenantId: "tenant-1",
-  finishedProductId: "uuid-product",
-  totalQuantity: 100.00,
-  totalValue: 15000.00,
-  reservedQuantity: 20.00,
-  earliestExpiration: Date,
-  updatedAt: Date,
-}
-
-// Les details FIFO restent backend-only
-// Mobile affiche : "Stock actuel: 100 kg (voir détails)"
-```
-
-### 3.4 Audit logs
-
-**Exclure de sync.** Les logs doivent rester **backend-only** pour intégrité audit (R012).
-
-Mobile ne peut pas envoyer d'audit logs (stateless, pas de confiance).
-
----
-
-## 4. Gestion des conflits "First Write Wins"
-
-### 4.1 Algorithme exact : comparaison updatedAt server vs client
-
-```typescript
-// src/sync/sync.service.ts (Backend)
-
-interface SyncConflictResult {
-  resolved: boolean;
-  action: 'accept' | 'reject' | 'merge';
-  serverVersion: any;
-  clientVersion: any;
-  reason?: string;
-}
-
-async resolveConflict(
-  entityType: string,
-  clientUpdate: any,      // { id, tenantId, updatedAt, ...payload }
-  tenantId: string
-): Promise<SyncConflictResult> {
-  // 1. Fetch server version
-  const repo = this.dataSource.getRepository(this.getEntity(entityType));
-  const serverVersion = await repo.findOne({
-    where: { id: clientUpdate.id, tenantId },
-  });
-
-  if (!serverVersion) {
-    // Nouveau record → accepter
-    return {
-      resolved: true,
-      action: 'accept',
-      clientVersion: clientUpdate,
-    };
-  }
-
-  // 2. Compare timestamps
-  const clientTime = new Date(clientUpdate.updatedAt).getTime();
-  const serverTime = serverVersion.updatedAt.getTime();
-
-  if (clientTime < serverTime) {
-    // Client est plus vieux → REJECT
-    return {
-      resolved: true,
-      action: 'reject',
-      serverVersion,
-      reason: `Client version outdated (${new Date(clientTime).toISOString()} < ${serverVersion.updatedAt.toISOString()})`,
-    };
-  }
-
-  if (clientTime > serverTime) {
-    // Client est plus récent → ACCEPT
-    return {
-      resolved: true,
-      action: 'accept',
-      clientVersion: clientUpdate,
-    };
-  }
-
-  // 3. Même timestamp → UUID tiebreaker (déterministe)
-  if (clientUpdate.id > serverVersion.id) {
-    return {
-      resolved: true,
-      action: 'accept',
-      clientVersion: clientUpdate,
-    };
-  } else {
-    return {
-      resolved: true,
-      action: 'reject',
-      serverVersion,
-      reason: 'UUID tiebreaker: server version wins',
-    };
-  }
-}
-
-// Workflow push
-async processPushOperation(
-  operation: SyncOperation,
-  tenantId: string
-): Promise<SyncOperationResult> {
-  const { id, entityType, operation: op, payload } = operation;
-
-  try {
-    const conflict = await this.resolveConflict(
-      entityType,
-      { id, ...payload, updatedAt: new Date().toISOString() },
-      tenantId
-    );
-
-    if (!conflict.resolved || conflict.action === 'reject') {
-      // Signal conflit à mobile
-      return {
-        success: false,
-        status: 'conflict',
-        error: conflict.reason,
-        serverVersion: conflict.serverVersion,
-      };
-    }
-
-    // Accepter et sauvegarder
-    const repo = this.dataSource.getRepository(this.getEntity(entityType));
-    const saved = await repo.save({
-      ...conflict.clientVersion,
-      tenantId,
-      updatedAt: new Date(),
-    });
-
-    return {
-      success: true,
-      status: 'synced',
-      data: saved,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      status: 'error',
-      error: error.message,
-    };
-  }
-}
-```
-
-### 4.2 Que faire quand client envoie une modif plus ancienne?
-
-**Réponse serveur (409 Conflict) :**
-
-```json
-{
-  "statusCode": 409,
-  "message": "Sync conflict: your version is outdated",
-  "data": {
-    "status": "conflict",
-    "action": "reject",
-    "serverVersion": {
-      "id": "invoice-1",
-      "invoiceNumber": "FAC-24-001",
-      "status": "sent",
-      "updatedAt": "2024-06-24T14:05:00Z",
-      "updatedBy": "manager@company.dz"
-    },
-    "clientVersion": {
-      "id": "invoice-1",
-      "status": "draft",
-      "updatedAt": "2024-06-24T14:00:00Z"  // ← Plus vieux
-    },
-    "reason": "Client timestamp (14:00) < Server timestamp (14:05)"
-  }
-}
-```
-
-**Mobile UI :**
-
-```typescript
-// src/mobile/components/SyncConflictDialog.tsx
-
-export const SyncConflictDialog = ({ conflict, onResolve }) => (
-  <Dialog open={!!conflict}>
-    <DialogHeader>
-      <DialogTitle>Conflit de synchronisation</DialogTitle>
-    </DialogHeader>
-
-    <DialogContent>
-      <Alert type="error">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Votre modification a été écrasée</AlertTitle>
-        <AlertDescription>
-          Quelqu'un d'autre a modifié ce document. 
-          <br />
-          Votre version: {formatDate(conflict.clientVersion.updatedAt)}
-          <br />
-          Version serveur: {formatDate(conflict.serverVersion.updatedAt)}
-          <br />
-          Modifié par: {conflict.serverVersion.updatedBy}
-        </AlertDescription>
-      </Alert>
-
-      <Tabs defaultValue="server">
-        <TabsList>
-          <TabsTrigger value="server">Version serveur</TabsTrigger>
-          <TabsTrigger value="yours">Votre version</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="server">
-          {/* Afficher version serveur */}
-          <InvoicePreview invoice={conflict.serverVersion} readOnly />
-        </TabsContent>
-
-        <TabsContent value="yours">
-          {/* Afficher votre version */}
-          <InvoicePreview invoice={conflict.clientVersion} readOnly />
-        </TabsContent>
-      </Tabs>
-    </DialogContent>
-
-    <DialogFooter>
-      <Button
-        onClick={() => onResolve('reject')}
-        variant="default"
-      >
-        Accepter la version serveur
-      </Button>
-      <Button
-        onClick={() => onResolve('force')}
-        variant="outline"
-      >
-        Forcer ma version (créera un nouveau conflit)
-      </Button>
-    </DialogFooter>
-  </Dialog>
+### 2.2 Outbox pattern (table locale `sync_queue`)
+
+Toute mutation locale est **d'abord écrite dans `sync_queue`**, puis appliquée en DB locale, puis synchronisée au retour réseau.
+
+```sql
+-- Drizzle schema (packages/mobile/src/db/schema.ts)
+CREATE TABLE sync_queue (
+  id           TEXT PRIMARY KEY,  -- UUID v4 client
+  entity_type  TEXT NOT NULL,     -- 'delivery_note' | 'invoice' | 'payment' | ...
+  entity_id    TEXT NOT NULL,     -- UUID de l'entité (généré client)
+  operation    TEXT NOT NULL,     -- 'CREATE' | 'UPDATE' | 'DELETE'
+  payload      TEXT NOT NULL,     -- JSON sérialisé (lignes brutes uniquement)
+  client_updated_at TEXT NOT NULL, -- ISO8601 UTC — timestamp de la mutation locale
+  status       TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'synced' | 'error'
+  error_message TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX idx_sync_queue_status ON sync_queue(status);
+CREATE INDEX idx_sync_queue_entity ON sync_queue(entity_type, entity_id);
 ```
 
-### 4.3 Cas particulier : création offline (UUIDs v4 générés côté client)
+### 2.3 Algorithme First Write Wins — implémentation correcte
 
-**Workflow :**
+> **Erreur de la spec initiale (documentée pour mémoire) :** l'ancien algorithme remplaçait `clientUpdatedAt` par `now()` **avant** la comparaison, ce qui faisait gagner le client systématiquement.
 
 ```typescript
-// Mobile crée facture offline
-1. User tap "Créer facture"
-2. Générer : id = uuidv4()  // e.g., "550e8400-e29b-41d4-a716-446655440000"
-3. Écrire en DB locale: SalesInvoice { id, tenantId, invoiceNumber, ... }
-4. Écrire en Outbox: { entityId: id, operation: 'create', payload: {...} }
-
-// Network OK → Sync lance push
-5. POST /api/v1/sync/push
-   { 
-     operations: [{
-       id: "550e8400-e29b-41d4-a716-446655440000",
-       entityType: "SalesInvoice",
-       operation: "create",
-       payload: { invoiceNumber: "FAC-24-001", ... }
-     }]
-   }
-
-// Serveur : le UUID existe?
-6. Backend query: SELECT * FROM sales_invoices WHERE id = "550e8400..." AND tenantId = "..."
-   → Pas trouvé → INSERT (new record)
-
-// Conflit serveur "invoiceNumber déjà utilisé"?
-7. Si deux appareils créent avec le même invoiceNumber offline:
-   Device A: FAC-24-001 (id=uuid-a, createdAt=14:00)
-   Device B: FAC-24-001 (id=uuid-b, createdAt=14:01)
-   
-   Backend: Premier arrivé sur le serveur gagne
-   → Device A: INSERT succès
-   → Device B: Conflit UNIQUE(invoiceNumber, tenantId) → Return 409
-   → Mobile: Regenerate invoiceNumber (ask renumbering logic)
-```
-
-**Important :** Invoices numérotées **côté serveur uniquement** en prod, pas côté mobile.
-
-Mobile peut générer des placeholders (e.g., "Facture (à numéroter)"), puis une fois synced, serveur attribue le vrai numéro.
-
----
-
-## 5. Sécurité et authentification offline
-
-### 5.1 Stockage sécurisé du JWT sur mobile
-
-**Trois niveaux de sécurité :**
-
-```typescript
-// Niveau 1: Access Token (1h) — Stockage chiffré
-import * as SecureStore from 'expo-secure-store';
-
-export const TokenStorage = {
-  saveAccessToken: async (token: string) => {
-    await SecureStore.setItemAsync('access_token', token, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-  },
-
-  getAccessToken: async (): Promise<string | null> => {
-    try {
-      return await SecureStore.getItemAsync('access_token');
-    } catch (error) {
-      return null;
+// src/sync/conflict-resolver.ts
+export class ConflictResolver {
+  resolve(
+    serverEntity: { updatedAt: Date },
+    clientUpdatedAt: Date,  // envoyé par le client dans le payload
+  ): 'client_wins' | 'server_wins' {
+    // FWW = celui qui a écrit en PREMIER (timestamp le plus ANCIEN) gagne
+    if (clientUpdatedAt < serverEntity.updatedAt) {
+      return 'client_wins';  // le client avait le record avant la modif serveur
     }
-  },
-
-  clearAccessToken: async () => {
-    await SecureStore.deleteItemAsync('access_token');
-  },
-};
-
-// Niveau 2: Refresh Token (7 jours) — Stockage très sécurisé (Keychain/Enclave)
-export const refreshTokenStorage = {
-  save: async (token: string) => {
-    // iOS: Keychain, Android: EncryptedSharedPreferences
-    await SecureStore.setItemAsync('refresh_token', token, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
-  },
-
-  get: async () => {
-    return SecureStore.getItemAsync('refresh_token');
-  },
-
-  clear: async () => {
-    return SecureStore.deleteItemAsync('refresh_token');
-  },
-};
-
-// Niveau 3: State mobile (Zustand + memory) — JAMAIS sur disk
-export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,        // ← Jamais persisté
-  refreshToken: null,       // ← Jamais persisté
-  user: null,
-  
-  // Initialiser au démarrage
-  hydrate: async () => {
-    const token = await TokenStorage.getAccessToken();
-    const refresh = await refreshTokenStorage.get();
-    if (token && refresh) {
-      set({ accessToken: token, refreshToken: refresh });
-    }
-  },
-  
-  logout: async () => {
-    await TokenStorage.clearAccessToken();
-    await refreshTokenStorage.clear();
-    set({ accessToken: null, refreshToken: null, user: null });
-  },
-}));
-```
-
-### 5.2 Expiration de l'access token en offline prolongé
-
-**Scenario :**
-
-```
-1. User login à 10:00 → accessToken expires à 11:00
-2. User devient offline à 10:45
-3. User continue à créer factures offline jusqu'à 11:30
-4. Network revient à 11:45
-5. Sync essaie de push → accessToken expiré (13h30 - 1h = 12h30)
-```
-
-**Solution :**
-
-```typescript
-// src/mobile/services/sync.service.ts
-
-export class SyncService {
-  private tokenExpireTime: number = 0; // En ms
-
-  async performSync() {
-    // Vérifier si token expiré
-    if (Date.now() > this.tokenExpireTime) {
-      // Token expiré → refresh avant de syncer
-      try {
-        await this.refreshAccessToken();
-      } catch (error) {
-        // Refresh échoué (offline) → Ne pas syncer encore
-        this.logger.warn('Cannot refresh token (offline), postponing sync');
-        return {
-          success: false,
-          reason: 'token_expired_and_offline',
-          retryAt: this.tokenExpireTime + 60000, // Retry après expiry
-        };
-      }
-    }
-
-    // Maintenant token est valide → procéder sync
-    return this.pushAndPullChanges();
+    return 'server_wins';    // le serveur a modifié après la copie locale du client
   }
 
-  private async refreshAccessToken() {
-    try {
-      const refreshToken = await refreshTokenStorage.get();
-      if (!refreshToken) throw new Error('No refresh token');
-
-      const response = await axios.post('/api/v1/auth/refresh', {
-        refreshToken,
-      });
-
-      const { accessToken, expiresIn } = response.data.data;
-      await TokenStorage.saveAccessToken(accessToken);
-      this.tokenExpireTime = Date.now() + expiresIn * 1000;
-
-      return accessToken;
-    } catch (error) {
-      this.logger.error('Refresh token failed', error);
-      throw new UnauthorizedException('Cannot refresh token');
-    }
-  }
+  // Si client_wins : persister les données client, puis updatedAt = new Date() côté serveur
+  // Si server_wins : ignorer les données client, retourner serverEntity dans le résultat
 }
 ```
 
-### 5.3 Refresh token sans connexion réseau
+### 2.4 Flux PULL
 
-**Impossible. Refresh token nécessite un appel serveur.**
-
-**Stratégie :**
-
-```typescript
-// Si refresh échoue (offline), afficher UI :
-
-UI_OfflineTokenExpired = () => (
-  <Alert type="warning">
-    <AlertCircle className="h-4 w-4" />
-    <AlertTitle>Votre session a expiré</AlertTitle>
-    <AlertDescription>
-      Vous êtes offline. Reconnectez-vous quand le réseau revient.
-      <br />
-      En attendant, vous pouvez:
-      <ul>
-        <li>✅ Visualiser les factures en cache</li>
-        <li>✅ Créer des factures (elles seront syncées après reconnexion)</li>
-        <li>❌ Accéder aux nouvelles données serveur</li>
-      </ul>
-    </AlertDescription>
-  </Alert>
-);
-
-// En background, tentar refresh automatiquement dès que réseau revient
-Network.onStateChange((state) => {
-  if (state.isConnected) {
-    SyncService.attemptRefreshAndSync();
-  }
-});
 ```
+GET /api/v1/sync/pull?entity=customers&since=2026-06-20T08:00:00Z&page=1&limit=200
 
----
-
-## 6. API de synchronisation backend
-
-### 6.1 Endpoint Pull — GET /api/v1/sync/pull
-
-Retourner les changements depuis un timestamp spécifique.
-
-**Request :**
-
-```http
-GET /api/v1/sync/pull?entity=SalesInvoice&since=1719086400000&limit=100 HTTP/1.1
-Authorization: Bearer <access_token>
-```
-
-| Parameter | Type | Requis? | Description |
-|-----------|------|--------|------------|
-| `entity` | string | ✅ | Type d'entité (`SalesInvoice`, `DeliveryNote`, etc.) |
-| `since` | number | ✅ | Unix timestamp en ms depuis quand on veut les changements |
-| `limit` | number | ⚠️ | Nombre max de records (défaut 1000, max 10000) |
-| `tenantId` | string | ✅ | Tenant ID (depuis JWT) |
-
-**Response 200:**
-
-```json
+Réponse :
 {
   "data": {
-    "created": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440001",
-        "tenantId": "tenant-uuid",
-        "invoiceNumber": "FAC-24-001",
-        "customerId": "customer-uuid",
-        "status": "draft",
-        "subtotal": "1000.00",
-        "taxAmount": "190.00",
-        "totalAmount": "1190.00",
-        "amountPaid": "0.00",
-        "amountDue": "1190.00",
-        "createdAt": "2024-06-24T14:00:00.000Z",
-        "updatedAt": "2024-06-24T14:00:00.000Z",
-        "deletedAt": null
-      }
-    ],
-    "updated": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "invoiceNumber": "FAC-24-001",
-        "status": "sent",  // ← Changed
-        "updatedAt": "2024-06-24T14:05:00.000Z",  // ← New timestamp
-        "updatedBy": "manager@company.dz"
-      }
-    ],
-    "deleted": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440099",
-        "deletedAt": "2024-06-24T14:10:00.000Z"
-      }
-    ],
-    "hasMore": false  // ← Pagination: plus de records?
+    "records": [...],           // entités modifiées après 'since'
+    "deletedIds": ["uuid1", "uuid2"],  // soft-deleted après 'since'
+    "pagination": { "total": 45, "page": 1, "limit": 200, "hasMore": false },
+    "serverTime": "2026-06-23T14:00:00Z"  // à stocker comme prochain 'since'
   }
 }
 ```
 
-**Backend Implementation :**
+- Le client stocke `serverTime` comme `lastSyncAt` → sert de `since` au prochain pull.
+- Pull paginé : le client itère jusqu'à `hasMore = false`.
+- `deletedIds` : le client supprime localement (soft delete local).
+- tenantId extrait du JWT uniquement (R020).
 
-```typescript
-// src/sync/sync.controller.ts
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { JwtGuard } from '@common/guards/jwt.guard';
-import { CurrentUser } from '@common/decorators/current-user.decorator';
+### 2.5 Flux PUSH
 
-@Controller('api/v1/sync')
-@UseGuards(JwtGuard)
-export class SyncController {
-  @Get('pull')
-  async pull(
-    @Query('entity') entity: string,
-    @Query('since') since: string,
-    @Query('limit') limit: string = '1000',
-    @CurrentUser() user: JwtPayload,
-  ) {
-    const sinceMs = parseInt(since);
-    const limitNum = Math.min(parseInt(limit), 10000);
-
-    const result = await this.syncService.pullChanges(
-      user.tenantId,
-      entity,
-      sinceMs,
-      limitNum
-    );
-
-    return {
-      data: result,
-    };
-  }
-}
-
-// src/sync/sync.service.ts
-export class SyncService {
-  async pullChanges(
-    tenantId: string,
-    entityType: string,
-    sinceMs: number,
-    limit: number
-  ) {
-    const sinceDate = new Date(sinceMs);
-    const repo = this.dataSource.getRepository(
-      this.getEntity(entityType)
-    );
-
-    // Query: created après since
-    const created = await repo
-      .createQueryBuilder('e')
-      .where('e.tenantId = :tenantId', { tenantId })
-      .andWhere('e.createdAt > :since', { since: sinceDate })
-      .andWhere('e.deletedAt IS NULL')
-      .orderBy('e.createdAt', 'ASC')
-      .limit(limit)
-      .getMany();
-
-    // Query: updated après since (mais not créé après since)
-    const updated = await repo
-      .createQueryBuilder('e')
-      .where('e.tenantId = :tenantId', { tenantId })
-      .andWhere('e.updatedAt > :since', { since: sinceDate })
-      .andWhere('e.createdAt <= :since', { since: sinceDate })
-      .andWhere('e.deletedAt IS NULL')
-      .orderBy('e.updatedAt', 'ASC')
-      .limit(limit)
-      .getMany();
-
-    // Query: deleted après since
-    const deleted = await repo
-      .createQueryBuilder('e')
-      .where('e.tenantId = :tenantId', { tenantId })
-      .andWhere('e.deletedAt > :since', { since: sinceDate })
-      .orderBy('e.deletedAt', 'ASC')
-      .limit(limit)
-      .select(['e.id', 'e.deletedAt'])
-      .getMany();
-
-    return {
-      created,
-      updated,
-      deleted,
-      hasMore: created.length === limit || 
-               updated.length === limit || 
-               deleted.length === limit,
-    };
-  }
-}
 ```
-
-### 6.2 Endpoint Push — POST /api/v1/sync/push
-
-Envoyer un batch d'opérations CRUD pour traiter.
-
-**Request :**
-
-```json
 POST /api/v1/sync/push
-Authorization: Bearer <access_token>
-Content-Type: application/json
+Header: X-Request-Nonce: <uuid-nonce>   (anti-replay, Redis 10 min)
 
+Body :
 {
   "operations": [
     {
-      "id": "550e8400-e29b-41d4-a716-446655440001",
-      "entityType": "SalesInvoice",
-      "operation": "create",
+      "queueId": "uuid-local",
+      "entityType": "delivery_note",
+      "entityId": "uuid-client-generated",
+      "operation": "CREATE",
+      "clientUpdatedAt": "2026-06-23T09:15:00Z",
       "payload": {
-        "tenantId": "tenant-uuid",
-        "invoiceNumber": "FAC-24-001",
-        "customerId": "customer-uuid",
-        "invoiceDate": "2024-06-24",
-        "status": "draft",
-        "subtotal": "1000.00",
-        "taxAmount": "190.00",
-        "totalAmount": "1190.00",
-        "amountPaid": "0.00",
-        "amountDue": "1190.00",
-        "createdBy": "agent@company.dz",
-        "updatedAt": "2024-06-24T14:00:00.000Z"
-      }
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "entityType": "SalesInvoice",
-      "operation": "update",
-      "payload": {
-        "tenantId": "tenant-uuid",
-        "status": "sent",
-        "updatedAt": "2024-06-24T14:05:00.000Z"
-      }
-    },
-    {
-      "id": "550e8400-e29b-41d4-a716-446655440099",
-      "entityType": "SalesInvoice",
-      "operation": "delete",
-      "payload": {
-        "tenantId": "tenant-uuid"
+        "customerId": "uuid",
+        "pooledNumber": "BL-26-047",    // numéro du pool (si CREATE)
+        "items": [
+          { "rawMaterialId": "uuid", "quantity": "5.00", "unitPrice": "1200.00" }
+        ]
+        // NE PAS inclure : subtotal, taxAmount, totalAmount (R008)
+        // NE PAS inclure : status (filtré par whitelist rôle)
+        // NE PAS inclure : createdBy, updatedBy (toujours depuis JWT, R012)
       }
     }
   ]
 }
-```
 
-**Response 200 — Mixed results :**
-
-```json
+Réponse :
 {
   "data": {
-    "successful": [
+    "results": [
       {
-        "id": "550e8400-e29b-41d4-a716-446655440001",
-        "entityType": "SalesInvoice",
-        "operation": "create",
-        "status": "synced",
-        "result": {
-          "id": "550e8400-e29b-41d4-a716-446655440001",
-          "invoiceNumber": "FAC-24-001",
-          "updatedAt": "2024-06-24T14:00:00.000Z"
-        }
-      }
-    ],
-    "conflicts": [
+        "queueId": "uuid-local",
+        "success": true,
+        "serverId": "uuid-server",        // confirme l'UUID client ou retourne un nouveau
+        "serverNumber": "BL-26-047",      // confirme le numéro
+        "conflict": false
+      },
       {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "entityType": "SalesInvoice",
-        "operation": "update",
-        "status": "conflict",
-        "reason": "Client version outdated",
-        "serverVersion": {
-          "id": "550e8400-e29b-41d4-a716-446655440000",
-          "status": "sent",
-          "updatedAt": "2024-06-24T14:05:00.000Z",
-          "updatedBy": "manager@company.dz"
-        }
-      }
-    ],
-    "errors": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440099",
-        "entityType": "SalesInvoice",
-        "operation": "delete",
-        "status": "error",
-        "error": "SalesInvoice not found"
+        "queueId": "uuid-local-2",
+        "success": false,
+        "error": "CONFLICT_SERVER_WINS",
+        "serverRecord": { ... }           // version serveur pour affichage journal
       }
     ]
   }
 }
 ```
 
-**Backend Implementation :**
+### 2.6 Validation tenant statut sur chaque push
 
 ```typescript
-// src/sync/sync.controller.ts
-@Post('push')
-@UseGuards(JwtGuard)
-async push(
-  @Body() dto: SyncPushDto,
-  @CurrentUser() user: JwtPayload,
-) {
-  // R020 : Valider tenantId
-  if (dto.operations.some(op => op.payload?.tenantId !== user.tenantId)) {
-    throw new ForbiddenException('tenantId mismatch');
-  }
-
-  const result = await this.syncService.processOperations(
-    dto.operations,
-    user.tenantId,
-    user.id
-  );
-
-  return { data: result };
+// sync.service.ts — avant tout traitement
+const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+if (!tenant || tenant.status === 'suspended') {
+  throw new ForbiddenException('Compte suspendu — synchronisation impossible');
 }
-
-// src/sync/sync.service.ts
-async processOperations(
-  operations: SyncOperation[],
-  tenantId: string,
-  userId: string,
-) {
-  const successful: any[] = [];
-  const conflicts: any[] = [];
-  const errors: any[] = [];
-
-  for (const op of operations) {
-    try {
-      // R005: Transaction pour opérations multi-tables
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-
-      try {
-        let result;
-
-        if (op.operation === 'create') {
-          result = await this.createEntity(
-            op.entityType,
-            op.payload,
-            tenantId,
-            userId,
-            queryRunner
-          );
-        } else if (op.operation === 'update') {
-          result = await this.updateEntity(
-            op.entityType,
-            op.id,
-            op.payload,
-            tenantId,
-            userId,
-            queryRunner
-          );
-        } else if (op.operation === 'delete') {
-          result = await this.deleteEntity(
-            op.entityType,
-            op.id,
-            tenantId,
-            queryRunner
-          );
-        }
-
-        if (result.conflict) {
-          conflicts.push(result);
-        } else {
-          successful.push({
-            id: op.id,
-            entityType: op.entityType,
-            operation: op.operation,
-            status: 'synced',
-            result: result,
-          });
-        }
-
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        throw error;
-      } finally {
-        await queryRunner.release();
-      }
-    } catch (error) {
-      errors.push({
-        id: op.id,
-        entityType: op.entityType,
-        operation: op.operation,
-        status: 'error',
-        error: error.message,
-      });
-    }
-  }
-
-  return { successful, conflicts, errors };
-}
-```
-
-### 6.3 Rate limiting et taille max des batches
-
-**Restrictions pour éviter abuse :**
-
-```typescript
-// src/sync/sync.controller.ts
-import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
-
-@Controller('api/v1/sync')
-@UseGuards(ThrottlerGuard)
-export class SyncController {
-  // Pull: 100 req/h par user
-  @Get('pull')
-  @Throttle({ default: { limit: 100, ttl: 60000 * 60 } })
-  async pull(...) { }
-
-  // Push: 50 req/h par user (plus coûteux)
-  @Post('push')
-  @Throttle({ default: { limit: 50, ttl: 60000 * 60 } })
-  async push(
-    @Body(new ValidationPipe()) dto: SyncPushDto,
-    ...
-  ) { }
-}
-
-// DTOs avec validation
-export class SyncPushDto {
-  @IsArray()
-  @ArrayMaxSize(100)  // Max 100 opérations par batch
-  @ValidateNested()
-  @Type(() => SyncOperationDto)
-  operations: SyncOperationDto[];
-}
-
-export class SyncOperationDto {
-  @IsUUID()
-  id: string;
-
-  @IsEnum(['SalesInvoice', 'DeliveryNote', 'Customer', ...])
-  entityType: string;
-
-  @IsEnum(['create', 'update', 'delete'])
-  operation: 'create' | 'update' | 'delete';
-
-  @IsObject()
-  @MaxSize(10000)  // Max 10KB par payload
-  payload: Record<string, any>;
+const user = await this.userRepo.findOne({ where: { id: userId, tenantId } });
+if (!user || user.status !== 'active') {
+  throw new ForbiddenException('Utilisateur inactif');
 }
 ```
 
 ---
 
-## 7. Impact sur le backend existant
+## 3. Pool de numérotation offline
 
-### 7.1 Colonnes nécessaires
+### 3.1 Principe
 
-**Vérifier que TOUTES les entités ont :**
+Au login (ou au retour réseau avec `lastPoolRefresh` > 4h), le serveur alloue un pool de numéros séquentiels par agent et par type de document.
+
+```
+Agent A, login 2026-06-23 :
+  BL vente  : BL-26-047 à BL-26-056  (10 numéros)
+  Factures  : FAC-26-023 à FAC-26-027 (5 numéros)
+  Devis     : DEV-26-011 à DEV-26-015 (5 numéros)
+```
+
+L'agent utilise les numéros séquentiellement. Le numéro apparaît **immédiatement et définitivement** sur le document local — il est visible par le client sans mention TMP-.
+
+### 3.2 API pool
+
+```
+POST /api/v1/sync/number-pool/allocate
+Body: { "types": ["delivery_note", "sales_invoice", "quote"] }
+
+Réponse :
+{
+  "data": {
+    "pools": {
+      "delivery_note": { "numbers": ["BL-26-047", ..., "BL-26-056"], "expiresAt": "2026-06-30T23:59:59Z" },
+      "sales_invoice": { "numbers": ["FAC-26-023", ..., "FAC-26-027"], "expiresAt": "2026-06-30T23:59:59Z" },
+      "quote":         { "numbers": ["DEV-26-011", ..., "DEV-26-015"], "expiresAt": "2026-06-30T23:59:59Z" }
+    }
+  }
+}
+```
+
+### 3.3 Implémentation serveur — lock par tenant
 
 ```typescript
-@CreateDateColumn({ type: 'timestamptz' })
-createdAt: Date;  // ✅ Existing
-
-@UpdateDateColumn({ type: 'timestamptz' })
-updatedAt: Date;  // ✅ Existing
-
-@DeleteDateColumn({ type: 'timestamptz', nullable: true })
-deletedAt: Date | null;  // ✅ Existing
+// number-pool.service.ts
+async allocatePool(tenantId: string, userId: string, type: string, count: number): Promise<string[]> {
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    // Lock scopé par tenant + type (R013 + R020)
+    await queryRunner.query(
+      `SELECT pg_advisory_xact_lock(hashtext($1))`,
+      [`pool_${type}_${tenantId}`]
+    );
+    const year = new Date().getFullYear();
+    const last = await queryRunner.manager
+      .createQueryBuilder(NumberPoolAllocation, 'np')
+      .where('np.tenantId = :tenantId AND np.documentType = :type AND EXTRACT(YEAR FROM np.createdAt) = :year', { tenantId, type, year })
+      .orderBy('np.lastNumber', 'DESC')
+      .limit(1)
+      .getOne();
+    const start = last ? last.lastNumber + 1 : 1;
+    const numbers = Array.from({ length: count }, (_, i) => this.format(type, year, start + i));
+    await queryRunner.manager.save(NumberPoolAllocation, {
+      tenantId, userId, documentType: type,
+      firstNumber: start, lastNumber: start + count - 1,
+      numbers: JSON.stringify(numbers),
+    });
+    await queryRunner.commitTransaction();
+    return numbers;
+  } catch (e) {
+    await queryRunner.rollbackTransaction();
+    throw e;
+  } finally {
+    await queryRunner.release();
+  }
+}
 ```
 
-**Pas de changement requis.** Ces colonnes sont déjà présentes sur toutes les entités.
+### 3.4 Numéros non utilisés
 
-### 7.2 Nouveau module : `src/sync/`
-
-```
-src/sync/
-├─ sync.module.ts
-├─ sync.controller.ts
-├─ sync.service.ts
-├─ dto/
-│  ├─ sync-push.dto.ts
-│  ├─ sync-pull.dto.ts
-│  └─ sync-operation.dto.ts
-├─ entities/
-│  └─ sync-state.entity.ts (optionnel, pour tracking)
-└─ strategies/
-   └─ conflict-resolver.ts
-```
-
-### 7.3 Registrer le module
-
-```typescript
-// src/app.module.ts
-import { SyncModule } from './sync/sync.module';
-
-@Module({
-  imports: [
-    // ... autres modules
-    SyncModule,  // ← Ajouter
-  ],
-})
-export class AppModule {}
-```
-
-### 7.4 Index base de données
-
-Vérifier que les index suivants existent (pour perf sync) :
+- À la sync, le serveur marque les numéros du pool effectivement utilisés.
+- Les numéros non utilisés après 30 jours sont **libérés** (marqués `expired`, recalcul du prochain séquentiel depuis le dernier utilisé).
+- Table `number_pool_allocations` :
 
 ```sql
--- Toutes les entités
-CREATE INDEX IF NOT EXISTS "IDX_entity_tenant_id" ON "entity_table" ("tenantId");
-CREATE INDEX IF NOT EXISTS "IDX_entity_created_at" ON "entity_table" ("createdAt");
-CREATE INDEX IF NOT EXISTS "IDX_entity_updated_at" ON "entity_table" ("updatedAt");
-CREATE INDEX IF NOT EXISTS "IDX_entity_deleted_at" ON "entity_table" ("deletedAt");
-CREATE INDEX IF NOT EXISTS "IDX_entity_tenant_updated" ON "entity_table" ("tenantId", "updatedAt");
+CREATE TABLE number_pool_allocations (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  user_id        UUID NOT NULL REFERENCES users(id),
+  document_type  VARCHAR(50) NOT NULL,
+  first_number   INT NOT NULL,
+  last_number    INT NOT NULL,
+  numbers        JSONB NOT NULL,
+  expires_at     TIMESTAMPTZ NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_npa_tenant_type ON number_pool_allocations(tenant_id, document_type);
+UNIQUE (tenant_id, document_type, first_number);  -- contrainte composite (R020)
 ```
 
-Ces index sont déjà présents sur les entités majeures (R016).
+---
 
-### 7.5 Impact sur les invariants
+## 4. Schéma SQLite local
 
-| Invariant | Impact | Mitigation |
-|-----------|--------|-----------|
-| **R001** — Types TypeORM explicites | Aucun impact | ✅ N/A |
-| **R002** — Migrations obligatoires | Aucun impact (pas nouvelle colonne) | ✅ N/A |
-| **R005** — Transactions multi-tables | **CRITIQUE** | ✅ Sync push enveloppe dans queryRunner + transaction |
-| **R008** — Calculs financiers backend | **IMPACT** | ⚠️ Mobile calcule TVA localement (offline), backend re-valide |
-| **R013** — Auto-numérotation avec lock | **IMPACT** | ⚠️ UUID offline, server attribue vrai numéro après sync |
-| **R020** — tenantId obligatoire | **CRITIQUE** | ✅ Sync valide tenantId du JWT vs payload |
+Drizzle schema — `packages/mobile/src/db/schema.ts`
 
-### 7.6 Migration (vide — aucune nouvelle colonne)
+```typescript
+import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 
-**Pas de migration requise.** Les timestamps existent déjà.
+// Tables miroir (pull depuis serveur, lecture seule locale)
+export const customers = sqliteTable('customers', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  name: text('name').notNull(),
+  nif: text('nif'),
+  phone: text('phone'),
+  address: text('address'),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const rawMaterials = sqliteTable('raw_materials', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  name: text('name').notNull(),
+  unit: text('unit').notNull(),
+  unitPrice: text('unit_price').notNull(), // stocker en string (décimal exact)
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+// Inventaire local (indicatif — FIFO décrémenté côté serveur uniquement)
+export const inventorySummary = sqliteTable('inventory_summary', {
+  id: text('id').primaryKey(),
+  rawMaterialId: text('raw_material_id').notNull(),
+  tenantId: text('tenant_id').notNull(),
+  quantityAvailable: text('quantity_available').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+// Tables de travail offline (mutations locales)
+export const deliveryNotes = sqliteTable('delivery_notes', {
+  id: text('id').primaryKey(),           // UUID v4 généré client
+  tenantId: text('tenant_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  number: text('number').notNull(),      // depuis pool
+  status: text('status').notNull().default('draft'), // toujours draft en offline
+  notes: text('notes'),
+  syncStatus: text('sync_status').notNull().default('pending'), // 'pending'|'synced'|'conflict'
+  clientUpdatedAt: text('client_updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const deliveryNoteItems = sqliteTable('delivery_note_items', {
+  id: text('id').primaryKey(),
+  deliveryNoteId: text('delivery_note_id').notNull(),
+  rawMaterialId: text('raw_material_id').notNull(),
+  quantity: text('quantity').notNull(),  // string décimal
+  unitPrice: text('unit_price').notNull(),
+});
+
+export const salesInvoices = sqliteTable('sales_invoices', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  number: text('number').notNull(),
+  status: text('status').notNull().default('draft'),
+  notes: text('notes'),
+  // Affichage local indicatif uniquement — le serveur recalcule (R008)
+  displaySubtotal: text('display_subtotal'),
+  displayTaxAmount: text('display_tax_amount'),
+  displayTotal: text('display_total'),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  clientUpdatedAt: text('client_updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const payments = sqliteTable('payments', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  invoiceId: text('invoice_id').notNull(),
+  amount: text('amount').notNull(),
+  paymentMethod: text('payment_method').notNull(),
+  paymentDate: text('payment_date').notNull(),
+  reference: text('reference'),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  clientUpdatedAt: text('client_updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const expenses = sqliteTable('expenses', {
+  id: text('id').primaryKey(),
+  tenantId: text('tenant_id').notNull(),
+  description: text('description').notNull(),
+  amount: text('amount').notNull(),
+  category: text('category').notNull(),
+  expenseDate: text('expense_date').notNull(),
+  syncStatus: text('sync_status').notNull().default('pending'),
+  clientUpdatedAt: text('client_updated_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+// Pool de numéros (stocké localement au login)
+export const numberPools = sqliteTable('number_pools', {
+  id: text('id').primaryKey(),
+  documentType: text('document_type').notNull(),
+  numbers: text('numbers').notNull(),   // JSON array stringifié
+  usedCount: integer('used_count').notNull().default(0),
+  expiresAt: text('expires_at').notNull(),
+  allocatedAt: text('allocated_at').notNull(),
+});
+
+// Outbox (mutations en attente de sync)
+export const syncQueue = sqliteTable('sync_queue', {
+  id: text('id').primaryKey(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  operation: text('operation').notNull(),
+  payload: text('payload').notNull(),   // JSON
+  clientUpdatedAt: text('client_updated_at').notNull(),
+  status: text('status').notNull().default('pending'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').notNull().default("(datetime('now'))"),
+});
+
+// Cache paramètres (TVA, etc.)
+export const settingsCache = sqliteTable('settings_cache', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  cachedAt: text('cached_at').notNull(),
+  expiresAt: text('expires_at').notNull(),
+});
+```
+
+---
+
+## 5. API backend — module src/sync/
+
+### 5.1 Endpoints
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| GET | `/api/v1/sync/pull` | JWT | Pull delta d'une entité |
+| POST | `/api/v1/sync/push` | JWT | Push batch d'opérations |
+| POST | `/api/v1/sync/number-pool/allocate` | JWT | Allouer pool numéros |
+| GET | `/api/v1/sync/status` | JWT | Statut sync (lastSync, pendingCount) |
+
+### 5.2 Entités pullables
+
+```typescript
+// entity-registry.ts
+export const PULLABLE_ENTITIES = [
+  'customers',
+  'suppliers',
+  'raw_materials',
+  'products',
+  'inventory_summary',
+  'delivery_notes',
+  'sales_invoices',
+  'payments',
+  'quotes',
+  'expenses',
+  'settings',
+] as const;
+```
+
+### 5.3 PullQueryDto
+
+```typescript
+export class PullQueryDto {
+  @IsIn(PULLABLE_ENTITIES)
+  entity: string;
+
+  @IsDateString()
+  since: string;        // ISO8601 UTC
+
+  @IsInt() @Min(1)
+  page: number = 1;
+
+  @IsInt() @Min(1) @Max(200)
+  limit: number = 200;
+}
+```
+
+### 5.4 PushItemDto
+
+```typescript
+export class PushItemDto {
+  @IsUUID(4) queueId: string;
+  @IsIn(['delivery_note', 'sales_invoice', 'payment', 'quote', 'expense']) entityType: string;
+  @IsUUID(4) entityId: string;
+  @IsIn(['CREATE', 'UPDATE', 'DELETE']) operation: string;
+  @IsDateString() clientUpdatedAt: string;  // comparé vs serverEntity.updatedAt
+  @IsObject() payload: Record<string, unknown>;
+}
+
+export class PushBatchDto {
+  @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true })
+  @Type(() => PushItemDto)
+  operations: PushItemDto[];
+}
+```
+
+### 5.5 Logique push par opération (pseudo-code)
+
+```typescript
+// sync.service.ts
+async processPushOperation(op: PushItemDto, userId: string, tenantId: string): Promise<PushResult> {
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+  try {
+    // 1. Valider statut tenant + user
+    await this.validateTenantActive(tenantId, userId, queryRunner);
+
+    // 2. Whitelist champs par rôle
+    const filtered = this.fieldWhitelist.filter(op.payload, op.entityType, userRole);
+
+    // 3. Valider ownership FK (R020 sécurité cross-tenant)
+    await this.tenantOwnershipValidator.validate(filtered, tenantId, queryRunner);
+
+    // 4. Valider timestamp client (anti-futur)
+    const clientTs = new Date(op.clientUpdatedAt);
+    if (clientTs > new Date(Date.now() + 5 * 60 * 1000)) {
+      throw new BadRequestException('Timestamp client dans le futur rejeté');
+    }
+
+    // 5. Résolution FWW si UPDATE
+    if (op.operation === 'UPDATE') {
+      const server = await queryRunner.manager.findOne(entity, { where: { id: op.entityId, tenantId } });
+      if (server) {
+        const winner = this.conflictResolver.resolve(server, clientTs);
+        if (winner === 'server_wins') {
+          await queryRunner.commitTransaction();
+          return { queueId: op.queueId, success: false, error: 'CONFLICT_SERVER_WINS', serverRecord: server };
+        }
+      }
+    }
+
+    // 6. Recalculer montants côté serveur (R008)
+    if (['delivery_note', 'sales_invoice', 'quote'].includes(op.entityType)) {
+      await this.recalculateTotals(filtered, queryRunner);
+    }
+
+    // 7. Persister + side effects (R005 — dans la même transaction)
+    const saved = await this.entityStrategies[op.entityType].persist(filtered, tenantId, userId, queryRunner);
+
+    // 8. Side effects métier (FIFO, stock, statut)
+    await this.entityStrategies[op.entityType].applyEffects(saved, queryRunner);
+
+    await queryRunner.commitTransaction();
+    return { queueId: op.queueId, success: true, serverId: saved.id };
+  } catch (e) {
+    await queryRunner.rollbackTransaction();
+    throw e;  // remonté → AllExceptionsFilter (R006)
+  } finally {
+    await queryRunner.release();
+  }
+}
+```
+
+---
+
+## 6. Sécurité — 6 blocants critiques
+
+### S1 — CRITICAL : DB locale chiffrée (SQLCipher)
+
+```typescript
+// packages/mobile/src/db/connection.ts
+import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite';
+
+const sqlite = new SQLiteConnection(CapacitorSQLite);
+// La clé de chiffrement est générée au premier lancement et stockée dans @capacitor/preferences (secure enclave)
+const encryptionKey = await this.getOrGenerateKey();
+const db = await sqlite.createConnection('echango_db', true, 'secret', encryptionKey, false);
+```
+
+La clé de chiffrement n'est **jamais** stockée en clair. Elle est générée via `crypto.getRandomValues()` et stockée dans le secure storage natif. Lors d'un changement de tenant ou d'un logout, la DB est **supprimée et recréée**.
+
+### S2 — CRITICAL : TenantOwnershipValidator
+
+Toute FK dans le payload push est validée contre le tenantId du JWT avant persistance.
+
+```typescript
+// src/sync/tenant-ownership-validator.ts
+async validate(payload: Record<string, unknown>, tenantId: string, qr: QueryRunner): Promise<void> {
+  const fkFields: Record<string, EntityTarget<any>> = {
+    customerId: Customer,
+    supplierId: Supplier,
+    rawMaterialId: RawMaterial,
+    invoiceId: SalesInvoice,
+  };
+  for (const [field, Entity] of Object.entries(fkFields)) {
+    if (payload[field]) {
+      const exists = await qr.manager.count(Entity, { where: { id: payload[field], tenantId } });
+      if (!exists) throw new ForbiddenException(`FK invalide ou cross-tenant : ${field}`);
+    }
+  }
+}
+```
+
+### S3 — HIGH : Whitelist champs par rôle
+
+```typescript
+// src/sync/field-whitelist.ts
+const ALLOWED_FIELDS: Record<string, Record<string, string[]>> = {
+  delivery_note: {
+    owner:   ['customerId', 'items', 'notes', 'pooledNumber', 'status'],
+    manager: ['customerId', 'items', 'notes', 'pooledNumber', 'status'],
+    agent:   ['customerId', 'items', 'notes', 'pooledNumber'],  // pas de status
+  },
+  payment: {
+    owner:   ['invoiceId', 'amount', 'paymentMethod', 'paymentDate', 'reference'],
+    manager: ['invoiceId', 'amount', 'paymentMethod', 'paymentDate', 'reference'],
+    agent:   [],  // agents ne peuvent pas créer de paiements
+  },
+  // ...
+};
+```
+
+Un AGENT ne peut jamais envoyer `status: 'paid'` — le champ est filtré avant persistance.
+
+### S4 — HIGH : Montants recalculés serveur-side (R008)
+
+Le payload push **ne contient jamais** `subtotal`, `taxAmount`, `totalAmount`. Si présents, ils sont ignorés (whitelist). Le serveur recalcule depuis les lignes brutes avec le `taxRate` issu des settings du tenant.
+
+### S5 — HIGH : Session offline max 72h
+
+```typescript
+// packages/mobile/src/hooks/useOfflineSessionGuard.ts
+const lastOnline = await getLastOnlineTimestamp();
+const hoursOffline = (Date.now() - lastOnline) / (1000 * 3600);
+if (hoursOffline > 72) {
+  // Forcer re-auth au prochain accès réseau
+  await clearLocalSession();
+  navigate('/login');
+}
+```
+
+La création de nouveaux documents est bloquée après 72h sans sync (voir §9).
+
+### S6 — HIGH : Anti-replay nonce
+
+```
+Header: X-Request-Nonce: <UUID v4>
+```
+
+Le serveur stocke chaque nonce en Redis avec TTL 10 minutes. Un nonce déjà vu retourne HTTP 409.
+
+```typescript
+// sync.controller.ts
+@Post('push')
+async push(@Headers('x-request-nonce') nonce: string, ...) {
+  if (!nonce) throw new BadRequestException('X-Request-Nonce requis');
+  const seen = await this.redis.set(`nonce:${nonce}`, '1', 'EX', 600, 'NX');
+  if (!seen) throw new ConflictException('Nonce déjà utilisé (replay détecté)');
+  // ...
+}
+```
+
+### S6b — createdBy/updatedBy toujours depuis JWT (R012)
+
+Le payload push ne contient jamais `createdBy` ni `updatedBy`. L'AuditInterceptor les injecte depuis le JWT décodé. Le sync.service les passe explicitement au repository via `userId` du token.
+
+### S6c — Purge DB au changement de tenant
+
+```typescript
+// packages/mobile/src/db/lifecycle.ts
+async onTenantChange(newTenantId: string): Promise<void> {
+  await sqlite.deleteDatabase('echango_db');
+  await this.initDatabase();
+  await this.pullInitialData(newTenantId);
+}
+```
+
+---
+
+## 7. Entités synchronisées
+
+### 7.1 Entités pullées (lecture seule sur mobile)
+
+| Entité | Péremption locale | Données initiales |
+|--------|------------------|-------------------|
+| `customers` | 24h | 90 derniers jours d'activité |
+| `suppliers` | 24h | 90 derniers jours |
+| `raw_materials` | 24h | Tous |
+| `inventory_summary` | 1h | Tous |
+| `settings` | 7 jours | Complet |
+
+### 7.2 Entités poussées (mutations offline)
+
+| Entité | Opérations autorisées | Side effects serveur |
+|--------|-----------------------|---------------------|
+| `delivery_note` + items | CREATE, UPDATE (draft uniquement) | FIFO décrémenté (R015), stock → reserved |
+| `sales_invoice` + items | CREATE, UPDATE (draft uniquement) | TVA recalculée (R008) |
+| `payment` | CREATE | amountPaid+=, amountDue-=, status→paid si soldé, stock→sold |
+| `quote` + items | CREATE, UPDATE | TVA recalculée |
+| `expense` | CREATE, UPDATE | — |
+
+### 7.3 Side effects non disponibles offline
+
+- **PDF** (R014) : généré serveur à la demande post-sync
+- **Email** : online-only
+- **FIFO décrémentation** (R015) : serveur uniquement — le stock local est indicatif
+- **Conversion BL → Facture** : online-only (crée deux entités liées avec numérotation)
+- **Production orders** : online-only (complexité FIFO MP + PF)
 
 ---
 
 ## 8. Fonctionnalités offline vs online-only
 
-### 8.1 Offline possible
+| Fonctionnalité | Offline | Online | Notes |
+|----------------|---------|--------|-------|
+| Créer BL vente | ✅ | ✅ | Numéro du pool |
+| Consulter historique client | ✅ | ✅ | 90j en cache |
+| Créer facture | ✅ | ✅ | TVA affichée indicative |
+| Enregistrer paiement espèces | ✅ | ✅ | |
+| Créer devis | ✅ | ✅ | |
+| Saisir dépense terrain | ✅ | ✅ | |
+| Réception entrepôt (BL achat) | ❌ | ✅ | Stock FIFO complexe |
+| Générer PDF | ❌ | ✅ | R014 |
+| Envoyer email | ❌ | ✅ | |
+| Convertir BL → Facture | ❌ | ✅ | |
+| Ordre de production | ❌ | ✅ | |
+| Dashboard / rapports | ❌ | ✅ | |
+
+---
+
+## 9. UX offline
+
+### 9.1 Indicateur de fraîcheur des données
+
+| Âge données locales | Affichage |
+|--------------------|-----------|
+| < 8h | Aucune mention |
+| 8–24h | Chip subtile "Mis à jour hier" |
+| 24–72h | Bandeau orange "Données de plus de 24h — synchronisez dès que possible" |
+| > 72h | Blocage création nouveaux documents. Message : "Reconnectez-vous pour continuer à créer des documents." |
+
+### 9.2 Journal d'activité offline (filet de sécurité psychologique)
+
+Écran accessible dans Menu → "Activité offline" :
 
 ```
-✅ Créer facture
-  ├─ Générer UUID
-  ├─ Calculer TVA locale (19%)
-  ├─ Sauvegarder en DB locale
-  └─ Queue sync (push au serveur une fois online)
-
-✅ Consulter factures locales
-  ├─ Lire depuis DB WatermelonDB
-  ├─ Filtrer, trier localement
-  └─ Pas de requête serveur
-
-✅ Créer bon de livraison
-  └─ Même pattern que facture
-
-✅ Consulter clients
-  ├─ Lire depuis DB locale (syncée au dernier pull)
-  └─ Pas de créer nouveau client offline (conflit numérotation)
-
-✅ Consulter produits
-  ├─ Lire liste cached
-  └─ Pas de créer produit offline (stock management côté serveur)
-
-✅ Créer paiement
-  ├─ Enregistrer paiement local
-  ├─ Maj montants facture local
-  └─ Push au serveur (impact stock)
-
-✅ Consulter historique
-  ├─ Toutes les factures syncées
-  ├─ Recherche locale rapide
-  └─ Zéro latence réseau
+● BL-26-047 — Client Sarl Amrani — 23 juin 09:15 — ✅ Synchronisé
+● FAC-26-023 — Client Sarl Amrani — 23 juin 09:18 — ⏳ En attente de sync
+● BL-26-048 — Client Mouloud SARL — 23 juin 10:05 — ℹ️ Une version plus récente existe (enregistrée par Karim)
 ```
 
-### 8.2 Online only
+**Règle UX :** jamais le mot "conflit". En cas de `CONFLICT_SERVER_WINS`, afficher :
+> "Une version plus récente de ce document a été enregistrée par [prénom agent]. Votre version n'a pas été appliquée."
 
-```
-❌ Envoyer email PDF facture
-  ├─ Nécessite accès SMTP serveur
-  ├─ Génération PDF côté serveur
-  └─ Error: "Offline — envoyer depuis le web"
+Avec bouton "Voir les deux versions" — affichage côte à côte en langage métier (champs renommés, pas de JSON).
 
-❌ Générer rapport détaillé
-  ├─ Requête complexe base de données
-  ├─ Agrégations (SUM, COUNT)
-  └─ Data trop volumineuse (1000+ factures)
+### 9.3 Synchronisation automatique
 
-❌ Envoyer BL par email/SMS
-  └─ Même que facture
+- Au retour réseau (détection via `@capacitor/network`)
+- En foreground toutes les 5 minutes si réseau disponible
+- Toujours : pull d'abord, puis push (pour avoir le contexte le plus récent avant d'envoyer)
 
-❌ Consulter les paiements d'autres utilisateurs
-  ├─ Donnesées cross-user
-  ├─ Sync ne synchronise que l'user actuel
-  └─ Error: "Offline — reconnectez-vous"
+---
 
-❌ Configurer settings tenant
-  ├─ TVA, formats numérotation
-  └─ Changes affectent tous les users → sync backend-only
+## 10. Plan d'implémentation
 
-❌ Gestion des utilisateurs
-  ├─ Inviter, supprimer users
-  └─ Impact multi-user
-```
+**Estimation totale : 11–13 semaines-développeur**  
+**Équipe : 1 backend senior + 1 mobile (React) à partir de S4**
 
-### 8.3 UI Indicators
+### Phase 1 — Backend sync module (S1–S3) · Backend uniquement
+
+**Objectif :** Module `src/sync/` production-ready avec tests 100 % avant d'écrire une ligne de mobile.
+
+| Semaine | Tâches |
+|---------|--------|
+| S1 | Scaffold `src/sync/`, `entity-registry.ts`, `PullQueryDto`, endpoint GET pull + tests unitaires |
+| S2 | `ConflictResolver` (algo FWW corrigé), `TenantOwnershipValidator`, `FieldWhitelist`, endpoint POST push skeleton + tests |
+| S3 | `NumberPoolService` + migration `number_pool_allocations`, strategies DeliveryNote/Invoice/Payment, benchmark <500ms/1000 records |
+
+**Décisions irréversibles à confirmer avant S1 :**
+- [ ] Compte développeur Apple disponible ? (Visa internationale requise)
+- [ ] Instance Redis disponible pour nonces anti-replay ?
+- [ ] Monorepo : `packages/` à la racine ou dans un repo séparé ?
+
+### Phase 2 — MVP mobile (S4–S7) · Backend + Mobile en parallèle
+
+| Semaine | Backend | Mobile |
+|---------|---------|--------|
+| S4 | API pool numéros, endpoint /sync/status | Setup Capacitor + Drizzle + SQLCipher, migrations locales |
+| S5 | Stratégie Payment, side effects complets | Écrans : liste clients, créer BL offline |
+| S6 | Tests intégration end-to-end sync | Écrans : créer facture, enregistrer paiement |
+| S7 | Bug fixes sync | Journal d'activité offline, indicateurs fraîcheur |
+
+### Phase 3 — Complément (S8–S9)
+
+- Devis offline
+- Dépenses offline
+- Notifications push (réception sync réussie)
+- Tests appareils réels (Redmi 9A, Galaxy A12)
+
+### Phase 4 — Stores + Polish (S10–S13)
+
+- Soumission Play Store (D1 : $25 one-time)
+- Soumission App Store (D2 : $99/an — Visa internationale)
+- OTA updates (Capacitor Live Update ou Appflow)
+- CI/CD GitHub Actions : build APK + IPA automatique
+
+---
+
+## 11. Tests
+
+### 11.1 Backend
 
 ```typescript
-// src/mobile/components/SyncStatus.tsx
+// __tests__/conflict-resolver.spec.ts
+describe('ConflictResolver', () => {
+  it('client wins when clientUpdatedAt is older than serverUpdatedAt', () => {
+    const server = { updatedAt: new Date('2026-06-23T10:00:00Z') };
+    const clientTs = new Date('2026-06-23T09:00:00Z');
+    expect(resolver.resolve(server, clientTs)).toBe('client_wins');
+  });
+  it('server wins when serverUpdatedAt is older', () => {
+    const server = { updatedAt: new Date('2026-06-23T08:00:00Z') };
+    const clientTs = new Date('2026-06-23T10:00:00Z');
+    expect(resolver.resolve(server, clientTs)).toBe('server_wins');
+  });
+  it('rejects future timestamps', async () => {
+    // clientUpdatedAt = now + 10 min → BadRequestException
+  });
+});
 
-export const SyncStatus = () => {
-  const { connectionState, syncState } = useSyncStore();
+// __tests__/tenant-ownership-validator.spec.ts
+describe('TenantOwnershipValidator', () => {
+  it('throws ForbiddenException on cross-tenant FK', async () => { ... });
+  it('passes valid same-tenant FK', async () => { ... });
+});
 
-  return (
-    <div className="p-2 text-sm">
-      {connectionState === 'offline' && (
-        <Alert type="warning">
-          <WifiOff className="h-4 w-4" />
-          Vous êtes hors ligne
-          <br />
-          <small>Les modifications seront syncées au prochain accès réseau</small>
-        </Alert>
-      )}
+// __tests__/sync.service.spec.ts
+describe('SyncService', () => {
+  it('recalculates totals server-side, ignores client amounts', async () => { ... });
+  it('blocks push when tenant is suspended', async () => { ... });
+  it('detects replay via nonce', async () => { ... });
+  it('processes each operation independently (no cascade rollback)', async () => { ... });
+});
 
-      {connectionState === 'online' && syncState.isSyncing && (
-        <Alert type="info">
-          <Loader className="h-4 w-4 animate-spin" />
-          Synchronisation en cours...
-        </Alert>
-      )}
-
-      {syncState.lastSyncError && (
-        <Alert type="error">
-          <AlertCircle className="h-4 w-4" />
-          Erreur sync: {syncState.lastSyncError}
-          <br />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => SyncService.retrySync()}
-          >
-            Réessayer
-          </Button>
-        </Alert>
-      )}
-    </div>
-  );
-};
+// benchmark
+describe('Pull performance', () => {
+  it('returns 1000 records in < 500ms', async () => { ... });
+});
 ```
 
----
+### 11.2 Mobile
 
-## 9. Plan d'implémentation par phases
-
-### Phase 1 (Semaines 1-3) : Infrastructure sync
-
-**Objectif :** Poser la fondation de la synchronisation backend + mobile DB locale.
-
-**Tâches backend :**
-
-1. Créer module `src/sync/`
-   - sync.controller.ts (GET /pull, POST /push)
-   - sync.service.ts (logic push/pull/resolve)
-   - conflict-resolver.ts (FWW algorithm)
-   - DTOs + validation
-
-2. Implémenter GET /api/v1/sync/pull
-   - Query deltas depuis timestamp
-   - Paginer large (1000 records/batch)
-   - Test: Vérifier indexes performance
-
-3. Implémenter POST /api/v1/sync/push
-   - Valider tenantId (R020)
-   - Résoudre conflits (FWW)
-   - Transaction (R005)
-   - Rate limiting (throttler)
-
-4. Tests (Jest)
-   - Test conflict resolution (client plus vieux)
-   - Test tenantId validation
-   - Test transaction rollback sur erreur
-   - Perf test: 10000 records/sec
-
-**Tâches mobile :**
-
-1. Setup React Native/Expo + Capacitor
-   - Vite config pour mobile
-   - Capacitor iOS/Android config
-
-2. Setup WatermelonDB
-   - Schema pour SalesInvoice (Phase 2 entities)
-   - Migrations
-   - Tests db read/write
-
-3. Setup Zustand stores
-   - SyncStore (queue, state, timestamps)
-   - AuthStore (JWT storage, tenantId)
-   - ConnectionStore (network state)
-
-4. API de sync côté mobile
-   - SyncService.pull() (axios GET)
-   - SyncService.push() (axios POST)
-   - Retry logic (exponential backoff)
-
-**Deliverables :**
-- GET /pull, POST /push opérateurs
-- Tests backend 100% coverage
-- Mobile peut faire pull/push (vide)
-- Documentation API (Swagger)
+- Tests Drizzle migrations (schema up/down)
+- Tests `NumberPoolService` local (allocation séquentielle, expiration)
+- Tests `SyncQueue` (enqueue, dequeue, retry on error)
+- Tests de détection réseau et déclenchement sync automatique
+- Tests E2E Detox : création BL offline → sync → vérification serveur
 
 ---
 
-### Phase 2 (Semaines 4-6) : Entités critiques
+## 12. Déploiement stores
 
-**Objectif :** Synchroniser les entités core pour cas d'usage offline (créer facture).
+### Play Store (priorité 1)
+- Frais : $25 one-time
+- Délai review : 2–7 jours
+- APK signé via EAS Build ou Capacitor CLI + keystore
 
-**Entities to sync :**
-- SalesInvoice + SalesInvoiceItem
-- DeliveryNote + DeliveryNoteItem
-- Partner (Customer/Supplier)
-- FinishedProduct
-- Payment
-- User (read-only)
-- Tenant config (read-only)
-- Setting (read-only, TVA)
+### App Store (priorité 2)
+- Frais : $99/an
+- Carte Visa internationale requise (CIB algérienne non acceptée)
+- Délai review : 1–3 jours
+- Capacitor apps acceptées si valeur native réelle (offline + notifications push)
+- Compte Apple Developer à ouvrir **au plus tard en S8** pour ne pas bloquer la Phase 4
 
-**Tâches :**
+### OTA (mises à jour sans passer par les stores)
 
-1. Backend : Adapter sync.service.ts pour ces entités
-   - Générer repo dynamique par entityType
-   - Valider contraintes unique (e.g., invoiceNumber per tenant)
-   - Soft delete handling
-
-2. Mobile : Schema WatermelonDB pour entities
-   ```typescript
-   export class SalesInvoiceModel extends Model {
-     static table = 'sales_invoices';
-     @field('tenantId') tenantId: string;
-     @field('invoiceNumber') invoiceNumber: string;
-     @json('items') items: SalesInvoiceItem[];
-     @field('updatedAt') updatedAt: number;
-     // ...
-   }
-   ```
-
-3. Mobile : Outbox pattern
-   - OutboxRecord model
-   - Write operations to outbox on create/update/delete
-   - Pull → merge deltas
-   - Push → flush outbox
-
-4. Mobile : UX
-   - Invoice list page (read from WatermelonDB)
-   - Create invoice page
-   - Sync status indicator
-   - Conflict dialog (FWW)
-
-5. Tests
-   - Backend: Conflict resolution (multiple scenarios)
-   - Mobile: Outbox flush (success, conflict, error)
-   - E2E: Create invoice offline → push → verify server
-
-**Deliverables :**
-- Full CRUD offline sur invoices
-- Conflict resolution working
-- E2E test: offline flow
-- Mobile app compilable iOS/Android (Xcode/Android Studio)
+- Capacitor Live Update (Appflow) ou fichier JSON hébergé en self-hosted
+- Limité aux assets JS/CSS — tout changement de plugin natif = nouvelle soumission store
 
 ---
 
-### Phase 3 (Semaines 7-8) : Entités secondaires
+## Invariants R001–R020 — tensions et résolutions
 
-**Entities :**
-- Quote + QuoteItem
-- Expense
-- CreditNote
-- PurchaseOrder (read-only)
-- ReceptionBL (read-only)
-- RawMaterial (read-only)
-
-**Tâches :**
-- Étendre sync.service.ts support ces entités
-- Ajouter à WatermelonDB schema
-- Mobile UI (list, create)
-- Tests
+| Invariant | Tension | Résolution |
+|-----------|---------|------------|
+| R005 | Une transaction par opération push (pas tout le batch) | Confirmé D4. Chaque opération = son propre QueryRunner. |
+| R008 | TVA calculée localement pour affichage | Affichage indicatif uniquement. Serveur recalcule et écrase. `displaySubtotal` etc. ne sont pas synchés vers le serveur. |
+| R012 | createdBy/updatedBy depuis JWT | Jamais dans le payload push. Injectés par AuditInterceptor côté serveur. |
+| R013 | Auto-numérotation avec lock | Pool pré-alloué avec `pg_advisory_xact_lock(hashtext('pool_type_tenantId'))`. |
+| R014 | PDF archivé au chemin ARCHIVES/ | Généré serveur-side post-sync uniquement. |
+| R015 | FIFO oldest first | Décrémenté côté serveur uniquement lors du push CREATE delivery_note. Stock local = indicatif. |
+| R020 | tenantId dans toutes les queries | Pull : filtré par tenantId JWT. Push : TenantOwnershipValidator sur toutes les FK. Pool : scopé par tenantId. |
 
 ---
 
-### Phase 4 (Semaines 9+) : UX & Optimization
-
-**Tâches :**
-- Performance optimization (index, pagination)
-- Offline indicators + UX polish
-- Conflict resolution UX enhancements
-- Audit logging (mobile → server)
-- Analytics: sync success rate, conflict frequency
-
----
-
-## SUMMARY — Décisions clés
-
-| Décision | Choix | Justification |
-|----------|-------|--------------|
-| **Framework mobile** | PWA + Capacitor (Phase 1) → RN bare (Phase 2) | Réutiliser React, déploiement rapide |
-| **DB locale** | WatermelonDB | Sync-ready, perf, compact |
-| **Stratégie conflits** | First-Write-Wins (FWW) | Déterministe, pas de UI complexity |
-| **Authen offline** | JWT + expo-secure-store | Standard, sécurisé, offline capable |
-| **Entities sync** | Sélection (invoices, partners, products) | Balance offline-utility vs volume |
-| **UUIDs générés** | Client (offline) + serveur (numérotation) | Offline independence + audit trail |
-| **Architecture sync** | Pull deltas + Push outbox | Standard pattern, proven, scalable |
-
----
-
-## CHECKLIST — Avant production
-
-```
-Backend
-[ ] Sync module 100% couvert par tests
-[ ] Rate limiting actif (POST /push : 50 req/h)
-[ ] tenantId validation sur TOUTES les opérations push
-[ ] Transaction wrapping sur multi-entity push
-[ ] Conflict resolution algo documenté
-[ ] Performance: <500ms pour pull 1000 records
-[ ] Audit logging: qui a pousuté quel conflit
-
-Mobile
-[ ] WatermelonDB persiste offline
-[ ] Outbox queue survit app restart
-[ ] Token refresh avant push (si expiré)
-[ ] UI indicateurs sync (status, erreurs, conflicts)
-[ ] Capable offline: créer facture, visualiser
-[ ] App store deployable (Xcode/Android Studio)
-
-Intégration
-[ ] E2E: offline create → push → server verified
-[ ] Conflict scenario E2E tested
-[ ] Multi-device sync tested (2 mobiles + web)
-[ ] Large batch push tested (100 operations)
-[ ] Performance load test (100 concurrent users)
-```
-
+*Spec arbitrée par le décideur multi-agent le 2026-06-23.*  
+*Prochaine étape : validation équipe → démarrer Phase 1 S1.*
