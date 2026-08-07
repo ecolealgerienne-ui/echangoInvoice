@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { User } from '../../users/entities/user.entity';
 import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 import { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
@@ -36,17 +37,20 @@ export class AdminAuthService {
   }
 
   async refresh(rawToken: string) {
-    const candidates = await this.dataSource.manager.find(RefreshToken, {
-      where: { revoked: false },
-    });
-
-    let found: RefreshToken | null = null;
-    for (const t of candidates) {
-      if (await bcrypt.compare(rawToken, t.tokenHash)) {
-        found = t;
-        break;
-      }
+    // Recherche par jti indexé plutôt qu'un bcrypt.compare sur chaque ligne
+    // non révoquée : le coût ne dépend plus du nombre de sessions ouvertes.
+    let jti: string;
+    try {
+      const decoded = this.jwtService.decode(rawToken) as { jti?: string };
+      if (!decoded?.jti) throw new Error();
+      jti = decoded.jti;
+    } catch {
+      throw new UnauthorizedException('errors.invalid_refresh_token');
     }
+
+    const found = await this.dataSource.manager.findOne(RefreshToken, {
+      where: { jti, revoked: false },
+    });
 
     if (!found || new Date() > found.expiresAt) {
       throw new UnauthorizedException('errors.invalid_refresh_token');
@@ -76,8 +80,12 @@ export class AdminAuthService {
 
     const accessToken = this.jwtService.sign(payload);
 
+    // Le jti est porté par le JWT et stocké en base : il donne la recherche
+    // indexée du refresh (R013 côté auth tenant). La colonne est NOT NULL
+    // depuis la migration AddJtiToRefreshTokens1750021000000.
+    const jti = crypto.randomUUID();
     const rawRefresh = this.jwtService.sign(
-      { sub: user.id, type: 'refresh' },
+      { sub: user.id, jti, type: 'refresh' },
       { expiresIn: parseInt(requireEnv('REFRESH_TOKEN_EXPIRY'), 10) },
     );
 
@@ -89,6 +97,7 @@ export class AdminAuthService {
     const rt = this.dataSource.manager.create(RefreshToken, {
       userId: user.id,
       tenantId: user.tenantId ?? null,
+      jti,
       tokenHash,
       revoked: false,
       expiresAt,
