@@ -310,7 +310,12 @@ export class SalesInvoicesService {
       invoice.subtotal = totals.subtotal;
       invoice.taxAmount = totals.taxAmount;
       invoice.totalAmount = totals.totalAmount;
-      invoice.amountDue = totals.totalAmount - invoice.amountPaid;
+      // Retrancher aussi la part créditée. Un brouillon ne peut pas porter
+      // d'avoir (issue le refuse), mais la formule doit rester juste : c'est ce
+      // genre de recalcul partiel qui avait fait ressusciter du stock livré.
+      invoice.amountDue = Math.round(
+        Math.max(totals.totalAmount - Number(invoice.amountPaid) - Number(invoice.creditedAmount), 0) * 100,
+      ) / 100;
       invoice.updatedBy = userId;
       await qr.manager.save(SalesInvoice, invoice);
 

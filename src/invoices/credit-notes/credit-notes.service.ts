@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { CreditNote } from '../entities/credit-note.entity';
 import { CreditNoteItem } from '../entities/credit-note-item.entity';
+import { SalesInvoice } from '../entities/sales-invoice.entity';
 import { CreateCreditNoteDto, CreateCreditNoteItemDto } from './dto/create-credit-note.dto';
 import { assertMontant } from '../../common/limits';
 
@@ -136,24 +137,150 @@ export class CreditNotesService {
     return { data: cn };
   }
 
+  /**
+   * Émet l'avoir et lui donne son effet comptable.
+   *
+   * Rattaché à une facture, il en éteint une part : `creditedAmount` augmente,
+   * `amountDue` diminue d'autant, et l'avoir passe à `applied`. Sans facture
+   * rattachée, il n'y a rien à imputer — l'avoir reste `issued`, c'est un
+   * crédit ouvert au client.
+   *
+   * Avant cette correction, `issue` ne faisait que changer le statut : le solde
+   * de la facture ne bougeait pas et `applied` n'était atteint par aucun chemin.
+   */
   async issue(id: string, tenantId: string, userId: string) {
-    const cn = await this.cnRepo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!cn) throw new NotFoundException('credit_note_not_found');
-    if (cn.status !== 'draft') throw new UnprocessableEntityException('credit_note_already_issued');
-    cn.status = 'issued';
-    cn.updatedBy = userId;
-    await this.cnRepo.save(cn);
-    return { data: cn };
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const cn = await qr.manager.findOne(CreditNote, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!cn) throw new NotFoundException('credit_note_not_found');
+      if (cn.status !== 'draft') throw new UnprocessableEntityException('credit_note_already_issued');
+
+      if (!cn.salesInvoiceId) {
+        cn.status = 'issued';
+        cn.updatedBy = userId;
+        await qr.manager.save(CreditNote, cn);
+        await qr.commitTransaction();
+        return { data: cn };
+      }
+
+      // Verrou : deux avoirs émis en parallèle sur la même facture pourraient
+      // sinon dépasser ensemble le solde restant.
+      const invoice = await qr.manager.findOne(SalesInvoice, {
+        where: { id: cn.salesInvoiceId, tenantId, deletedAt: IsNull() },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!invoice) throw new NotFoundException('invoice_not_found');
+      if (invoice.status === 'cancelled') {
+        throw new UnprocessableEntityException('invoice_cancelled');
+      }
+      // Une facture non émise ne doit rien à personne : il n'y a rien à
+      // créditer, et la modifier recalculerait ses totaux par-dessus l'avoir.
+      if (invoice.status === 'draft') {
+        throw new UnprocessableEntityException('invoice_not_issued');
+      }
+
+      const montant = Number(cn.totalAmount);
+      const soldeDu = Number(invoice.amountDue);
+      // Un avoir n'ouvre pas de créance négative : on ne peut pas créditer plus
+      // qu'il ne reste dû. Au-delà, c'est un remboursement, pas un avoir.
+      if (montant > soldeDu + 0.01) {
+        throw new UnprocessableEntityException('credit_note_exceeds_amount_due');
+      }
+
+      const credite = Math.round((Number(invoice.creditedAmount) + montant) * 100) / 100;
+      const du = Math.round(
+        Math.max(Number(invoice.totalAmount) - Number(invoice.amountPaid) - credite, 0) * 100,
+      ) / 100;
+
+      await qr.manager.update(SalesInvoice, invoice.id, {
+        creditedAmount: credite,
+        amountDue: du,
+        status: this.statutFacture(du, Number(invoice.amountPaid), credite),
+        updatedBy: userId,
+      });
+
+      cn.status = 'applied';
+      cn.updatedBy = userId;
+      await qr.manager.save(CreditNote, cn);
+
+      await qr.commitTransaction();
+      this.logger.log(`Avoir ${cn.creditNoteNumber} imputé sur ${invoice.invoiceNumber} : ${montant}`);
+      return { data: cn };
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
   }
 
+  /**
+   * Annule l'avoir et défait son imputation.
+   *
+   * L'ancienne version refusait d'annuler un avoir `applied`. Ce statut étant
+   * désormais atteignable, ce refus enfermerait toute erreur de saisie sans
+   * issue — le même cul-de-sac qu'un BL signé sans action possible.
+   */
   async cancel(id: string, tenantId: string, userId: string) {
-    const cn = await this.cnRepo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
-    if (!cn) throw new NotFoundException('credit_note_not_found');
-    if (cn.status === 'applied') throw new UnprocessableEntityException('credit_note_already_applied');
-    cn.status = 'cancelled';
-    cn.updatedBy = userId;
-    await this.cnRepo.save(cn);
-    return { data: cn };
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const cn = await qr.manager.findOne(CreditNote, {
+        where: { id, tenantId, deletedAt: IsNull() },
+      });
+      if (!cn) throw new NotFoundException('credit_note_not_found');
+      if (cn.status === 'cancelled') {
+        throw new UnprocessableEntityException('credit_note_already_cancelled');
+      }
+
+      if (cn.status === 'applied' && cn.salesInvoiceId) {
+        const invoice = await qr.manager.findOne(SalesInvoice, {
+          where: { id: cn.salesInvoiceId, tenantId, deletedAt: IsNull() },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!invoice) throw new NotFoundException('invoice_not_found');
+
+        const credite = Math.round(
+          Math.max(Number(invoice.creditedAmount) - Number(cn.totalAmount), 0) * 100,
+        ) / 100;
+        const du = Math.round(
+          Math.max(Number(invoice.totalAmount) - Number(invoice.amountPaid) - credite, 0) * 100,
+        ) / 100;
+
+        await qr.manager.update(SalesInvoice, invoice.id, {
+          creditedAmount: credite,
+          amountDue: du,
+          status: this.statutFacture(du, Number(invoice.amountPaid), credite),
+          updatedBy: userId,
+        });
+      }
+
+      cn.status = 'cancelled';
+      cn.updatedBy = userId;
+      await qr.manager.save(CreditNote, cn);
+
+      await qr.commitTransaction();
+      return { data: cn };
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+  }
+
+  /**
+   * Statut d'une facture après mouvement de solde. Règle unique pour les
+   * règlements comme pour les avoirs : soldée, entamée, ou intacte.
+   */
+  private statutFacture(du: number, paye: number, credite: number): string {
+    if (du <= 0) return 'paid';
+    return paye > 0 || credite > 0 ? 'partial' : 'sent';
   }
 
   async remove(id: string, tenantId: string, userId: string) {

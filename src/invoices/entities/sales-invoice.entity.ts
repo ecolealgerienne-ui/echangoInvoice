@@ -61,6 +61,16 @@ export class SalesInvoice {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   amountPaid: number;
 
+  /**
+   * Part de la facture éteinte par un avoir. Distincte d'`amountPaid` : un
+   * avoir n'est pas un encaissement, et les confondre fausserait à la fois
+   * l'historique des règlements et le montant encaissé des rapports.
+   *
+   * Invariant : amountPaid + creditedAmount + amountDue = totalAmount.
+   */
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  creditedAmount: number;
+
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   amountDue: number;
 

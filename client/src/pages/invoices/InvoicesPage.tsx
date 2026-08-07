@@ -63,7 +63,14 @@ export function InvoicesPage() {
   const [editing, setEditing] = useState<any>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
   const [historyInvoice, setHistoryInvoice] = useState<any>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  // Le type doit être explicite : l'union déduite du tableau par défaut
+  // n'inclurait pas « credited », volontairement masquée au départ. Elle
+  // n'intéresse que les factures touchées par un avoir, mais doit rester
+  // activable pour expliquer un solde qui a baissé sans encaissement.
+  const { visible, toggle, col } = useColumnVisibility<
+    'number' | 'customer' | 'origin' | 'invoiceDate' | 'dueDate'
+    | 'amount' | 'credited' | 'due' | 'status' | 'notes'
+  >(
     'invoices_visible_columns',
     ['number', 'customer', 'origin', 'invoiceDate', 'dueDate', 'amount', 'due', 'status', 'notes'],
   );
@@ -250,6 +257,7 @@ export function InvoicesPage() {
               { key: 'invoiceDate', label: t('invoices.invoiceDate') },
               { key: 'dueDate', label: t('invoices.dueDate') },
               { key: 'amount', label: t('invoices.amount') },
+              { key: 'credited', label: t('invoices.credited') },
               { key: 'due', label: t('invoices.due') },
               { key: 'status', label: t('common.status') },
               { key: 'notes', label: 'Notes' },
@@ -271,6 +279,7 @@ export function InvoicesPage() {
                 {col('invoiceDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.invoiceDate')}</th>}
                 {col('dueDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.dueDate')}</th>}
                 {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>}
+                {col('credited') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.credited')}</th>}
                 {col('due') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.due')}</th>}
                 {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
                 {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
@@ -289,6 +298,11 @@ export function InvoicesPage() {
                   {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
                   {col('dueDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
                   {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(inv.totalAmount)}</td>}
+                  {col('credited') && (
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {Number(inv.creditedAmount) > 0 ? formatCurrency(inv.creditedAmount) : '—'}
+                    </td>
+                  )}
                   {col('due') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(inv.amountDue)}</td>}
                   {col('status') && <td className="px-4 py-3 text-center"><Badge variant={STATUS_VARIANT[inv.status]}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{inv.notes || '—'}</td>}

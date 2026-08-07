@@ -220,6 +220,7 @@
     "dueDate": "Échéance",
     "amount": "Montant TTC",
     "paid": "Payé",
+    "credited": "Avoirs imputés",
     "due": "Solde dû",
     "status": {
       "draft": "Brouillon",
@@ -388,7 +389,10 @@
     "credit_note_not_found": "Avoir introuvable",
     "credit_note_already_issued": "Cet avoir a déjà été émis",
     "credit_note_already_applied": "Cet avoir a déjà été appliqué",
+    "credit_note_already_cancelled": "Cet avoir est déjà annulé",
+    "credit_note_exceeds_amount_due": "Le montant de l'avoir dépasse le solde dû de la facture",
     "credit_note_cannot_delete": "Cet avoir ne peut pas être supprimé",
+    "invoice_not_issued": "La facture est encore en brouillon : rien à créditer",
     "expense_not_found": "Dépense introuvable",
     "expense_already_approved": "Cette dépense a déjà été approuvée",
     "expense_approved_cannot_delete": "Une dépense approuvée ne peut pas être supprimée",

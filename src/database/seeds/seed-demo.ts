@@ -31,6 +31,7 @@ const N = {
   invoices: int(process.env.DEMO_INVOICES, 1000),
   deliveryNotes: int(process.env.DEMO_DELIVERY_NOTES, 800),
   payments: int(process.env.DEMO_PAYMENTS, 600),
+  creditNotes: int(process.env.DEMO_CREDIT_NOTES, 60),
   quotes: int(process.env.DEMO_QUOTES, 400),
   expenses: int(process.env.DEMO_EXPENSES, 150),
   // Lignes d'achat postérieures aux ventes simulées : elles n'alimentent pas la
@@ -947,19 +948,85 @@ async function seedDemo() {
     }
 
     const now = new Date();
+
+    // ── Avoirs ────────────────────────────────────────────────────────────────
+    // Un avoir imputé éteint une part de la facture : creditedAmount monte,
+    // amountDue baisse d'autant. Les avoirs sont donc calculés AVANT les lignes
+    // de factures, comme les paiements — c'est le document qui fait le solde,
+    // jamais l'inverse.
+    //
+    // On ne crédite que des factures émises et encore dues : `issue` refuse le
+    // brouillon et refuse de dépasser le solde restant.
+    const cnRows: unknown[][] = [];
+    const cnItemRows: unknown[][] = [];
+    const credite = new Map<string, number>();
+    let cnSeq = 0;
+
+    const creditables = invoices
+      .filter((inv) => money(inv.totalAmount - (paid.get(inv.id) ?? 0)) > 1)
+      .sort(() => rnd() - 0.5)
+      .slice(0, N.creditNotes);
+
+    for (const inv of creditables) {
+      const soldeDu = money(inv.totalAmount - (paid.get(inv.id) ?? 0));
+      const cnId = uuid();
+      const d = new Date(Math.min(inv.date.getTime() + ri(2, 45) * 86400000, now.getTime()));
+
+      // Le TTC de l'avoir est plafonné au solde dû ; on part du HT pour que
+      // subtotal + TVA retombe exactement dessus.
+      const partTTC = money(soldeDu * (rnd() < 0.3 ? 1 : 0.15 + rnd() * 0.5));
+      const ht = money(partTTC / (1 + TVA / 100));
+      const taxe = money(partTTC - ht);
+      const motif = pick([
+        'Retour marchandise non conforme',
+        'Erreur de facturation',
+        'Rupture de chaîne du froid constatée',
+        'Remise commerciale exceptionnelle',
+        'Casse constatée à la livraison',
+      ] as const);
+
+      // 8 % restent en brouillon ou annulés : eux n'ont aucun effet sur le solde.
+      const statut = rnd() < 0.08 ? pick(['draft', 'cancelled'] as const) : 'applied';
+      if (statut === 'applied') credite.set(inv.id, partTTC);
+
+      cnItemRows.push([
+        uuid(), tenantId, cnId, motif, 1, 'unité', ht, 'TVA', TVA, taxe, taxe, partTTC,
+      ]);
+      cnRows.push([
+        cnId, tenantId, `AV-${yy}-${pad(++cnSeq, 3)}`, inv.customerId, inv.id,
+        isoDate(d), motif,
+        rnd() < 0.2 ? 'Avoir établi après contrôle contradictoire' : null,
+        ht, taxe, partTTC, statut, author, author, d, d,
+      ]);
+    }
+
+    await insertBatch(qr, 'credit_notes', [
+      'id', 'tenantId', 'creditNoteNumber', 'customerId', 'salesInvoiceId',
+      'creditNoteDate', 'reason', 'notes', 'subtotal', 'taxAmount', 'totalAmount',
+      'status', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+    ], cnRows);
+    await insertBatch(qr, 'credit_note_items', [
+      'id', 'tenantId', 'creditNoteId', 'description', 'quantity', 'unit',
+      'unitPrice', 'taxName1', 'taxRate1', 'taxAmount1', 'lineTaxTotal', 'lineTotal',
+    ], cnItemRows);
+
+    const totalCredite = [...credite.values()].reduce((s, v) => s + v, 0);
+    console.log(`Avoirs    : ${cnRows.length} (${credite.size} imputés, ${money(totalCredite).toLocaleString('fr-DZ')} DA)`);
+
     const invRows = invoices.map((inv) => {
       const amountPaid = money(paid.get(inv.id) ?? 0);
-      const amountDue = money(inv.totalAmount - amountPaid);
+      const creditedAmount = money(credite.get(inv.id) ?? 0);
+      const amountDue = money(inv.totalAmount - amountPaid - creditedAmount);
 
       let status: string;
       if (amountDue <= 0) status = 'paid';
-      else if (amountPaid > 0) status = 'partial';
+      else if (amountPaid > 0 || creditedAmount > 0) status = 'partial';
       else if (inv.due < now) status = 'overdue';
       else status = pick(['sent', 'sent', 'draft'] as const);
 
       return [
         inv.id, tenantId, inv.number, inv.customerId, inv.date, isoDate(inv.due), status,
-        inv.subtotal, inv.taxAmount, inv.totalAmount, amountPaid, amountDue,
+        inv.subtotal, inv.taxAmount, inv.totalAmount, amountPaid, creditedAmount, amountDue,
         rnd() < 0.1 ? 'Facture émise au titre du contrat annuel' : null,
         author, author, inv.date, inv.date,
       ];
@@ -967,7 +1034,7 @@ async function seedDemo() {
 
     await insertBatch(qr, 'sales_invoices', [
       'id', 'tenantId', 'invoiceNumber', 'customerId', 'invoiceDate', 'dueDate', 'status',
-      'subtotal', 'taxAmount', 'totalAmount', 'amountPaid', 'amountDue', 'notes',
+      'subtotal', 'taxAmount', 'totalAmount', 'amountPaid', 'creditedAmount', 'amountDue', 'notes',
       'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
     ], invRows);
     await insertBatch(qr, 'sales_invoice_items', itemCols('salesInvoiceId'), invItemRows);
@@ -1010,10 +1077,13 @@ async function seedDemo() {
                 AND round("subtotal" + "taxAmount", 2) <> round("totalAmount", 2)`,
       },
       {
-        label: 'Factures : amountPaid + amountDue = totalAmount',
+        // L'invariant intègre désormais les avoirs : un avoir imputé éteint une
+        // part de la facture sans qu'aucun encaissement n'ait eu lieu.
+        label: 'Factures : amountPaid + creditedAmount + amountDue = totalAmount',
         sql: `SELECT count(*)::int AS n FROM sales_invoices
               WHERE "tenantId" = $1
-                AND round("amountPaid" + "amountDue", 2) <> round("totalAmount", 2)`,
+                AND round("amountPaid" + "creditedAmount" + "amountDue", 2)
+                    <> round("totalAmount", 2)`,
       },
       // On ne compare pas totalAmount à Σ lineTotal : chaque ligne arrondit
       // (HT + taxe) séparément, alors que computeTotals fait round(Σ HT) + round(Σ taxes).
@@ -1071,8 +1141,10 @@ async function seedDemo() {
         sql: `SELECT count(*)::int AS n FROM sales_invoices
               WHERE "tenantId" = $1
                 AND (("status" = 'paid' AND "amountDue" > 0)
-                  OR ("status" = 'partial' AND ("amountPaid" <= 0 OR "amountDue" <= 0))
-                  OR ("status" IN ('sent','draft','overdue') AND "amountPaid" > 0))`,
+                  OR ("status" = 'partial'
+                      AND (("amountPaid" <= 0 AND "creditedAmount" <= 0) OR "amountDue" <= 0))
+                  OR ("status" IN ('sent','draft','overdue')
+                      AND ("amountPaid" > 0 OR "creditedAmount" > 0)))`,
       },
       {
         label: 'Aucun document orphelin (client inexistant)',
@@ -1236,6 +1308,45 @@ async function seedDemo() {
               JOIN purchase_orders po ON po.id = b."purchaseOrderId"
               WHERE b."tenantId" = $1 AND b.status <> 'cancelled'
                 AND po.status <> 'invoiced'`,
+      },
+      // ── Avoirs ─────────────────────────────────────────────────────────────
+      {
+        label: 'Avoirs : creditedAmount = Σ avoirs imputés',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT i.id, i."creditedAmount",
+                       COALESCE((SELECT sum(cn."totalAmount") FROM credit_notes cn
+                                 WHERE cn."salesInvoiceId" = i.id AND cn.status = 'applied'
+                                   AND cn."deletedAt" IS NULL), 0) AS impute
+                FROM sales_invoices i
+                WHERE i."tenantId" = $1
+              ) x WHERE abs(impute - "creditedAmount") > 0.01`,
+      },
+      {
+        label: 'Avoirs : aucun avoir ne dépasse le total de sa facture',
+        sql: `SELECT count(*)::int AS n FROM credit_notes cn
+              JOIN sales_invoices i ON i.id = cn."salesInvoiceId"
+              WHERE cn."tenantId" = $1 AND cn.status = 'applied'
+                AND cn."totalAmount" > i."totalAmount" + 0.01`,
+      },
+      {
+        label: 'Avoirs : subtotal + taxAmount = totalAmount',
+        sql: `SELECT count(*)::int AS n FROM credit_notes
+              WHERE "tenantId" = $1
+                AND abs("subtotal" + "taxAmount" - "totalAmount") > 0.01`,
+      },
+      {
+        label: 'Avoirs : aucun avoir imputé sur une facture en brouillon',
+        sql: `SELECT count(*)::int AS n FROM credit_notes cn
+              JOIN sales_invoices i ON i.id = cn."salesInvoiceId"
+              WHERE cn."tenantId" = $1 AND cn.status = 'applied'
+                AND i.status IN ('draft', 'cancelled')`,
+      },
+      {
+        label: 'Avoirs : tout avoir a au moins une ligne',
+        sql: `SELECT count(*)::int AS n FROM credit_notes cn
+              WHERE cn."tenantId" = $1
+                AND NOT EXISTS (SELECT 1 FROM credit_note_items it
+                                WHERE it."creditNoteId" = cn.id)`,
       },
       {
         label: 'Fact. four. : numéro unique',
