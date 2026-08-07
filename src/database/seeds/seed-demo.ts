@@ -219,11 +219,30 @@ async function seedDemo() {
     // ── Purge des données de démo ─────────────────────────────────────────────
     // Ordre enfants → parents. Les tables tenants/users/plans/subscriptions
     // ne sont jamais touchées.
+    //
+    // ⚠️ La liste couvre TOUTES les tables qui référencent finished_products
+    // ou partners, pas seulement celles que ce seed alimente. Huit tables
+    // pointent sur finished_products ; n'en purger que deux faisait échouer
+    // la purge dès qu'un achat ou un ordre de production existait — cas
+    // rencontré après une campagne e2e, qui en crée. La requête à jour :
+    //   SELECT conrelid::regclass, confrelid::regclass FROM pg_constraint
+    //   WHERE contype='f' AND confrelid::regclass::text
+    //         IN ('finished_products','partners');
     const purge = [
+      // achats
+      'vendor_payments', 'vendor_bill_items', 'vendor_bills',
+      'reception_bls', 'purchase_order_items', 'purchase_orders',
+      // production
+      'production_movements', 'production_orders', 'bom_lines', 'nomenclatures',
+      // stock
+      'stock_adjustments', 'stock_entries',
+      // ventes
       'payments', 'sales_invoice_items', 'sales_invoices',
+      'credit_note_items', 'credit_notes',
       'delivery_note_items', 'delivery_notes',
       'quote_items', 'quotes',
-      'expenses', 'finished_products', 'partners',
+      // référentiels
+      'expenses', 'partner_contacts', 'finished_products', 'partners',
     ];
     for (const table of purge) {
       await qr.query(`DELETE FROM ${table} WHERE "tenantId" = $1`, [tenantId]);
