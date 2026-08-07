@@ -16,7 +16,8 @@
     "migration:revert": "typeorm migration:revert -d dist/config/database.config.js",
     "migration:generate": "typeorm migration:generate -d dist/config/database.config.js",
     "dev": "npx concurrently --names API,CLIENT --prefix-colors blue,green \"npm run start:dev\" \"npm --prefix client run dev\"",
-    "seed": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed.ts"
+    "seed": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed.ts",
+    "seed:demo": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed-demo.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
