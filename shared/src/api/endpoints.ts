@@ -20,6 +20,21 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       return api.post('/auth/logout', { refreshToken }).then((r) => r.data);
     },
     me: () => api.get('/auth/me').then((r) => r.data.data),
+    // Renvoie { inviteUrl, emailSent } : le lien doit rester récupérable même
+    // quand le SMTP n'est pas configuré, sinon l'invitation est perdue.
+    invite: (email: string, role: 'manager' | 'agent') =>
+      api.post('/auth/invite', { email, role }).then((r) => r.data),
+    acceptInvite: (token: string, name: string, password: string) =>
+      api.post('/auth/accept-invite', { token, name, password }).then((r) => r.data.data),
+  };
+
+  const usersApi = {
+    list: () => api.get('/users').then((r) => r.data),
+    quota: () => api.get('/users/quota').then((r) => r.data),
+    update: (id: string, body: unknown) => api.patch(`/users/${id}`, body).then((r) => r.data),
+    listInvitations: () => api.get('/users/invitations').then((r) => r.data),
+    revokeInvitation: (id: string) =>
+      api.delete(`/users/invitations/${id}`).then((r) => r.data),
   };
 
   const customersApi = {
@@ -275,7 +290,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
   return {
     authApi, customersApi, suppliersApi, rawMaterialsApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
-    quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi,
+    quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
   };
 }
 

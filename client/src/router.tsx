@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
+import { AcceptInvitePage } from '@/pages/auth/AcceptInvitePage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
@@ -48,6 +49,10 @@ export function AppRouter() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to={isSuperAdmin ? '/admin/dashboard' : '/dashboard'} replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+      {/* Publique et sans redirection : la personne invitée n'a pas encore de
+          compte, et le lien doit rester utilisable même si un autre compte est
+          déjà connecté sur le poste. */}
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
       <Route path="/" element={<Navigate to={isSuperAdmin ? '/admin/dashboard' : '/dashboard'} replace />} />
 
       {/* Admin routes */}

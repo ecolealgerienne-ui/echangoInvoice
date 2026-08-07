@@ -11,12 +11,15 @@ import { Subscription } from '../tenants/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { getJwtConfig } from '../config/jwt.config';
 import { EmailService } from '../common/email.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register(getJwtConfig()),
     TypeOrmModule.forFeature([RefreshToken, Tenant, Subscription, User]),
+    // Pour UsersService : l'invitation doit respecter la limite de postes du plan.
+    UsersModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, EmailService],

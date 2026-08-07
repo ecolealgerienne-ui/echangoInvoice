@@ -22,6 +22,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (payload.role !== 'superadmin' && !payload.tenantId) {
       throw new UnauthorizedException('errors.invalid_token');
     }
-    return payload;
+    // `id` est un alias de `sub`. La quasi-totalité des contrôleurs écrit
+    // `user.id` pour renseigner createdBy/updatedBy, alors que le jeton ne
+    // porte que `sub` : la valeur passée était `undefined`, et toute la piste
+    // d'audit restait vide pour ce qui est créé via l'API — constaté le
+    // 2026-08-08, seule facture créée par l'API sur 1001 : createdBy NULL.
+    // L'alias corrige tous les appels d'un coup, sans en toucher aucun.
+    return { ...payload, id: payload.sub };
   }
 }

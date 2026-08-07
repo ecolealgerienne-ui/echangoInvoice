@@ -11,8 +11,9 @@ import { useToast } from '@/components/ui/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Plus, X, Trash2, Upload } from 'lucide-react';
 import { rules } from '@/lib/validation';
+import { UsersTab } from './UsersTab';
 
-type SettingsTab = 'general' | 'tax' | 'units' | 'formats';
+type SettingsTab = 'general' | 'tax' | 'units' | 'formats' | 'users';
 
 interface TaxRow { name: string; rate: string; isDefault: boolean; }
 
@@ -120,6 +121,7 @@ export function SettingsPage() {
     { key: 'tax',     label: t('settings.tabTax') },
     { key: 'units',   label: t('settings.tabUnits') },
     { key: 'formats', label: t('settings.tabFormats') },
+    { key: 'users',   label: t('settings.tabUsers') },
   ];
 
   return (
@@ -136,6 +138,11 @@ export function SettingsPage() {
         ))}
       </div>
 
+      {/* Rendu hors du formulaire : les actions sur les utilisateurs
+          s'appliquent immédiatement, elles ne passent pas par « Enregistrer ». */}
+      {tab === 'users' && <UsersTab />}
+
+      {tab !== 'users' && (
       <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-5">
 
         {/* ── Général ─────────────────────────────────────────────────────── */}
@@ -414,6 +421,7 @@ export function SettingsPage() {
           </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }
