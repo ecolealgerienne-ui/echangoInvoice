@@ -537,6 +537,13 @@ async function seedDemo() {
     };
     const lots: Lot[] = [];
 
+    // Réceptions retenues pour en dériver les factures fournisseurs : un
+    // fournisseur facture ce qu'il a livré.
+    const receptions: Array<{
+      recId: string; poId: string; supplierId: string; receptionDate: Date;
+      lignes: Array<{ productId: string; quantity: number; unit: string; unitPrice: number }>;
+    }> = [];
+
     let poSeq = 0;
     let recSeq = 0;
 
@@ -544,6 +551,7 @@ async function seedDemo() {
       if (!lignes.length) return;
 
       const poId = uuid();
+      const supplierId = pick(supplierIds);
       // Appro : avant la fenêtre de vente. Récent : dans la fenêtre.
       const orderDate = appro
         ? (() => {
@@ -556,6 +564,7 @@ async function seedDemo() {
 
       let subtotal = 0;
       let taxTotal = 0;
+      const lignesCommande: Array<{ productId: string; quantity: number; unit: string; unitPrice: number }> = [];
 
       for (const l of lignes) {
         const unitPrice = money(l.product.cost * (0.9 + rnd() * 0.2));
@@ -564,6 +573,9 @@ async function seedDemo() {
         subtotal += lineHT;
         taxTotal += taxAmount;
 
+        lignesCommande.push({
+          productId: l.product.id, quantity: l.quantity, unit: l.product.unit, unitPrice,
+        });
         poItemRows.push([
           uuid(), tenantId, poId, l.product.id, l.quantity, l.product.unit,
           unitPrice, money(lineHT + taxAmount), TVA, taxAmount,
@@ -580,7 +592,7 @@ async function seedDemo() {
       const status = recue ? 'received' : pick(['draft', 'sent', 'sent', 'cancelled'] as const);
 
       poRows.push([
-        poId, tenantId, `PO-${yy}-${pad(++poSeq, 3)}`, pick(supplierIds), status,
+        poId, tenantId, `PO-${yy}-${pad(++poSeq, 3)}`, supplierId, status,
         isoDate(orderDate), isoDate(addDays(orderDate, ri(3, 21))),
         subtotal, taxTotal, money(subtotal + taxTotal),
         rnd() < 0.15 ? pick(['Livraison en camion frigorifique', 'Palettes consignées', 'Contrôle qualité à réception']) : null,
@@ -620,6 +632,8 @@ async function seedDemo() {
         rnd() < 0.12 ? pick(['Chaîne du froid contrôlée à réception', 'Deux palettes refusées, non facturées', 'Réception conforme']) : null,
         author, author, receptionDate, receptionDate,
       ]);
+
+      receptions.push({ recId, poId, supplierId, receptionDate, lignes: lignesCommande });
     }
 
     // Regroupement en commandes de 1 à 5 lignes.
@@ -748,6 +762,132 @@ async function seedDemo() {
        WHERE fp.id = d."finishedProductId" AND fp."tenantId" = $1`,
       [tenantId],
     );
+
+    // ── Factures fournisseurs et règlements ───────────────────────────────────
+    // C'est le bout du cycle achat que ni Invoice Ninja ni Erplain ne couvrent
+    // (cf. docs/BENCHMARK.md) : la dette fournisseur. Le laisser vide privait la
+    // démo de ce qui nous distingue.
+    //
+    // Une facture par réception : le fournisseur facture ce qu'il a livré. Les
+    // lignes reprennent celles de la commande, et la facture porte le lien vers
+    // la commande ET la réception, comme le fait createVendorBill.
+
+    const vbRows: unknown[][] = [];
+    const vbItemRows: unknown[][] = [];
+    const vpRows: unknown[][] = [];
+    let vbSeq = 0;
+
+    for (const rec of receptions) {
+      const billId = uuid();
+      // Le fournisseur facture quelques jours après la livraison.
+      const billDate = addDays(rec.receptionDate, ri(0, 12));
+      const dueDate = addDays(billDate, pick([30, 30, 45, 60] as const));
+
+      let subtotal = 0;
+      let taxTotal = 0;
+
+      for (const l of rec.lignes) {
+        const lineHT = money(l.quantity * l.unitPrice);
+        const taxAmount = money(lineHT * (TVA / 100));
+        subtotal += lineHT;
+        taxTotal += taxAmount;
+
+        vbItemRows.push([
+          uuid(), tenantId, billId, l.productId, null,
+          l.quantity, l.unit, l.unitPrice, TVA, taxAmount, money(lineHT + taxAmount),
+        ]);
+      }
+
+      subtotal = money(subtotal);
+      taxTotal = money(taxTotal);
+      const totalAmount = money(subtotal + taxTotal);
+
+      // Répartition : la majorité est réglée, une part reste due — dont des
+      // factures échues, sans quoi la notion de dette fournisseur ne se voit
+      // nulle part. `draft` couvre les factures saisies mais pas encore
+      // validées ; elles ne peuvent pas recevoir de règlement (recordVendorPayment
+      // n'accepte que validated et partial).
+      const echue = dueDate.getTime() < Date.now();
+      const statut = rnd() < 0.06
+        ? pick(['draft', 'cancelled'] as const)
+        : echue
+          // Une entreprise qui tourne solde l'essentiel de ses anciennes
+          // factures : le retard doit rester une minorité visible, pas la règle.
+          ? pick(['paid', 'paid', 'paid', 'paid', 'paid', 'paid', 'partial', 'validated'] as const)
+          : pick(['paid', 'partial', 'validated', 'validated'] as const);
+
+      let amountPaid = 0;
+      if (statut === 'paid') {
+        amountPaid = totalAmount;
+      } else if (statut === 'partial') {
+        // Strictement entre 0 et le total : sinon le statut contredirait le solde.
+        amountPaid = money(totalAmount * (0.2 + rnd() * 0.5));
+        if (amountPaid <= 0 || amountPaid >= totalAmount) amountPaid = money(totalAmount / 2);
+      }
+      const amountDue = money(totalAmount - amountPaid);
+
+      // Les règlements sont générés à partir du montant réglé, jamais l'inverse :
+      // c'est leur somme qui doit faire amountPaid, comme côté ventes.
+      if (amountPaid > 0) {
+        const nb = statut === 'paid' && rnd() < 0.35 ? 2 : 1;
+        let reste = amountPaid;
+        for (let k = 0; k < nb; k++) {
+          const montant = k === nb - 1 ? money(reste) : money(amountPaid * (0.3 + rnd() * 0.3));
+          if (montant <= 0) continue;
+          reste = money(reste - montant);
+          const pDate = addDays(billDate, ri(2, 55));
+          vpRows.push([
+            uuid(), tenantId, billId, montant, isoDate(pDate),
+            pick(['bank_transfer', 'bank_transfer', 'cheque', 'cash', 'other'] as const),
+            rnd() < 0.7 ? `${pick(['VIR', 'CHQ', 'ESP'])}-${digits(8)}` : null,
+            author, pDate,
+          ]);
+        }
+      }
+
+      vbRows.push([
+        billId, tenantId, `FAC-ACH-${yy}-${pad(++vbSeq, 3)}`, rec.supplierId,
+        rec.poId, rec.recId, isoDate(billDate), isoDate(dueDate),
+        subtotal, taxTotal, totalAmount, amountPaid, amountDue, statut,
+        rnd() < 0.12 ? pick(['Facture reçue par courrier', 'Escompte 2 % appliqué', 'À rapprocher du BL de réception']) : null,
+        author, author, billDate, billDate,
+      ]);
+
+    }
+
+    await insertBatch(qr, 'vendor_bills', [
+      'id', 'tenantId', 'billNumber', 'supplierId', 'purchaseOrderId', 'receptionBlId',
+      'billDate', 'dueDate', 'subtotal', 'taxAmount', 'totalAmount', 'amountPaid',
+      'amountDue', 'status', 'notes', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+    ], vbRows);
+    await insertBatch(qr, 'vendor_bill_items', [
+      'id', 'tenantId', 'vendorBillId', 'finishedProductId', 'description',
+      'quantity', 'unit', 'unitPrice', 'taxRate', 'taxAmount', 'lineTotal',
+    ], vbItemRows);
+    await insertBatch(qr, 'vendor_payments', [
+      'id', 'tenantId', 'vendorBillId', 'amount', 'paymentDate', 'method',
+      'reference', 'createdBy', 'createdAt',
+    ], vpRows);
+
+    // Facturer une commande la fait passer en `invoiced` (createVendorBill), et
+    // annuler la facture la ramène à `received` (patchVendorBillStatus). Laisser
+    // toutes les commandes en `received` aurait donné une démo que
+    // l'application elle-même n'aurait jamais produite.
+    await qr.query(
+      `UPDATE purchase_orders po
+       SET status = 'invoiced', "updatedAt" = NOW()
+       WHERE po."tenantId" = $1
+         AND EXISTS (SELECT 1 FROM vendor_bills b
+                     WHERE b."purchaseOrderId" = po.id AND b.status <> 'cancelled')`,
+      [tenantId],
+    );
+
+    // La dette exclut les factures annulées : elles ne sont dues à personne.
+    const dette = vbRows
+      .filter((r) => r[13] !== 'cancelled')
+      .reduce((s, r) => s + (r[12] as number), 0);
+    console.log(`Fact. four: ${vbRows.length} (${vbItemRows.length} lignes, ${vpRows.length} règlements)`);
+    console.log(`  Dette fournisseur : ${money(dette).toLocaleString('fr-DZ')} DA`);
 
     // ── Factures ──────────────────────────────────────────────────────────────
     // Les paiements sont générés d'abord, puis amountPaid en découle : c'est ce
@@ -996,11 +1136,14 @@ async function seedDemo() {
                                  WHERE dn.id = se."reservedByDeliveryNoteId"))`,
       },
       {
-        label: 'Achats : toute réception porte sur une commande reçue',
+        // `invoiced` autant que `received` : une commande facturée reste une
+        // commande reçue, elle a seulement avancé d'un cran dans le cycle.
+        label: 'Achats : toute réception porte sur une commande reçue ou facturée',
         sql: `SELECT count(*)::int AS n FROM reception_bls r
               WHERE r."tenantId" = $1
                 AND NOT EXISTS (SELECT 1 FROM purchase_orders po
-                                WHERE po.id = r."purchaseOrderId" AND po.status = 'received')`,
+                                WHERE po.id = r."purchaseOrderId"
+                                  AND po.status IN ('received', 'invoiced'))`,
       },
       {
         label: 'Achats : toute commande a au moins une ligne',
@@ -1010,9 +1153,9 @@ async function seedDemo() {
                                 WHERE i."purchaseOrderId" = po.id)`,
       },
       {
-        label: 'Achats : toute commande reçue a une réception',
+        label: 'Achats : toute commande reçue ou facturée a une réception',
         sql: `SELECT count(*)::int AS n FROM purchase_orders po
-              WHERE po."tenantId" = $1 AND po.status = 'received'
+              WHERE po."tenantId" = $1 AND po.status IN ('received', 'invoiced')
                 AND NOT EXISTS (SELECT 1 FROM reception_bls r
                                 WHERE r."purchaseOrderId" = po.id)`,
       },
@@ -1021,6 +1164,86 @@ async function seedDemo() {
         sql: `SELECT count(*)::int AS n FROM purchase_orders
               WHERE "tenantId" = $1
                 AND abs("subtotal" + "taxAmount" - "total") > 0.01`,
+      },
+      // ── Factures fournisseurs ──────────────────────────────────────────────
+      {
+        label: 'Fact. four. : amountPaid + amountDue = totalAmount',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills
+              WHERE "tenantId" = $1
+                AND abs("amountPaid" + "amountDue" - "totalAmount") > 0.01`,
+      },
+      {
+        label: 'Fact. four. : subtotal + taxAmount = totalAmount',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills
+              WHERE "tenantId" = $1
+                AND abs("subtotal" + "taxAmount" - "totalAmount") > 0.01`,
+      },
+      {
+        label: 'Fact. four. : totalAmount = Σ lineTotal',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT b.id
+                FROM vendor_bills b
+                JOIN vendor_bill_items i ON i."vendorBillId" = b.id
+                WHERE b."tenantId" = $1
+                GROUP BY b.id, b."totalAmount"
+                HAVING abs(sum(i."lineTotal") - b."totalAmount") > 0.01
+              ) x`,
+      },
+      {
+        label: 'Fact. four. : règlements = amountPaid',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT b.id
+                FROM vendor_bills b
+                JOIN vendor_payments p ON p."vendorBillId" = b.id
+                WHERE b."tenantId" = $1
+                GROUP BY b.id, b."amountPaid"
+                HAVING abs(sum(p.amount) - b."amountPaid") > 0.01
+              ) x`,
+      },
+      {
+        label: 'Fact. four. : statut cohérent avec le solde',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills
+              WHERE "tenantId" = $1
+                AND (("status" = 'paid'      AND "amountDue" > 0.01)
+                  OR ("status" = 'partial'   AND ("amountPaid" <= 0 OR "amountDue" <= 0))
+                  OR ("status" IN ('draft','validated','cancelled') AND "amountPaid" > 0))`,
+      },
+      {
+        label: 'Fact. four. : aucun règlement sur une facture non réglable',
+        sql: `SELECT count(*)::int AS n FROM vendor_payments p
+              JOIN vendor_bills b ON b.id = p."vendorBillId"
+              WHERE p."tenantId" = $1 AND b.status NOT IN ('partial','paid')`,
+      },
+      {
+        label: 'Fact. four. : rattachée à une réception et à sa commande',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills b
+              WHERE b."tenantId" = $1
+                AND (NOT EXISTS (SELECT 1 FROM reception_bls r WHERE r.id = b."receptionBlId")
+                  OR NOT EXISTS (SELECT 1 FROM purchase_orders po WHERE po.id = b."purchaseOrderId")
+                  OR NOT EXISTS (SELECT 1 FROM partners s
+                                 WHERE s.id = b."supplierId" AND s."isSupplier"))`,
+      },
+      {
+        label: 'Fact. four. : toute facture a au moins une ligne',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills b
+              WHERE b."tenantId" = $1
+                AND NOT EXISTS (SELECT 1 FROM vendor_bill_items i
+                                WHERE i."vendorBillId" = b.id)`,
+      },
+      {
+        label: 'Fact. four. : la commande facturée est bien au statut invoiced',
+        sql: `SELECT count(*)::int AS n FROM vendor_bills b
+              JOIN purchase_orders po ON po.id = b."purchaseOrderId"
+              WHERE b."tenantId" = $1 AND b.status <> 'cancelled'
+                AND po.status <> 'invoiced'`,
+      },
+      {
+        label: 'Fact. four. : numéro unique',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT "billNumber" FROM vendor_bills
+                WHERE "tenantId" = $1
+                GROUP BY "billNumber" HAVING count(*) > 1
+              ) x`,
       },
     ];
 
