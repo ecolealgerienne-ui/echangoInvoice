@@ -33,6 +33,11 @@ const N = {
   payments: int(process.env.DEMO_PAYMENTS, 600),
   quotes: int(process.env.DEMO_QUOTES, 400),
   expenses: int(process.env.DEMO_EXPENSES, 150),
+  // Lignes d'achat postérieures aux ventes simulées : elles n'alimentent pas la
+  // consommation FIFO. Elles servent à montrer une activité récente et, pour
+  // une partie d'entre elles, un cycle encore ouvert (commandes en attente de
+  // réception) — sans quoi l'écran Achats n'afficherait que du « reçu ».
+  recentPurchases: int(process.env.DEMO_RECENT_PURCHASES, 120),
   windowDays: int(process.env.DEMO_WINDOW_DAYS, 90),
 };
 
@@ -331,7 +336,7 @@ async function seedDemo() {
     console.log(`Fournisseurs : ${supplierRows.length}`);
 
     // ── Produits ──────────────────────────────────────────────────────────────
-    const products: Array<{ id: string; unit: string; price: number }> = [];
+    const products: Array<{ id: string; unit: string; price: number; cost: number }> = [];
     const productRows: unknown[][] = [];
     const usedCodes = new Set<string>();
 
@@ -341,17 +346,22 @@ async function seedDemo() {
       const id = uuid();
       const price = money(ri(base.min, base.max));
       const cost = money(price * (0.62 + rnd() * 0.2));
-      const stock = money(ri(0, 2500) + rnd());
 
       let code = `PF-${String(i + 1).padStart(4, '0')}`;
       while (usedCodes.has(code)) code = `PF-${String(ri(1, 99999)).padStart(4, '0')}`;
       usedCodes.add(code);
 
-      products.push({ id, unit: base.unite, price });
+      products.push({ id, unit: base.unite, price, cost });
       productRows.push([
         id, tenantId, nom, code, base.unite, price,
         rnd() < 0.4 ? `${nom} — conservation à ${pick(['-18 °C', '-20 °C', '+2 à +4 °C'])}` : null,
-        rnd() < 0.97, 'product', cost, stock, cost, money(stock * cost),
+        rnd() < 0.97, 'product', cost,
+        // L'agrégat de stock part à zéro : il est recalculé depuis les lots en
+        // fin de seed, comme le fait recomputeProductStock. Le tirer au hasard
+        // recréait la divergence agrégat/lots à l'origine du bug de stock
+        // ressuscité — un jeu de démo ne doit pas naître dans un état que
+        // l'application interdit.
+        0, 0, 0,
         rnd() < 0.5 ? money(ri(50, 400)) : null,
         author, author,
       ]);
@@ -441,6 +451,10 @@ async function seedDemo() {
     const dnItemRows: unknown[][] = [];
     const dnWidth = Math.max(3, String(N.deliveryNotes).length);
 
+    // BL qui ont réellement quitté le dépôt : eux seuls consomment du stock.
+    // Ils servent à dimensionner les achats, puis à consommer les lots en FIFO.
+    const sorties: Array<{ dnId: string; lignes: Array<{ productId: string; quantity: number }> }> = [];
+
     for (let i = 0; i < N.deliveryNotes; i++) {
       const id = uuid();
       const d = dateInWindow();
@@ -449,6 +463,14 @@ async function seedDemo() {
 
       const status = pick(['delivered', 'delivered', 'delivered', 'signed', 'sent', 'draft', 'cancelled'] as const);
       const signe = status === 'signed' || status === 'delivered';
+
+      if (status === 'delivered' || status === 'signed') {
+        sorties.push({
+          dnId: id,
+          // rows suit itemCols : [id, tenantId, parentId, productId, quantity, ...]
+          lignes: rows.map((r) => ({ productId: r[3] as string, quantity: r[4] as number })),
+        });
+      }
 
       dnRows.push([
         id, tenantId, `BL-${yy}-${pad(i + 1, dnWidth)}`, pick(customerIds),
@@ -467,6 +489,265 @@ async function seedDemo() {
     ], dnRows);
     await insertBatch(qr, 'delivery_note_items', itemCols('deliveryNoteId'), dnItemRows);
     console.log(`BL        : ${dnRows.length} (${dnItemRows.length} lignes)`);
+
+    // ── Achats : commandes, réceptions, lots ──────────────────────────────────
+    // Le seed ne créait ni commande, ni réception, ni lot : tout le cycle achat
+    // et tout le suivi de stock étaient vides, et `stockQuantity` n'était qu'un
+    // nombre tiré au hasard que rien ne justifiait.
+    //
+    // On reconstitue la chaîne réelle — commande → réception → lot — puis on
+    // laisse l'agrégat se recalculer depuis les lots. C'est l'ordre qu'impose
+    // le schéma : reception_bls."purchaseOrderId" est NOT NULL, et
+    // stock_entries référence la réception.
+    //
+    // Les réceptions d'approvisionnement sont datées AVANT la fenêtre de vente.
+    // On achète avant de vendre : la consommation FIFO qui suit devient
+    // chronologiquement cohérente, et le stock ne peut pas passer négatif.
+
+    const besoin = new Map<string, number>();
+    for (const s of sorties) {
+      for (const l of s.lignes) besoin.set(l.productId, (besoin.get(l.productId) ?? 0) + l.quantity);
+    }
+
+    type LigneAchat = { product: typeof products[number]; quantity: number; appro: boolean };
+
+    // Une ligne d'approvisionnement par produit, dimensionnée pour couvrir la
+    // demande des BL sortis plus une marge : il doit rester du stock après.
+    const lignesAppro: LigneAchat[] = products.map((p) => ({
+      product: p,
+      quantity: money((besoin.get(p.id) ?? 0) * (1.25 + rnd() * 0.35) + ri(20, 400)),
+      appro: true,
+    }));
+
+    const lignesRecentes: LigneAchat[] = Array.from({ length: N.recentPurchases }, () => ({
+      product: pick(products),
+      quantity: money(ri(10, 600) + rnd()),
+      appro: false,
+    }));
+
+    const poRows: unknown[][] = [];
+    const poItemRows: unknown[][] = [];
+    const recRows: unknown[][] = [];
+    // Lots en mémoire : la consommation FIFO les modifie avant l'insertion.
+    type Lot = {
+      id: string; productId: string; receptionId: string;
+      quantity: number; costPerUnit: number;
+      batchNumber: string | null; expiresAt: Date | null; enteredAt: Date;
+      status: 'available' | 'sold'; deliveryNoteId: string | null;
+    };
+    const lots: Lot[] = [];
+
+    let poSeq = 0;
+    let recSeq = 0;
+
+    function creerCommande(lignes: LigneAchat[], appro: boolean) {
+      if (!lignes.length) return;
+
+      const poId = uuid();
+      // Appro : avant la fenêtre de vente. Récent : dans la fenêtre.
+      const orderDate = appro
+        ? (() => {
+            const d = new Date();
+            d.setDate(d.getDate() - ri(N.windowDays + 5, N.windowDays + 95));
+            d.setHours(ri(8, 17), ri(0, 59), 0, 0);
+            return d;
+          })()
+        : dateInWindow();
+
+      let subtotal = 0;
+      let taxTotal = 0;
+
+      for (const l of lignes) {
+        const unitPrice = money(l.product.cost * (0.9 + rnd() * 0.2));
+        const lineHT = money(l.quantity * unitPrice);
+        const taxAmount = money(lineHT * (TVA / 100));
+        subtotal += lineHT;
+        taxTotal += taxAmount;
+
+        poItemRows.push([
+          uuid(), tenantId, poId, l.product.id, l.quantity, l.product.unit,
+          unitPrice, money(lineHT + taxAmount), TVA, taxAmount,
+        ]);
+      }
+
+      subtotal = money(subtotal);
+      taxTotal = money(taxTotal);
+
+      // Une commande d'appro est toujours réceptionnée : sans cela la demande
+      // des BL ne serait pas couverte. Les commandes récentes se répartissent
+      // entre les statuts pour que l'écran Achats montre un cycle vivant.
+      const recue = appro || rnd() < 0.5;
+      const status = recue ? 'received' : pick(['draft', 'sent', 'sent', 'cancelled'] as const);
+
+      poRows.push([
+        poId, tenantId, `PO-${yy}-${pad(++poSeq, 3)}`, pick(supplierIds), status,
+        isoDate(orderDate), isoDate(addDays(orderDate, ri(3, 21))),
+        subtotal, taxTotal, money(subtotal + taxTotal),
+        rnd() < 0.15 ? pick(['Livraison en camion frigorifique', 'Palettes consignées', 'Contrôle qualité à réception']) : null,
+        author, author, orderDate, orderDate,
+      ]);
+
+      if (!recue) return;
+
+      const receptionDate = addDays(orderDate, ri(1, 12));
+      const recId = uuid();
+      let totalRecu = 0;
+
+      for (const l of lignes) {
+        totalRecu += l.quantity;
+        const costPerUnit = money(l.product.cost * (0.92 + rnd() * 0.16));
+        lots.push({
+          id: uuid(),
+          productId: l.product.id,
+          receptionId: recId,
+          quantity: l.quantity,
+          costPerUnit,
+          batchNumber: `LOT-${isoDate(receptionDate).replace(/-/g, '')}-${pad(lots.length + 1, 5)}`,
+          // Denrées congelées : une date de péremption est la règle, pas
+          // l'exception. Quelques lots courts alimentent les alertes.
+          expiresAt: rnd() < 0.85
+            ? addDays(receptionDate, rnd() < 0.12 ? ri(5, 30) : ri(120, 540))
+            : null,
+          enteredAt: receptionDate,
+          status: 'available',
+          deliveryNoteId: null,
+        });
+      }
+
+      recRows.push([
+        recId, tenantId, `BL-REC-${yy}-${pad(++recSeq, 3)}`, poId,
+        isoDate(receptionDate), 'completed', money(totalRecu),
+        rnd() < 0.12 ? pick(['Chaîne du froid contrôlée à réception', 'Deux palettes refusées, non facturées', 'Réception conforme']) : null,
+        author, author, receptionDate, receptionDate,
+      ]);
+    }
+
+    // Regroupement en commandes de 1 à 5 lignes.
+    for (const groupe of [lignesAppro, lignesRecentes]) {
+      const appro = groupe === lignesAppro;
+      for (let i = 0; i < groupe.length; ) {
+        const taille = Math.min(ri(1, 5), groupe.length - i);
+        creerCommande(groupe.slice(i, i + taille), appro);
+        i += taille;
+      }
+    }
+
+    // ── Consommation FIFO des BL sortis ───────────────────────────────────────
+    // Réplique consumeStockFifo : le plus ancien lot part en premier, et un lot
+    // entamé est scindé — la part sortie devient un lot `sold` rattaché au BL,
+    // le reste demeure disponible. Sans cela le stock ne bougerait jamais malgré
+    // des centaines de livraisons.
+
+    const lotsParProduit = new Map<string, Lot[]>();
+    for (const lot of lots) {
+      const l = lotsParProduit.get(lot.productId) ?? [];
+      l.push(lot);
+      lotsParProduit.set(lot.productId, l);
+    }
+    for (const l of lotsParProduit.values()) {
+      l.sort((a, b) => a.enteredAt.getTime() - b.enteredAt.getTime());
+    }
+
+    const lotsSortis: Lot[] = [];
+    let nonCouvert = 0;
+
+    for (const sortie of sorties) {
+      for (const ligne of sortie.lignes) {
+        let reste = ligne.quantity;
+        const dispo = lotsParProduit.get(ligne.productId) ?? [];
+
+        for (const lot of dispo) {
+          if (reste <= 0) break;
+          if (lot.status !== 'available' || lot.quantity <= 0) continue;
+
+          if (lot.quantity <= reste) {
+            reste = money(reste - lot.quantity);
+            lot.status = 'sold';
+            lot.deliveryNoteId = sortie.dnId;
+          } else {
+            const consomme = money(reste);
+            lot.quantity = money(lot.quantity - consomme);
+            lotsSortis.push({
+              ...lot, id: uuid(), quantity: consomme,
+              status: 'sold', deliveryNoteId: sortie.dnId,
+            });
+            reste = 0;
+          }
+        }
+        if (reste > 0.01) nonCouvert++;
+      }
+    }
+
+    const tousLesLots = [...lots, ...lotsSortis];
+
+    await insertBatch(qr, 'purchase_orders', [
+      'id', 'tenantId', 'poNumber', 'supplierId', 'status', 'orderDate',
+      'expectedDeliveryDate', 'subtotal', 'taxAmount', 'total', 'notes',
+      'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+    ], poRows);
+    await insertBatch(qr, 'purchase_order_items', [
+      'id', 'tenantId', 'purchaseOrderId', 'rawMaterialId', 'quantity', 'unit',
+      'unitPrice', 'lineTotal', 'taxRate', 'taxAmount',
+    ], poItemRows);
+    await insertBatch(qr, 'reception_bls', [
+      'id', 'tenantId', 'blNumber', 'purchaseOrderId', 'receptionDate', 'status',
+      'totalQuantityReceived', 'notes', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+    ], recRows);
+    await insertBatch(qr, 'stock_entries', [
+      'id', 'tenantId', 'rawMaterialId', 'finishedProductId', 'receptionBlId',
+      'quantity', 'costPerUnit', 'totalCost', 'batchNumber', 'expiresAt',
+      'status', 'reservedByDeliveryNoteId', 'enteredAt', 'createdBy',
+    ], tousLesLots.map((l) => [
+      l.id, tenantId, l.productId, l.productId, l.receptionId,
+      l.quantity, l.costPerUnit, money(l.quantity * l.costPerUnit),
+      l.batchNumber, l.expiresAt, l.status, l.deliveryNoteId, l.enteredAt, author,
+    ]));
+
+    console.log(`Commandes : ${poRows.length} (${poItemRows.length} lignes)`);
+    console.log(`Réceptions: ${recRows.length}`);
+    console.log(`Lots      : ${tousLesLots.length} (${lotsSortis.length + lots.filter(l => l.status === 'sold').length} sortis)`);
+    if (nonCouvert > 0) console.log(`  ⚠️  ${nonCouvert} ligne(s) de BL non couverte(s) par le stock`);
+
+    // ── Agrégat de stock recalculé depuis les lots ────────────────────────────
+    // Même règle que recomputeProductStock, en une passe ensembliste : l'agrégat
+    // est un cache de lecture, jamais une donnée d'origine.
+    await qr.query(
+      `UPDATE finished_products fp
+       SET "stockQuantity"          = COALESCE(a.qte, 0),
+           "totalStockValue"        = COALESCE(a.valeur, 0),
+           "averageCostPerUnit"     = CASE WHEN COALESCE(a.qte, 0) > 0
+                                           THEN round(a.valeur / a.qte, 2) ELSE 0 END,
+           "earliestExpirationDate" = a.peremption
+       FROM (
+         SELECT p.id,
+                SUM(se.quantity)    AS qte,
+                SUM(se."totalCost") AS valeur,
+                MIN(se."expiresAt") AS peremption
+         FROM finished_products p
+         LEFT JOIN stock_entries se
+           ON se."finishedProductId" = p.id
+          AND se.status = 'available'
+          AND se."deletedAt" IS NULL
+         WHERE p."tenantId" = $1
+         GROUP BY p.id
+       ) a
+       WHERE fp.id = a.id AND fp."tenantId" = $1`,
+      [tenantId],
+    );
+
+    // lastCostPerUnit : coût du dernier lot entré, comme le fait la réception.
+    await qr.query(
+      `UPDATE finished_products fp
+       SET "lastCostPerUnit" = d."costPerUnit"
+       FROM (
+         SELECT DISTINCT ON ("finishedProductId") "finishedProductId", "costPerUnit"
+         FROM stock_entries
+         WHERE "tenantId" = $1
+         ORDER BY "finishedProductId", "enteredAt" DESC
+       ) d
+       WHERE fp.id = d."finishedProductId" AND fp."tenantId" = $1`,
+      [tenantId],
+    );
 
     // ── Factures ──────────────────────────────────────────────────────────────
     // Les paiements sont générés d'abord, puis amountPaid en découle : c'est ce
@@ -658,6 +939,88 @@ async function seedDemo() {
         sql: `SELECT count(*)::int AS n FROM sales_invoices i
               WHERE i."tenantId" = $1
                 AND NOT EXISTS (SELECT 1 FROM partners p WHERE p.id = i."customerId")`,
+      },
+      // ── Stock ──────────────────────────────────────────────────────────────
+      // L'invariant central : l'agrégat n'est qu'un cache des lots disponibles.
+      // C'est sa violation qui avait fait ressusciter du stock déjà livré.
+      {
+        label: 'Stock : stockQuantity = Σ lots disponibles',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT p.id
+                FROM finished_products p
+                LEFT JOIN stock_entries se
+                  ON se."finishedProductId" = p.id
+                 AND se.status = 'available' AND se."deletedAt" IS NULL
+                WHERE p."tenantId" = $1
+                GROUP BY p.id, p."stockQuantity"
+                HAVING abs(COALESCE(sum(se.quantity), 0) - p."stockQuantity") > 0.01
+              ) x`,
+      },
+      {
+        label: 'Stock : totalStockValue = Σ coût des lots disponibles',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT p.id
+                FROM finished_products p
+                LEFT JOIN stock_entries se
+                  ON se."finishedProductId" = p.id
+                 AND se.status = 'available' AND se."deletedAt" IS NULL
+                WHERE p."tenantId" = $1
+                GROUP BY p.id, p."totalStockValue"
+                HAVING abs(COALESCE(sum(se."totalCost"), 0) - p."totalStockValue") > 0.01
+              ) x`,
+      },
+      {
+        label: 'Stock : aucune quantité négative ou nulle sur un lot',
+        sql: `SELECT count(*)::int AS n FROM stock_entries
+              WHERE "tenantId" = $1 AND quantity <= 0`,
+      },
+      {
+        label: 'Stock : totalCost = quantité × coût unitaire',
+        sql: `SELECT count(*)::int AS n FROM stock_entries
+              WHERE "tenantId" = $1
+                AND abs(quantity * "costPerUnit" - "totalCost") > 0.01`,
+      },
+      {
+        label: 'Stock : les deux colonnes produit sont renseignées et égales',
+        sql: `SELECT count(*)::int AS n FROM stock_entries
+              WHERE "tenantId" = $1
+                AND ("rawMaterialId" IS DISTINCT FROM "finishedProductId"
+                  OR "finishedProductId" IS NULL)`,
+      },
+      {
+        label: 'Stock : tout lot sorti est rattaché à un BL',
+        sql: `SELECT count(*)::int AS n FROM stock_entries se
+              WHERE se."tenantId" = $1 AND se.status = 'sold'
+                AND (se."reservedByDeliveryNoteId" IS NULL
+                  OR NOT EXISTS (SELECT 1 FROM delivery_notes dn
+                                 WHERE dn.id = se."reservedByDeliveryNoteId"))`,
+      },
+      {
+        label: 'Achats : toute réception porte sur une commande reçue',
+        sql: `SELECT count(*)::int AS n FROM reception_bls r
+              WHERE r."tenantId" = $1
+                AND NOT EXISTS (SELECT 1 FROM purchase_orders po
+                                WHERE po.id = r."purchaseOrderId" AND po.status = 'received')`,
+      },
+      {
+        label: 'Achats : toute commande a au moins une ligne',
+        sql: `SELECT count(*)::int AS n FROM purchase_orders po
+              WHERE po."tenantId" = $1
+                AND NOT EXISTS (SELECT 1 FROM purchase_order_items i
+                                WHERE i."purchaseOrderId" = po.id)`,
+      },
+      {
+        label: 'Achats : toute commande reçue a une réception',
+        sql: `SELECT count(*)::int AS n FROM purchase_orders po
+              WHERE po."tenantId" = $1 AND po.status = 'received'
+                AND NOT EXISTS (SELECT 1 FROM reception_bls r
+                                WHERE r."purchaseOrderId" = po.id)`,
+      },
+      {
+        label: 'Achats : subtotal + taxAmount = total',
+        sql: `SELECT count(*)::int AS n FROM purchase_orders
+              WHERE "tenantId" = $1
+                AND abs("subtotal" + "taxAmount" - "total") > 0.01`,
       },
     ];
 
