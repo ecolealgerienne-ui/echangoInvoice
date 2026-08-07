@@ -2,6 +2,11 @@
   "name": "echango-invoice-api",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "shared",
+    "client",
+    "mobile"
+  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
