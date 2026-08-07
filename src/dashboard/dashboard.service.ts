@@ -258,7 +258,7 @@ export class DashboardService {
                SUM(se.quantity) AS total,
                SUM(se.quantity * se."costPerUnit") AS value
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status IN ('available','reserved')
         GROUP BY se."rawMaterialId", rm.name, rm.unit`,
         [tenantId]),
@@ -273,7 +273,7 @@ export class DashboardService {
                EXTRACT(DAY FROM se."expiresAt" - NOW())::int AS days,
                se.quantity * se."costPerUnit" AS estimated_value
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status='available' AND se."expiresAt" IS NOT NULL
           AND se."expiresAt" <= NOW() + INTERVAL '30 days'
         ORDER BY se."expiresAt" ASC`,

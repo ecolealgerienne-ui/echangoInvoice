@@ -462,11 +462,37 @@ const entries = await queryRunner.manager
 .orderBy('se.enteredAt', 'DESC')
 ```
 
-**Transitions de statut StockEntry :**
+**Transitions de statut StockEntry, telles qu'implémentées :**
 ```
-available → reserved  (lors de la création du DeliveryNote)
-reserved  → sold      (lors du paiement de la facture)
+available → sold      (création d'un BL — consommation FIFO)
+sold      → available (annulation/suppression du BL)
 available → adjusted  (ajustement manuel)
+```
+
+⚠️ **`stockQuantity` sur `finished_products` est un CACHE, jamais une source.**
+La vérité est dans les lots ; l'agrégat se recalcule depuis eux via
+`recomputeProductStock` (`src/stock/recompute-product-stock.ts`). Toute sortie
+doit donc **consommer des lots**, jamais décrémenter le cache directement —
+sinon la prochaine réception, qui recalcule depuis les lots, ressuscite ce qui
+est parti.
+
+*Trouvé et reproduit le 2026-08-08 : `decrementStock` faisait un
+`UPDATE finished_products SET stockQuantity` sans toucher aux lots — le
+commentaire disait « sans FIFO » quand Swagger annonçait l'inverse. Séquence
+100 reçus → 30 livrés → 50 reçus donnait **150 au lieu de 120**.*
+
+**Un lot entamé se scinde** : la part sortie devient un lot `sold` rattaché au
+BL (`reservedByDeliveryNoteId`), le reste demeure `available`. C'est ce qui rend
+l'annulation réversible et permet de savoir quel lot est parti chez qui.
+
+Le stock négatif reste toléré — le métier livre parfois avant de régulariser —
+mais il est désormais **visible** : la quantité manquante n'est prise sur aucun
+lot et un avertissement remonte.
+
+**Vérification :**
+```bash
+# Aucune écriture directe de stockQuantity hors du recalcul partagé
+grep -rn 'SET "stockQuantity"' src/ | grep -v recompute-product-stock
 ```
 
 ---
@@ -659,9 +685,18 @@ d'erreur : elle produit une fonctionnalité absente que personne ne cherche.
 
 ### R023 — Polarité de protection : la route qu'on oublie est OUVERTE
 
-Chaque contrôleur pose son propre `@UseGuards` ; **il n'existe aucun garde
-global**. L'oubli ne se voit donc ni à la compilation, ni à l'exécution, ni dans
-les journaux — à l'inverse d'un garde global dont on se retire explicitement.
+Chaque contrôleur pose son propre `@UseGuards` d'**authentification** ; il n'y a
+pas de `JwtGuard` global. L'oubli ne se voit donc ni à la compilation, ni à
+l'exécution, ni dans les journaux — à l'inverse d'un garde global dont on se
+retire explicitement.
+
+⚠️ **Le seul garde global est le `ThrottlerGuard`** (`app.module.ts`, fourni via
+`APP_GUARD`). *Il ne l'était pas jusqu'au 2026-08-08 : `ThrottlerModule` était
+enregistré, les `@Throttle` décoraient bien les routes d'auth, et **rien ne les
+appliquait** — 20 tentatives de login consécutives, aucun 429. Cette section
+elle-même affirmait le contraire, ce qui en faisait un état périmé au sens de
+R031.* Limites effectives, vérifiées : `register` 5/min, `login` 10/min,
+`refresh` 20/min, tout le reste 100/min.
 
 **Conséquence directe : toute route publique est épinglée nommément ici, avec sa
 justification.** Une route publique non listée est un défaut, pas un choix.

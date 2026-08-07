@@ -6,6 +6,7 @@ import { FinishedProduct } from '../products/finished-product.entity';
 import { ListInventoryDto } from './dto/list-inventory.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { SetThresholdDto } from './dto/set-threshold.dto';
+import { consumeStockFifo, recomputeProductStock } from './recompute-product-stock';
 
 @Injectable()
 export class StockService {
@@ -151,13 +152,16 @@ export class StockService {
     const avgCost = product ? (parseFloat(product.averageCostPerUnit as any) || 0) : 0;
     const lastCost = product ? (parseFloat(product.lastCostPerUnit as any) || 0) : 0;
     const costPerUnit = avgCost > 0 ? avgCost : lastCost;
-    const newTotalValue = Math.round(newQty * costPerUnit * 100) / 100;
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
-      // Audit log entry — 'available' if adding stock so FIFO can consume it
+      // Un ajustement POSITIF crée un lot disponible, que le FIFO consommera.
+      // Un ajustement NÉGATIF doit au contraire *retirer* des lots existants :
+      // se contenter d'écrire un lot 'adjusted' laissait les lots d'origine
+      // intacts, et le recalcul depuis les lots effaçait la baisse à la
+      // prochaine réception — même défaut que celui des livraisons (R015).
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
@@ -171,6 +175,12 @@ export class StockService {
       });
       const saved = await qr.manager.save(StockEntry, entry);
 
+      if (delta < 0) {
+        await consumeStockFifo(
+          qr, tenantId, dto.rawMaterialId, Math.abs(delta), 'adjusted',
+        );
+      }
+
       await qr.manager.query(`
         INSERT INTO stock_adjustments
           ("tenantId","rawMaterialId","stockEntryId","quantityAdjustment","reason","notes","adjustedBy","adjustedAt")
@@ -178,15 +188,10 @@ export class StockService {
         [tenantId, dto.rawMaterialId, saved.id, delta, dto.reason, dto.notes ?? null, userId],
       );
 
-      // Set stock directly to new absolute quantity (physical inventory adjustment)
-      await qr.manager.query(`
-        UPDATE finished_products
-        SET "stockQuantity"      = $1,
-            "totalStockValue"    = $2,
-            "updatedAt"          = NOW()
-        WHERE id = $3 AND "tenantId" = $4`,
-        [newQty, newTotalValue, dto.rawMaterialId, tenantId],
-      );
+      // L'agrégat se recalcule depuis les lots, il ne s'écrit pas (R015) :
+      // l'écriture directe qui existait ici était écrasée à la réception
+      // suivante.
+      await recomputeProductStock(qr, tenantId, dto.rawMaterialId);
 
       await qr.commitTransaction();
       return {

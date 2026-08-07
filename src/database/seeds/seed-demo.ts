@@ -26,6 +26,7 @@ const TENANT_SLUG = process.env.DEMO_TENANT_SLUG ?? 'chambre-froide-djelfa';
 
 const N = {
   customers: int(process.env.DEMO_CUSTOMERS, 300),
+  suppliers: int(process.env.DEMO_SUPPLIERS, 30),
   products: int(process.env.DEMO_PRODUCTS, 200),
   invoices: int(process.env.DEMO_INVOICES, 1000),
   deliveryNotes: int(process.env.DEMO_DELIVERY_NOTES, 800),
@@ -70,6 +71,12 @@ const ENSEIGNES = [
   'Rahma', 'El Djazair', 'Ibn Sina', 'El Yasmine', 'Sidi Okba', 'El Anseur',
   'Tassili', 'Hoggar', 'Djurdjura', 'Aurès', 'Chelia', 'Ouarsenis', 'Zaccar',
   'El Feth', 'Ennour', 'El Hidhab', 'Boussaada', 'El Mordjane', 'Errahma',
+] as const;
+
+/** Activités côté amont — ce que fait un fournisseur de la chaîne du froid. */
+const FOURNISSEURS = [
+  'Import', 'Abattoirs', 'Conserverie', 'Surgelés', 'Pêcherie',
+  'Laiterie', 'Minoterie', 'Logistique Froid', 'Négoce International',
 ] as const;
 
 const ACTIVITES = [
@@ -229,13 +236,14 @@ async function seedDemo() {
     //   WHERE contype='f' AND confrelid::regclass::text
     //         IN ('finished_products','partners');
     const purge = [
+      // stock d'abord : stock_entries référence reception_bls ET
+      // finished_products, il doit donc partir avant les deux
+      'stock_adjustments', 'stock_entries',
       // achats
       'vendor_payments', 'vendor_bill_items', 'vendor_bills',
       'reception_bls', 'purchase_order_items', 'purchase_orders',
       // production
       'production_movements', 'production_orders', 'bom_lines', 'nomenclatures',
-      // stock
-      'stock_adjustments', 'stock_entries',
       // ventes
       'payments', 'sales_invoice_items', 'sales_invoices',
       'credit_note_items', 'credit_notes',
@@ -287,6 +295,40 @@ async function seedDemo() {
       'shippingAddress', 'shippingCity', 'notes', 'isActive', 'createdBy', 'updatedBy',
     ], customerRows);
     console.log(`Clients   : ${customerRows.length}`);
+
+    // ── Fournisseurs ──────────────────────────────────────────────────────────
+    // Un négoce achète avant de vendre : sans fournisseur, le module Achats est
+    // inutilisable et l'écran « Nouvelle commande » n'a aucun choix à proposer.
+    const supplierIds: string[] = [];
+    const supplierRows: unknown[][] = [];
+
+    for (let i = 0; i < N.suppliers; i++) {
+      const id = uuid();
+      supplierIds.push(id);
+      const ville = pick(VILLES);
+      const name = `${pick(FORMES)} ${pick(ENSEIGNES)} ${pick(FOURNISSEURS)} ${i + 1}`;
+
+      supplierRows.push([
+        id, tenantId, false, true, name, `${pick(PRENOMS)} ${pick(NOMS)}`,
+        `achats${i + 1}@${slug(name)}.dz`,
+        `+213 ${ri(5, 7)}${ri(10, 99)} ${ri(10, 99)} ${ri(10, 99)} ${ri(10, 99)}`,
+        String(ri(1, 9)) + digits(14),
+        `${ri(10, 48)}/00-${digits(7)} B ${ri(15, 26)}`,
+        digits(11),
+        String(ri(1, 9)) + digits(14),
+        `${ri(1, 250)} ${pick(['Rue', 'Avenue', 'Zone industrielle'])} ${pick(NOMS)}`,
+        ville, 'Algérie', null, null,
+        rnd() < 0.25 ? pick(['Livraison sous 48 h', 'Franco à partir de 200 000 DA', 'Paiement à 30 jours fin de mois']) : null,
+        true, author, author,
+      ]);
+    }
+
+    await insertBatch(qr, 'partners', [
+      'id', 'tenantId', 'isCustomer', 'isSupplier', 'name', 'contactPerson', 'email', 'phone',
+      'nif', 'rc', 'ai', 'nis', 'address', 'city', 'country',
+      'shippingAddress', 'shippingCity', 'notes', 'isActive', 'createdBy', 'updatedBy',
+    ], supplierRows);
+    console.log(`Fournisseurs : ${supplierRows.length}`);
 
     // ── Produits ──────────────────────────────────────────────────────────────
     const products: Array<{ id: string; unit: string; price: number }> = [];

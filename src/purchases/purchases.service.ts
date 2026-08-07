@@ -17,6 +17,7 @@ import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { CreateVendorBillDto } from './dto/create-vendor-bill.dto';
 import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
+import { recomputeProductStock } from '../stock/recompute-product-stock';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -708,38 +709,15 @@ export class PurchasesService {
     return `BL-REC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
   }
 
+  /**
+   * Délègue au recalcul partagé : cette méthode en portait une copie, et c'est
+   * cette duplication qui a permis aux deux niveaux de diverger (R029).
+   */
   private async updateProductStock(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
     rawMaterialId: string,
   ): Promise<void> {
-    const entries = await qr.manager
-      .createQueryBuilder(StockEntry, 'se')
-      .where('se.tenantId = :tenantId', { tenantId })
-      .andWhere('se.finishedProductId = :rawMaterialId', { rawMaterialId })
-      .andWhere('se.status = :status', { status: 'available' })
-      .getMany();
-
-    const totalQuantity = entries.reduce((s, e) => s + Number(e.quantity), 0);
-    const totalValue = entries.reduce((s, e) => s + Number(e.totalCost), 0);
-    const averageCostPerUnit = totalQuantity > 0
-      ? Number((totalValue / totalQuantity).toFixed(2))
-      : 0;
-    const expirations = entries
-      .filter((e) => e.expiresAt !== null)
-      .map((e) => e.expiresAt as Date)
-      .sort((a, b) => a.getTime() - b.getTime());
-    const earliestExpirationDate = expirations[0] ?? null;
-
-    await qr.manager.query(`
-      UPDATE finished_products
-      SET "stockQuantity"          = $1,
-          "averageCostPerUnit"     = $2,
-          "totalStockValue"        = $3,
-          "earliestExpirationDate" = $4,
-          "updatedAt"              = NOW()
-      WHERE id = $5 AND "tenantId" = $6`,
-      [totalQuantity, averageCostPerUnit, totalValue, earliestExpirationDate, rawMaterialId, tenantId],
-    );
+    await recomputeProductStock(qr, tenantId, rawMaterialId);
   }
 }

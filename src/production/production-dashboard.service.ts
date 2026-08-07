@@ -59,10 +59,14 @@ export class ProductionDashboardService {
            COALESCE(SUM(se.quantity), 0) AS "stockQuantity",
            rm."reservedQuantity",
            (COALESCE(SUM(se.quantity), 0) - rm."reservedQuantity") AS available
-         FROM raw_materials rm
+         -- finished_products a absorbé raw_materials (migration 1709981400000) ;
+         -- le filtre sur type restreint aux matières premières, ce que la table
+         -- dédiée faisait implicitement.
+         FROM finished_products rm
          LEFT JOIN stock_entries se
            ON se."rawMaterialId" = rm.id AND se.status = 'available' AND se."deletedAt" IS NULL
          WHERE rm."tenantId" = $1 AND rm."deletedAt" IS NULL
+           AND rm.type IN ('material', 'both')
          GROUP BY rm.id, rm.name, rm.unit, rm."reservedQuantity"
          HAVING (COALESCE(SUM(se.quantity), 0) - rm."reservedQuantity") < 10
          ORDER BY available ASC

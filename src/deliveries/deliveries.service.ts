@@ -11,6 +11,9 @@ import { UpdateDeliveryNoteStatusDto } from './dto/update-delivery-note-status.d
 import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
 import { assertMontant } from '../common/limits';
+import {
+  consumeStockFifo, recomputeProductStock, releaseStockForDeliveryNote,
+} from '../stock/recompute-product-stock';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -107,73 +110,57 @@ export class DeliveriesService {
 
   // ─── Mise à jour stock (direct, sans FIFO) ────────────────────────────────
 
+  /**
+   * Sort le stock d'un bon de livraison, en consommant les lots FIFO (R015).
+   *
+   * L'ancienne version faisait un `UPDATE finished_products SET stockQuantity`
+   * sans toucher aux lots — le commentaire disait d'ailleurs « sans FIFO »
+   * alors que Swagger annonçait l'inverse. Conséquence mesurée le 2026-08-08 :
+   * la réception suivante recalculait l'agrégat depuis les lots seuls et
+   * **ressuscitait les quantités livrées** (100 reçus, 30 livrés, 50 reçus →
+   * 150 au lieu de 120).
+   */
   private async decrementStock(
     qr: QueryRunner,
     tenantId: string,
     items: ComputedItem[],
+    deliveryNoteId: string,
   ): Promise<string[]> {
     const warnings: string[] = [];
     for (const item of items) {
-      const rows: { stockQuantity: string; averageCostPerUnit: string; lastCostPerUnit: string }[] = await qr.query(
-        `SELECT "stockQuantity", "averageCostPerUnit", "lastCostPerUnit"
-         FROM finished_products WHERE id = $1 AND "tenantId" = $2`,
-        [item.finishedProductId, tenantId],
+      const warning = await consumeStockFifo(
+        qr, tenantId, item.finishedProductId, item.quantity, 'sold', deliveryNoteId,
       );
-      const current = rows[0];
-      const currentQty = parseFloat(current?.stockQuantity ?? '0') || 0;
-      const newQty = Math.round((currentQty - item.quantity) * 100) / 100;
-
-      if (currentQty < item.quantity) {
-        warnings.push(`Stock insuffisant pour le produit ${item.finishedProductId} : disponible ${currentQty}, demandé ${item.quantity}`);
-        this.logger.warn(`Stock insuffisant: produit ${item.finishedProductId}, dispo=${currentQty}, demandé=${item.quantity}`);
+      if (warning) {
+        warnings.push(warning);
+        this.logger.warn(warning);
       }
-
-      const avgCost = parseFloat(current?.averageCostPerUnit ?? '0') || 0;
-      const lastCost = parseFloat(current?.lastCostPerUnit ?? '0') || 0;
-      const costPerUnit = avgCost > 0 ? avgCost : lastCost;
-      const newValue = Math.round(Math.max(newQty, 0) * costPerUnit * 100) / 100;
-
-      await qr.query(
-        `UPDATE finished_products
-         SET "stockQuantity" = $1, "totalStockValue" = $2, "updatedAt" = NOW()
-         WHERE id = $3 AND "tenantId" = $4`,
-        [newQty, newValue, item.finishedProductId, tenantId],
-      );
+      await recomputeProductStock(qr, tenantId, item.finishedProductId);
     }
     return warnings;
   }
 
+  /**
+   * Rend au stock les lots sortis par ce bon de livraison, puis recalcule
+   * l'agrégat. Symétrique exact de `decrementStock` : on rebascule les lots
+   * plutôt que d'additionner une quantité sur l'agrégat, sans quoi les deux
+   * niveaux divergeraient à nouveau.
+   */
   private async restoreStock(
     qr: QueryRunner,
     tenantId: string,
     deliveryNoteId: string,
   ): Promise<void> {
-    const items: { finishedProductId: string; quantity: string }[] = await qr.query(
-      `SELECT "finishedProductId", quantity FROM delivery_note_items
+    const items: { finishedProductId: string }[] = await qr.query(
+      `SELECT DISTINCT "finishedProductId" FROM delivery_note_items
        WHERE "deliveryNoteId" = $1 AND "tenantId" = $2`,
       [deliveryNoteId, tenantId],
     );
-    for (const item of items) {
-      const qty = parseFloat(item.quantity);
-      const rows: { stockQuantity: string; averageCostPerUnit: string; lastCostPerUnit: string }[] = await qr.query(
-        `SELECT "stockQuantity", "averageCostPerUnit", "lastCostPerUnit"
-         FROM finished_products WHERE id = $1 AND "tenantId" = $2`,
-        [item.finishedProductId, tenantId],
-      );
-      const current = rows[0];
-      const currentQty = parseFloat(current?.stockQuantity ?? '0') || 0;
-      const newQty = Math.round((currentQty + qty) * 100) / 100;
-      const avgCost = parseFloat(current?.averageCostPerUnit ?? '0') || 0;
-      const lastCost = parseFloat(current?.lastCostPerUnit ?? '0') || 0;
-      const costPerUnit = avgCost > 0 ? avgCost : lastCost;
-      const newValue = Math.round(Math.max(newQty, 0) * costPerUnit * 100) / 100;
 
-      await qr.query(
-        `UPDATE finished_products
-         SET "stockQuantity" = $1, "totalStockValue" = $2, "updatedAt" = NOW()
-         WHERE id = $3 AND "tenantId" = $4`,
-        [newQty, newValue, item.finishedProductId, tenantId],
-      );
+    await releaseStockForDeliveryNote(qr, tenantId, deliveryNoteId);
+
+    for (const item of items) {
+      await recomputeProductStock(qr, tenantId, item.finishedProductId);
     }
   }
 
@@ -206,7 +193,7 @@ export class DeliveriesService {
       );
       await qr.manager.save(DeliveryNoteItem, items);
 
-      const warnings = await this.decrementStock(qr, tenantId, computed);
+      const warnings = await this.decrementStock(qr, tenantId, computed, dn.id);
 
       await qr.commitTransaction();
       const result = await this.findOne(dn.id, tenantId);
@@ -301,7 +288,7 @@ export class DeliveriesService {
       );
       await qr.manager.save(DeliveryNoteItem, items);
 
-      const warnings = await this.decrementStock(qr, tenantId, computed);
+      const warnings = await this.decrementStock(qr, tenantId, computed, id);
 
       await qr.commitTransaction();
       const result = await this.findOne(id, tenantId);
@@ -448,7 +435,7 @@ export class DeliveriesService {
       );
       await qr.manager.save(DeliveryNoteItem, dnItems);
 
-      const warnings = await this.decrementStock(qr, tenantId, computed);
+      const warnings = await this.decrementStock(qr, tenantId, computed, dn.id);
 
       await qr.query(
         `UPDATE quotes SET "convertedToDeliveryNoteId" = $1, status = 'converted', "updatedBy" = $2, "updatedAt" = NOW()
