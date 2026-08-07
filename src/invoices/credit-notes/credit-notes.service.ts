@@ -55,11 +55,12 @@ export class CreditNotesService {
       await qr.query(`SELECT pg_advisory_xact_lock(hashtext('credit_note_number_' || $1))`, [tenantId]);
       const year = new Date().getFullYear();
       const yy = String(year).slice(-2);
+      // withDeleted : un numéro émis est consommé définitivement (voir R013).
       const last = await qr.manager
         .createQueryBuilder(CreditNote, 'cn')
+        .withDeleted()
         .where('cn.tenantId = :tenantId', { tenantId })
         .andWhere('EXTRACT(YEAR FROM cn."createdAt") = :year', { year })
-        .andWhere('cn.deletedAt IS NULL')
         .orderBy('cn.creditNoteNumber', 'DESC')
         .limit(1)
         .getOne();

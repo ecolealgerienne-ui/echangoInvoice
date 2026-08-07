@@ -92,11 +92,12 @@ export class DeliveriesService {
     );
     const year = new Date().getFullYear();
     const yy = String(year).slice(-2);
+    // withDeleted : un numéro émis est consommé définitivement (voir R013).
     const last = await qr.manager
       .createQueryBuilder(DeliveryNote, 'dn')
+      .withDeleted()
       .where('dn.tenantId = :tenantId', { tenantId })
       .andWhere('EXTRACT(YEAR FROM dn."createdAt") = :year', { year })
-      .andWhere('dn.deletedAt IS NULL')
       .orderBy('dn.blNumber', 'DESC')
       .limit(1)
       .getOne();
@@ -492,8 +493,9 @@ export class DeliveriesService {
       const year = new Date().getFullYear();
       const yy = String(year).slice(-2);
       const lastInv: any[] = await qr.query(
+        // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
         `SELECT "invoiceNumber" FROM sales_invoices
-         WHERE "tenantId" = $1 AND EXTRACT(YEAR FROM "createdAt") = $2 AND "deletedAt" IS NULL
+         WHERE "tenantId" = $1 AND EXTRACT(YEAR FROM "createdAt") = $2
          ORDER BY "invoiceNumber" DESC LIMIT 1`,
         [tenantId, year],
       );

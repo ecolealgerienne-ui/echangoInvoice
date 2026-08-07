@@ -89,11 +89,16 @@ export class SalesInvoicesService {
     );
     const year = new Date().getFullYear();
     const yy = String(year).slice(-2);
+    // withDeleted : un numéro émis est consommé définitivement, même si le
+    // document est supprimé — l'index unique (invoiceNumber, tenantId) ne
+    // distingue pas les lignes supprimées, et la numérotation fiscale ne se
+    // réattribue pas. @DeleteDateColumn filtre les supprimés par défaut, donc
+    // l'exclure ici est explicite et non un simple retrait de condition.
     const last = await qr.manager
       .createQueryBuilder(SalesInvoice, 'inv')
+      .withDeleted()
       .where('inv.tenantId = :tenantId', { tenantId })
       .andWhere('EXTRACT(YEAR FROM inv."createdAt") = :year', { year })
-      .andWhere('inv.deletedAt IS NULL')
       .orderBy('inv.invoiceNumber', 'DESC')
       .limit(1)
       .getOne();

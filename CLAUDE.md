@@ -393,6 +393,39 @@ Formats par défaut (configurables dans settings) :
 
 Toutes les colonnes de numérotation ont une contrainte `UNIQUE` en base.
 
+⚠️ **Un numéro émis est consommé définitivement — la numérotation ne filtre
+JAMAIS les documents supprimés.** L'index unique porte sur `(numéro, tenantId)`
+sans exclure les lignes soft-deleted : si le générateur, lui, les exclut, il
+régénère un numéro déjà pris et l'insertion échoue en 500. C'est aussi la bonne
+sémantique comptable — une facture annulée ne libère pas son numéro.
+
+```typescript
+// ✅ CORRECT — @DeleteDateColumn filtre par défaut, il faut l'exclure explicitement
+const last = await qr.manager
+  .createQueryBuilder(DeliveryNote, 'dn')
+  .withDeleted()                                    // ← indispensable
+  .where('dn.tenantId = :tenantId', { tenantId })
+  .andWhere('EXTRACT(YEAR FROM dn."createdAt") = :year', { year })
+  .orderBy('dn.blNumber', 'DESC')
+  .limit(1).getOne();
+
+// ❌ INTERDIT — le numéro d'un document supprimé serait réattribué
+  .andWhere('dn.deletedAt IS NULL')
+```
+
+⚠️ **Retirer le `.andWhere('deletedAt IS NULL')` ne suffit pas** : toutes ces
+entités portent `@DeleteDateColumn`, donc TypeORM ajoute le filtre de lui-même.
+Sans `.withDeleted()`, le comportement reste inchangé. Les requêtes SQL brutes,
+elles, n'ont pas ce filtre implicite : il suffit de ne pas l'écrire.
+
+*Trouvé le 2026-08-07 : `BL-26-801` supprimé en douceur, générateur voyant
+`BL-26-800`, régénérant `BL-26-801` → violation de `UQ_delivery_notes_bl_number_tenant`.
+Les huit générateurs étaient concernés, sauf `PO` et `BL-REC` qui utilisaient
+déjà `.withDeleted()`.*
+
+Cette règle est la seule exception à R011, et elle est délibérée : partout
+ailleurs, le filtre `deletedAt IS NULL` reste obligatoire.
+
 ---
 
 ### R014 — PDF : archivage au chemin imposé

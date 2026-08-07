@@ -82,9 +82,11 @@ export class ProductionOrderService {
 
       const year = new Date().getFullYear();
       const yy = String(year).slice(-2);
+      // withDeleted : une référence émise est consommée définitivement (R013).
       const last = await qr.manager
         .createQueryBuilder(ProductionOrder, 'o')
-        .where('o.tenantId = :tenantId AND o.deletedAt IS NULL', { tenantId })
+        .withDeleted()
+        .where('o.tenantId = :tenantId', { tenantId })
         .andWhere('EXTRACT(YEAR FROM o.createdAt) = :year', { year })
         .orderBy('o.ref', 'DESC')
         .getOne();

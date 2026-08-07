@@ -97,11 +97,12 @@ export class QuotesService {
     );
     const year = new Date().getFullYear();
     const yy = String(year).slice(-2);
+    // withDeleted : un numéro émis est consommé définitivement (voir R013).
     const last = await queryRunner.manager
       .createQueryBuilder(Quote, 'q')
+      .withDeleted()
       .where('q.tenantId = :tenantId', { tenantId })
       .andWhere('EXTRACT(YEAR FROM q."createdAt") = :year', { year })
-      .andWhere('q.deletedAt IS NULL')
       .orderBy('q.quoteNumber', 'DESC')
       .limit(1)
       .getOne();
@@ -268,10 +269,10 @@ export class QuotesService {
       const year = new Date().getFullYear();
       const yy = String(year).slice(-2);
       const lastInv = await qr.manager.query(
+        // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
         `SELECT "invoiceNumber" FROM sales_invoices
          WHERE "tenantId" = $1
            AND EXTRACT(YEAR FROM "createdAt") = $2
-           AND "deletedAt" IS NULL
          ORDER BY "invoiceNumber" DESC
          LIMIT 1`,
         [tenantId, year],

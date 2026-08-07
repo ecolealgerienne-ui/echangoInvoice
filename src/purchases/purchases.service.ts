@@ -660,8 +660,9 @@ export class PurchasesService {
     const year = new Date().getFullYear();
     const yy = String(year).slice(-2);
     const last: any[] = await qr.query(
+      // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
       `SELECT "billNumber" FROM vendor_bills
-       WHERE "tenantId"=$1 AND EXTRACT(YEAR FROM "createdAt")=$2 AND "deletedAt" IS NULL
+       WHERE "tenantId"=$1 AND EXTRACT(YEAR FROM "createdAt")=$2
        ORDER BY "billNumber" DESC LIMIT 1`,
       [tenantId, year],
     );
