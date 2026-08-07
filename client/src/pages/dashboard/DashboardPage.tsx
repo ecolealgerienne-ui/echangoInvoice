@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { dashboardApi } from '@/lib/api';
-import { formatCurrency, currentMonth } from '@/lib/utils';
+import { formatCurrency, formatDate, currentMonth } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { TrendingUp, FileText, Package, DollarSign, AlertTriangle, Clock } from 'lucide-react';
@@ -29,6 +29,28 @@ function StatCard({ title, value, sub, icon: Icon, variant }: {
   );
 }
 
+/**
+ * Barre horizontale proportionnelle. Le projet n'embarque aucune librairie de
+ * graphiques ; en ajouter une pour quatre barres coûterait plus cher que ces
+ * quelques div.
+ */
+function BarRow({ label, value, max, display }: {
+  label: string; value: number; max: number; display: string;
+}) {
+  const pct = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground truncate max-w-[60%]">{label}</span>
+        <span className="font-medium text-foreground">{display}</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const [month, setMonth] = useState(currentMonth());
@@ -38,12 +60,33 @@ export function DashboardPage() {
     queryFn: () => dashboardApi.stats(month),
   });
 
+  const { data: salesChartData } = useQuery({
+    queryKey: ['dashboard-sales-chart', month],
+    queryFn: () => dashboardApi.salesChart(month),
+  });
+
+  // Pas de mois en paramètre : le stock est une photo à l'instant t.
+  const { data: stockChartData } = useQuery({
+    queryKey: ['dashboard-stock-chart'],
+    queryFn: () => dashboardApi.stockChart(),
+  });
+
   if (isLoading) return <LoadingSpinner />;
 
   const stats = data?.data;
   if (!stats) return null;
 
   const { sales, purchases, expenses, profit, stock, alerts } = stats;
+
+  const salesChart = salesChartData?.data;
+  const stockChart = stockChartData?.data;
+  const byDate: any[] = salesChart?.byDate ?? [];
+  const maxDayRevenue = byDate.reduce((m, d) => Math.max(m, d.revenue), 0);
+  const byMethod: [string, number][] = Object.entries(salesChart?.byPaymentMethod ?? {});
+  const maxMethod = byMethod.reduce((m, [, v]) => Math.max(m, v as number), 0);
+  const topStock: any[] = (stockChart?.byRawMaterial ?? []).slice(0, 8);
+  const maxStockValue = topStock.reduce((m, r) => Math.max(m, r.stockValue), 0);
+  const expiring: any[] = stockChart?.expiringWithin30Days ?? [];
 
   return (
     <div className="space-y-6">
@@ -154,6 +197,80 @@ export function DashboardPage() {
                 Impayé total : <span className="font-medium text-foreground">{formatCurrency(alerts.unpaidInvoicesTotal)}</span>
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Graphiques : ventes du mois, règlements, stock */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>{t('dashboard.revenueByDay')}</CardTitle></CardHeader>
+          <CardContent>
+            {byDate.length === 0
+              ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
+              : (
+                <div className="flex items-end gap-1 h-40">
+                  {byDate.map((d: any) => (
+                    <div
+                      key={d.date}
+                      className="flex-1 min-w-[3px] rounded-t bg-primary/80 hover:bg-primary transition-colors"
+                      style={{ height: `${maxDayRevenue > 0 ? Math.max(2, (d.revenue / maxDayRevenue) * 100) : 0}%` }}
+                      title={`${formatDate(d.date)} — ${formatCurrency(d.revenue)} (${d.invoiceCount})`}
+                    />
+                  ))}
+                </div>
+              )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>{t('dashboard.byPaymentMethod')}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {maxMethod === 0
+              ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
+              : byMethod.map(([method, amount]) => (
+                <BarRow
+                  key={method}
+                  label={t(`invoices.methods.${method}`)}
+                  value={amount as number}
+                  max={maxMethod}
+                  display={formatCurrency(amount as number)}
+                />
+              ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>{t('dashboard.stockByProduct')}</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {topStock.length === 0
+              ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
+              : topStock.map((r: any) => (
+                <BarRow
+                  key={r.rawMaterialId}
+                  label={r.name}
+                  value={r.stockValue}
+                  max={maxStockValue}
+                  display={formatCurrency(r.stockValue)}
+                />
+              ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>{t('dashboard.expiringLots')}</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {expiring.length === 0
+              ? <p className="text-sm text-muted-foreground">{t('dashboard.noExpiringLots')}</p>
+              : expiring.slice(0, 8).map((e: any) => (
+                <div key={e.stockEntryId} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground truncate max-w-[50%]">{e.name}</span>
+                  <span className="text-xs text-muted-foreground">{e.quantity} {e.unit}</span>
+                  <Badge variant={e.daysUntilExpiry <= 7 ? 'destructive' : 'warning'}>
+                    {t('dashboard.inDays', { count: e.daysUntilExpiry })}
+                  </Badge>
+                </div>
+              ))}
           </CardContent>
         </Card>
       </div>

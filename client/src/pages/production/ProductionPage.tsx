@@ -109,6 +109,12 @@ export function ProductionPage() {
   const [movModalOpen, setMovModalOpen] = useState(false);
 
   // ── Data ────────────────────────────────────────────────────────────────────
+  // Indicateurs affichés au-dessus des onglets : ils valent pour les deux.
+  const { data: prodDashboardData } = useQuery({
+    queryKey: ['production-dashboard'],
+    queryFn: () => productionApi.getDashboard(),
+  });
+
   const { data: nomenclaturesData, isLoading: nomLoading } = useQuery({
     queryKey: ['production-nomenclatures', page, search],
     queryFn: () => productionApi.listNomenclatures({ page, limit: 20, search: search || undefined }),
@@ -397,6 +403,47 @@ export function ProductionPage() {
           {tab === 'nomenclatures' ? t('production.newNomenclature') : t('production.newOrder')}
         </Button>
       </div>
+
+      {/* Indicateurs de production */}
+      {prodDashboardData?.data && (
+        <>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <KpiCard
+              label={t('dashboard.production.ordersInProgress')}
+              value={prodDashboardData.data.ordersInProgress}
+            />
+            <KpiCard
+              label={t('dashboard.production.ordersCompletedThisWeek')}
+              value={prodDashboardData.data.ordersCompletedThisWeek}
+            />
+            <KpiCard
+              label={t('dashboard.production.averageYield')}
+              value={`${prodDashboardData.data.averageYield} %`}
+            />
+            <KpiCard
+              label={t('dashboard.production.costVariance')}
+              value={`${formatCurrency(prodDashboardData.data.costVariance.amount)} (${prodDashboardData.data.costVariance.pct} %)`}
+              colorClass={prodDashboardData.data.costVariance.amount > 0 ? 'text-destructive' : 'text-green-600'}
+            />
+          </div>
+
+          {prodDashboardData.data.criticalStock?.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle>{t('dashboard.production.criticalStock')}</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {prodDashboardData.data.criticalStock.map((c: any) => (
+                  <div key={c.rawMaterial.id} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground truncate max-w-[50%]">{c.rawMaterial.name}</span>
+                    <Badge variant={c.available <= 0 ? 'destructive' : 'warning'}>
+                      {c.available} {c.rawMaterial.unit}
+                    </Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">

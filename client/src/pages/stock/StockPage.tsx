@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { AlertTriangle, Clock, TrendingDown, Pencil, Target } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, Pencil, Target, ChevronDown, ChevronRight } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -19,6 +19,10 @@ import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
+
+const LOT_STATUS_VARIANT: Record<string, any> = {
+  available: 'success', reserved: 'warning', sold: 'muted', adjusted: 'secondary',
+};
 
 const adjustSchema = z.object({
   newQuantity: z.coerce.number().min(0, 'Quantité invalide'),
@@ -43,6 +47,9 @@ export function StockPage() {
   const [adjustTarget, setAdjustTarget] = useState<any | null>(null);
   const [thresholdTarget, setThresholdTarget] = useState<any | null>(null);
   const [thresholdValue, setThresholdValue] = useState<string>('');
+  // Produit dont les lots sont dépliés. Un seul à la fois : les lots ne sont
+  // chargés qu'à l'ouverture, pas pour toute la page.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const { visible, toggle, col } = useColumnVisibility(
     'stock_visible_columns',
     ['name', 'quantity', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
@@ -52,6 +59,12 @@ export function StockPage() {
     queryKey: ['stock-inventory', page],
     queryFn: () => stockApi.inventory({ page, limit: 20 }),
     enabled: tab === 'inventory',
+  });
+
+  const { data: entriesData, isLoading: entriesLoading } = useQuery({
+    queryKey: ['stock-entries', expandedId],
+    queryFn: () => stockApi.entries(expandedId!, { limit: 100 }),
+    enabled: !!expandedId,
   });
 
   const { data: alertData, isLoading: alertLoading } = useQuery({
@@ -163,8 +176,22 @@ export function StockPage() {
                     <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
-                    <tr key={item.rawMaterialId} className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
-                      {col('name') && <td className="px-4 py-3 font-medium text-foreground">{item.rawMaterialName}<span className="text-muted-foreground ml-1 text-xs">({item.unit})</span></td>}
+                    <Fragment key={item.rawMaterialId}>
+                    <tr className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
+                      {col('name') && <td className="px-4 py-3 font-medium text-foreground">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                          title={t('stock.showLots')}
+                          onClick={() => setExpandedId(expandedId === item.rawMaterialId ? null : item.rawMaterialId)}
+                        >
+                          {expandedId === item.rawMaterialId
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          {item.rawMaterialName}
+                        </button>
+                        <span className="text-muted-foreground ml-1 text-xs">({item.unit})</span>
+                      </td>}
                       {col('quantity') && <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>}
                       {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
                       {col('expiryAlert') && <td className="px-4 py-3 text-center">
@@ -189,6 +216,45 @@ export function StockPage() {
                         </div>
                       </td>
                     </tr>
+                    {expandedId === item.rawMaterialId && (
+                      <tr className="bg-muted/20">
+                        <td colSpan={visible.length + 1} className="px-4 py-3">
+                          {entriesLoading ? <LoadingSpinner size="sm" /> : (
+                            entriesData?.data?.length === 0
+                              ? <p className="text-sm text-muted-foreground py-2">{t('stock.noLots')}</p>
+                              : (
+                                <table className="w-full text-xs">
+                                  <thead><tr className="text-muted-foreground">
+                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.lotNumber')}</th>
+                                    <th className="px-2 py-1.5 text-right font-medium">{t('stock.quantity')}</th>
+                                    <th className="px-2 py-1.5 text-right font-medium">{t('stock.unitCost')}</th>
+                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.enteredAt')}</th>
+                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.expiry')}</th>
+                                    <th className="px-2 py-1.5 text-center font-medium">{t('common.status')}</th>
+                                  </tr></thead>
+                                  <tbody className="divide-y divide-border">
+                                    {entriesData?.data?.map((lot: any) => (
+                                      <tr key={lot.id}>
+                                        <td className="px-2 py-1.5 font-mono text-foreground">{lot.batchNumber || '—'}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground">{formatNumber(lot.quantity)}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground">{formatCurrency(lot.costPerUnit)}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{formatDate(lot.enteredAt)}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{lot.expiresAt ? formatDate(lot.expiresAt) : '—'}</td>
+                                        <td className="px-2 py-1.5 text-center">
+                                          <Badge variant={LOT_STATUS_VARIANT[lot.status] ?? 'muted'}>
+                                            {t(`stock.lotStatus.${lot.status}`)}
+                                          </Badge>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

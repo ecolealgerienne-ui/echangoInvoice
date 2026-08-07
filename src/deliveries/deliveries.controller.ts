@@ -1,6 +1,6 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe,
-  Patch, Post, Put, Query, Res, UseGuards,
+  Body, Controller, Delete, Get, HttpCode, HttpException, Param, ParseUUIDPipe,
+  Patch, Post, Put, Query, Res, ServiceUnavailableException, UseGuards,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -113,6 +113,13 @@ export class DeliveriesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer le BL par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId!);
+    // Même traitement que pour la facture : ne pas masquer les erreurs métier,
+    // mais donner une clé exploitable quand c'est le SMTP qui échoue.
+    try {
+      await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId!);
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      throw new ServiceUnavailableException('email_send_failed');
+    }
   }
 }

@@ -50,6 +50,7 @@
     "quotes": "Devis",
     "purchases": "Achats",
     "creditNotes": "Avoirs",
+    "rawMaterials": "Matières premières",
     "vendorBills": "Factures fournisseurs",
     "production": "Production",
     "group": {
@@ -99,7 +100,23 @@
     "unpaidInvoices": "Factures impayées",
     "lowStock": "Stock bas",
     "topCustomers": "Top clients",
-    "month": "Mois"
+    "month": "Mois",
+    "revenueByDay": "CA par jour",
+    "byPaymentMethod": "Encaissements par mode de règlement",
+    "stockByProduct": "Valeur du stock par article",
+    "expiringLots": "Lots expirant sous 30 jours",
+    "noExpiringLots": "Aucun lot n'expire dans les 30 jours",
+    "inDays": "{{count}} j",
+    "production": {
+      "title": "Production",
+      "ordersInProgress": "Ordres en cours",
+      "ordersCompletedThisWeek": "Terminés cette semaine",
+      "averageYield": "Rendement moyen",
+      "costVariance": "Écart de coût (30 j)",
+      "criticalStock": "Matières critiques",
+      "productionByDay": "Production par jour (14 j)",
+      "noCriticalStock": "Aucune matière sous le seuil"
+    }
   },
   "customers": {
     "title": "Clients",
@@ -174,6 +191,17 @@
     "expiry": "Expiration",
     "expiryAlert": "Alerte expiration",
     "lowStockAlert": "Stock bas",
+    "showLots": "Afficher les lots",
+    "noLots": "Aucun lot pour cet article",
+    "lotNumber": "N° de lot",
+    "unitCost": "Coût unitaire",
+    "enteredAt": "Entré le",
+    "lotStatus": {
+      "available": "Disponible",
+      "reserved": "Réservé",
+      "sold": "Sorti",
+      "adjusted": "Ajusté"
+    },
     "reasons": {
       "physical_count": "Inventaire physique",
       "correction": "Correction d'erreur",
@@ -211,6 +239,11 @@
     "paymentMethod": "Mode de paiement",
     "paymentReference": "Référence",
     "recordPayment": "Valider le paiement",
+    "paymentHistory": "Règlements de la facture",
+    "cancelPayment": "Annuler ce règlement",
+    "paymentCancelled": "Règlement annulé",
+    "sendEmail": "Envoyer par e-mail",
+    "emailSent": "Facture envoyée par e-mail",
     "methods": {
       "bank_transfer": "Virement bancaire",
       "cheque": "Chèque",
@@ -227,6 +260,12 @@
     "date": "Date",
     "approved": "Approuvée",
     "pending": "En attente",
+    "summary": {
+      "total": "Total du mois",
+      "approved": "Approuvées",
+      "pending": "En attente",
+      "perDay": "Moyenne / jour"
+    },
     "categories": {
       "loyer": "Loyer",
       "utilities": "Charges",
@@ -308,6 +347,7 @@
     "invalidEmail": "Email invalide",
     "network": "Erreur de connexion au serveur",
     "internal_server_error": "Erreur interne du serveur",
+    "email_send_failed": "L'envoi de l'e-mail a échoué. Vérifiez la configuration SMTP et l'adresse du destinataire.",
     "duplicate_entry": "Cet élément existe déjà (doublon)",
     "foreign_key_violation": "Cet élément est utilisé par d'autres données et ne peut pas être supprimé",
     "invalid_credentials": "Identifiants incorrects",
@@ -388,12 +428,20 @@
     "title": "Bons de Livraison",
     "new": "Nouveau BL",
     "blNumber": "N° BL",
+    "customer": "Client",
     "created": "Bon de livraison créé",
     "cancelled": "Bon de livraison annulé",
     "send": "Envoyer",
     "markDelivered": "Marquer livré",
     "createInvoice": "Facturer",
     "invoiceCreated": "Facture créée depuis le BL",
+    "sign": "Enregistrer la signature",
+    "signed": "Bon de livraison signé",
+    "signatureName": "Nom du signataire",
+    "signatureDate": "Date de signature",
+    "signaturePlaceholder": "Nom et qualité de la personne qui réceptionne",
+    "sendEmail": "Envoyer par e-mail",
+    "emailSent": "Bon de livraison envoyé par e-mail",
     "status": {
       "draft": "Brouillon",
       "sent": "Envoyé",

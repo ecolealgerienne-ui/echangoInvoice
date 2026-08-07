@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { expensesApi , resolveApiError } from '@/lib/api';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, currentMonth } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -37,6 +38,7 @@ export function ExpensesPage() {
   const [category, setCategory] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [month, setMonth] = useState(currentMonth());
   // L'union couvre toutes les colonnes du menu : « notes » est masquée par
   // défaut mais reste activable.
   const { visible, toggle, col } = useColumnVisibility<
@@ -51,6 +53,13 @@ export function ExpensesPage() {
     queryFn: () => expensesApi.list({ page, limit: 20, category: category || undefined }),
   });
 
+  // Le résumé porte sur un mois, indépendamment du filtre de catégorie et de
+  // la pagination de la liste.
+  const { data: summaryData } = useQuery({
+    queryKey: ['expenses-summary', month],
+    queryFn: () => expensesApi.summary(month),
+  });
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { category: 'other' },
@@ -58,19 +67,19 @@ export function ExpensesPage() {
 
   const mutation = useMutation({
     mutationFn: (d: FormData) => editing ? expensesApi.update(editing.id, d) : expensesApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.save') + ' !'); closeModal(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); qc.invalidateQueries({ queryKey: ['expenses-summary'] }); toast(t('common.save') + ' !'); closeModal(); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => expensesApi.approve(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.approve') + ' !'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); qc.invalidateQueries({ queryKey: ['expenses-summary'] }); toast(t('common.approve') + ' !'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => expensesApi.remove(id),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); toast(t('common.delete') + ' !', 'success'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses'] }); qc.invalidateQueries({ queryKey: ['expenses-summary'] }); toast(t('common.delete') + ' !', 'success'); },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -89,7 +98,29 @@ export function ExpensesPage() {
         <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> {t('expenses.new')}</Button>
       </div>
 
+      {summaryData?.data && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            { label: t('expenses.summary.total'), value: formatCurrency(summaryData.data.totalExpenses) },
+            { label: t('expenses.summary.approved'), value: formatCurrency(summaryData.data.totalApproved) },
+            { label: t('expenses.summary.pending'), value: formatCurrency(summaryData.data.totalPending) },
+            { label: t('expenses.summary.perDay'), value: formatCurrency(summaryData.data.average.perDay) },
+          ].map(s => (
+            <Card key={s.label}><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="text-lg font-bold text-foreground">{s.value}</p>
+            </CardContent></Card>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
+        <input
+          type="month"
+          value={month}
+          onChange={e => setMonth(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
         <Select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }} className="w-44">
           <option value="">Toutes catégories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}

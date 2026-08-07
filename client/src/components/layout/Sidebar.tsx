@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Truck, Box, Layers,
   FileText, BarChart2, Settings, LogOut, ClipboardList,
   FileSignature, ShoppingCart, Receipt, Factory,
-  Shield, Building2, CreditCard,
+  Shield, Building2, CreditCard, FileMinus, Boxes,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -19,12 +19,14 @@ const groups = [
       { to: '/quotes', icon: FileSignature, key: 'nav.quotes' },
       { to: '/invoices', icon: FileText, key: 'nav.invoices' },
       { to: '/deliveries', icon: ClipboardList, key: 'nav.deliveries' },
+      { to: '/credit-notes', icon: FileMinus, key: 'nav.creditNotes' },
     ],
   },
   {
     key: 'nav.group.catalog',
     items: [
       { to: '/products', icon: Box, key: 'nav.products' },
+      { to: '/raw-materials', icon: Boxes, key: 'nav.rawMaterials' },
       { to: '/stock', icon: Layers, key: 'nav.stock' },
     ],
   },

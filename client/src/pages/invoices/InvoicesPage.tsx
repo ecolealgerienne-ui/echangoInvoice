@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw, Mail, History } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -62,6 +62,7 @@ export function InvoicesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
+  const [historyInvoice, setHistoryInvoice] = useState<any>(null);
   const { visible, toggle, col } = useColumnVisibility(
     'invoices_visible_columns',
     ['number', 'customer', 'origin', 'invoiceDate', 'dueDate', 'amount', 'due', 'status', 'notes'],
@@ -139,11 +140,38 @@ export function InvoicesPage() {
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
+  const sendEmailMutation = useMutation({
+    mutationFn: (id: string) => invoicesApi.sendEmail(id),
+    onSuccess: () => toast(t('invoices.emailSent'), 'success'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  // Règlements de la facture ouverte dans la modale d'historique. La requête
+  // ne part que quand une facture est sélectionnée.
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['invoice-payments', historyInvoice?.id],
+    queryFn: () => invoicesApi.payments(historyInvoice.id),
+    enabled: !!historyInvoice,
+  });
+
+  const removePaymentMutation = useMutation({
+    mutationFn: (paymentId: string) => invoicesApi.removePayment(paymentId),
+    onSuccess: () => {
+      // La facture change aussi (amountPaid, amountDue, status) : les deux
+      // listes doivent repartir.
+      qc.invalidateQueries({ queryKey: ['invoice-payments'] });
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      toast(t('invoices.paymentCancelled'), 'success');
+    },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
   const paymentMutation = useMutation({
     mutationFn: (d: PaymentFormData) =>
       invoicesApi.addPayment({ ...d, salesInvoiceId: paymentInvoice.id }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['invoice-payments'] });
       toast(t('invoices.paymentAdded'), 'success');
       setPaymentInvoice(null);
       paymentForm.reset({ paymentDate: today, paymentMethod: 'bank_transfer' });
@@ -269,6 +297,21 @@ export function InvoicesPage() {
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
+                      {/* Envoi par e-mail : pas sur un brouillon (pas encore
+                          émis) ni sur une facture annulée. */}
+                      {!['draft', 'cancelled'].includes(inv.status) && (
+                        <Button variant="ghost" size="icon" title={t('invoices.sendEmail')}
+                          disabled={sendEmailMutation.isPending}
+                          onClick={() => sendEmailMutation.mutate(inv.id)}>
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                      {Number(inv.amountPaid) > 0 && (
+                        <Button variant="ghost" size="icon" title={t('invoices.paymentHistory')}
+                          onClick={() => setHistoryInvoice(inv)}>
+                          <History className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
                       {inv.status === 'draft' && (
                         <>
                           <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(inv)}>
@@ -475,6 +518,65 @@ export function InvoicesPage() {
               </Button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!historyInvoice}
+        onClose={() => setHistoryInvoice(null)}
+        title={t('invoices.paymentHistory')}
+        size="lg"
+      >
+        {historyInvoice && (
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted px-4 py-3 text-sm space-y-1">
+              <p><span className="text-muted-foreground">{t('invoices.number')} :</span> <span className="font-mono font-medium">{historyInvoice.invoiceNumber}</span></p>
+              <p><span className="text-muted-foreground">{t('invoices.amount')} :</span> <span className="font-medium">{formatCurrency(historyInvoice.totalAmount)}</span></p>
+              <p><span className="text-muted-foreground">{t('invoices.due')} :</span> <span className="font-medium text-destructive">{formatCurrency(historyInvoice.amountDue)}</span></p>
+            </div>
+
+            {paymentsLoading && <LoadingSpinner />}
+
+            {!paymentsLoading && (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50"><tr>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentDate')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentMethod')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentReference')}</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.paymentAmount')}</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-border">
+                    {paymentsData?.data?.length === 0 && (
+                      <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                    )}
+                    {paymentsData?.data?.map((p: any) => (
+                      <tr key={p.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 text-muted-foreground">{formatDate(p.paymentDate)}</td>
+                        <td className="px-4 py-3 text-foreground">{t(`invoices.methods.${p.paymentMethod}`)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{p.reference || '—'}</td>
+                        <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(p.amount)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Button variant="ghost" size="icon" title={t('invoices.cancelPayment')}
+                            disabled={removePaymentMutation.isPending}
+                            onClick={() => removePaymentMutation.mutate(p.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => setHistoryInvoice(null)}>
+                {t('common.close')}
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

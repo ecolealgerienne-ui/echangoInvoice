@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt, Mail, PenLine } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 
@@ -51,6 +51,9 @@ export function DeliveryNotesPage() {
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [signingBl, setSigningBl] = useState<any>(null);
+  const [signName, setSignName] = useState('');
+  const [signDate, setSignDate] = useState('');
   // L'union couvre toutes les colonnes du menu : « quote » et « notes » sont
   // masquées par défaut mais restent activables.
   const { visible, toggle, col } = useColumnVisibility<
@@ -129,6 +132,25 @@ export function DeliveryNotesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deliveriesApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['delivery-notes'] }); toast(t('common.deleted'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: (id: string) => deliveriesApi.sendEmail(id),
+    onSuccess: () => toast(t('deliveries.emailSent'), 'success'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const signMutation = useMutation({
+    mutationFn: ({ id, name, date }: { id: string; name: string; date: string }) =>
+      deliveriesApi.sign(id, name, date || undefined),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      toast(t('deliveries.signed'), 'success');
+      setSigningBl(null);
+      setSignName('');
+      setSignDate(today);
+    },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -253,6 +275,21 @@ export function DeliveryNotesPage() {
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(bl.id, bl.blNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
+                      {!['draft', 'cancelled'].includes(bl.status) && (
+                        <Button variant="ghost" size="icon" title={t('deliveries.sendEmail')}
+                          disabled={sendEmailMutation.isPending}
+                          onClick={() => sendEmailMutation.mutate(bl.id)}>
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                      {/* Signature : le backend n'accepte que draft et sent
+                          (deliveries.service.ts ALLOWED sign). */}
+                      {['draft', 'sent'].includes(bl.status) && (
+                        <Button variant="ghost" size="icon" title={t('deliveries.sign')}
+                          onClick={() => { setSigningBl(bl); setSignName(''); setSignDate(today); }}>
+                          <PenLine className="h-4 w-4 text-primary" />
+                        </Button>
+                      )}
                       {/* brouillon : modifier, envoyer, annuler, supprimer */}
                       {bl.status === 'draft' && (
                         <>
@@ -272,6 +309,25 @@ export function DeliveryNotesPage() {
                       )}
                       {/* envoyé : livrer, facturer, annuler */}
                       {bl.status === 'sent' && (
+                        <>
+                          <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                          {!bl.convertedToInvoiceId && (
+                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
+                              <Receipt className="h-4 w-4 text-blue-600" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
+                            <XCircle className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                      {/* signé : livrer, facturer, annuler — ALLOWED_TRANSITIONS
+                          autorise signed → delivered|cancelled, et createInvoice
+                          accepte signed. Sans ce bloc, signer menait à une
+                          ligne sans aucune action possible. */}
+                      {bl.status === 'signed' && (
                         <>
                           <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
                             <CheckCircle className="h-4 w-4 text-green-600" />
@@ -408,6 +464,49 @@ export function DeliveryNotesPage() {
             <Button type="submit" disabled={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!signingBl}
+        onClose={() => setSigningBl(null)}
+        title={t('deliveries.sign')}
+      >
+        {signingBl && (
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              signMutation.mutate({ id: signingBl.id, name: signName.trim(), date: signDate });
+            }}
+            className="space-y-4"
+          >
+            <div className="rounded-md bg-muted px-4 py-3 text-sm space-y-1">
+              <p><span className="text-muted-foreground">{t('deliveries.blNumber')} :</span> <span className="font-mono font-medium">{signingBl.blNumber}</span></p>
+              <p><span className="text-muted-foreground">{t('deliveries.customer')} :</span> <span className="font-medium">{signingBl.customer?.name ?? '—'}</span></p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('deliveries.signatureName')} *</label>
+              <Input
+                value={signName}
+                onChange={e => setSignName(e.target.value)}
+                placeholder={t('deliveries.signaturePlaceholder')}
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('deliveries.signatureDate')}</label>
+              <Input type="date" value={signDate} onChange={e => setSignDate(e.target.value)} />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSigningBl(null)}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={!signName.trim() || signMutation.isPending}>
+                {signMutation.isPending ? <LoadingSpinner size="sm" /> : t('common.save')}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

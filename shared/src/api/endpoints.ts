@@ -67,6 +67,11 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     inventory: (params?: Params) => api.get('/stock/inventory', { params }).then((r) => r.data),
     alerts: () => api.get('/stock/alerts').then((r) => r.data),
     adjust: (body: unknown) => api.post('/stock/adjust', body).then((r) => r.data),
+    // Lots d'un produit. Le paramètre s'appelle rawMaterialId côté backend : la
+    // colonne stock_entries."rawMaterialId" a survécu à l'absorption de
+    // raw_materials par finished_products (migration 1709981400000).
+    entries: (productId: string, params?: Params) =>
+      api.get(`/stock/entries/${productId}`, { params }).then((r) => r.data),
     setThreshold: (rawMaterialId: string, alertThreshold: number) =>
       api
         .patch(`/stock/inventory/${rawMaterialId}/threshold`, { alertThreshold })
@@ -88,9 +93,19 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     reopen: (id: string) =>
       api.patch(`/invoices/sales-invoices/${id}/status`, { status: 'draft' }).then((r) => r.data),
     remove: (id: string) => api.delete(`/invoices/sales-invoices/${id}`).then((r) => r.data),
-    payments: (invoiceId: string) =>
-      api.get('/invoices/payments', { params: { invoiceId } }).then((r) => r.data),
+    // Le filtre s'appelle salesInvoiceId dans ListPaymentsDto. La version
+    // précédente envoyait `invoiceId` : avec forbidNonWhitelisted, l'appel
+    // partait en 400. Jamais vu parce que jamais appelé.
+    payments: (salesInvoiceId: string) =>
+      api.get('/invoices/payments', { params: { salesInvoiceId } }).then((r) => r.data),
     addPayment: (body: unknown) => api.post('/invoices/payments', body).then((r) => r.data),
+    // Annule un encaissement : le backend inverse aussi amountPaid/amountDue et
+    // le statut de la facture. Répond 204, donc pas de corps à lire.
+    removePayment: (paymentId: string) =>
+      api.delete(`/invoices/payments/${paymentId}`).then(() => undefined),
+    // 204 également — le PDF part en pièce jointe, rien n'est renvoyé.
+    sendEmail: (id: string) =>
+      api.post(`/invoices/sales-invoices/${id}/send-email`).then(() => undefined),
     pdf: (id: string) =>
       api.get(`/invoices/sales-invoices/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
   };
@@ -116,6 +131,12 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then((r) => r.data),
     pdf: (id: string) =>
       api.get(`/deliveries/delivery-notes/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
+    sign: (id: string, customerSignature: string, signedDate?: string) =>
+      api
+        .patch(`/deliveries/delivery-notes/${id}/signature`, { customerSignature, signedDate })
+        .then((r) => r.data),
+    sendEmail: (id: string) =>
+      api.post(`/deliveries/delivery-notes/${id}/send-email`).then(() => undefined),
     createInvoice: (id: string) =>
       api.post(`/deliveries/delivery-notes/${id}/create-invoice`).then((r) => r.data),
   };

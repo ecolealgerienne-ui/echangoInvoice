@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpException, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -92,6 +92,15 @@ export class InvoicesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer la facture par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendInvoiceEmail(id, user.tenantId!);
+    try {
+      await this.pdfService.sendInvoiceEmail(id, user.tenantId!);
+    } catch (err) {
+      // Les exceptions HTTP (facture introuvable, client sans e-mail) portent
+      // déjà leur clé — on ne les masque pas. Le reste vient du SMTP : sans
+      // clé dédiée, l'utilisateur ne voyait qu'un 500 générique sans savoir
+      // que c'est la configuration e-mail qui est en cause.
+      if (err instanceof HttpException) throw err;
+      throw new ServiceUnavailableException('email_send_failed');
+    }
   }
 }
