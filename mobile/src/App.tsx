@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { formatCurrency, resolveApiError } from '@echango/shared';
+import { resolveApiError } from '@echango/shared';
 import { authApi, customersApi, tokenStorage, setSessionExpiredHandler } from './services/api';
 import { connectivity } from './services/connectivity';
 import { API_URL } from './config';
 
 /** Bandeau de connectivité (spec 17 §8.1) — persistant, ambre, contraste 11:1. */
 function ConnectivityBanner({ online }: { online: boolean }) {
+  const { t } = useTranslation();
   const [justReconnected, setJustReconnected] = useState(false);
   const [wasOffline, setWasOffline] = useState(false);
 
@@ -19,8 +20,8 @@ function ConnectivityBanner({ online }: { online: boolean }) {
     if (!wasOffline) return;
     setJustReconnected(true);
     setWasOffline(false);
-    const t = setTimeout(() => setJustReconnected(false), 2000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setJustReconnected(false), 2000);
+    return () => clearTimeout(timer);
   }, [online, wasOffline]);
 
   if (online && !justReconnected) return null;
@@ -31,7 +32,7 @@ function ConnectivityBanner({ online }: { online: boolean }) {
         online ? 'bg-emerald-500 text-neutral-900' : 'bg-amber-500 text-neutral-900'
       }`}
     >
-      {online ? '✓ Reconnecté' : '⚠ Hors ligne'}
+      {online ? `✓ ${t('mobile.reconnected')}` : `⚠ ${t('mobile.offline')}`}
     </div>
   );
 }
@@ -64,7 +65,7 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
       <p className="text-sm text-neutral-700">{API_URL}</p>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-neutral-900">Email</span>
+        <span className="text-sm font-medium text-neutral-900">{t('auth.email')}</span>
         <input
           type="email"
           value={email}
@@ -74,7 +75,7 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-neutral-900">Mot de passe</span>
+        <span className="text-sm font-medium text-neutral-900">{t('auth.password')}</span>
         <input
           type="password"
           value={password}
@@ -90,37 +91,47 @@ function LoginScreen({ onLogged }: { onLogged: () => void }) {
         disabled={busy}
         className="h-14 rounded bg-neutral-900 text-base font-semibold text-white disabled:opacity-50"
       >
-        {busy ? '…' : 'Se connecter'}
+        {busy ? t('common.loading') : t('auth.loginButton')}
       </button>
     </form>
   );
 }
 
 function CustomersScreen() {
+  const { t } = useTranslation();
   const { data, isLoading, error } = useQuery({
     queryKey: ['customers'],
     queryFn: () => customersApi.list({ limit: 20 }),
   });
 
-  if (isLoading) return <p className="p-6 text-neutral-700">Chargement…</p>;
-  if (error) return <p className="p-6 text-red-700">{String(error)}</p>;
+  if (isLoading) return <p className="p-6 text-neutral-700">{t('common.loading')}</p>;
+  if (error) return <p className="p-6 text-red-700">{resolveApiError(error, t)}</p>;
+
+  const customers = data?.data ?? [];
 
   return (
     <div>
       <h2 className="px-4 py-3 text-lg font-bold text-neutral-900">
-        Clients · {data?.pagination?.total ?? 0}
+        {t('customers.title')} · {data?.pagination?.total ?? 0}
       </h2>
-      <ul>
-        {(data?.data ?? []).map((c: any) => (
-          // 72 dp de hauteur d'item (spec §8.2)
-          <li key={c.id} className="flex h-[72px] flex-col justify-center border-b border-neutral-300 px-4">
-            <span className="font-semibold text-neutral-900">{c.name}</span>
-            <span className="text-sm text-neutral-700">
-              {c.city ?? '—'} · {formatCurrency(c.balance ?? 0)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {customers.length === 0 ? (
+        <p className="px-4 py-6 text-neutral-700">{t('common.noData')}</p>
+      ) : (
+        <ul>
+          {customers.map((c: any) => (
+            // 72 dp de hauteur d'item (spec §8.2)
+            <li
+              key={c.id}
+              className="flex h-[72px] flex-col justify-center border-b border-neutral-300 px-4"
+            >
+              <span className="font-semibold text-neutral-900">{c.name}</span>
+              <span className="text-sm text-neutral-700">
+                {[c.city, c.phone].filter(Boolean).join(' · ') || '—'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -134,8 +145,8 @@ export default function App() {
     setSessionExpiredHandler(() => setLogged(false));
     const unsubscribe = connectivity.subscribe(setOnline);
     void connectivity.init().then(() => setOnline(connectivity.isOnline()));
-    void tokenStorage.getAccessToken().then((tok) => {
-      setLogged(Boolean(tok));
+    void tokenStorage.getAccessToken().then((token) => {
+      setLogged(Boolean(token));
       setReady(true);
     });
     return unsubscribe;

@@ -307,35 +307,27 @@
     "required": "Ce champ est requis",
     "invalidEmail": "Email invalide",
     "network": "Erreur de connexion au serveur",
-
     "internal_server_error": "Erreur interne du serveur",
     "duplicate_entry": "Cet élément existe déjà (doublon)",
     "foreign_key_violation": "Cet élément est utilisé par d'autres données et ne peut pas être supprimé",
-
     "invalid_credentials": "Identifiants incorrects",
     "invalid_refresh_token": "Session expirée, veuillez vous reconnecter",
     "invalid_token": "Session invalide, veuillez vous reconnecter",
     "user_not_found": "Utilisateur introuvable",
     "user_already_exists": "Cet utilisateur existe déjà",
-
     "customer_not_found": "Client introuvable",
     "customer_has_linked_documents": "Ce client possède des documents et ne peut pas être supprimé",
     "contact_not_found": "Contact introuvable",
-
     "supplier_not_found": "Fournisseur introuvable",
     "supplier_has_purchase_orders": "Ce fournisseur a des commandes et ne peut pas être supprimé",
-
     "product_not_found": "Article introuvable",
     "product_in_use": "Cet article est utilisé dans des documents et ne peut pas être supprimé",
-
     "raw_material_not_found": "Matière première introuvable",
-
     "purchase_order_not_found": "Commande d'achat introuvable",
     "po_cannot_delete": "Cette commande ne peut pas être supprimée",
     "po_cannot_edit_non_draft": "Seules les commandes en brouillon peuvent être modifiées",
     "po_has_reception": "Cette commande a déjà une réception",
     "po_wrong_status_for_reception": "Statut de commande incorrect pour une réception",
-
     "delivery_note_not_found": "Bon de livraison introuvable",
     "delivery_note_cannot_delete": "Ce bon de livraison ne peut pas être supprimé",
     "delivery_note_cannot_update": "Ce bon de livraison ne peut pas être modifié",
@@ -344,32 +336,26 @@
     "delivery_note_has_invoice": "Ce BL a déjà une facture, annulez la facture d'abord",
     "bl_already_converted_to_invoice": "Une facture a déjà été créée pour ce BL",
     "quote_already_converted_to_bl": "Un BL a déjà été créé pour ce devis",
-
     "invoice_not_found": "Facture introuvable",
     "invoice_cannot_update": "Cette facture ne peut pas être modifiée",
     "invoice_cannot_delete": "Cette facture ne peut pas être supprimée",
     "customer_email_missing": "Le client n'a pas d'adresse email renseignée",
     "payment_not_found": "Paiement introuvable",
-
     "quote_not_found": "Devis introuvable",
     "quote_not_editable": "Ce devis ne peut pas être modifié",
     "quote_not_accepted": "Ce devis n'est pas accepté",
     "quote_cannot_delete": "Ce devis ne peut pas être supprimé",
-
     "credit_note_not_found": "Avoir introuvable",
     "credit_note_already_issued": "Cet avoir a déjà été émis",
     "credit_note_already_applied": "Cet avoir a déjà été appliqué",
     "credit_note_cannot_delete": "Cet avoir ne peut pas être supprimé",
-
     "expense_not_found": "Dépense introuvable",
     "expense_already_approved": "Cette dépense a déjà été approuvée",
     "expense_approved_cannot_delete": "Une dépense approuvée ne peut pas être supprimée",
-
     "vendor_bill_not_found": "Facture fournisseur introuvable",
     "vendor_bill_cannot_update": "Seules les factures en brouillon peuvent être modifiées",
     "vendor_bill_cannot_delete": "Cette facture ne peut pas être supprimée",
     "vendor_bill_cannot_pay": "Seules les factures validées ou partiellement payées peuvent recevoir un paiement",
-
     "invalid_status_transition": "Transition de statut non autorisée",
     "settings_multiple_default_tax": "Un seul taux de TVA peut être défini par défaut"
   },
@@ -657,5 +643,12 @@
         "ccp": "CCP"
       }
     }
+  },
+  "mobile": {
+    "offline": "Hors ligne",
+    "reconnected": "Reconnecté",
+    "offlineWriteTitle": "Connexion requise",
+    "offlineWriteBody": "La création de documents nécessite une connexion internet. Vos données consultables restent disponibles hors ligne.",
+    "understood": "Compris"
   }
 }
