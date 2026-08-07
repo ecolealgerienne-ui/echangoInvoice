@@ -40,7 +40,16 @@ const schema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
-type FormData = z.infer<typeof schema>;
+/**
+ * `z.coerce.number()` fait diverger l'entrée de la sortie du schéma : les
+ * champs de taux et de quantité sont liés à des <Select>/<Input>, qui ne
+ * manipulent que des chaînes, et zod les convertit à la validation.
+ *
+ * On type donc le formulaire sur l'entrée (chaînes acceptées) et le
+ * callback de soumission sur la sortie (nombres garantis).
+ */
+type FormInput = z.input<typeof schema>;
+type FormData = z.output<typeof schema>;
 
 const today = new Date().toISOString().split('T')[0];
 const in30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0];
@@ -80,12 +89,12 @@ export function QuotesPage() {
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
   const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
 
-  const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       quoteDate: today,
       expiryDate: in30,
-      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }],
     },
   });
 
@@ -152,7 +161,7 @@ export function QuotesPage() {
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
-  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }] }); setModalOpen(true); }
+  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }] }); setModalOpen(true); }
   function openEdit(row: any) {
     quotesApi.get(row.id).then((res: any) => {
       const q = res.data ?? res;
@@ -167,7 +176,9 @@ export function QuotesPage() {
           quantity: Number(it.quantity),
           unit: it.unit,
           unitPrice: Number(it.unitPrice),
-          taxRate1: String(parseFloat(String(it.taxRate1 ?? defaultTaxRate))),
+          // parseFloat normalise le décimal renvoyé par l'API (« 19.00 » → 19)
+          // pour qu'il corresponde à la valeur d'une option du Select.
+          taxRate1: parseFloat(String(it.taxRate1 ?? defaultTaxRate)),
         })),
       });
       setModalOpen(true);
@@ -186,7 +197,11 @@ export function QuotesPage() {
 
   const quotes = data?.data ?? [];
   const pagination = data?.pagination;
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « notes » est masquée par
+  // défaut mais reste activable.
+  const { visible, toggle, col } = useColumnVisibility<
+    'number' | 'customer' | 'quoteDate' | 'expiryDate' | 'total' | 'status' | 'notes'
+  >(
     'quotes_visible_columns',
     ['number', 'customer', 'quoteDate', 'expiryDate', 'total', 'status'],
   );
@@ -348,7 +363,7 @@ export function QuotesPage() {
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline"
-                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>

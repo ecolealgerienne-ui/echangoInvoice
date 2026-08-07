@@ -52,7 +52,11 @@ export function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [contactsCustomer, setContactsCustomer] = useState<any>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « email » et « city » sont
+  // masquées par défaut mais restent activables.
+  const { visible, toggle, col } = useColumnVisibility<
+    'name' | 'nif' | 'rc' | 'phone' | 'email' | 'city'
+  >(
     'customers_visible_columns',
     ['name', 'nif', 'rc', 'phone'],
   );

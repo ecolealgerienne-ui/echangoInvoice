@@ -120,7 +120,11 @@ export function CreditNotesPage() {
 
   const creditNotes = data?.data ?? [];
   const pagination = data?.pagination;
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu, pas seulement celles visibles
+  // par défaut : « notes » est masquée au départ mais reste activable.
+  const { visible, toggle, col } = useColumnVisibility<
+    'number' | 'customer' | 'date' | 'reason' | 'total' | 'status' | 'notes'
+  >(
     'creditnotes_visible_columns',
     ['number', 'customer', 'date', 'reason', 'total', 'status'],
   );

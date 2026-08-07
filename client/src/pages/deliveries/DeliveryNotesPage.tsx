@@ -51,7 +51,11 @@ export function DeliveryNotesPage() {
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « quote » et « notes » sont
+  // masquées par défaut mais restent activables.
+  const { visible, toggle, col } = useColumnVisibility<
+    'blNumber' | 'customer' | 'quote' | 'date' | 'amount' | 'status' | 'notes'
+  >(
     'deliveries_visible_columns',
     ['blNumber', 'customer', 'date', 'amount', 'status'],
   );

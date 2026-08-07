@@ -291,7 +291,11 @@ export function PurchasesPage() {
   const orders = ordersData?.data ?? [];
   const receptions = receptionsData?.data ?? [];
   const pagination = tab === 'orders' ? ordersData?.pagination : receptionsData?.pagination;
-  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « notes » est masquée par
+  // défaut mais reste activable.
+  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility<
+    'poNumber' | 'supplier' | 'orderDate' | 'expectedDelivery' | 'total' | 'status' | 'notes'
+  >(
     'purchases_po_visible_columns',
     ['poNumber', 'supplier', 'orderDate', 'expectedDelivery', 'total', 'status'],
   );

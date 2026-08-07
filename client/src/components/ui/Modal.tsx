@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 const SIZE_CLASSES = {
+  sm:  'max-w-md',
   md:  'max-w-2xl',
   lg:  'max-w-3xl',
   xl:  'max-w-5xl',

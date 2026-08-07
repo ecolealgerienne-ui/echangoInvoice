@@ -37,7 +37,11 @@ export function ExpensesPage() {
   const [category, setCategory] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « notes » est masquée par
+  // défaut mais reste activable.
+  const { visible, toggle, col } = useColumnVisibility<
+    'date' | 'description' | 'category' | 'amount' | 'status' | 'notes'
+  >(
     'expenses_visible_columns',
     ['date', 'description', 'category', 'amount', 'status'],
   );

@@ -3,18 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-interface ColumnDef {
-  key: string;
+interface ColumnDef<T extends string> {
+  key: T;
   label: string;
 }
 
-interface Props {
-  columns: ColumnDef[];
-  visible: string[];
-  onToggle: (key: string) => void;
+interface Props<T extends string> {
+  columns: ColumnDef<T>[];
+  visible: readonly T[];
+  onToggle: (key: T) => void;
 }
 
-export function ColumnToggleMenu({ columns, visible, onToggle }: Props) {
+/**
+ * Générique sur la clé de colonne : `onToggle` n'accepte que les clés
+ * réellement déclarées dans `columns`. Avec une signature `(key: string)`,
+ * une fonction typée sur une union plus étroite n'était pas assignable —
+ * et rien ne garantissait que le menu et le hook parlent des mêmes colonnes.
+ */
+export function ColumnToggleMenu<T extends string>({ columns, visible, onToggle }: Props<T>) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
