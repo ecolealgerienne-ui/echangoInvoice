@@ -1,11 +1,12 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MONTANT_MAX } from '../../common/limits';
 
 export class CreateSaasPaymentDto {
   @IsUUID()
   tenantId: string;
 
-  @IsNumber()
+  @IsNumber() @Max(MONTANT_MAX)
   @Min(0)
   @Type(() => Number)
   amount: number;

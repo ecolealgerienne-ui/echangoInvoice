@@ -1,9 +1,10 @@
-import { IsInt, IsNumber, IsObject, IsOptional, Min } from 'class-validator';
+import { IsInt, IsNumber, IsObject, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PRIX_MAX } from '../../common/limits';
 
 export class UpdatePlanDto {
   @IsOptional()
-  @IsNumber()
+  @IsNumber() @Max(PRIX_MAX)
   @Type(() => Number)
   pricePerMonth?: number;
 

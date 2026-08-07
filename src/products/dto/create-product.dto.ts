@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, Min, MaxLength, MinLength, IsEnum, IsUUID } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PRIX_MAX, QUANTITE_MAX } from '../../common/limits';
 
 export class CreateProductDto {
   @ApiPropertyOptional({ enum: ['product', 'material', 'both'], default: 'product' })
@@ -20,15 +21,15 @@ export class CreateProductDto {
   unit: string;
 
   @ApiPropertyOptional()
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  @IsOptional() @Type(() => Number) @IsNumber() @Max(PRIX_MAX) @Min(0)
   defaultSalesPrice?: number;
 
   @ApiPropertyOptional()
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  @IsOptional() @Type(() => Number) @IsNumber() @Max(PRIX_MAX) @Min(0)
   lastCostPerUnit?: number;
 
   @ApiPropertyOptional()
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  @IsOptional() @Type(() => Number) @IsNumber() @Max(QUANTITE_MAX) @Min(0)
   alertThreshold?: number;
 
   @ApiPropertyOptional()

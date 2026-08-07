@@ -4,6 +4,7 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import { CreditNote } from '../entities/credit-note.entity';
 import { CreditNoteItem } from '../entities/credit-note-item.entity';
 import { CreateCreditNoteDto, CreateCreditNoteItemDto } from './dto/create-credit-note.dto';
+import { assertMontant } from '../../common/limits';
 
 @Injectable()
 export class CreditNotesService {
@@ -16,7 +17,9 @@ export class CreditNotesService {
   ) {}
 
   private computeItem(dto: CreateCreditNoteItemDto) {
-    const lineHT = dto.quantity * dto.unitPrice;
+    // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
+    // peuvent produire un produit qui déborde numeric(12,2) (R021).
+    const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
     const taxAmount1 = dto.taxRate1 != null ? Math.round(lineHT * (dto.taxRate1 / 100) * 100) / 100 : 0;
     return {
       description: dto.description,
@@ -32,9 +35,16 @@ export class CreditNotesService {
   }
 
   private computeTotals(items: ReturnType<CreditNotesService['computeItem']>[]) {
-    const subtotal = Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100;
+    const subtotal = assertMontant(
+      Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100,
+      'subtotal',
+    );
     const taxAmount = Math.round(items.reduce((s, i) => s + i.lineTaxTotal, 0) * 100) / 100;
-    return { subtotal, taxAmount, totalAmount: Math.round((subtotal + taxAmount) * 100) / 100 };
+    const totalAmount = assertMontant(
+      Math.round((subtotal + taxAmount) * 100) / 100,
+      'totalAmount',
+    );
+    return { subtotal, taxAmount, totalAmount };
   }
 
   private async generateNumber(tenantId: string): Promise<string> {

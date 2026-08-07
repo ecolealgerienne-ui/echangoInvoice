@@ -10,6 +10,7 @@ import { CreateQuoteDto, CreateQuoteItemDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { ListQuotesDto } from './dto/list-quotes.dto';
+import { assertMontant } from '../common/limits';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent'],
@@ -45,7 +46,9 @@ export class QuotesService {
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
 
   private computeItem(dto: CreateQuoteItemDto): ComputedItem {
-    const lineHT = dto.quantity * dto.unitPrice;
+    // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
+    // peuvent produire un produit qui déborde numeric(12,2) (R021).
+    const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
     const taxAmount1 = dto.taxRate1 != null
       ? Math.round(lineHT * (dto.taxRate1 / 100) * 100) / 100
       : 0;
@@ -78,7 +81,10 @@ export class QuotesService {
     const taxAmount = Math.round(
       items.reduce((s, i) => s + i.lineTaxTotal, 0) * 100,
     ) / 100;
-    const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
+    const totalAmount = assertMontant(
+      Math.round((subtotal + taxAmount) * 100) / 100,
+      'totalAmount',
+    );
     return { subtotal, taxAmount, totalAmount };
   }
 

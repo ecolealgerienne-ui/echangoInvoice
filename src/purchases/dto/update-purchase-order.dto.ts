@@ -1,9 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsUUID, IsDateString, IsOptional, IsString,
-  IsArray, ValidateNested, IsNumber, Min,
-} from 'class-validator';
+import { IsArray, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import { PRIX_MAX, QUANTITE_MAX, TAUX_MAX } from '../../common/limits';
 
 export class UpdatePoItemDto {
   @ApiProperty()
@@ -12,7 +10,7 @@ export class UpdatePoItemDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber() @Min(0.01)
+  @IsNumber() @Max(QUANTITE_MAX) @Min(0.01)
   quantity: number;
 
   @ApiProperty()
@@ -21,13 +19,13 @@ export class UpdatePoItemDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber() @Min(0)
+  @IsNumber() @Max(PRIX_MAX) @Min(0)
   unitPrice: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)
-  @IsNumber() @Min(0)
+  @IsNumber() @Max(TAUX_MAX) @Min(0)
   taxRate?: number;
 }
 

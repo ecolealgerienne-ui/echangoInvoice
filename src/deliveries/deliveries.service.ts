@@ -10,6 +10,7 @@ import { CreateDeliveryNoteDto, CreateDeliveryNoteItemDto } from './dto/create-d
 import { UpdateDeliveryNoteStatusDto } from './dto/update-delivery-note-status.dto';
 import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
+import { assertMontant } from '../common/limits';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -47,7 +48,9 @@ export class DeliveriesService {
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
 
   private computeItem(dto: CreateDeliveryNoteItemDto): ComputedItem {
-    const lineHT = dto.quantity * dto.unitPrice;
+    // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
+    // peuvent produire un produit qui déborde numeric(12,2) (R021).
+    const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
     const taxAmount1 = dto.taxRate1 != null
       ? Math.round(lineHT * (dto.taxRate1 / 100) * 100) / 100 : 0;
     const taxAmount2 = dto.taxRate2 != null
@@ -71,9 +74,13 @@ export class DeliveriesService {
   }
 
   private computeTotals(items: ComputedItem[]) {
-    const subtotal = Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100;
+    const subtotal = assertMontant(
+      Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100,
+      'subtotal',
+    );
     const taxAmount = Math.round(items.reduce((s, i) => s + i.lineTaxTotal, 0) * 100) / 100;
-    return { subtotal, taxAmount, total: Math.round((subtotal + taxAmount) * 100) / 100 };
+    const total = assertMontant(Math.round((subtotal + taxAmount) * 100) / 100, 'total');
+    return { subtotal, taxAmount, total };
   }
 
   // ─── Auto-numérotation BL-YY-### (R013) ──────────────────────────────────

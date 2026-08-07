@@ -44,7 +44,8 @@ export class UpdateSettingsDto {
 
   @ApiPropertyOptional() @IsOptional() @IsString() defaultUnit?: string;
 
-  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() @Min(1) defaultPaymentTermsDays?: number;
+  // Délai de paiement : borne de bon sens (un an), pas de colonne.
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsNumber() @Min(1) @Max(365) defaultPaymentTermsDays?: number;
 
   @ApiPropertyOptional({ description: 'Base64 data URL of the company logo' })
   @IsOptional() @IsString()

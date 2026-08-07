@@ -1,9 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsUUID, IsDateString, IsOptional, IsString,
-  IsArray, ValidateNested, IsNumber, Min,
-} from 'class-validator';
+import { IsArray, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PRIX_MAX, QUANTITE_MAX } from '../../common/limits';
 
 export class ReceptionItemDto {
   @ApiProperty()
@@ -12,12 +10,12 @@ export class ReceptionItemDto {
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber() @Min(0.01)
+  @IsNumber() @Max(QUANTITE_MAX) @Min(0.01)
   quantityReceived: number;
 
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber() @Min(0)
+  @IsNumber() @Max(PRIX_MAX) @Min(0)
   costPerUnit: number;
 
   @ApiProperty({ required: false })

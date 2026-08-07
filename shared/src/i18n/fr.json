@@ -357,7 +357,9 @@
     "vendor_bill_cannot_delete": "Cette facture ne peut pas être supprimée",
     "vendor_bill_cannot_pay": "Seules les factures validées ou partiellement payées peuvent recevoir un paiement",
     "invalid_status_transition": "Transition de statut non autorisée",
-    "settings_multiple_default_tax": "Un seul taux de TVA peut être défini par défaut"
+    "settings_multiple_default_tax": "Un seul taux de TVA peut être défini par défaut",
+    "amount_out_of_range": "Le montant dépasse la valeur maximale autorisée",
+    "amount_not_finite": "Le montant saisi n'est pas un nombre valide"
   },
   "status": {
     "active": "Actif",

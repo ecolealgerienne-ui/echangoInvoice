@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { QUANTITE_MAX } from '../../common/limits';
 
 export class AdjustStockDto {
   @ApiProperty() @IsUUID() rawMaterialId: string;
 
   @ApiProperty({ description: 'Nouvelle quantité absolue (inventaire physique)' })
-  @IsNumber()
+  @IsNumber() @Min(0) @Max(QUANTITE_MAX)
   newQuantity: number;
 
   @ApiProperty({ enum: ['loss', 'breakage', 'physical_count', 'correction', 'other'] })

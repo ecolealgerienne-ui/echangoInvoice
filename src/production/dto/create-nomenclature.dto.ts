@@ -1,14 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID,
-  Min, ValidateNested,
-} from 'class-validator';
+import { ArrayMinSize, IsArray, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import { QUANTITE_MAX } from '../../common/limits';
 
 class BomLineDto {
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) order?: number;
+  // Rang d'affichage d'une ligne de nomenclature : borne de bon sens, pas de colonne.
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(1) @Max(999) order?: number;
   @ApiProperty() @IsUUID() rawMaterialId: string;
-  @ApiProperty() @Type(() => Number) @IsNumber() @Min(0.01) quantityPerUnit: number;
+  @ApiProperty() @Type(() => Number) @IsNumber() @Max(QUANTITE_MAX) @Min(0.01) quantityPerUnit: number;
   @ApiProperty() @IsString() @IsNotEmpty() unit: string;
 }
 
