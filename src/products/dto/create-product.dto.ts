@@ -1,7 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { PRIX_MAX, QUANTITE_MAX } from '../../common/limits';
+
+/**
+ * Un `<select>` non renseigné envoie `''`, pas `undefined` — or `@IsOptional()`
+ * ne saute la validation que sur `undefined` et `null`. Sans cette conversion,
+ * créer un article sans choisir de fournisseur rend
+ * « 400 supplierId must be a UUID », que l'utilisateur ne peut pas comprendre.
+ */
+const chaineVideVersUndefined = () =>
+  Transform(({ value }) => (value === '' ? undefined : value));
 
 export class CreateProductDto {
   @ApiPropertyOptional({ enum: ['product', 'material', 'both'], default: 'product' })
@@ -33,7 +42,7 @@ export class CreateProductDto {
   alertThreshold?: number;
 
   @ApiPropertyOptional()
-  @IsOptional() @IsUUID()
+  @chaineVideVersUndefined() @IsOptional() @IsUUID()
   supplierId?: string;
 
   @ApiPropertyOptional()

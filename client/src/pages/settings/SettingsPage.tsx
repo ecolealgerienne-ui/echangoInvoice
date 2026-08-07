@@ -272,7 +272,13 @@ export function SettingsPage() {
                 )}
                 {taxRates.map((row, i) => (
                   <div key={i} className="grid grid-cols-[1fr_100px_80px_32px] gap-2 items-center">
+                    {/* name et aria-label : ces deux champs n'en avaient aucun,
+                        donc ni un lecteur d'écran ni un test ne pouvaient les
+                        désigner — seule leur position dans la grille les
+                        distinguait. */}
                     <Input
+                      name={`taxRateName-${i}`}
+                      aria-label={`${t('settings.rateName')} ${i + 1}`}
                       value={row.name}
                       onChange={e => updateTaxRow(i, 'name', e.target.value)}
                       placeholder={t('settings.rateNamePlaceholder')}
@@ -280,6 +286,8 @@ export function SettingsPage() {
                     />
                     <div className="relative">
                       <Input
+                        name={`taxRate-${i}`}
+                        aria-label={`${t('settings.ratePercent')} ${i + 1}`}
                         type="number"
                         step="0.01"
                         min="0"

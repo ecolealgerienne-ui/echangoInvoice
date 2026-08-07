@@ -44,15 +44,35 @@ test.describe('Fournisseurs', () => {
     await page.goto('/suppliers');
     await waitForLoaded(page);
 
-    const editBtn = page.locator('button[aria-label], button').filter({ has: page.locator('svg') }).nth(0);
-    const pencilBtn = page.locator('tbody tr').first().locator('button').first();
-    if (await pencilBtn.isVisible()) {
-      await pencilBtn.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      await page.locator('[role="dialog"] input[name="phone"]').fill('0555000000');
-      await page.getByRole('button', { name: /enregistrer/i }).click();
-      await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
+    // La ligne porte trois boutons — contacts, édition, suppression — et le
+    // test cliquait le premier, donc les contacts : la modale ouverte n'avait
+    // aucun champ « phone » et il attendait 30 s. On vise le crayon,
+    // c'est-à-dire l'avant-dernier bouton de la ligne.
+    const row = page.locator('tbody tr').first();
+    await expect(row).toBeVisible();
+    const boutons = row.locator('button');
+    const pencilBtn = boutons.nth((await boutons.count()) - 2);
+
+    await pencilBtn.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // Vérifie qu'on a ouvert la BONNE modale : celle d'édition arrive avec le
+    // nom pré-rempli, celle des contacts n'a pas ce champ.
+    await expect(dialog.locator('input[name="name"]')).not.toHaveValue('');
+
+    await dialog.locator('input[name="phone"]').fill('0555000000');
+
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/suppliers') && r.request().method() === 'PUT',
+    );
+    await page.getByRole('button', { name: /enregistrer/i }).click();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`PUT /suppliers échoué (${response.status()}): ${body}`);
     }
+
+    await expect(dialog).not.toBeVisible({ timeout: 5_000 });
     errors.assert('Fournisseurs éditer');
   });
 

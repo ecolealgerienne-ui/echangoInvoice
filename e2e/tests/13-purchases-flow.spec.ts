@@ -36,13 +36,24 @@ test.describe('Achats — flux complet', () => {
     errors.assert('Achats créer commande');
   });
 
+  // `/réception/i` désignait DEUX boutons — l'onglet « Réceptions BL » et le
+  // bouton « Nouvelle réception » — d'où une violation du mode strict. Les
+  // deux sont désormais visés par leur libellé exact.
+  const ongletReceptions = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: 'Réceptions BL', exact: true });
+
   test('onglet réceptions visible', async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /réception|réceptions/i }).click();
+    await ongletReceptions(page).click();
     await waitForLoaded(page);
+
+    // Sans cette assertion, le test ne prouvait que sa capacité à cliquer.
+    await expect(
+      page.getByRole('button', { name: 'Nouvelle réception', exact: true }),
+    ).toBeVisible();
     errors.assert('Achats onglet réceptions');
   });
 
@@ -51,14 +62,13 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /réception|réceptions/i }).click();
+    await ongletReceptions(page).click();
     await waitForLoaded(page);
 
-    const recBtn = page.getByRole('button', { name: /nouvelle réception|réceptionner/i });
-    if (await recBtn.isVisible()) {
-      await recBtn.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-    }
+    // Plus de `if (isVisible)` : un bouton absent rendait le test vert sans
+    // avoir rien ouvert.
+    await page.getByRole('button', { name: 'Nouvelle réception', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
     errors.assert('Achats réception modal');
   });
 

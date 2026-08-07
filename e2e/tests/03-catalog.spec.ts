@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { collectErrors, waitForLoaded } from './helpers';
+import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 test.describe('Catalogue produits', () => {
   test('liste sans erreur', async ({ page }) => {
@@ -32,9 +32,21 @@ test.describe('Catalogue produits', () => {
     await page.getByRole('button', { name: /nouvel article/i }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    await page.locator('[role="dialog"] input[name="name"]').fill(`Produit Test ${Date.now()}`);
-    await page.locator('[role="dialog"] input[name="unit"]').fill('pcs');
+    const nom = `Produit Test ${Date.now()}`;
+    await page.locator('[role="dialog"] input[name="name"]').fill(nom);
+    // L'unité est un <select> alimenté par les paramètres, plus un <input> :
+    // le test visait input[name="unit"] et attendait 30 s un champ inexistant.
+    await selectFirst(page, '[role="dialog"] select[name="unit"]');
+
+    const responsePromise = page.waitForResponse(
+      r => r.url().includes('/products') && r.request().method() === 'POST',
+    );
     await page.getByRole('button', { name: /enregistrer/i }).click();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`POST /products échoué (${response.status()}): ${body}`);
+    }
 
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
     errors.assert('Catalogue créer produit');

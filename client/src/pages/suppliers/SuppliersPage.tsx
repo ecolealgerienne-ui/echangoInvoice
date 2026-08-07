@@ -121,8 +121,21 @@ export function SuppliersPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
+  /**
+   * L'API renvoie `null` pour les champs texte non renseignés, mais le schéma
+   * n'accepte qu'une chaîne, une chaîne vide ou `undefined`. Charger la fiche
+   * telle quelle faisait échouer la validation **en silence** : le formulaire
+   * refusait la soumission sans qu'aucune requête ne parte. On normalise donc
+   * les nuls en chaînes vides, ce qui est aussi ce qu'attend un <input>.
+   */
+  function normaliser(s: Record<string, any>) {
+    return Object.fromEntries(
+      Object.entries(s).map(([k, v]) => [k, v === null ? '' : v]),
+    );
+  }
+
   function openCreate() { setEditing(null); reset({}); setModalOpen(true); }
-  function openEdit(s: any) { setEditing(s); reset(s); setModalOpen(true); }
+  function openEdit(s: any) { setEditing(s); reset(normaliser(s)); setModalOpen(true); }
   function closeModal() { setModalOpen(false); setEditing(null); reset({}); }
 
   function openContacts(s: any) { setContactsSupplier(s); }
