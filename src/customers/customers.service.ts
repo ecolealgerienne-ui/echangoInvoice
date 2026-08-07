@@ -93,16 +93,18 @@ export class CustomersService {
       ),
     ]);
 
+    // Object.assign plutôt qu'un spread : `{...customer}` produirait un objet
+    // plain et désactiverait silencieusement les @Exclude() d'un futur
+    // ClassSerializerInterceptor (R027). L'instance de classe est conservée.
     return {
-      data: {
-        ...customer,
+      data: Object.assign(customer, {
         history: {
           deliveryNotes,
           invoices,
           totalRevenue: parseFloat(revenueResult[0]?.totalRevenue ?? '0'),
           totalOrders: parseInt(revenueResult[0]?.totalOrders ?? '0', 10),
         },
-      },
+      }),
     };
   }
 

@@ -2,14 +2,12 @@ import {
   BadRequestException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { ProductionOrder } from './production-order.entity';
-import { ProductionMovement } from './production-movement.entity';
 import { Nomenclature } from './nomenclature.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
-import { CancelProductionOrderDto } from './dto/cancel-production-order.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 
 @Injectable()
@@ -28,12 +26,19 @@ export class ProductionOrderService {
     const fpIds = [...new Set(orders.map(o => o.finishedProductId).filter(Boolean))];
     const nomMap: Record<string, string> = {};
     const fpMap: Record<string, string> = {};
+    // tenantId était reçu sans être utilisé : findByIds ne filtrait pas le
+    // tenant (R020). Les identifiants viennent des ordres du tenant, donc rien
+    // ne fuyait en pratique — mais la requête ne le garantissait pas.
     if (nomIds.length > 0) {
-      const noms = await this.nomRepo.findByIds(nomIds);
+      const noms = await this.nomRepo.find({
+        where: { id: In(nomIds), tenantId, deletedAt: IsNull() },
+      });
       noms.forEach(n => { nomMap[n.id] = n.name; });
     }
     if (fpIds.length > 0) {
-      const fps = await this.fpRepo.findByIds(fpIds);
+      const fps = await this.fpRepo.find({
+        where: { id: In(fpIds), tenantId, deletedAt: IsNull() },
+      });
       fps.forEach(fp => { fpMap[fp.id] = fp.name; });
     }
     return orders.map(o => ({

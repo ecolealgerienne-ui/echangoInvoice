@@ -9,7 +9,6 @@ export class AdminStatsService {
   async getStats() {
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
     const [tenantCounts] = await this.dataSource.query(`
       SELECT

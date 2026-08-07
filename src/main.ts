@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from '@fastify/helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/exception.filter';
 import { requireEnv } from './config/env.config';
@@ -13,9 +14,9 @@ async function bootstrap() {
   );
   const logger = new Logger('Bootstrap');
 
-  // Security headers (Fastify has helmet plugin, but @fastify/helmet not needed for header basics)
-  await app.register(require('@fastify/helmet'), {
-    contentSecurityPolicy: false, // disabled — API only, no HTML
+  // En-têtes de sécurité (R017)
+  await app.register(helmet, {
+    contentSecurityPolicy: false, // désactivé — API seule, aucun HTML servi
   });
 
   app.enableCors({

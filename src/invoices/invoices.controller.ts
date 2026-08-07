@@ -1,7 +1,4 @@
-import {
-  Body, Controller, Delete, Get, Header, HttpCode, Param,
-  ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesInvoicesService } from './sales-invoices.service';

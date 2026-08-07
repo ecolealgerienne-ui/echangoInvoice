@@ -2,7 +2,7 @@ import {
   ConflictException, Injectable, Logger, NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { Nomenclature } from './nomenclature.entity';
 import { BomLine } from './bom-line.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
@@ -20,6 +20,50 @@ export class NomenclatureService {
     @InjectRepository(ProductionOrder) private readonly orderRepo: Repository<ProductionOrder>,
     @InjectDataSource() private readonly ds: DataSource,
   ) {}
+
+  /**
+   * Construit les lignes de nomenclature et leur coût cumulé.
+   *
+   * Les matières premières sont chargées en **une seule requête** : un
+   * `findOne` par ligne était un N+1 (R026), et le même bloc était dupliqué
+   * entre `create` et `update` — deux copies que rien n'obligeait à rester
+   * cohérentes (R029).
+   */
+  private async buildBomLines(
+    manager: EntityManager,
+    tenantId: string,
+    nomenclatureId: string,
+    dtoLines: CreateNomenclatureDto['lines'],
+  ): Promise<{ lines: BomLine[]; estimatedCost: number }> {
+    const ids = [...new Set(dtoLines.map((l) => l.rawMaterialId))];
+    const materials = await manager.find(FinishedProduct, {
+      where: { id: In(ids), tenantId, deletedAt: IsNull() },
+    });
+    const parId = new Map(materials.map((m) => [m.id, m]));
+
+    let estimatedCost = 0;
+    const lines = dtoLines.map((l, idx) => {
+      const rm = parId.get(l.rawMaterialId);
+      if (!rm) throw new NotFoundException('errors.raw_material_not_found');
+
+      const unitCost = Number(rm.lastCostPerUnit);
+      const lineCost = Number(l.quantityPerUnit) * unitCost;
+      estimatedCost += lineCost;
+
+      return manager.create(BomLine, {
+        tenantId,
+        nomenclatureId,
+        order: l.order ?? idx + 1,
+        rawMaterialId: l.rawMaterialId,
+        quantityPerUnit: l.quantityPerUnit,
+        unit: l.unit,
+        unitCost,
+        lineCost,
+      });
+    });
+
+    return { lines, estimatedCost };
+  }
 
   async findAll(
     tenantId: string,
@@ -77,27 +121,8 @@ export class NomenclatureService {
       });
       const saved = await qr.manager.save(Nomenclature, nom);
 
-      let estimatedCost = 0;
-      const lines = await Promise.all(
-        dto.lines.map(async (l, idx) => {
-          const rm = await qr.manager.findOne(FinishedProduct, {
-            where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
-          });
-          if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);
-          const unitCost = Number(rm.lastCostPerUnit);
-          const lineCost = Number(l.quantityPerUnit) * unitCost;
-          estimatedCost += lineCost;
-          return qr.manager.create(BomLine, {
-            tenantId,
-            nomenclatureId: saved.id,
-            order: l.order ?? idx + 1,
-            rawMaterialId: l.rawMaterialId,
-            quantityPerUnit: l.quantityPerUnit,
-            unit: l.unit,
-            unitCost,
-            lineCost,
-          });
-        }),
+      const { lines, estimatedCost } = await this.buildBomLines(
+        qr.manager, tenantId, saved.id, dto.lines,
       );
       await qr.manager.save(BomLine, lines);
 
@@ -132,27 +157,8 @@ export class NomenclatureService {
 
       if (dto.lines !== undefined) {
         await qr.manager.delete(BomLine, { nomenclatureId: id });
-        let estimatedCost = 0;
-        const lines = await Promise.all(
-          dto.lines.map(async (l, idx) => {
-            const rm = await qr.manager.findOne(FinishedProduct, {
-              where: { id: l.rawMaterialId, tenantId, deletedAt: IsNull() },
-            });
-            if (!rm) throw new NotFoundException(`raw_material_not_found:${l.rawMaterialId}`);
-            const unitCost = Number(rm.lastCostPerUnit);
-            const lineCost = Number(l.quantityPerUnit) * unitCost;
-            estimatedCost += lineCost;
-            return qr.manager.create(BomLine, {
-              tenantId,
-              nomenclatureId: id,
-              order: l.order ?? idx + 1,
-              rawMaterialId: l.rawMaterialId,
-              quantityPerUnit: l.quantityPerUnit,
-              unit: l.unit,
-              unitCost,
-              lineCost,
-            });
-          }),
+        const { lines, estimatedCost } = await this.buildBomLines(
+          qr.manager, tenantId, id, dto.lines,
         );
         if (lines.length > 0) await qr.manager.save(BomLine, lines);
         existing.estimatedCostPerUnit = estimatedCost;

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { PdfService } from '../common/pdf.service';
 import { EmailService } from '../common/email.service';
 

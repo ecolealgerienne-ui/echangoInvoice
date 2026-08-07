@@ -18,7 +18,7 @@ export class AddInvoicedStatusToPurchaseOrders1750006000000 implements Migration
     // If varchar, no schema change needed — the entity type annotation is enough
   }
 
-  async down(queryRunner: QueryRunner): Promise<void> {
+  async down(_queryRunner: QueryRunner): Promise<void> {
     // PostgreSQL does not support removing enum values
   }
 }

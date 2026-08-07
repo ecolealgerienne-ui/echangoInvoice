@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull, EntityManager } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
