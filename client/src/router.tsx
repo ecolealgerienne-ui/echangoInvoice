@@ -12,12 +12,15 @@ import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
 import { RawMaterialsPage } from '@/pages/raw-materials/RawMaterialsPage';
 import { StockPage } from '@/pages/stock/StockPage';
 import { InvoicesPage } from '@/pages/invoices/InvoicesPage';
+import { InvoiceDetailPage } from '@/pages/invoices/InvoiceDetailPage';
 import { DeliveryNotesPage } from '@/pages/deliveries/DeliveryNotesPage';
+import { DeliveryNoteDetailPage } from '@/pages/deliveries/DeliveryNoteDetailPage';
 import { ProductsPage } from '@/pages/products/ProductsPage';
 import { ExpensesPage } from '@/pages/expenses/ExpensesPage';
 import { ReportsPage } from '@/pages/reports/ReportsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { QuotesPage } from '@/pages/quotes/QuotesPage';
+import { QuoteDetailPage } from '@/pages/quotes/QuoteDetailPage';
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
@@ -70,12 +73,18 @@ export function AppRouter() {
       <Route path="/price-lists" element={<PrivateRoute><PriceListsPage /></PrivateRoute>} />
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
       <Route path="/invoices" element={<PrivateRoute><InvoicesPage /></PrivateRoute>} />
+      {/* Les pages détail portent l'identifiant dans l'URL : un document se
+          transmet par lien à un collègue, et le retour du navigateur ramène à
+          la liste — deux choses qu'une modale ne sait pas faire. */}
+      <Route path="/invoices/:id" element={<PrivateRoute><InvoiceDetailPage /></PrivateRoute>} />
       <Route path="/deliveries" element={<PrivateRoute><DeliveryNotesPage /></PrivateRoute>} />
+      <Route path="/deliveries/:id" element={<PrivateRoute><DeliveryNoteDetailPage /></PrivateRoute>} />
       <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
       <Route path="/expenses" element={<PrivateRoute><ExpensesPage /></PrivateRoute>} />
       <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
       <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
+      <Route path="/quotes/:id" element={<PrivateRoute><QuoteDetailPage /></PrivateRoute>} />
       <Route path="/purchases" element={<PrivateRoute><PurchasesPage /></PrivateRoute>} />
       <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />

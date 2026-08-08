@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -304,7 +305,16 @@ export function InvoicesPage() {
               )}
               {data?.data?.map((inv: any) => (
                 <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
-                  {col('number') && <td className="px-4 py-3 font-mono font-medium text-foreground">{inv.invoiceNumber}</td>}
+                  {/* Le numéro est le point d'entrée vers la fiche : c'est ce
+                      qu'on cherche du regard, et un lien y mène sans occuper
+                      une colonne d'actions déjà chargée. */}
+                  {col('number') && (
+                    <td className="px-4 py-3 font-mono font-medium">
+                      <Link to={`/invoices/${inv.id}`} className="text-primary hover:underline">
+                        {inv.invoiceNumber}
+                      </Link>
+                    </td>
+                  )}
                   {col('customer') && <td className="px-4 py-3 text-foreground">{inv.customer?.name ?? '—'}</td>}
                   {col('origin') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.blNumber ?? inv.quoteNumber ?? '—'}</td>}
                   {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}

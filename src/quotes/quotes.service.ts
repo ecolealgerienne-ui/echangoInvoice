@@ -11,6 +11,7 @@ import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { ListQuotesDto } from './dto/list-quotes.dto';
 import { assertMontant } from '../common/limits';
+import { ajouterArticles } from '../common/document-lines';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent'],
@@ -181,13 +182,33 @@ export class QuotesService {
     return { data, pagination: { total, page, limit } };
   }
 
+  /** Vue complète d'un devis pour la page détail — un seul appel. */
   async findOne(id: string, tenantId: string) {
     const quote = await this.quoteRepo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
-      relations: ['items'],
+      relations: ['items', 'customer'],
     });
     if (!quote) throw new NotFoundException('quote_not_found');
-    return { data: quote };
+
+    const items = await ajouterArticles(this.dataSource, quote.items ?? [], tenantId);
+
+    const [suites] = await this.dataSource.query(
+      `SELECT f."invoiceNumber" AS "invoiceNumber", bl."blNumber" AS "blNumber"
+       FROM quotes dv
+       LEFT JOIN sales_invoices f ON f.id = dv."convertedToInvoiceId"
+       LEFT JOIN delivery_notes bl ON bl.id = dv."convertedToDeliveryNoteId"
+       WHERE dv.id = $1 AND dv."tenantId" = $2`,
+      [id, tenantId],
+    );
+
+    return {
+      data: {
+        ...quote,
+        items,
+        invoiceNumber: suites?.invoiceNumber ?? null,
+        blNumber: suites?.blNumber ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateQuoteDto, tenantId: string, userId: string) {

@@ -13,6 +13,7 @@ import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
 import { EmailService } from '../common/email.service';
 import { assertMontant } from '../common/limits';
+import { ajouterArticles } from '../common/document-lines';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -284,13 +285,50 @@ export class SalesInvoicesService {
     return { data, pagination: { total, page, limit } };
   }
 
+  /**
+   * Vue complète d'une facture, pensée pour la page détail : elle doit tenir
+   * en UN appel. La découper obligerait l'écran à orchestrer cinq requêtes et
+   * à afficher un document par morceaux, ce qui est pire que pas de page du
+   * tout pour un document comptable qu'on consulte pour le vérifier.
+   */
   async findOne(id: string, tenantId: string) {
     const invoice = await this.invoiceRepo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
-      relations: ['items', 'payments'],
+      relations: ['items', 'payments', 'customer'],
     });
     if (!invoice) throw new NotFoundException('invoice_not_found');
-    return { data: invoice };
+
+    const items = await ajouterArticles(this.dataSource, invoice.items ?? [], tenantId);
+
+    // Les documents d'origine et les avoirs imputés expliquent deux chiffres
+    // que rien d'autre ne justifie à l'écran : d'où vient la facture, et
+    // pourquoi le solde a baissé sans encaissement.
+    const [origine] = await this.dataSource.query(
+      `SELECT bl."blNumber" AS "blNumber", dv."quoteNumber" AS "quoteNumber"
+       FROM sales_invoices f
+       LEFT JOIN delivery_notes bl ON bl.id = f."deliveryNoteId"
+       LEFT JOIN quotes dv ON dv.id = f."quoteId"
+       WHERE f.id = $1 AND f."tenantId" = $2`,
+      [id, tenantId],
+    );
+
+    const creditNotes = await this.dataSource.query(
+      `SELECT id, "creditNoteNumber", "creditNoteDate", "totalAmount", status, reason
+       FROM credit_notes
+       WHERE "salesInvoiceId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+       ORDER BY "creditNoteDate"`,
+      [id, tenantId],
+    );
+
+    return {
+      data: {
+        ...invoice,
+        items,
+        blNumber: origine?.blNumber ?? null,
+        quoteNumber: origine?.quoteNumber ?? null,
+        creditNotes,
+      },
+    };
   }
 
   async update(id: string, dto: CreateSalesInvoiceDto, tenantId: string, userId: string) {

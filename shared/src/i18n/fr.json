@@ -228,6 +228,16 @@
     "exportInvoices": "Exporter les factures",
     "exportLines": "Exporter les lignes",
     "exportPayments": "Exporter les encaissements",
+    "detail": {
+      "document": "Document",
+      "invoice": "Facture",
+      "article": "Article",
+      "unitPrice": "Prix unitaire",
+      "lineTotal": "Total ligne",
+      "subtotal": "Total HT",
+      "payments": "Encaissements",
+      "open": "Ouvrir la fiche"
+    },
     "status": {
       "draft": "Brouillon",
       "sent": "Envoyée",
@@ -504,6 +514,10 @@
     "signed": "Signé"
   },
   "deliveries": {
+    "detail": {
+      "shipTo": "Livrer à",
+      "signed": "Signé par le client"
+    },
     "title": "Bons de Livraison",
     "new": "Nouveau BL",
     "blNumber": "N° BL",
@@ -714,7 +728,12 @@
     "creditNoteNumber": "N° Avoir",
     "reason": "Motif",
     "issue": "Émettre",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "status": {
+      "draft": "Brouillon",
+      "applied": "Appliqué",
+      "cancelled": "Annulé"
+    }
   },
   "exportButton": {
     "label": "Exporter",

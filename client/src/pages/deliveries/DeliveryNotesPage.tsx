@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -266,7 +267,13 @@ export function DeliveryNotesPage() {
               )}
               {data?.data?.map((bl: any) => (
                 <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
-                  {col('blNumber') && <td className="px-4 py-3 font-mono font-medium text-foreground">{bl.blNumber}</td>}
+                  {col('blNumber') && (
+                    <td className="px-4 py-3 font-mono font-medium">
+                      <Link to={`/deliveries/${bl.id}`} className="text-primary hover:underline">
+                        {bl.blNumber}
+                      </Link>
+                    </td>
+                  )}
                   {col('customer') && <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>}
                   {col('quote') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
                   {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}

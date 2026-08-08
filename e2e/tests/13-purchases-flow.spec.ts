@@ -77,15 +77,21 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    const rows = page.locator('tbody tr');
-    if (await rows.count() > 0) {
-      const deleteBtn = rows.first().locator('button').last();
-      if (await deleteBtn.isVisible()) {
-        const responsePromise = page.waitForResponse(r => r.url().includes('/purchase-orders') && r.request().method() === 'DELETE');
-        await deleteBtn.click();
-        await responsePromise.catch(() => {});
-        await waitForLoaded(page);
-      }
+    // Le bouton de suppression n'existe que sur une commande brouillon ou
+    // envoyée. La version précédente cliquait « le dernier bouton de la
+    // première ligne » : dès que la commande en tête de liste était
+    // réceptionnée, ce dernier bouton était « Voir détail », aucun DELETE ne
+    // partait, et le test attendait 30 secondes avant d'expirer. On vise donc
+    // la première ligne qui porte réellement l'action.
+    const supprimer = page.locator('tbody tr button[title="Supprimer"]').first();
+    if (await supprimer.count() > 0) {
+      const reponse = page.waitForResponse(
+        r => r.url().includes('/purchase-orders') && r.request().method() === 'DELETE',
+        { timeout: 10_000 },
+      );
+      await supprimer.click();
+      await reponse;
+      await waitForLoaded(page);
     }
     errors.assert('Achats supprimer commande');
   });

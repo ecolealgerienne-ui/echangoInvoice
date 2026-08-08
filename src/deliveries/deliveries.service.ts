@@ -11,6 +11,7 @@ import { UpdateDeliveryNoteStatusDto } from './dto/update-delivery-note-status.d
 import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
 import { assertMontant } from '../common/limits';
+import { ajouterArticles } from '../common/document-lines';
 import {
   consumeStockFifo, recomputeProductStock, releaseStockForDeliveryNote,
 } from '../stock/recompute-product-stock';
@@ -242,13 +243,33 @@ export class DeliveriesService {
     return { data, pagination: { total, page, limit } };
   }
 
+  /** Vue complète d'un BL pour la page détail — un seul appel. */
   async findOne(id: string, tenantId: string) {
     const dn = await this.dnRepo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
-      relations: ['items'],
+      relations: ['items', 'customer'],
     });
     if (!dn) throw new NotFoundException('delivery_note_not_found');
-    return { data: dn };
+
+    const items = await ajouterArticles(this.dataSource, dn.items ?? [], tenantId);
+
+    const [lies] = await this.dataSource.query(
+      `SELECT f."invoiceNumber" AS "invoiceNumber", dv."quoteNumber" AS "quoteNumber"
+       FROM delivery_notes bl
+       LEFT JOIN sales_invoices f ON f.id = bl."convertedToInvoiceId"
+       LEFT JOIN quotes dv ON dv.id = bl."quoteId"
+       WHERE bl.id = $1 AND bl."tenantId" = $2`,
+      [id, tenantId],
+    );
+
+    return {
+      data: {
+        ...dn,
+        items,
+        invoiceNumber: lies?.invoiceNumber ?? null,
+        quoteNumber: lies?.quoteNumber ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: CreateDeliveryNoteDto, tenantId: string, userId: string) {

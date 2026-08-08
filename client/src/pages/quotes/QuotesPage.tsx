@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -270,7 +271,13 @@ export function QuotesPage() {
             <tbody>
               {quotes.map((q: any) => (
                 <tr key={q.id} className="border-t border-border hover:bg-muted/30">
-                  {col('number') && <td className="px-4 py-3 font-mono text-xs">{q.quoteNumber}</td>}
+                  {col('number') && (
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link to={`/quotes/${q.id}`} className="text-primary hover:underline">
+                        {q.quoteNumber}
+                      </Link>
+                    </td>
+                  )}
                   {col('customer') && <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>}
                   {col('quoteDate') && <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>}
                   {col('expiryDate') && <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
