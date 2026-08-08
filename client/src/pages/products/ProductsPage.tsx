@@ -9,6 +9,8 @@ import { productsApi, suppliersApi, settingsApi , resolveApiError } from '@/lib/
 import { formatCurrency } from '@/lib/utils';
 import { useUnits } from '@/lib/useUnits';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -48,6 +50,12 @@ export function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'material' | 'both'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  // Les colonnes triables sont celles de la liste blanche du service
+  // (products.service.ts) : en demander une autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<
+    'name' | 'code' | 'type' | 'unit' | 'defaultSalesPrice' | 'lastCostPerUnit'
+  >('products_sort', { sortBy: 'name', sortOrder: 'ASC' });
+
   const { visible: visibleColumns, toggle: toggleColumn, col } = useColumnVisibility<ColumnKey>(
     'products_visible_columns',
     ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice'],
@@ -61,11 +69,12 @@ export function ProductsPage() {
   const defaultUnit: string = settingsData?.data?.defaultUnit ?? '';
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, search, typeFilter],
+    queryKey: ['products', page, search, typeFilter, tri],
     queryFn: () => productsApi.list({
       page, limit: 20,
       search: search || undefined,
       type: typeFilter === 'all' ? undefined : typeFilter,
+      ...tri,
     }),
   });
 
@@ -172,12 +181,30 @@ export function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {col('type') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.type.label')}</th>}
-                {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.name')}</th>}
-                {col('code') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.code')}</th>}
-                {col('unit') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.unit')}</th>}
-                {col('salesPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.price')}</th>}
-                {col('costPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.costPerUnit')}</th>}
+                {col('type') && (
+                  <EnteteTriable libelle={t('products.type.label')} colonne="type" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('name') && (
+                  <EnteteTriable libelle={t('products.name')} colonne="name" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('code') && (
+                  <EnteteTriable libelle={t('products.code')} colonne="code" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('unit') && (
+                  <EnteteTriable libelle={t('products.unit')} colonne="unit" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('salesPrice') && (
+                  <EnteteTriable libelle={t('products.price')} colonne="defaultSalesPrice" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('costPrice') && (
+                  <EnteteTriable libelle={t('products.costPerUnit')} colonne="lastCostPerUnit" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
                 {col('supplier') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.supplier')}</th>}
                 {col('description') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.description')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>

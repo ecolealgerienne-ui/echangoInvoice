@@ -7,6 +7,10 @@ import { FinishedProduct } from './finished-product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ListProductsDto } from './dto/list-products.dto';
+import { resoudreTri } from '../common/tri';
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['name', 'code', 'type', 'unit', 'defaultSalesPrice', 'lastCostPerUnit', 'stockQuantity', 'createdAt'] as const;
 
 @Injectable()
 export class ProductsService {
@@ -54,7 +58,7 @@ export class ProductsService {
       where,
       skip,
       take: limit,
-      order: { name: 'ASC' },
+      order: resoudreTri(COLONNES_TRIABLES, { colonne: 'name', sens: 'ASC' }, query),
     });
 
     return { data, pagination: { total, page, limit } };

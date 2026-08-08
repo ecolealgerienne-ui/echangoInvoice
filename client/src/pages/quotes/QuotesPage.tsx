@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
@@ -62,6 +64,10 @@ export function QuotesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'quoteNumber' | 'quoteDate' | 'expiryDate' | 'totalAmount' | 'status' | 'createdAt'>(
+    'quotes_sort', { sortBy: 'createdAt', sortOrder: 'DESC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -69,8 +75,8 @@ export function QuotesPage() {
   const [editing, setEditing] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['quotes', page, search, status],
-    queryFn: () => quotesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryKey: ['quotes', page, search, status, tri],
+    queryFn: () => quotesApi.list({ ...tri, page, limit: 20, search: search || undefined, status: status || undefined }),
   });
 
   const { data: customers } = useQuery({
@@ -258,12 +264,27 @@ export function QuotesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteNumber')}</th>}
+                {col('number') && (
+                  <EnteteTriable libelle={t('quotes.quoteNumber')} colonne="quoteNumber" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
                 {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
-                {col('quoteDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteDate')}</th>}
-                {col('expiryDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.expiryDate')}</th>}
-                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
-                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
+                {col('quoteDate') && (
+                  <EnteteTriable libelle={t('quotes.quoteDate')} colonne="quoteDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('expiryDate') && (
+                  <EnteteTriable libelle={t('quotes.expiryDate')} colonne="expiryDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('total') && (
+                  <EnteteTriable libelle="Total TTC" colonne="totalAmount" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('status') && (
+                  <EnteteTriable libelle={t('quotes.status')} colonne="status" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
                 {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
                 <th className="px-4 py-3" />
               </tr>

@@ -16,6 +16,7 @@ import { calculerDroitDeTimbre, calculerNetAPayer, estSoumisAuTimbre } from '../
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
 import { NumberingService } from '../common/numbering/numbering.service';
+import { appliquerTri } from '../common/tri';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -39,6 +40,9 @@ interface ComputedItem {
   lineTaxTotal: number;
   lineTotal: number;
 }
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['invoiceNumber', 'invoiceDate', 'dueDate', 'totalAmount', 'amountDue', 'status', 'createdAt'] as const;
 
 @Injectable()
 export class SalesInvoicesService {
@@ -261,8 +265,7 @@ export class SalesInvoicesService {
     if (dto.dateTo) qb.andWhere('inv.invoiceDate <= :dateTo', { dateTo: dto.dateTo });
 
     const [rows, total] = await qb
-      .orderBy('inv.createdAt', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 

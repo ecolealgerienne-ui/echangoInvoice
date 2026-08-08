@@ -9,6 +9,10 @@ import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { ListSuppliersDto } from './dto/list-suppliers.dto';
 import { CreateCustomerContactDto } from '../customers/dto/create-customer-contact.dto';
+import { resoudreTri } from '../common/tri';
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['name', 'city', 'phone', 'email', 'createdAt'] as const;
 
 @Injectable()
 export class SuppliersService {
@@ -53,7 +57,7 @@ export class SuppliersService {
       where,
       skip,
       take: limit,
-      order: { name: 'ASC' },
+      order: resoudreTri(COLONNES_TRIABLES, { colonne: 'name', sens: 'ASC' }, query),
     });
 
     return { data, pagination: { total, page, limit } };

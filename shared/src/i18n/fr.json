@@ -544,7 +544,8 @@
     "amount_not_finite": "Le montant saisi n'est pas un nombre valide",
     "tenant_context_missing": "Session invalide : aucune société associée à ce compte.",
     "pdf_archive_identity_missing": "Le document ne peut pas être archivé : identifiant de société ou de document manquant.",
-    "invalid_month_format": "Le mois doit être au format AAAA-MM."
+    "invalid_month_format": "Le mois doit être au format AAAA-MM.",
+    "invalid_sort_column": "Cette colonne ne peut pas servir au tri."
   },
   "status": {
     "active": "Actif",

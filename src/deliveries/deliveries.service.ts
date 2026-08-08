@@ -16,6 +16,7 @@ import { NumberingService } from '../common/numbering/numbering.service';
 import {
   consumeStockFifo, recomputeProductStock, releaseStockForDeliveryNote,
 } from '../stock/recompute-product-stock';
+import { appliquerTri } from '../common/tri';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -39,6 +40,9 @@ interface ComputedItem {
   lineTaxTotal: number;
   lineTotal: number;
 }
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['blNumber', 'deliveryDate', 'total', 'status', 'createdAt'] as const;
 
 @Injectable()
 export class DeliveriesService {
@@ -209,8 +213,7 @@ export class DeliveriesService {
     if (dto.dateTo) qb.andWhere('dn.deliveryDate <= :dateTo', { dateTo: dto.dateTo });
 
     const [rows, total] = await qb
-      .orderBy('dn.createdAt', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 

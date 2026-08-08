@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt, Mail, PenLine } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
@@ -50,6 +52,10 @@ export function DeliveryNotesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'blNumber' | 'deliveryDate' | 'total' | 'status' | 'createdAt'>(
+    'deliveries_sort', { sortBy: 'createdAt', sortOrder: 'DESC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -68,8 +74,8 @@ export function DeliveryNotesPage() {
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['delivery-notes', page, search, status],
-    queryFn: () => deliveriesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryKey: ['delivery-notes', page, search, status, tri],
+    queryFn: () => deliveriesApi.list({ ...tri, page, limit: 20, search: search || undefined, status: status || undefined }),
   });
 
   const { data: customers } = useQuery({
@@ -251,12 +257,24 @@ export function DeliveryNotesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {col('blNumber') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('deliveries.blNumber')}</th>}
+                {col('blNumber') && (
+                  <EnteteTriable libelle={t('deliveries.blNumber')} colonne="blNumber" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
                 {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>}
                 {col('quote') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('quotes.title')}</th>}
-                {col('date') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>}
-                {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>}
-                {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
+                {col('date') && (
+                  <EnteteTriable libelle={t('common.date')} colonne="deliveryDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('amount') && (
+                  <EnteteTriable libelle={t('common.amount')} colonne="total" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('status') && (
+                  <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
                 {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>

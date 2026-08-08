@@ -1,25 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class ListSuppliersDto {
-  @ApiProperty({ required: false, default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
+export class ListSuppliersDto extends ListQueryDto {
 
-  @ApiProperty({ required: false, default: 20 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(500)
-  limit: number = 20;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  search?: string;
 }

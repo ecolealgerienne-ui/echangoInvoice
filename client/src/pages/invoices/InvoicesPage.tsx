@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw, Mail, History } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
@@ -65,6 +67,10 @@ export function InvoicesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'invoiceNumber' | 'invoiceDate' | 'dueDate' | 'totalAmount' | 'amountDue' | 'status' | 'createdAt'>(
+    'invoices_sort', { sortBy: 'createdAt', sortOrder: 'DESC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -85,8 +91,8 @@ export function InvoicesPage() {
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['invoices', page, search, status],
-    queryFn: () => invoicesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryKey: ['invoices', page, search, status, tri],
+    queryFn: () => invoicesApi.list({ ...tri, page, limit: 20, search: search || undefined, status: status || undefined }),
   });
 
   const { data: customers } = useQuery({
@@ -291,15 +297,33 @@ export function InvoicesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                {col('number') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.number')}</th>}
+                {col('number') && (
+                  <EnteteTriable libelle={t('invoices.number')} colonne="invoiceNumber" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
                 {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.customer')}</th>}
                 {col('origin') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.origin')}</th>}
-                {col('invoiceDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.invoiceDate')}</th>}
-                {col('dueDate') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.dueDate')}</th>}
-                {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>}
+                {col('invoiceDate') && (
+                  <EnteteTriable libelle={t('invoices.invoiceDate')} colonne="invoiceDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('dueDate') && (
+                  <EnteteTriable libelle={t('invoices.dueDate')} colonne="dueDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('amount') && (
+                  <EnteteTriable libelle={t('invoices.amount')} colonne="totalAmount" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
                 {col('credited') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.credited')}</th>}
-                {col('due') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.due')}</th>}
-                {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
+                {col('due') && (
+                  <EnteteTriable libelle={t('invoices.due')} colonne="amountDue" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('status') && (
+                  <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
                 {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>

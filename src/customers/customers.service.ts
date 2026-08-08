@@ -9,6 +9,10 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { CreateCustomerContactDto } from './dto/create-customer-contact.dto';
+import { resoudreTri } from '../common/tri';
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['name', 'city', 'phone', 'email', 'createdAt'] as const;
 
 @Injectable()
 export class CustomersService {
@@ -56,7 +60,7 @@ export class CustomersService {
       where,
       skip,
       take: limit,
-      order: { name: 'ASC' },
+      order: resoudreTri(COLONNES_TRIABLES, { colonne: 'name', sens: 'ASC' }, query),
     });
 
     return { data, pagination: { total, page, limit } };

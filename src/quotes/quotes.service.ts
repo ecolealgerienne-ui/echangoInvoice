@@ -13,6 +13,7 @@ import { ListQuotesDto } from './dto/list-quotes.dto';
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
 import { NumberingService } from '../common/numbering/numbering.service';
+import { appliquerTri } from '../common/tri';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent'],
@@ -34,6 +35,9 @@ interface ComputedItem {
   lineTaxTotal: number;
   lineTotal: number;
 }
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['quoteNumber', 'quoteDate', 'expiryDate', 'totalAmount', 'status', 'createdAt'] as const;
 
 @Injectable()
 export class QuotesService {
@@ -159,9 +163,10 @@ export class QuotesService {
     if (dto.dateFrom) qb.andWhere('q.quoteDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('q.quoteDate <= :dateTo', { dateTo: dto.dateTo });
 
+    appliquerTri(qb, 'q', COLONNES_TRIABLES, { colonne: 'createdAt', sens: 'DESC' }, dto);
+
     const [data, total] = await qb
-      .orderBy('q.createdAt', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 

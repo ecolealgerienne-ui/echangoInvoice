@@ -6,6 +6,10 @@ import { IsNull, Repository } from 'typeorm';
 import { Expense } from './expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ListExpensesDto } from './dto/list-expenses.dto';
+import { appliquerTri } from '../common/tri';
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['expenseDate', 'description', 'category', 'amount', 'isApproved', 'createdAt'] as const;
 
 @Injectable()
 export class ExpensesService {
@@ -43,9 +47,10 @@ export class ExpensesService {
     if (dto.dateFrom) qb.andWhere('e.expenseDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('e.expenseDate <= :dateTo', { dateTo: dto.dateTo });
 
+    appliquerTri(qb, 'e', COLONNES_TRIABLES, { colonne: 'expenseDate', sens: 'DESC' }, dto);
+
     const [data, total] = await qb
-      .orderBy('e.expenseDate', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 
