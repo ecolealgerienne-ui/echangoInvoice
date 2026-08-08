@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : `d0f8e67` *fix(schéma): désamorcer les deux dérives destructrices*
+> Dernier commit : `3d36066` *feat(abonnements): écran de la facturation récurrente*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -98,7 +98,7 @@ proforma, fournisseurs multiples par article, balance âgée, rôle « comptable
 en lecture seule, désamorçage des deux dérives de schéma destructrices, TVA
 déductible et aide au G50, QR de vérification signé avec sa page publique,
 cachet de l'émetteur, interface arabe avec écriture de droite à gauche, et
-facturation récurrente.
+facturation récurrente **avec son écran**.
 
 **Conformité au décret 05-468 : il ne reste que la facture récapitulative.**
 Identifiants légaux, montant en toutes lettres, droit de timbre, mention
@@ -109,13 +109,7 @@ d'annulation, cachet et proforma sont livrés.
 Arbitré avec le client le 2026-08-08 : RTL arabe et facturation récurrente
 étaient prioritaires et sont livrés. Le reste est ici, en attente.
 
-#### 1. Écran des abonnements de facturation
-Le backend est complet et éprouvé — modèle, cadences, rattrapage, cron
-quotidien à 01:15, contrôle à 19 assertions. **Il n'a pas d'écran** : l'API se
-pilote à la main. C'est le plus petit reste pour le plus grand effet, la
-fonction étant inutilisable en l'état par un utilisateur.
-
-#### 2. Relecture de la traduction arabe
+#### 1. Relecture de la traduction arabe
 249 clés sur 865. Le reste retombe sur le français, ce qui reste lisible mais
 donne une interface mixte. **Une relecture par un arabophone est nécessaire
 avant mise en production** : le vocabulaire comptable algérien a ses usages —
@@ -123,7 +117,7 @@ avant mise en production** : le vocabulaire comptable algérien a ses usages —
 sans avoir pu être confirmés. Les règles RTL couvrent les utilitaires Tailwind
 les plus fréquents ; les cas non couverts se repèrent sur une capture d'écran.
 
-#### 3. Pièces jointes
+#### 2. Pièces jointes
 Reporté sur décision. Rien n'existe : ni `@fastify/multipart`, ni intercepteur,
 ni table. Par ordre de valeur métier : justificatif de **dépense** — c'est la
 raison d'être du module —, **facture fournisseur** reçue, **BL de réception**
@@ -136,41 +130,41 @@ l'extension ; téléchargement **servi par l'API** après contrôle du locataire
 `Content-Disposition: attachment` systématique. Plus un plafond par fichier et
 un quota par offre, sans quoi le stockage devient un coût non borné.
 
-#### 4. Scan par caméra
+#### 3. Scan par caméra
 La douchette couvre le poste fixe, la caméra vise le mobile. `BarcodeDetector`
 natif quand il est disponible — Chrome Android et Edge, pas Safari iOS —, repli
 `@zxing/browser` en WASM, et plugin natif MLKit côté Capacitor plutôt qu'une
 `<video>` dans la webview. **Éviter `html5-qrcode`** : populaire mais non
 maintenu, et adossé à un portage ZXing lui-même abandonné.
 
-#### 5. Facture récapitulative
+#### 4. Facture récapitulative
 Dernier écart au décret 05-468. Regrouper les BL d'une période en une seule
 facture, ce que le décret n'autorise que pour des ventes répétitives et
 régulières — le ministère évoque trois transactions par semaine au même client
 — et sur autorisation préalable. Aligné sur le profil visé : le négociant en
 froid qui livre plusieurs fois par semaine.
 
-#### 6. Multi-dépôts
+#### 5. Multi-dépôts
 Chantier de structure. Une chambre froide, c'est plusieurs chambres à
 températures distinctes. Non réclamé à ce jour, mais c'est ce qui distinguerait
 durablement le produit sur l'agroalimentaire.
 
-#### 7. Traçabilité par lot
+#### 6. Traçabilité par lot
 Les lots et les péremptions sont saisis à la réception et suivis en stock ; ce
 qui manque est le sens inverse — remonter d'un lot aux clients livrés, pour un
 rappel sanitaire.
 
-#### 8. Portail client
+#### 7. Portail client
 Reporté de longue date. Le QR de vérification en couvre déjà l'usage principal :
 le client atteint son document sans compte.
 
-#### 9. Dérive de schéma résiduelle
+#### 8. Dérive de schéma résiduelle
 354 opérations, 13 `DROP COLUMN`. Les deux causes destructrices sont traitées ;
 le reste est mécanique — `varchar(255)` déclaré contre `varchar` sans longueur,
 `numeric(10,2)` contre `numeric`, et 61 clés étrangères. **Ne pas lancer
 `migration:generate` sans lire sa sortie entière** tant que ce n'est pas soldé.
 
-#### 10. Dette de moindre portée
+#### 9. Dette de moindre portée
 - `Total TTC` en dur sur la page Devis (R018).
 - 130 avertissements de lint, surtout `no-explicit-any`.
 - Bundle client à ~900 ko, aucun découpage de code.
