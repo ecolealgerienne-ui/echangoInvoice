@@ -26,7 +26,6 @@ const groups = [
     key: 'nav.group.catalog',
     items: [
       { to: '/products', icon: Box, key: 'nav.products' },
-      { to: '/raw-materials', icon: Boxes, key: 'nav.rawMaterials' },
       { to: '/price-lists', icon: Tags, key: 'nav.priceLists' },
       { to: '/stock', icon: Layers, key: 'nav.stock' },
     ],

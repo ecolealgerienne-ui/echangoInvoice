@@ -49,7 +49,7 @@ api.interceptors.response.use(
 export const tokenStorage = storage;
 
 export const {
-  authApi, customersApi, suppliersApi, rawMaterialsApi, stockApi, invoicesApi,
+  authApi, customersApi, suppliersApi, stockApi, invoicesApi,
   productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
   quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi,
 } = createEndpoints(api, storage);

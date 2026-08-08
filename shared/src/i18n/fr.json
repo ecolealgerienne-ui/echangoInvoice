@@ -36,7 +36,10 @@
     "unit": "Unité",
     "deleted": "Supprimé",
     "active": "Actif",
-    "inactive": "Inactif"
+    "inactive": "Inactif",
+    "history": "Historique",
+    "createdAt": "Créé le",
+    "updatedAt": "Modifié le"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -242,7 +245,8 @@
       "loss": "Perte / Vol",
       "breakage": "Casse / Avarie",
       "other": "Autre"
-    }
+    },
+    "belowThreshold": "sous le seuil"
   },
   "invoices": {
     "title": "Factures",
@@ -539,7 +543,8 @@
     "amount_out_of_range": "Le montant dépasse la valeur maximale autorisée",
     "amount_not_finite": "Le montant saisi n'est pas un nombre valide",
     "tenant_context_missing": "Session invalide : aucune société associée à ce compte.",
-    "pdf_archive_identity_missing": "Le document ne peut pas être archivé : identifiant de société ou de document manquant."
+    "pdf_archive_identity_missing": "Le document ne peut pas être archivé : identifiant de société ou de document manquant.",
+    "invalid_month_format": "Le mois doit être au format AAAA-MM."
   },
   "status": {
     "active": "Actif",
@@ -610,7 +615,31 @@
       "product": "Produit",
       "material": "Matière",
       "both": "Les deux"
-    }
+    },
+    "identity": "Identification",
+    "pricing": "Prix et marge",
+    "stock": "Stock",
+    "stockQuantity": "Quantité en stock",
+    "stockValue": "Valeur du stock",
+    "available": "Disponible",
+    "reserved": "Réservé",
+    "revenue": "Chiffre d'affaires",
+    "soldQuantity": "Quantité vendue",
+    "unitMargin": "Marge unitaire",
+    "margin": "Marge",
+    "averageCost": "Coût moyen pondéré",
+    "quantity": "Quantité",
+    "earliestExpiration": "Première péremption",
+    "batches": "Lots en stock",
+    "batch": "Lot",
+    "noBatch": "Aucun lot en stock",
+    "enteredAt": "Entré le",
+    "expiresAt": "Périme le",
+    "expired": "périmé",
+    "salesHistory": "Dernières ventes",
+    "noSale": "Aucune vente",
+    "purchaseHistory": "Derniers achats",
+    "noPurchase": "Aucun achat"
   },
   "quotes": {
     "title": "Devis",

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -197,7 +198,11 @@ export function ProductsPage() {
                       }`}>{t(`products.type.${p.type}`)}</span>
                     </td>
                   )}
-                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>}
+                  {col('name') && (
+                    <td className="px-4 py-3 font-medium">
+                      <Link to={`/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link>
+                    </td>
+                  )}
                   {col('code') && <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>}
                   {col('unit') && <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>}
                   {col('salesPrice') && (

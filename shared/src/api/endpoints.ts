@@ -82,16 +82,6 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.delete(`/suppliers/${id}/contacts/${contactId}`).then((r) => r.data),
   };
 
-  const rawMaterialsApi = {
-    list: (params?: Params) =>
-      api.get('/products', { params: { ...params, type: 'material' } }).then((r) => r.data),
-    get: (id: string) => api.get(`/products/${id}`).then((r) => r.data),
-    create: (body: unknown) =>
-      api.post('/products', { ...(body as object), type: 'material' }).then((r) => r.data),
-    update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then((r) => r.data),
-    remove: (id: string) => api.delete(`/products/${id}`).then((r) => r.data),
-  };
-
   const stockApi = {
     inventory: (params?: Params) => api.get('/stock/inventory', { params }).then((r) => r.data),
     alerts: () => api.get('/stock/alerts').then((r) => r.data),
@@ -141,6 +131,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
 
   const productsApi = {
     list: (params?: Params) => api.get('/products', { params }).then((r) => r.data),
+    get: (id: string) => api.get(`/products/${id}`).then((r) => r.data),
     create: (body: unknown) => api.post('/products', body).then((r) => r.data),
     update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then((r) => r.data),
     remove: (id: string) => api.delete(`/products/${id}`).then((r) => r.data),
@@ -312,7 +303,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
   };
 
   return {
-    authApi, customersApi, suppliersApi, rawMaterialsApi, stockApi, invoicesApi,
+    authApi, customersApi, suppliersApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
     quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
     priceListsApi, exportApi,

@@ -6,6 +6,17 @@ import { DataSource } from 'typeorm';
 export class DashboardService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
+  /**
+   * Mois courant à Alger. `toISOString()` est en UTC : le 1er du mois entre
+   * 00 h et 01 h locale, il désigne encore le mois précédent.
+   */
+  private moisCourant(): string {
+    const p = new Intl.DateTimeFormat('fr-DZ', {
+      timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit',
+    }).formatToParts(new Date());
+    return `${p.find((x) => x.type === 'year')!.value}-${p.find((x) => x.type === 'month')!.value}`;
+  }
+
   private periodBounds(month: string) {
     const [year, monthNum] = month.split('-').map(Number);
     const lastDay = new Date(year, monthNum, 0).getDate();
@@ -15,7 +26,8 @@ export class DashboardService {
     };
   }
 
-  async getStats(tenantId: string, month: string) {
+  async getStats(tenantId: string, moisDemande?: string) {
+    const month = moisDemande ?? this.moisCourant();
     const { dateFrom, dateTo } = this.periodBounds(month);
 
     const [salesRows, byStatusRows, topCustomersRows, purchaseRows, stockSummaryRows,
@@ -191,7 +203,8 @@ export class DashboardService {
     };
   }
 
-  async getSalesChart(tenantId: string, month: string) {
+  async getSalesChart(tenantId: string, moisDemande?: string) {
+    const month = moisDemande ?? this.moisCourant();
     const { dateFrom, dateTo } = this.periodBounds(month);
 
     const [byDateRows, byCustomerRows, byMethodRows] = await Promise.all([

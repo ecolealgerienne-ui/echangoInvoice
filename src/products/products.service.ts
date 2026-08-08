@@ -60,12 +60,86 @@ export class ProductsService {
     return { data, pagination: { total, page, limit } };
   }
 
+  /**
+   * Fiche article. Un catalogue sans historique ne répond à aucune des
+   * questions qu'on se pose devant un article : à quel prix je l'achète, à qui
+   * je le vends, et est-ce que je gagne de l'argent dessus.
+   */
   async findOne(id: string, tenantId: string) {
     const product = await this.repo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new NotFoundException('errors.product_not_found');
-    return { data: product };
+
+    const [ventes, achats, lots, chiffres] = await Promise.all([
+      this.dataSource.query(
+        `SELECT si.id, si."invoiceNumber", si."invoiceDate", si.status,
+                c.name AS "customerName",
+                sii.quantity, sii.unit, sii."unitPrice", sii."lineTotal"
+         FROM sales_invoice_items sii
+         JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+         JOIN partners c ON c.id = si."customerId"
+         WHERE sii."finishedProductId" = $1 AND sii."tenantId" = $2
+           AND si."deletedAt" IS NULL AND si.status != 'cancelled'
+         ORDER BY si."invoiceDate" DESC LIMIT 10`,
+        [id, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT r.id, r."blNumber", r."receptionDate",
+                f.name AS "supplierName",
+                poi.quantity, poi."unitPrice"
+         FROM purchase_order_items poi
+         JOIN purchase_orders po ON po.id = poi."purchaseOrderId"
+         JOIN reception_bls r ON r."purchaseOrderId" = po.id
+         JOIN partners f ON f.id = po."supplierId"
+         WHERE poi."finishedProductId" = $1 AND poi."tenantId" = $2
+           AND r."deletedAt" IS NULL
+         ORDER BY r."receptionDate" DESC LIMIT 10`,
+        [id, tenantId],
+      ),
+      // Lots encore disponibles, les plus proches de la péremption d'abord :
+      // c'est l'ordre dans lequel ils doivent sortir.
+      this.dataSource.query(
+        `SELECT id, "batchNumber", quantity, "costPerUnit", "enteredAt", "expiresAt"
+         FROM stock_entries
+         WHERE "rawMaterialId" = $1 AND "tenantId" = $2
+           AND status = 'available' AND "deletedAt" IS NULL
+         ORDER BY "expiresAt" ASC NULLS LAST, "enteredAt" ASC LIMIT 10`,
+        [id, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT COALESCE(SUM(sii.quantity), 0)    AS "quantiteVendue",
+                COALESCE(SUM(sii."lineTotal"), 0) AS "chiffreAffaires"
+         FROM sales_invoice_items sii
+         JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+         WHERE sii."finishedProductId" = $1 AND sii."tenantId" = $2
+           AND si."deletedAt" IS NULL AND si.status != 'cancelled'`,
+        [id, tenantId],
+      ),
+    ]);
+
+    const prixVente = Number(product.defaultSalesPrice ?? 0);
+    const coutMoyen = Number(product.averageCostPerUnit ?? 0);
+
+    return {
+      data: {
+        ...product,
+        ventes,
+        achats,
+        lots,
+        stats: {
+          quantiteVendue: Number(chiffres[0]?.quantiteVendue ?? 0),
+          chiffreAffaires: Number(chiffres[0]?.chiffreAffaires ?? 0),
+          valeurStock: Number(product.totalStockValue ?? 0),
+          // Marge sur le prix catalogue, pas sur les ventes réelles : une remise
+          // consentie ligne à ligne ne doit pas se lire comme une marge.
+          margeUnitaire: Math.round((prixVente - coutMoyen) * 100) / 100,
+          margePercent: prixVente > 0
+            ? Math.round(((prixVente - coutMoyen) / prixVente) * 1000) / 10
+            : 0,
+        },
+      },
+    };
   }
 
   async update(id: string, dto: UpdateProductDto, tenantId: string, userId: string) {

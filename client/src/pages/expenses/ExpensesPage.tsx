@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -181,7 +182,11 @@ export function ExpensesPage() {
               {data?.data?.map((e: any) => (
                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                   {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(e.expenseDate)}</td>}
-                  {col('description') && <td className="px-4 py-3 text-foreground">{e.description}</td>}
+                  {col('description') && (
+                    <td className="px-4 py-3">
+                      <Link to={`/expenses/${e.id}`} className="text-primary hover:underline">{e.description}</Link>
+                    </td>
+                  )}
                   {col('category') && <td className="px-4 py-3"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
                   {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(e.amount)}</td>}
                   {col('status') && <td className="px-4 py-3 text-center">

@@ -5,7 +5,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  productionApi, rawMaterialsApi, productsApi, resolveApiError,
+  productionApi, productsApi, resolveApiError,
 } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -152,17 +152,15 @@ export function ProductionPage() {
   });
   const orderNomenclature: any = orderNomenclatureData?.data ?? null;
 
-  const { data: rawMaterialsData } = useQuery({
-    queryKey: ['raw-materials-all'],
-    queryFn: () => rawMaterialsApi.list({ limit: 200 }),
-  });
-
   const { data: productsData } = useQuery({
     queryKey: ['products-all'],
     queryFn: () => productsApi.list({ limit: 200 }),
   });
 
-  const rawMaterials: any[] = rawMaterialsData?.data ?? [];
+  // `finished_products` a absorbé `raw_materials` (migration 1709981400000) :
+  // les matières sont les articles de type « material » ou « both ». La colonne
+  // `bomLine.rawMaterialId` garde son nom mais désigne un article du catalogue.
+  const rawMaterials: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'material' || p.type === 'both');
   const finishedProducts: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'product' || p.type === 'both');
   const nomenclatures: any[] = nomenclaturesData?.data ?? [];
   const allNomenclatures: any[] = allNomenclaturesData?.data ?? [];

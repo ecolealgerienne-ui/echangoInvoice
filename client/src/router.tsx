@@ -11,14 +11,15 @@ import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { CustomerDetailPage } from '@/pages/customers/CustomerDetailPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
 import { SupplierDetailPage } from '@/pages/suppliers/SupplierDetailPage';
-import { RawMaterialsPage } from '@/pages/raw-materials/RawMaterialsPage';
 import { StockPage } from '@/pages/stock/StockPage';
 import { InvoicesPage } from '@/pages/invoices/InvoicesPage';
 import { InvoiceDetailPage } from '@/pages/invoices/InvoiceDetailPage';
 import { DeliveryNotesPage } from '@/pages/deliveries/DeliveryNotesPage';
 import { DeliveryNoteDetailPage } from '@/pages/deliveries/DeliveryNoteDetailPage';
 import { ProductsPage } from '@/pages/products/ProductsPage';
+import { ProductDetailPage } from '@/pages/products/ProductDetailPage';
 import { ExpensesPage } from '@/pages/expenses/ExpensesPage';
+import { ExpenseDetailPage } from '@/pages/expenses/ExpenseDetailPage';
 import { ReportsPage } from '@/pages/reports/ReportsPage';
 import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { QuotesPage } from '@/pages/quotes/QuotesPage';
@@ -76,7 +77,6 @@ export function AppRouter() {
       <Route path="/customers/:id" element={<PrivateRoute><CustomerDetailPage /></PrivateRoute>} />
       <Route path="/suppliers" element={<PrivateRoute><SuppliersPage /></PrivateRoute>} />
       <Route path="/suppliers/:id" element={<PrivateRoute><SupplierDetailPage /></PrivateRoute>} />
-      <Route path="/raw-materials" element={<PrivateRoute><RawMaterialsPage /></PrivateRoute>} />
       <Route path="/price-lists" element={<PrivateRoute><PriceListsPage /></PrivateRoute>} />
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
       <Route path="/invoices" element={<PrivateRoute><InvoicesPage /></PrivateRoute>} />
@@ -87,7 +87,9 @@ export function AppRouter() {
       <Route path="/deliveries" element={<PrivateRoute><DeliveryNotesPage /></PrivateRoute>} />
       <Route path="/deliveries/:id" element={<PrivateRoute><DeliveryNoteDetailPage /></PrivateRoute>} />
       <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
+      <Route path="/products/:id" element={<PrivateRoute><ProductDetailPage /></PrivateRoute>} />
       <Route path="/expenses" element={<PrivateRoute><ExpensesPage /></PrivateRoute>} />
+      <Route path="/expenses/:id" element={<PrivateRoute><ExpenseDetailPage /></PrivateRoute>} />
       <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
       <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
       <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
