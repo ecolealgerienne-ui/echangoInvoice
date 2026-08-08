@@ -2,14 +2,38 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { dashboardApi } from '@/lib/api';
-import { formatCurrency, formatDate, currentMonth } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { SelecteurPeriode, periodeParDefaut } from '@/components/shared/SelecteurPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { TrendingUp, FileText, Package, DollarSign, AlertTriangle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 
-function StatCard({ title, value, sub, icon: Icon, variant }: {
+/**
+ * Écart par rapport à la période précédente.
+ *
+ * `null` quand la référence est nulle : le serveur ne rend alors aucun
+ * pourcentage, parce qu'aucun n'aurait de sens — et un « 0 % » se lirait comme
+ * une stagnation alors qu'on part de rien.
+ */
+function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boolean }) {
+  const { t } = useTranslation();
+  if (valeur === null || valeur === undefined) {
+    return <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.pasDeComparaison')}</p>;
+  }
+  // Sur les dépenses et les achats, une hausse n'est pas une bonne nouvelle.
+  const favorable = inverse ? valeur <= 0 : valeur >= 0;
+  const signe = valeur > 0 ? '+' : '';
+  return (
+    <p className={`text-xs mt-0.5 font-medium ${favorable ? 'text-emerald-600' : 'text-destructive'}`}>
+      {signe}{valeur} % {t('dashboard.vsPeriodePrecedente')}
+    </p>
+  );
+}
+
+function StatCard({ title, value, sub, icon: Icon, variant, evolution, evolutionInverse }: {
   title: string; value: string; sub?: string; icon: React.ElementType; variant?: string;
+  evolution?: number | null; evolutionInverse?: boolean;
 }) {
   return (
     <Card>
@@ -18,6 +42,7 @@ function StatCard({ title, value, sub, icon: Icon, variant }: {
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
             <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
+            {evolution !== undefined && <Evolution valeur={evolution} inverse={evolutionInverse} />}
             {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
           </div>
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -53,19 +78,19 @@ function BarRow({ label, value, max, display }: {
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const [month, setMonth] = useState(currentMonth());
+  const [periode, setPeriode] = useState(periodeParDefaut());
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-stats', month],
-    queryFn: () => dashboardApi.stats(month),
+    queryKey: ['dashboard-stats', periode],
+    queryFn: () => dashboardApi.stats(periode),
   });
 
   const { data: salesChartData } = useQuery({
-    queryKey: ['dashboard-sales-chart', month],
-    queryFn: () => dashboardApi.salesChart(month),
+    queryKey: ['dashboard-sales-chart', periode],
+    queryFn: () => dashboardApi.salesChart(periode),
   });
 
-  // Pas de mois en paramètre : le stock est une photo à l'instant t.
+  // Pas de période en paramètre : le stock est une photo à l'instant t.
   const { data: stockChartData } = useQuery({
     queryKey: ['dashboard-stock-chart'],
     queryFn: () => dashboardApi.stockChart(),
@@ -90,14 +115,9 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold text-foreground">{t('dashboard.title')}</h1>
-        <input
-          type="month"
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
+        <SelecteurPeriode valeur={periode} onChange={setPeriode} />
       </div>
 
       {/* KPI cards */}
@@ -105,6 +125,7 @@ export function DashboardPage() {
         <StatCard
           title={t('dashboard.revenue')}
           value={formatCurrency(sales.totalRevenue)}
+          evolution={stats.evolution?.revenue}
           sub={`${sales.invoiceCount} ${t('dashboard.invoiceCount').toLowerCase()}`}
           icon={DollarSign}
         />
@@ -117,6 +138,7 @@ export function DashboardPage() {
         <StatCard
           title={t('dashboard.netProfit')}
           value={formatCurrency(profit.netProfit)}
+          evolution={stats.evolution?.netProfit}
           sub={`${profit.netProfitPercent}%`}
           icon={TrendingUp}
         />

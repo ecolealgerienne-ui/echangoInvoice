@@ -1,34 +1,69 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { DashboardQueryDto } from './dto/dashboard-query.dto';
+import { evolution, resoudrePeriode } from './periode';
 
 @Injectable()
 export class DashboardService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
   /**
-   * Mois courant à Alger. `toISOString()` est en UTC : le 1er du mois entre
-   * 00 h et 01 h locale, il désigne encore le mois précédent.
+   * Les trois agrégats comparables d'une période.
+   *
+   * R029 — appelé pour la période courante ET pour celle de comparaison. Deux
+   * requêtes distinctes divergeraient au premier ajustement de règle (une
+   * facture annulée exclue d'un côté et pas de l'autre), et l'écart affiché
+   * deviendrait faux sans que rien ne le signale.
    */
-  private moisCourant(): string {
-    const p = new Intl.DateTimeFormat('fr-DZ', {
-      timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit',
-    }).formatToParts(new Date());
-    return `${p.find((x) => x.type === 'year')!.value}-${p.find((x) => x.type === 'month')!.value}`;
-  }
+  private async chiffresPeriode(tenantId: string, dateFrom: string, dateTo: string) {
+    const [ventes, achats, depenses] = await Promise.all([
+      this.ds.query(
+        `SELECT COALESCE(SUM("totalAmount"),0) AS total, COUNT(*) AS nb,
+                COALESCE(AVG("totalAmount"),0) AS moyenne
+         FROM sales_invoices
+         WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+           AND status != 'cancelled' AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+      this.ds.query(
+        `SELECT COALESCE(SUM(poi.quantity * poi."unitPrice"),0) AS total,
+                COUNT(DISTINCT rbl.id) AS nb
+         FROM reception_bls rbl
+         JOIN purchase_order_items poi ON poi."purchaseOrderId" = rbl."purchaseOrderId"
+         WHERE rbl."tenantId"=$1 AND rbl."receptionDate" BETWEEN $2 AND $3
+           AND rbl."deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+      this.ds.query(
+        `SELECT COALESCE(SUM(CASE WHEN "isApproved" THEN amount ELSE 0 END),0) AS approuvees,
+                COALESCE(SUM(amount),0) AS total
+         FROM expenses
+         WHERE "tenantId"=$1 AND "expenseDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+    ]);
 
-  private periodBounds(month: string) {
-    const [year, monthNum] = month.split('-').map(Number);
-    const lastDay = new Date(year, monthNum, 0).getDate();
+    const revenue = parseFloat(ventes[0]?.total ?? 0);
+    const purchases = parseFloat(achats[0]?.total ?? 0);
+    const expenses = parseFloat(depenses[0]?.approuvees ?? 0);
+
     return {
-      dateFrom: `${year}-${String(monthNum).padStart(2, '0')}-01`,
-      dateTo: `${year}-${String(monthNum).padStart(2, '0')}-${lastDay}`,
+      revenue,
+      invoiceCount: parseInt(ventes[0]?.nb ?? 0),
+      averageInvoice: Math.round(parseFloat(ventes[0]?.moyenne ?? 0) * 100) / 100,
+      purchases,
+      receptionCount: parseInt(achats[0]?.nb ?? 0),
+      expenses,
+      totalExpenses: parseFloat(depenses[0]?.total ?? 0),
+      netProfit: Math.round((revenue - purchases - expenses) * 100) / 100,
     };
   }
 
-  async getStats(tenantId: string, moisDemande?: string) {
-    const month = moisDemande ?? this.moisCourant();
-    const { dateFrom, dateTo } = this.periodBounds(month);
+  async getStats(tenantId: string, demande: DashboardQueryDto = {}) {
+    const periode = resoudrePeriode(demande);
+    const { dateFrom, dateTo } = periode;
+    const [courant, precedent] = await Promise.all([
+      this.chiffresPeriode(tenantId, dateFrom, dateTo),
+      this.chiffresPeriode(tenantId, periode.comparaison.dateFrom, periode.comparaison.dateTo),
+    ]);
 
     const [salesRows, byStatusRows, topCustomersRows, purchaseRows, stockSummaryRows,
       stockStatusRows, expenseRows, alertInvoiceRows, alertStockRows, alertLowStockRows,
@@ -118,9 +153,12 @@ export class DashboardService {
     ]);
 
     // Assemble sales
-    const totalRevenue = parseFloat(salesRows[0]?.revenue ?? 0);
-    const invoiceCount = parseInt(salesRows[0]?.count ?? 0);
-    const avgInvoice = Math.round(parseFloat(salesRows[0]?.avg ?? 0) * 100) / 100;
+    // Les scalaires comparables viennent tous de chiffresPeriode, pour la
+    // période courante comme pour la précédente : une seule règle, un seul
+    // endroit où elle peut changer.
+    const totalRevenue = courant.revenue;
+    const invoiceCount = courant.invoiceCount;
+    const avgInvoice = courant.averageInvoice;
 
     const byStatus: Record<string, number> = { draft: 0, sent: 0, partial: 0, paid: 0, overdue: 0, cancelled: 0 };
     for (const r of byStatusRows) byStatus[r.status] = parseInt(r.count);
@@ -131,8 +169,8 @@ export class DashboardService {
     }));
 
     // Purchases
-    const totalPurchaseCost = parseFloat(purchaseRows[0]?.cost ?? 0);
-    const receptionCount = parseInt(purchaseRows[0]?.count ?? 0);
+    const totalPurchaseCost = courant.purchases;
+    const receptionCount = courant.receptionCount;
 
     // Stock
     const totalStockValue = Math.round(parseFloat(stockSummaryRows[0]?.value ?? 0) * 100) / 100;
@@ -151,11 +189,9 @@ export class DashboardService {
     let totalExpenses = 0, approvedExpenses = 0;
     for (const r of expenseRows) {
       byCategory[r.category] = Math.round(parseFloat(r.total) * 100) / 100;
-      totalExpenses += parseFloat(r.total ?? 0);
-      approvedExpenses += parseFloat(r.approved ?? 0);
     }
-    totalExpenses = Math.round(totalExpenses * 100) / 100;
-    approvedExpenses = Math.round(approvedExpenses * 100) / 100;
+    totalExpenses = Math.round(courant.totalExpenses * 100) / 100;
+    approvedExpenses = Math.round(courant.expenses * 100) / 100;
 
     // Profit (R008)
     const grossMargin = Math.round((totalRevenue - totalPurchaseCost) * 100) / 100;
@@ -171,7 +207,16 @@ export class DashboardService {
 
     return {
       data: {
-        period: { month, dateFrom, dateTo },
+        period: {
+          dateFrom, dateTo, jours: periode.jours,
+          comparaison: periode.comparaison,
+        },
+        evolution: {
+          revenue: evolution(totalRevenue, precedent.revenue),
+          purchases: evolution(totalPurchaseCost, precedent.purchases),
+          expenses: evolution(approvedExpenses, precedent.expenses),
+          netProfit: evolution(netProfit, precedent.netProfit),
+        },
         sales: {
           totalRevenue: Math.round(totalRevenue * 100) / 100,
           invoiceCount,
@@ -203,9 +248,8 @@ export class DashboardService {
     };
   }
 
-  async getSalesChart(tenantId: string, moisDemande?: string) {
-    const month = moisDemande ?? this.moisCourant();
-    const { dateFrom, dateTo } = this.periodBounds(month);
+  async getSalesChart(tenantId: string, demande: DashboardQueryDto = {}) {
+    const { dateFrom, dateTo } = resoudrePeriode(demande);
 
     const [byDateRows, byCustomerRows, byMethodRows] = await Promise.all([
       this.ds.query(`
@@ -251,7 +295,7 @@ export class DashboardService {
 
     return {
       data: {
-        period: { month, dateFrom, dateTo },
+        period: { dateFrom, dateTo },
         byDate: byDateRows.map((r: any) => ({
           date: r.date, revenue: Math.round(parseFloat(r.revenue) * 100) / 100,
           invoiceCount: parseInt(r.count),

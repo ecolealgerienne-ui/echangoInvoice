@@ -174,9 +174,10 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
   };
 
   const dashboardApi = {
-    stats: (month: string) => api.get('/dashboard/stats', { params: { month } }).then((r) => r.data),
-    salesChart: (month: string) =>
-      api.get('/dashboard/charts/sales', { params: { month } }).then((r) => r.data),
+    stats: (periode: { from: string; to: string }) =>
+      api.get('/dashboard/stats', { params: periode }).then((r) => r.data),
+    salesChart: (periode: { from: string; to: string }) =>
+      api.get('/dashboard/charts/sales', { params: periode }).then((r) => r.data),
     stockChart: () => api.get('/dashboard/charts/stock').then((r) => r.data),
   };
 

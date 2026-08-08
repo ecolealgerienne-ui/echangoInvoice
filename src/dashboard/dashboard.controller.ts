@@ -19,14 +19,14 @@ export class DashboardController {
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Statistiques globales du mois' })
   getStats(@Query() query: DashboardQueryDto, @CurrentUser() user: any) {
-    return this.service.getStats(user.tenantId!, query.month);
+    return this.service.getStats(user.tenantId!, query);
   }
 
   @Get('charts/sales')
   @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Données graphiques des ventes' })
   getSalesChart(@Query() query: DashboardQueryDto, @CurrentUser() user: any) {
-    return this.service.getSalesChart(user.tenantId!, query.month);
+    return this.service.getSalesChart(user.tenantId!, query);
   }
 
   @Get('charts/stock')

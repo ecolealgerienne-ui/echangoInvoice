@@ -122,7 +122,18 @@
       "criticalStock": "Matières critiques",
       "productionByDay": "Production par jour (14 j)",
       "noCriticalStock": "Aucune matière sous le seuil"
-    }
+    },
+    "periode": {
+      "jour": "Aujourd'hui",
+      "semaine": "Cette semaine",
+      "mois": "Ce mois",
+      "trimestre": "Trimestre",
+      "annee": "Cette année",
+      "douzeMois": "12 mois",
+      "personnalisee": "Personnalisée"
+    },
+    "vsPeriodePrecedente": "vs période précédente",
+    "pasDeComparaison": "Pas de comparaison possible"
   },
   "customers": {
     "title": "Clients",
@@ -545,7 +556,10 @@
     "tenant_context_missing": "Session invalide : aucune société associée à ce compte.",
     "pdf_archive_identity_missing": "Le document ne peut pas être archivé : identifiant de société ou de document manquant.",
     "invalid_month_format": "Le mois doit être au format AAAA-MM.",
-    "invalid_sort_column": "Cette colonne ne peut pas servir au tri."
+    "invalid_sort_column": "Cette colonne ne peut pas servir au tri.",
+    "invalid_date_format": "La date doit être au format AAAA-MM-JJ.",
+    "periode_incomplete": "Une période demande une date de début et une date de fin.",
+    "periode_inversee": "La date de fin doit suivre la date de début."
   },
   "status": {
     "active": "Actif",

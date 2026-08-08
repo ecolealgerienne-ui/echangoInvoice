@@ -26,8 +26,9 @@
     "seed:demo": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed-demo.ts",
     "verify:securite": "node scripts/verifier-securite.js",
     "verify:conformite": "node scripts/verifier-conformite.js",
-    "verify": "npm run verify:securite && npm run verify:conformite && npm run verify:tri",
-    "verify:tri": "node scripts/verifier-tri.js"
+    "verify": "npm run verify:securite && npm run verify:conformite && npm run verify:tri && npm run verify:periodes",
+    "verify:tri": "node scripts/verifier-tri.js",
+    "verify:periodes": "node scripts/verifier-periodes.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
