@@ -236,6 +236,15 @@ export class SalesInvoicesService {
       .where('inv.tenantId = :tenantId', { tenantId })
       .andWhere('inv.deletedAt IS NULL');
 
+    // La recherche porte aussi sur le nom du client : au téléphone on a le
+    // nom, rarement le numéro de facture. Le champ existait à l'écran depuis
+    // toujours, mais le DTO ne l'acceptait pas — avec forbidNonWhitelisted,
+    // toute saisie renvoyait un 400 et vidait la liste.
+    if (dto.search) {
+      qb.andWhere('(inv.invoiceNumber ILIKE :recherche OR customer.name ILIKE :recherche)', {
+        recherche: `%${dto.search}%`,
+      });
+    }
     if (dto.status) qb.andWhere('inv.status = :status', { status: dto.status });
     if (dto.customerId) qb.andWhere('inv.customerId = :customerId', { customerId: dto.customerId });
     if (dto.dateFrom) qb.andWhere('inv.invoiceDate >= :dateFrom', { dateFrom: dto.dateFrom });

@@ -55,6 +55,8 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | `ace79ef` | Avoirs : effet comptable réel (`creditedAmount`) |
 | `d3ebd4f` | Gestion des collaborateurs et invitations |
 | `f19e513` | Grilles tarifaires par client |
+| *(2026-08-08, suite)* | Export CSV — 15 jeux de données, deux dialectes |
+| *(2026-08-08, suite)* | Recherche factures et devis : 400 sur chaque frappe |
 
 Trois migrations ajoutées : `1750022000000` (creditedAmount),
 `1750023000000` (price_lists). Toutes appliquées en local.
@@ -65,12 +67,14 @@ Trois migrations ajoutées : `1750022000000` (creditedAmount),
 
 Ordre recommandé, issu de `docs/BENCHMARK.md`.
 
-### 1. Export CSV et pages détail — *le prochain à prendre*
+### 1. Pages détail — *le prochain à prendre*
 
-Aucun export nulle part, alors qu'Invoice Ninja, Erplain et Henrri en ont un ;
-c'est la première demande d'un comptable. Et les lignes d'une facture envoyée ou
-payée sont **inconsultables** : les modales sont réservées aux brouillons, et
-aucune page détail n'existe pour aucune entité.
+L'export CSV est livré (15 jeux, `GET /export/:dataset`). **Reste les pages
+détail** : les lignes d'une facture envoyée ou payée sont toujours
+inconsultables à l'écran — les modales sont réservées aux brouillons, et aucune
+page détail n'existe pour aucune entité. L'export `lignes-factures` permet de
+les lire dans un tableur, ce qui répond au besoin comptable mais pas au besoin
+de consultation courante.
 
 Symptôme connexe : les cinq `get(id)` de la couche API
 (clients, fournisseurs, matières, dépenses, avoirs) ne sont jamais appelés — un
@@ -138,12 +142,14 @@ avant le reste.
 
 ## Comptes de démonstration
 
-| Compte | Rôle |
-|---|---|
-| `admin@chambre-froide.dz` | owner |
-| `owner@chambre-froide.dz` | owner |
-| `manager@chambre-froide.dz` | manager |
-| `agent@chambre-froide.dz` | agent |
-| `superadmin@echango.dz` | superadmin |
+| Compte | Rôle | Mot de passe |
+|---|---|---|
+| `admin@chambre-froide.dz` | owner | `admin1234` |
+| `owner@chambre-froide.dz` | owner | `admin1234` |
+| `manager@chambre-froide.dz` | manager | `manager1234` |
+| `agent@chambre-froide.dz` | agent | `agent1234` |
+| `superadmin@echango.dz` | superadmin | `SuperAdmin2026!` (login séparé `/admin/auth/login`) |
 
-Mot de passe commun : `admin1234`.
+**Le mot de passe n'est pas commun** — la version précédente de ce fichier
+annonçait `admin1234` pour tous, ce qui fait perdre du temps sur le premier
+essai avec un compte non-propriétaire.

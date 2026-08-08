@@ -160,6 +160,13 @@ export class QuotesService {
       .where('q.tenantId = :tenantId', { tenantId })
       .andWhere('q.deletedAt IS NULL');
 
+    // Même défaut que sur les factures : le champ de recherche existait à
+    // l'écran, le DTO le refusait, et chaque frappe renvoyait un 400.
+    if (dto.search) {
+      qb.andWhere('(q.quoteNumber ILIKE :recherche OR customer.name ILIKE :recherche)', {
+        recherche: `%${dto.search}%`,
+      });
+    }
     if (dto.status) qb.andWhere('q.status = :status', { status: dto.status });
     if (dto.customerId) qb.andWhere('q.customerId = :customerId', { customerId: dto.customerId });
     if (dto.dateFrom) qb.andWhere('q.quoteDate >= :dateFrom', { dateFrom: dto.dateFrom });
