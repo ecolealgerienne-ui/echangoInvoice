@@ -485,7 +485,10 @@
     "stampDuty": "Droit de timbre",
     "stampDutyHint": "Dû sur les règlements en espèces (art. 100 du code du timbre). Les virements et paiements électroniques en sont dispensés.",
     "stampDutyEnabled": "Appliquer le droit de timbre",
-    "stampDutyEnabledHint": "Ajoute le timbre aux factures dont le règlement est prévu en espèces."
+    "stampDutyEnabledHint": "Ajoute le timbre aux factures dont le règlement est prévu en espèces.",
+    "stamp": "Cachet et signature",
+    "uploadStamp": "Charger le cachet",
+    "stampHint": "Apposé sur les factures, devis et BL à côté de la zone de signature. Le décret 05-468 les exige, sauf transmission télématique. PNG à fond transparent de préférence."
   },
   "errors": {
     "generic": "Une erreur est survenue",

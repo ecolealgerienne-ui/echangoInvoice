@@ -86,6 +86,16 @@ export class UpdateSettingsDto {
   @IsOptional() @IsString()
   logo?: string;
 
+  // Mêmes contraintes que le logo : la valeur finit dans un attribut `src`.
+  @ApiPropertyOptional({ description: 'Data URL base64 du cachet et de la signature' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(700_000, { message: 'errors.logo_too_large' })
+  @Matches(/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/, {
+    message: 'errors.logo_invalid_format',
+  })
+  stampImage?: string;
+
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;

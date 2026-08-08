@@ -95,21 +95,26 @@ sur aucun contrôleur (E003).
 **Suite de la session** — douchette USB sur les quatre écrans de saisie et dans
 la recherche, PDF d'avoir, mention « facture annulée » en diagonale, facture
 proforma, fournisseurs multiples par article, balance âgée, rôle « comptable »
-en lecture seule, et désamorçage des deux dérives de schéma destructrices.
+en lecture seule, désamorçage des deux dérives de schéma destructrices, TVA
+déductible et aide au G50, QR de vérification signé avec sa page publique, et
+cachet de l'émetteur sur les documents.
+
+**Conformité au décret 05-468 : il ne reste que la facture récapitulative.**
+Identifiants légaux, montant en toutes lettres, droit de timbre, mention
+d'annulation, cachet et proforma sont livrés.
 
 ### Ce qui reste ouvert, par ordre de valeur
 
 | Sujet | État |
 |---|---|
 | **Pièces jointes** | Reporté sur décision — voir §2 ci-dessous, tout y est préparé |
-| **TVA déductible / G50 complet** | Nous fournissons la moitié d'un G50 ; les données existent |
+| **Scan par caméra** | Reste le seul mode de scan manquant |
 | **Scan par caméra** | La douchette couvre le poste fixe ; la caméra vise le mobile (`BarcodeDetector`, repli `@zxing/browser`, plugin MLKit côté Capacitor) |
-| **QR de vérification sur les documents** | Modèle et gabarit prêts ; reste le jeton signé et la page publique |
 | **Multi-dépôts** | Chantier de structure, non réclamé à ce jour |
 | **Traçabilité par lot** | Les lots et péremptions sont saisis ; le rappel sanitaire n'est pas outillé |
 | **Interface arabe (RTL)** | L'i18n est en place, le RTL non |
 | **Facturation récurrente** | Abonnements, locations |
-| **Cachet sur les PDF** | Emplacement + image dans les Paramètres |
+| **Portail client** | Reporté de longue date ; le QR de vérification en couvre déjà l'usage principal |
 | **Facture récapitulative** | Regrouper les BL d'une période en une facture |
 | **Dérive de schéma résiduelle** | 354 opérations, 13 `DROP COLUMN` — mécanique, à traiter avant de refaire confiance à `migration:generate` |
 

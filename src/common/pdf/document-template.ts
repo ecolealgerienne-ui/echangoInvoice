@@ -12,6 +12,8 @@
  */
 
 export interface Emetteur {
+  /** Cachet et signature, en data-URL. */
+  stampImage?: string | null;
   companyName: string | null;
   address: string | null;
   phone: string | null;
@@ -186,6 +188,7 @@ function styles(accent: string): string {
     .somme { border: 1px solid #dde; border-radius: 4px; padding: 8px 10px; font-size: 10px; margin-bottom: 12px; text-transform: uppercase; }
     .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
     .signature { text-align: center; width: 200px; }
+    .signature .cachet { max-height: 70px; max-width: 150px; object-fit: contain; margin-bottom: 2px; }
     .signature div { border-top: 1px solid #333; padding-top: 4px; font-size: 10px; }
     .footer { text-align: center; font-size: 9px; color: #888; border-top: 1px solid #eee; padding-top: 8px; margin-top: 16px; white-space: pre-line; }
   </style>`;
@@ -219,6 +222,7 @@ export function rendreDocument(o: OptionsDocument): string {
   const accent = couleurSure(o.emetteur.accentColor);
   const e = o.emetteur;
   const logo = sourceImageSure(e.logo);
+  const cachet = sourceImageSure(e.stampImage);
 
   const idsEmetteur = [
     { libelle: 'NIF', valeur: e.nif },
@@ -293,7 +297,10 @@ export function rendreDocument(o: OptionsDocument): string {
     ${e.rib ? `<div class="rib"><strong>RIB :</strong> ${echapper(e.rib)}</div>` : ''}
 
     ${o.signatures ? `<div class="signatures">
-      <div class="signature"><div>${echapper(o.signatures[0])}</div></div>
+      <div class="signature">
+        ${cachet ? `<img class="cachet" src="${cachet}" alt="cachet"/>` : ''}
+        <div>${echapper(o.signatures[0])}</div>
+      </div>
       <div class="signature"><div>${echapper(o.signatures[1])}</div></div>
     </div>` : ''}
 

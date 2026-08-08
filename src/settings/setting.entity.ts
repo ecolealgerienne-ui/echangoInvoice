@@ -51,6 +51,13 @@ export class Setting {
   @Column({ type: 'text', nullable: true })
   logo: string | null;
 
+  /**
+   * Cachet et signature, en data-URL. Apposé sur les documents à côté de la
+   * zone de signature — le décret l'exige, et ce qui circule est un fichier.
+   */
+  @Column({ type: 'text', nullable: true })
+  stampImage: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   email: string | null;
 

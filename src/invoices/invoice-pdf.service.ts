@@ -17,7 +17,8 @@ const CHAMPS_EMETTEUR = `
   s.phone AS company_phone, s.email AS company_email,
   s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai, s.nis AS company_nis,
   s.rib AS company_rib, s.logo AS company_logo,
-  s."footerText" AS company_footer, s."pdfAccentColor" AS company_accent`;
+  s."footerText" AS company_footer, s."pdfAccentColor" AS company_accent,
+  s."stampImage" AS company_stamp`;
 
 @Injectable()
 export class InvoicePdfService {
@@ -36,6 +37,7 @@ export class InvoicePdfService {
    */
   private emetteur(row: Record<string, unknown>): Emetteur {
     return {
+      stampImage: row.company_stamp as string | null,
       companyName: (row.company_name as string) ?? null,
       address: (row.company_address as string) ?? null,
       phone: (row.company_phone as string) ?? null,

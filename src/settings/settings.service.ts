@@ -63,6 +63,7 @@ export class SettingsService {
       if (dto.defaultPaymentTermsDays !== undefined) setting.defaultPaymentTermsDays = dto.defaultPaymentTermsDays;
       if (dto.productionModuleEnabled !== undefined) setting.productionModuleEnabled = dto.productionModuleEnabled;
       if (dto.stampDutyEnabled !== undefined) setting.stampDutyEnabled = dto.stampDutyEnabled;
+      if (dto.stampImage !== undefined) setting.stampImage = dto.stampImage;
       setting.updatedBy = userId;
 
       const saved = await qr.manager.save(Setting, setting);
