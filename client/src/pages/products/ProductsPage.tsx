@@ -106,8 +106,19 @@ export function ProductsPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) =>
       editing ? productsApi.update(editing.id, d) : productsApi.create(d),
-    onSuccess: () => {
+    onSuccess: (reponse: any) => {
       qc.invalidateQueries({ queryKey: ['products'] });
+
+      // Un code-barres et un fournisseur se rattachent a un article : ils ne
+      // peuvent pas etre saisis avant qu il existe. Plutot que d obliger a
+      // fermer puis rouvrir au crayon, la modale bascule en modification et
+      // les deux blocs apparaissent sous le formulaire.
+      if (!editing && reponse?.data?.id) {
+        setEditing(reponse.data);
+        toast(t('products.createdNext'), 'success');
+        return;
+      }
+
       toast(t('common.save') + ' !', 'success');
       closeModal();
     },
@@ -399,6 +410,12 @@ export function ProductsPage() {
             ce sont des collections rattachees a un identifiant. Ils n'apparaissent
             donc qu'en modification, et s'enregistrent seuls — leurs boutons sont
             hors du formulaire au-dessus, dont ils ne dependent pas. */}
+        {!editing && (
+          <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
+            {t('products.saveFirst')}
+          </p>
+        )}
+
         {editing && (
           <div className="mt-6 space-y-6 border-t border-border pt-5">
             <FournisseursArticle productId={editing.id} />

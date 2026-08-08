@@ -717,7 +717,9 @@
     "packUnit": "Conditionnement",
     "photo": "Photo",
     "moreOnSheet": "Historique des ventes, achats, lots et marge :",
-    "openSheet": "ouvrir la fiche complète"
+    "openSheet": "ouvrir la fiche complète",
+    "createdNext": "Article créé. Vous pouvez maintenant lui ajouter ses fournisseurs et ses codes-barres.",
+    "saveFirst": "Fournisseurs et codes-barres se rattachent à l'article : ils apparaîtront dès que vous l'aurez enregistré, sans quitter cette fenêtre."
   },
   "quotes": {
     "title": "Devis",
