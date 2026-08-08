@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Truck, Box, Layers,
   FileText, BarChart2, Settings, LogOut, ClipboardList,
   FileSignature, ShoppingCart, Receipt, Factory,
-  Shield, Building2, CreditCard, FileMinus, Boxes,
+  Shield, Building2, CreditCard, FileMinus, Boxes, Tags,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ const groups = [
     items: [
       { to: '/products', icon: Box, key: 'nav.products' },
       { to: '/raw-materials', icon: Boxes, key: 'nav.rawMaterials' },
+      { to: '/price-lists', icon: Tags, key: 'nav.priceLists' },
       { to: '/stock', icon: Layers, key: 'nav.stock' },
     ],
   },

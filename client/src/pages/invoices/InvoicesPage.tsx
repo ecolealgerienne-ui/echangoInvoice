@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoicesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
+import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -107,6 +108,10 @@ export function InvoicesPage() {
     defaultValues: { invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  // Grille tarifaire du client sélectionné : le prix proposé à chaque ligne
+  // en dépend, il doit donc suivre le changement de client.
+  const { priceFor, priceListName } = useCustomerPrices(watchInv('customerId'));
 
   const paymentForm = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -381,6 +386,11 @@ export function InvoicesPage() {
                 {customers?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {errors.customerId && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+              {/* Sans cette mention, un prix différent du catalogue paraîtrait
+                  arbitraire. */}
+              {priceListName && (
+                <p className="text-xs text-primary">{t('priceLists.applied', { name: priceListName })}</p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('invoices.invoiceDate')} *</label>
@@ -421,7 +431,10 @@ export function InvoicesPage() {
                       setInvValue(`items.${i}.finishedProductId`, e.target.value);
                       const prod = productList.find((p: any) => p.id === e.target.value);
                       if (prod?.unit) setInvValue(`items.${i}.unit`, prod.unit);
-                      if (prod?.defaultSalesPrice) setInvValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                      // Prix de la grille du client si elle en donne un,
+                      // sinon tarif de base. Reste modifiable sur la ligne.
+                      const prixPropose = prod ? priceFor(prod) : undefined;
+                      if (prixPropose != null) setInvValue(`items.${i}.unitPrice`, prixPropose);
                     }}>
                     <option value="">{t('common.select')}</option>
                     {productList.map((p: any) => (

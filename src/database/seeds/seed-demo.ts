@@ -255,6 +255,9 @@ async function seedDemo() {
       'credit_note_items', 'credit_notes',
       'delivery_note_items', 'delivery_notes',
       'quote_items', 'quotes',
+      // tarification : price_list_items référence finished_products ET
+      // price_lists, et partners pointe sur price_lists
+      'price_list_items', 'price_lists',
       // référentiels
       'expenses', 'partner_contacts', 'finished_products', 'partners',
     ];
@@ -374,6 +377,50 @@ async function seedDemo() {
       'totalStockValue', 'alertThreshold', 'createdBy', 'updatedBy',
     ], productRows);
     console.log(`Produits  : ${productRows.length}`);
+
+    // ── Grilles tarifaires ────────────────────────────────────────────────────
+    // Sans grilles, l'écran est vide et la fonctionnalité invérifiable. Trois
+    // niveaux couvrent le cas réel d'un négoce : remise au volume, tarif de
+    // détail, et un tarif export sur une part seulement du catalogue — pour
+    // montrer que les articles non tarifés retombent bien sur le prix de base.
+    const GRILLES = [
+      { nom: 'Grossistes', desc: 'Remise volume', coef: 0.85, couverture: 1 },
+      { nom: 'Détaillants', desc: 'Tarif boutique', coef: 0.95, couverture: 1 },
+      { nom: 'Export', desc: 'Sélection export', coef: 1.12, couverture: 0.4 },
+    ] as const;
+
+    const grilleRows: unknown[][] = [];
+    const grilleItemRows: unknown[][] = [];
+    const grilleIds: string[] = [];
+
+    for (const g of GRILLES) {
+      const id = uuid();
+      grilleIds.push(id);
+      grilleRows.push([id, tenantId, g.nom, g.desc, true, author, author]);
+
+      for (const p of products) {
+        if (rnd() > g.couverture) continue;
+        grilleItemRows.push([uuid(), tenantId, id, p.id, money(p.price * g.coef)]);
+      }
+    }
+
+    await insertBatch(qr, 'price_lists', [
+      'id', 'tenantId', 'name', 'description', 'isActive', 'createdBy', 'updatedBy',
+    ], grilleRows);
+    await insertBatch(qr, 'price_list_items', [
+      'id', 'tenantId', 'priceListId', 'finishedProductId', 'unitPrice',
+    ], grilleItemRows);
+
+    // 45 % des clients sur une grille : le reste reste au tarif de base, sans
+    // quoi on ne verrait jamais le comportement par défaut.
+    let affectes = 0;
+    for (const cid of customerIds) {
+      if (rnd() > 0.45) continue;
+      await qr.query(`UPDATE partners SET "priceListId" = $1 WHERE id = $2`, [pick(grilleIds), cid]);
+      affectes++;
+    }
+
+    console.log(`Grilles   : ${grilleRows.length} (${grilleItemRows.length} prix, ${affectes} clients affectés)`);
 
     // ── Génération des lignes d'un document ───────────────────────────────────
     // Réplique exactement SalesInvoicesService.computeItem : lineTotal est TTC.
@@ -1347,6 +1394,35 @@ async function seedDemo() {
               WHERE cn."tenantId" = $1
                 AND NOT EXISTS (SELECT 1 FROM credit_note_items it
                                 WHERE it."creditNoteId" = cn.id)`,
+      },
+      // ── Grilles tarifaires ─────────────────────────────────────────────────
+      {
+        label: 'Grilles : un seul prix par article et par grille',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT "priceListId", "finishedProductId"
+                FROM price_list_items WHERE "tenantId" = $1
+                GROUP BY 1, 2 HAVING count(*) > 1
+              ) x`,
+      },
+      {
+        label: 'Grilles : aucun prix négatif',
+        sql: `SELECT count(*)::int AS n FROM price_list_items
+              WHERE "tenantId" = $1 AND "unitPrice" < 0`,
+      },
+      {
+        label: 'Grilles : tout prix porte sur un article existant',
+        sql: `SELECT count(*)::int AS n FROM price_list_items i
+              WHERE i."tenantId" = $1
+                AND NOT EXISTS (SELECT 1 FROM finished_products p
+                                WHERE p.id = i."finishedProductId" AND p."deletedAt" IS NULL)`,
+      },
+      {
+        label: 'Grilles : la grille d’un client existe et est active',
+        sql: `SELECT count(*)::int AS n FROM partners p
+              WHERE p."tenantId" = $1 AND p."priceListId" IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM price_lists pl
+                                WHERE pl.id = p."priceListId"
+                                  AND pl."deletedAt" IS NULL AND pl."isActive")`,
       },
       {
         label: 'Fact. four. : numéro unique',

@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { AcceptInvitePage } from '@/pages/auth/AcceptInvitePage';
+import { PriceListsPage } from '@/pages/price-lists/PriceListsPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
@@ -66,6 +67,7 @@ export function AppRouter() {
       <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
       <Route path="/suppliers" element={<PrivateRoute><SuppliersPage /></PrivateRoute>} />
       <Route path="/raw-materials" element={<PrivateRoute><RawMaterialsPage /></PrivateRoute>} />
+      <Route path="/price-lists" element={<PrivateRoute><PriceListsPage /></PrivateRoute>} />
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
       <Route path="/invoices" element={<PrivateRoute><InvoicesPage /></PrivateRoute>} />
       <Route path="/deliveries" element={<PrivateRoute><DeliveryNotesPage /></PrivateRoute>} />

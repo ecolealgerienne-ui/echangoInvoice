@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { quotesApi, customersApi, productsApi, settingsApi, deliveriesApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
+import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -97,6 +98,8 @@ export function QuotesPage() {
       items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }],
     },
   });
+
+  const { priceFor, priceListName } = useCustomerPrices(watchQ('customerId'));
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
 
@@ -348,6 +351,9 @@ export function QuotesPage() {
                 ))}
               </Select>
               {errors.customerId && <p className="text-xs text-destructive mt-1">{t('errors.required')}</p>}
+              {priceListName && (
+                <p className="text-xs text-primary mt-1">{t('priceLists.applied', { name: priceListName })}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">{t('quotes.quoteDate')}</label>
@@ -391,7 +397,8 @@ export function QuotesPage() {
                         setQValue(`items.${i}.finishedProductId`, e.target.value);
                         const prod = (productList as any[]).find((p: any) => p.id === e.target.value);
                         if (prod?.unit) setQValue(`items.${i}.unit`, prod.unit);
-                        if (prod?.defaultSalesPrice) setQValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                        const prixPropose = prod ? priceFor(prod) : undefined;
+                        if (prixPropose != null) setQValue(`items.${i}.unitPrice`, prixPropose);
                       }}>
                       <option value="">{t('products.title')}</option>
                       {(productList as any[]).map((p: any) => (

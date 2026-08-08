@@ -28,6 +28,20 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.post('/auth/accept-invite', { token, name, password }).then((r) => r.data.data),
   };
 
+  const priceListsApi = {
+    list: () => api.get('/price-lists').then((r) => r.data),
+    get: (id: string) => api.get(`/price-lists/${id}`).then((r) => r.data),
+    create: (body: unknown) => api.post('/price-lists', body).then((r) => r.data),
+    update: (id: string, body: unknown) => api.put(`/price-lists/${id}`, body).then((r) => r.data),
+    remove: (id: string) => api.delete(`/price-lists/${id}`).then((r) => r.data),
+    setItems: (id: string, items: unknown[]) =>
+      api.put(`/price-lists/${id}/items`, { items }).then((r) => r.data),
+    // Map article → prix pour un client. Renvoie une map vide si le client
+    // n'a pas de grille : c'est alors defaultSalesPrice qui s'applique.
+    forCustomer: (customerId: string) =>
+      api.get(`/price-lists/for-customer/${customerId}`).then((r) => r.data),
+  };
+
   const usersApi = {
     list: () => api.get('/users').then((r) => r.data),
     quota: () => api.get('/users/quota').then((r) => r.data),
@@ -291,6 +305,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     authApi, customersApi, suppliersApi, rawMaterialsApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
     quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
+    priceListsApi,
   };
 }
 

@@ -22,6 +22,13 @@ export class Partner {
   @Column({ type: 'varchar', length: 255 })
   name: string;
 
+  /**
+   * Grille tarifaire du client. NULL = tarif de base (`defaultSalesPrice`).
+   * La grille propose un prix à la saisie, elle ne le verrouille pas.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  priceListId: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   contactPerson: string | null;
 

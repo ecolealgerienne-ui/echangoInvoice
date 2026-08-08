@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { CustomersModule } from './customers/customers.module';
 import { ProductsModule } from './products/products.module';
+import { PriceListsModule } from './price-lists/price-lists.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
@@ -42,6 +43,7 @@ import { AdminModule } from './admin/admin.module';
     SuppliersModule,
     CustomersModule,
     ProductsModule,
+    PriceListsModule,
     PurchasesModule,
     QuotesModule,
     DeliveriesModule,

@@ -51,6 +51,7 @@
     "purchases": "Achats",
     "creditNotes": "Avoirs",
     "rawMaterials": "Matières premières",
+    "priceLists": "Grilles tarifaires",
     "vendorBills": "Factures fournisseurs",
     "production": "Production",
     "group": {
@@ -252,6 +253,24 @@
       "other": "Autre"
     }
   },
+  "priceLists": {
+    "title": "Grilles tarifaires",
+    "new": "Nouvelle grille",
+    "name": "Nom",
+    "hint": "Une grille donne un prix par client. À la saisie d'un document, le prix de la grille est proposé — il reste modifiable sur la ligne.",
+    "empty": "Aucune grille. Créez-en une pour proposer un tarif différent selon le client.",
+    "itemCount": "Articles tarifés",
+    "customerCount": "Clients",
+    "basePrice": "Tarif de base",
+    "gridPrice": "Prix de la grille",
+    "delta": "Écart",
+    "pricesSaved": "Prix de la grille enregistrés",
+    "pricedCount": "{{count}} article(s) tarifé(s) — les autres restent au tarif de base",
+    "resetToBase": "Revenir au tarif de base",
+    "basePriceOption": "Tarif de base",
+    "customerHint": "Laissez « Tarif de base » pour appliquer le prix du catalogue.",
+    "applied": "Grille « {{name}} » appliquée"
+  },
   "users": {
     "members": "Membres de l'espace",
     "name": "Nom",
@@ -423,6 +442,9 @@
     "quote_not_editable": "Ce devis ne peut pas être modifié",
     "quote_not_accepted": "Ce devis n'est pas accepté",
     "quote_cannot_delete": "Ce devis ne peut pas être supprimé",
+    "price_list_not_found": "Grille tarifaire introuvable",
+    "price_list_name_taken": "Une grille porte déjà ce nom",
+    "price_list_in_use": "Des clients utilisent cette grille : détachez-les avant de la supprimer",
     "invite_already_pending": "Une invitation est déjà en attente pour cette adresse",
     "invite_invalid_or_expired": "Cette invitation est invalide ou a expiré",
     "users_limit_reached": "La limite d'utilisateurs de votre plan est atteinte",

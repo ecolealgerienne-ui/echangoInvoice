@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { deliveriesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
 import { useUnits } from '@/lib/useUnits';
+import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -96,6 +97,8 @@ export function DeliveryNotesPage() {
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  const { priceFor, priceListName } = useCustomerPrices(watchDN('customerId'));
 
   const saveMutation = useMutation({
     mutationFn: (d: FormData) => editing ? deliveriesApi.update(editing.id, d) : deliveriesApi.create(d),
@@ -376,6 +379,9 @@ export function DeliveryNotesPage() {
                 {customers?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {errors.customerId && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+              {priceListName && (
+                <p className="text-xs text-primary">{t('priceLists.applied', { name: priceListName })}</p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('common.date')} *</label>
@@ -412,7 +418,8 @@ export function DeliveryNotesPage() {
                       setDNValue(`items.${i}.finishedProductId`, e.target.value);
                       const prod = productList.find((p: any) => p.id === e.target.value);
                       if (prod?.unit) setDNValue(`items.${i}.unit`, prod.unit);
-                      if (prod?.defaultSalesPrice) setDNValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                      const prixPropose = prod ? priceFor(prod) : undefined;
+                      if (prixPropose != null) setDNValue(`items.${i}.unitPrice`, prixPropose);
                     }}>
                     <option value="">{t('common.select')}</option>
                     {productList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}

@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { customersApi, resolveApiError } from '@/lib/api';
+import { customersApi, priceListsApi, resolveApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
@@ -30,6 +31,8 @@ const schema = z.object({
   nis: z.string().optional(),
   isCustomer: z.boolean().optional(),
   isSupplier: z.boolean().optional(),
+  // Chaîne vide = pas de grille. Le DTO la ramène à null côté serveur.
+  priceListId: z.string().optional(),
 });
 
 const contactSchema = z.object({
@@ -66,6 +69,11 @@ export function CustomersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['customers', page, search],
     queryFn: () => customersApi.list({ page, limit: 20, search: search || undefined }),
+  });
+
+  const { data: priceLists } = useQuery({
+    queryKey: ['price-lists'],
+    queryFn: () => priceListsApi.list(),
   });
 
   const { data: contactsData, isLoading: contactsLoading } = useQuery({
@@ -128,7 +136,13 @@ export function CustomersPage() {
   });
 
   function openCreate() { setEditing(null); reset({}); setModalOpen(true); }
-  function openEdit(c: any) { setEditing(c); reset(c); setModalOpen(true); }
+  function openEdit(c: any) {
+    setEditing(c);
+    // priceListId vaut null quand le client est au tarif de base ; un <select>
+    // attend une chaîne, sinon React le traite comme non contrôlé.
+    reset({ ...c, priceListId: c.priceListId ?? '' });
+    setModalOpen(true);
+  }
   function closeModal() { setModalOpen(false); setEditing(null); reset({}); }
 
   function openContacts(c: any) { setContactsCustomer(c); }
@@ -282,6 +296,18 @@ export function CustomersPage() {
                 <Input {...register('country')} placeholder={t('customers.country')} />
               </div>
             </div>
+          </div>
+
+          {/* Tarification */}
+          <div className="border-t border-border pt-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t('priceLists.title')}</p>
+            <Select {...register('priceListId')} className="w-full">
+              <option value="">{t('priceLists.basePriceOption')}</option>
+              {priceLists?.data?.filter((g: any) => g.isActive).map((g: any) => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">{t('priceLists.customerHint')}</p>
           </div>
 
           {/* Adresse de livraison */}
