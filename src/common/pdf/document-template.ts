@@ -72,6 +72,12 @@ export interface OptionsDocument {
    */
   filigrane?: string | null;
   /**
+   * QR de vérification, en data-URL PNG. Placé en pied de page avec l'URL en
+   * clair dessous : un QR qu'on ne peut pas recopier à la main est inutile dès
+   * qu'on n'a pas de téléphone sous la main.
+   */
+  qrVerification?: { image: string; url: string } | null;
+  /**
    * Total en toutes lettres — mention obligatoire du décret 05-468. Le texte
    * est composé par l'appelant : lui seul sait quel total fait foi (net à
    * payer quand un droit de timbre s'ajoute au TTC).
@@ -173,6 +179,10 @@ function styles(accent: string): string {
     .filigrane { position: fixed; top: 42%; left: 0; right: 0; text-align: center;
       font-size: 72px; font-weight: bold; color: rgba(200, 30, 30, 0.16);
       transform: rotate(-28deg); letter-spacing: 6px; pointer-events: none; }
+    .verif { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 10px; border-top: 1px solid #eee; }
+    .verif img { width: 68px; height: 68px; }
+    .verif-titre { font-size: 9px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .verif-url { font-size: 8px; color: #888; word-break: break-all; }
     .somme { border: 1px solid #dde; border-radius: 4px; padding: 8px 10px; font-size: 10px; margin-bottom: 12px; text-transform: uppercase; }
     .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
     .signature { text-align: center; width: 200px; }

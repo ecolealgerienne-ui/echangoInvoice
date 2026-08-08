@@ -978,5 +978,15 @@
     "aide": "Douchette prête — scannez un article.",
     "dernier": "Dernier : {{produit}}",
     "inconnu": "Aucun article pour le code {{code}}."
+  },
+  "verification": {
+    "authentique": "Document authentique",
+    "annule": "Document annulé",
+    "introuvable": "Document introuvable",
+    "introuvableAide": "Ce lien ne correspond à aucun document. Vérifiez que le code a été scanné en entier, ou demandez le document à son émetteur.",
+    "emetteur": "Émetteur",
+    "destinataire": "Destinataire",
+    "date": "Date",
+    "note": "Vérification effectuée auprès de l'émetteur au moment de l'affichage. Ce service confirme l'existence et le statut du document, il ne vaut pas attestation de paiement."
   }
 }

@@ -18,6 +18,7 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { SearchModule } from './search/search.module';
+import { VerificationModule } from './verification/verification.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StockModule } from './stock/stock.module';
 import { ReportsModule } from './reports/reports.module';
@@ -55,6 +56,7 @@ import { NumberingModule } from './common/numbering/numbering.module';
     ExpensesModule,
     DashboardModule,
     SearchModule,
+    VerificationModule,
     StockModule,
     ReportsModule,
     SettingsModule,

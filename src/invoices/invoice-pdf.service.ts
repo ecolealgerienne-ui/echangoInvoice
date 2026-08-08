@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { PdfService } from '../common/pdf.service';
 import { EmailService } from '../common/email.service';
+import * as bwipjs from 'bwip-js';
 import { montantEnLettres } from '../common/montant-en-lettres';
+import { TypeDocumentVerifiable, urlVerification } from '../common/verification';
 import { MENTION_TIMBRE, calculerNetAPayer } from '../common/droit-de-timbre';
 import {
   Emetteur, LignePdf, jour, montant, rendreDocument,
@@ -19,6 +21,8 @@ const CHAMPS_EMETTEUR = `
 
 @Injectable()
 export class InvoicePdfService {
+  private readonly logger = new Logger(InvoicePdfService.name);
+
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly pdfService: PdfService,
@@ -45,6 +49,34 @@ export class InvoicePdfService {
       footerText: (row.company_footer as string) ?? null,
       accentColor: (row.company_accent as string) ?? null,
     };
+  }
+
+  /**
+   * QR de vérification du document.
+   *
+   * Généré en data-URL : le service PDF bloque toute ressource externe, et
+   * c'est voulu — un QR chargé depuis le réseau au moment du rendu ferait
+   * dépendre une facture archivée d'un serveur encore joignable dix ans après.
+   *
+   * Un échec de génération ne doit pas empêcher la facture de sortir : le
+   * document reste valable sans son QR, l'inverse n'est pas vrai.
+   */
+  private async qrVerification(type: TypeDocumentVerifiable, documentId: string) {
+    const url = urlVerification(type, documentId);
+    try {
+      const png = await bwipjs.toBuffer({
+        bcid: 'qrcode', text: url, scale: 4, includetext: false,
+        // `eclevel` est une option propre au QR que les typages de bwip-js
+        // n'exposent pas ; elle est bien lue à l'exécution. Niveau M : lisible
+        // sur une photocopie, ce que sont la plupart des factures algériennes
+        // une fois arrivées chez le comptable.
+        eclevel: 'M',
+      } as Parameters<typeof bwipjs.toBuffer>[0]);
+      return { image: `data:image/png;base64,${Buffer.from(png).toString('base64')}`, url };
+    } catch (e) {
+      this.logger.warn(`QR de vérification non généré pour ${type} ${documentId}: ${String(e)}`);
+      return null;
+    }
   }
 
   private lignes(items: Record<string, unknown>[]): LignePdf[] {
@@ -129,6 +161,7 @@ export class InvoicePdfService {
       // Le décret 05-468 impose la mention en diagonale : le statut en base ne
       // suffit pas, c'est le papier qui circule.
       filigrane: inv.status === 'cancelled' ? 'FACTURE ANNULÉE' : null,
+      qrVerification: await this.qrVerification('facture', inv.id),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -177,6 +210,7 @@ export class InvoicePdfService {
         { libelle: 'TOTAL TTC', montant: dn.total, fort: true },
       ],
       notes: dn.notes,
+      qrVerification: await this.qrVerification('bl', dn.id),
       signatures: ['Signature expéditeur', 'Signature destinataire'],
     });
 
@@ -241,6 +275,7 @@ export class InvoicePdfService {
             + (a.reason ? ` Motif : ${a.reason}` : '')
         : (a.reason ? `Motif : ${a.reason}` : null),
       filigrane: a.status === 'cancelled' ? 'AVOIR ANNULÉ' : null,
+      qrVerification: await this.qrVerification('avoir', a.id),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -300,6 +335,7 @@ export class InvoicePdfService {
         { libelle: 'TOTAL TTC', montant: q.totalAmount, fort: true },
       ],
       notes: q.notes,
+      qrVerification: await this.qrVerification('devis', q.id),
       montantEnLettres: proforma
         ? `Arrêtée la présente proforma à la somme de : ${montantEnLettres(q.totalAmount)}`
         : null,

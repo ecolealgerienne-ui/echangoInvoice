@@ -322,6 +322,11 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.get(`/export/${dataset}`, { params, responseType: 'blob' }),
   };
 
+  const verificationApi = {
+    verifier: (type: string, id: string, signature: string) =>
+      api.get(`/verify/${type}/${id}/${signature}`).then((r) => r.data),
+  };
+
   const searchApi = {
     rechercher: (q: string) => api.get('/search', { params: { q } }).then((r) => r.data),
   };
@@ -330,7 +335,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     authApi, customersApi, suppliersApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
     quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
-    priceListsApi, exportApi, searchApi,
+    priceListsApi, exportApi, searchApi, verificationApi,
   };
 }
 

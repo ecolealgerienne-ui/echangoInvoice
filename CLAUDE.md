@@ -715,6 +715,7 @@ justification.** Une route publique non listée est un défaut, pas un choix.
 | `GET /api/v1/health` | sonde de connectivité mobile (spec 17 §3.2) — un token expiré ne doit pas passer pour une panne réseau |
 | `POST /api/v1/auth/login` · `register` · `refresh` | délivrent le jeton ; rate-limités par `@Throttle` (R017) |
 | `POST /api/v1/admin/auth/login` · `refresh` | idem pour le superadmin |
+| `GET /api/v1/verify/:type/:id/:signature` | vérification d'un document depuis son QR — celui qui scanne est le destinataire, il n'a pas de compte. Protégée par une signature HMAC, pas par un jeton ; rend 404 (et non 403) sur signature invalide, pour ne pas révéler qu'un document existe à cet identifiant |
 
 ⚠️ **Ne jamais énumérer « les routes protégées » depuis leur garde** : l'ensemble
 contrôlé rétrécirait avec ce qu'il contrôle.

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { VerificationPage } from '@/pages/verification/VerificationPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { AcceptInvitePage } from '@/pages/auth/AcceptInvitePage';
 import { PriceListsPage } from '@/pages/price-lists/PriceListsPage';
@@ -57,6 +58,12 @@ export function AppRouter() {
 
   return (
     <Routes>
+      {/* Vérification d'un document par QR : publique, et volontairement hors
+          de l'AppShell — celui qui scanne n'a pas de compte et n'a rien à faire
+          dans la navigation de l'application. Déclarée avant les routes
+          privées pour ne pas être avalée par la redirection vers /login. */}
+      <Route path="/v/:type/:id/:signature" element={<VerificationPage />} />
+
       <Route path="/login" element={user ? <Navigate to={isSuperAdmin ? '/admin/dashboard' : '/dashboard'} replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
       {/* Publique et sans redirection : la personne invitée n'a pas encore de

@@ -22,6 +22,7 @@ function verifie(label, fn) { fn(); ok++; console.log(`  ok  ${label}`); }
 const PUBLICS = new Set([
   'common/health.controller.ts',          // sonde de connectivité mobile
   'admin/auth/admin-auth.controller.ts',  // login + refresh superadmin, rate-limités
+  'verification/verification.controller.ts', // QR public, signé par HMAC (R023)
 ]);
 const HORS_LOCATAIRE = new Set(['auth/auth.controller.ts']);
 
