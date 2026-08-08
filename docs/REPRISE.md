@@ -106,18 +106,78 @@ d'annulation, cachet et proforma sont livrés.
 
 ### Ce qui reste ouvert, par ordre de valeur
 
-| Sujet | État |
-|---|---|
-| **Pièces jointes** | Reporté sur décision — voir §2 ci-dessous, tout y est préparé |
-| **Scan par caméra** | Reste le seul mode de scan manquant |
-| **Scan par caméra** | La douchette couvre le poste fixe ; la caméra vise le mobile (`BarcodeDetector`, repli `@zxing/browser`, plugin MLKit côté Capacitor) |
-| **Multi-dépôts** | Chantier de structure, non réclamé à ce jour |
-| **Traçabilité par lot** | Les lots et péremptions sont saisis ; le rappel sanitaire n'est pas outillé |
-| **Traduction arabe à relire** | 249 clés sur 865 traduites, le reste retombe sur le français. **Une relecture par un arabophone est nécessaire** avant mise en production : le vocabulaire comptable algérien a ses usages |
-| **Écran des abonnements** | Le backend de la facturation récurrente est complet et éprouvé ; il n'a pas encore d'écran — l'API se pilote pour l'instant à la main |
-| **Portail client** | Reporté de longue date ; le QR de vérification en couvre déjà l'usage principal |
-| **Facture récapitulative** | Regrouper les BL d'une période en une facture |
-| **Dérive de schéma résiduelle** | 354 opérations, 13 `DROP COLUMN` — mécanique, à traiter avant de refaire confiance à `migration:generate` |
+Arbitré avec le client le 2026-08-08 : RTL arabe et facturation récurrente
+étaient prioritaires et sont livrés. Le reste est ici, en attente.
+
+#### 1. Écran des abonnements de facturation
+Le backend est complet et éprouvé — modèle, cadences, rattrapage, cron
+quotidien à 01:15, contrôle à 19 assertions. **Il n'a pas d'écran** : l'API se
+pilote à la main. C'est le plus petit reste pour le plus grand effet, la
+fonction étant inutilisable en l'état par un utilisateur.
+
+#### 2. Relecture de la traduction arabe
+249 clés sur 865. Le reste retombe sur le français, ce qui reste lisible mais
+donne une interface mixte. **Une relecture par un arabophone est nécessaire
+avant mise en production** : le vocabulaire comptable algérien a ses usages —
+« إشعار الدائن » pour un avoir, « حق الطابع » pour le droit de timbre — retenus
+sans avoir pu être confirmés. Les règles RTL couvrent les utilitaires Tailwind
+les plus fréquents ; les cas non couverts se repèrent sur une capture d'écran.
+
+#### 3. Pièces jointes
+Reporté sur décision. Rien n'existe : ni `@fastify/multipart`, ni intercepteur,
+ni table. Par ordre de valeur métier : justificatif de **dépense** — c'est la
+raison d'être du module —, **facture fournisseur** reçue, **BL de réception**
+signé, registre de commerce des **tiers**, fiche technique **produit**.
+
+Quatre règles à poser dès la première ligne, toutes tirées de E001 :
+chemin de stockage **préfixé par le tenantId** et nom remplacé par un
+identifiant ; type réel vérifié par les **octets d'en-tête**, pas par
+l'extension ; téléchargement **servi par l'API** après contrôle du locataire ;
+`Content-Disposition: attachment` systématique. Plus un plafond par fichier et
+un quota par offre, sans quoi le stockage devient un coût non borné.
+
+#### 4. Scan par caméra
+La douchette couvre le poste fixe, la caméra vise le mobile. `BarcodeDetector`
+natif quand il est disponible — Chrome Android et Edge, pas Safari iOS —, repli
+`@zxing/browser` en WASM, et plugin natif MLKit côté Capacitor plutôt qu'une
+`<video>` dans la webview. **Éviter `html5-qrcode`** : populaire mais non
+maintenu, et adossé à un portage ZXing lui-même abandonné.
+
+#### 5. Facture récapitulative
+Dernier écart au décret 05-468. Regrouper les BL d'une période en une seule
+facture, ce que le décret n'autorise que pour des ventes répétitives et
+régulières — le ministère évoque trois transactions par semaine au même client
+— et sur autorisation préalable. Aligné sur le profil visé : le négociant en
+froid qui livre plusieurs fois par semaine.
+
+#### 6. Multi-dépôts
+Chantier de structure. Une chambre froide, c'est plusieurs chambres à
+températures distinctes. Non réclamé à ce jour, mais c'est ce qui distinguerait
+durablement le produit sur l'agroalimentaire.
+
+#### 7. Traçabilité par lot
+Les lots et les péremptions sont saisis à la réception et suivis en stock ; ce
+qui manque est le sens inverse — remonter d'un lot aux clients livrés, pour un
+rappel sanitaire.
+
+#### 8. Portail client
+Reporté de longue date. Le QR de vérification en couvre déjà l'usage principal :
+le client atteint son document sans compte.
+
+#### 9. Dérive de schéma résiduelle
+354 opérations, 13 `DROP COLUMN`. Les deux causes destructrices sont traitées ;
+le reste est mécanique — `varchar(255)` déclaré contre `varchar` sans longueur,
+`numeric(10,2)` contre `numeric`, et 61 clés étrangères. **Ne pas lancer
+`migration:generate` sans lire sa sortie entière** tant que ce n'est pas soldé.
+
+#### 10. Dette de moindre portée
+- `Total TTC` en dur sur la page Devis (R018).
+- 130 avertissements de lint, surtout `no-explicit-any`.
+- Bundle client à ~900 ko, aucun découpage de code.
+- `subscriptions.usersCount` jamais mis à jour — sans conséquence, le quota se
+  calcule en direct.
+
+---
 
 ⚠️ **Le barème du droit de timbre reste à faire confirmer par un comptable.**
 Il est désactivé par défaut : rien ne bouge tant que la case des Paramètres
