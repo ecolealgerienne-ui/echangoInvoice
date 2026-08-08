@@ -72,7 +72,8 @@
       "dashboard": "Tableau de bord admin",
       "tenants": "Clients",
       "plans": "Plans"
-    }
+    },
+    "recurring": "Abonnements"
   },
   "auth": {
     "login": "Connexion",
@@ -992,5 +993,39 @@
     "destinataire": "Destinataire",
     "date": "Date",
     "note": "Vérification effectuée auprès de l'émetteur au moment de l'affichage. Ce service confirme l'existence et le statut du document, il ne vaut pas attestation de paiement."
+  },
+  "recurring": {
+    "title": "Abonnements de facturation",
+    "subtitle": "Chaque échéance produit une facture en brouillon, à relire avant envoi.",
+    "new": "Nouvel abonnement",
+    "created": "Abonnement créé",
+    "empty": "Aucun abonnement. Créez-en un pour facturer automatiquement un client à échéance fixe.",
+    "label": "Intitulé",
+    "frequency": "Cadence",
+    "nextRun": "Prochaine échéance",
+    "generated": "Engendrées",
+    "due": "à générer",
+    "active": "Actif",
+    "paused": "Suspendu",
+    "pause": "Suspendre",
+    "resume": "Reprendre",
+    "generateNow": "Générer maintenant",
+    "generatedCount_one": "1 facture engendrée",
+    "startDate": "Première échéance",
+    "startDateHint": "Le jour de cette date sert d'ancrage : au 31, l'abonnement tombe le 28 en février et revient au 31 en mars.",
+    "endDate": "Dernière échéance",
+    "endDateHint": "Laisser vide pour un abonnement sans fin.",
+    "paymentTerms": "Délai de paiement (jours)",
+    "itemsRequired": "Au moins une ligne est nécessaire.",
+    "estimate": "Montant TTC par échéance, à titre indicatif :",
+    "note": "Les factures engendrées sont des brouillons : elles apparaissent dans",
+    "nothingDue": "Aucune échéance due pour l'instant.",
+    "freq": {
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuelle",
+      "quarterly": "Trimestrielle",
+      "yearly": "Annuelle"
+    },
+    "generatedToast": "{{count}} facture(s) engendrée(s)"
   }
 }

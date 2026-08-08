@@ -26,7 +26,14 @@ export class RecurringInvoicesService {
 
   async lister(tenantId: string) {
     const data = await this.ds.query(
-      `SELECT r.*, c.name AS "customerName",
+      // Dates en texte : une colonne `date` rendue en `Date` est sérialisée en
+      // UTC et affiche la veille côté client (E007). Le 1er septembre partait
+      // en « 2026-08-31T22:00:00.000Z ».
+      `SELECT r.*,
+              r."nextRunDate"::text AS "nextRunDate",
+              r."startDate"::text   AS "startDate",
+              r."endDate"::text     AS "endDate",
+              c.name AS "customerName",
               (SELECT COUNT(*)::int FROM recurring_invoice_items i
                WHERE i."recurringInvoiceId" = r.id) AS "itemCount"
        FROM recurring_invoices r
@@ -74,21 +81,27 @@ export class RecurringInvoicesService {
   }
 
   async basculerActivation(id: string, tenantId: string, userId: string) {
-    const [a] = await this.ds.query(
+    // Sur un UPDATE … RETURNING, TypeORM rend `[lignes, nombreAffecté]` et non
+    // les lignes : une déstructuration naïve donnait le tableau entier, et
+    // l'écran recevait une liste là où il attendait un objet.
+    const [lignes] = await this.ds.query(
       `UPDATE recurring_invoices SET "isActive" = NOT "isActive", "updatedBy" = $3
-       WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL RETURNING *`,
+       WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+       RETURNING id, "isActive"`,
       [id, tenantId, userId],
     );
+    const a = Array.isArray(lignes) ? lignes[0] : lignes;
     if (!a) throw new NotFoundException('errors.recurring_invoice_not_found');
     return { data: a };
   }
 
   async supprimer(id: string, tenantId: string) {
-    const [a] = await this.ds.query(
+    const [lignes] = await this.ds.query(
       `UPDATE recurring_invoices SET "deletedAt" = now()
        WHERE id = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL RETURNING id`,
       [id, tenantId],
     );
+    const a = Array.isArray(lignes) ? lignes[0] : lignes;
     if (!a) throw new NotFoundException('errors.recurring_invoice_not_found');
     return { data: { id } };
   }

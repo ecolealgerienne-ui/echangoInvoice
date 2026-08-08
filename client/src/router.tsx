@@ -31,6 +31,7 @@ import { ReceptionDetailPage } from '@/pages/purchases/ReceptionDetailPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { VendorBillDetailPage } from '@/pages/purchases/VendorBillDetailPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
+import { RecurringInvoicesPage } from '@/pages/recurring/RecurringInvoicesPage';
 import { ProductionPage } from '@/pages/production/ProductionPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
 import { AdminTenantsPage } from '@/pages/admin/AdminTenantsPage';
@@ -87,6 +88,8 @@ export function AppRouter() {
       <Route path="/price-lists" element={<PrivateRoute><PriceListsPage /></PrivateRoute>} />
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />
       <Route path="/invoices" element={<PrivateRoute><InvoicesPage /></PrivateRoute>} />
+      {/* Déclarée avant /invoices/:id, qui avalerait « recurring ». */}
+      <Route path="/invoices/recurring" element={<PrivateRoute><RecurringInvoicesPage /></PrivateRoute>} />
       {/* Les pages détail portent l'identifiant dans l'URL : un document se
           transmet par lien à un collègue, et le retour du navigateur ramène à
           la liste — deux choses qu'une modale ne sait pas faire. */}

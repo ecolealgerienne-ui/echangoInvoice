@@ -322,6 +322,14 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.get(`/export/${dataset}`, { params, responseType: 'blob' }),
   };
 
+  const recurringApi = {
+    lister: () => api.get('/invoices/recurring').then((r) => r.data),
+    creer: (body: unknown) => api.post('/invoices/recurring', body).then((r) => r.data),
+    basculer: (id: string) => api.patch(`/invoices/recurring/${id}/toggle`).then((r) => r.data),
+    generer: (id: string) => api.post(`/invoices/recurring/${id}/generate`).then((r) => r.data),
+    supprimer: (id: string) => api.delete(`/invoices/recurring/${id}`).then((r) => r.data),
+  };
+
   const verificationApi = {
     verifier: (type: string, id: string, signature: string) =>
       api.get(`/verify/${type}/${id}/${signature}`).then((r) => r.data),
@@ -335,7 +343,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     authApi, customersApi, suppliersApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
     quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
-    priceListsApi, exportApi, searchApi, verificationApi,
+    priceListsApi, exportApi, searchApi, verificationApi, recurringApi,
   };
 }
 

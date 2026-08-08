@@ -239,3 +239,31 @@ lecture, en amont de ce que le contrôle voit.
 Les colonnes de date sont sélectionnées en texte (`"nextRunDate"::text`), ce qui
 supprime le fuseau du chemin. À reprendre partout où une colonne `date` est lue
 puis reformatée.
+
+⚠️ **Le même défaut est revenu deux heures plus tard**, dans la requête de
+liste du même module : corrigé dans la génération, il subsistait dans
+l'affichage, et l'écran annonçait le 31 août pour une échéance au 1er
+septembre. Corriger une occurrence ne corrige pas la classe. Le repérage se
+fait sur la forme — toute colonne `date` lue puis rendue au client — pas sur le
+symptôme.
+
+---
+
+## E008 — `UPDATE … RETURNING` ne rend pas ce qu'on croit
+
+**Date :** 2026-08-08 · **Gravité :** faible · **Statut :** corrigé
+
+`const [a] = await this.ds.query('UPDATE … RETURNING *')` donnait un tableau, pas
+une ligne. Sur un `UPDATE`, TypeORM rend `[lignes, nombreAffecté]` — la
+déstructuration prend donc `lignes`, et l'API renvoyait une liste là où l'écran
+attendait un objet.
+
+### La forme du défaut
+
+> Le même `query()` ne rend pas la même forme selon le verbe SQL. Un `INSERT …
+> RETURNING` rend les lignes, un `UPDATE … RETURNING` rend un couple. Aucun type
+> ne le dit : `query()` est typé `any`.
+
+Le contrôle `!a` passait puisque le tableau était non vide — l'erreur ne levait
+pas, elle changeait la forme de la réponse. Repéré en exerçant le bouton depuis
+l'écran, pas en lisant le code.
