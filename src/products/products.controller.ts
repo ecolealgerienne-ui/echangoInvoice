@@ -6,6 +6,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { ProductsService } from './products.service';
 import { BarcodesService } from './barcodes.service';
 import { CreateBarcodeDto } from './dto/create-barcode.dto';
+import { ProductSuppliersService } from './product-suppliers.service';
+import { CreateProductSupplierDto } from './dto/create-product-supplier.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ListProductsDto } from './dto/list-products.dto';
@@ -24,7 +26,33 @@ export class ProductsController {
   constructor(
     private readonly service: ProductsService,
     private readonly barcodes: BarcodesService,
+    private readonly fournisseurs: ProductSuppliersService,
   ) {}
+
+  @Get(':id/suppliers')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: "Fournisseurs d'un article, préféré puis moins cher" })
+  listerFournisseurs(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
+    return this.fournisseurs.lister(id, user.tenantId!);
+  }
+
+  @Post(':id/suppliers')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: 'Associer un fournisseur à un article' })
+  ajouterFournisseur(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateProductSupplierDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.fournisseurs.ajouter(id, dto, user.tenantId!, user.sub);
+  }
+
+  @Delete('suppliers/:linkId')
+  @Roles('owner', 'manager')
+  @ApiOperation({ summary: "Retirer un fournisseur d'un article" })
+  retirerFournisseur(@Param('linkId', ParseUUIDPipe) linkId: string, @CurrentUser() user: JwtPayload) {
+    return this.fournisseurs.retirer(linkId, user.tenantId!);
+  }
 
   /**
    * Résolution d'un scan. Déclarée avant `:id` : « by-barcode » n'est pas un

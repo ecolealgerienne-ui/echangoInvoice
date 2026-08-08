@@ -138,6 +138,12 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.post(`/products/${id}/barcodes`, body).then((r) => r.data),
     retirerCodeBarres: (barcodeId: string) =>
       api.delete(`/products/barcodes/${barcodeId}`).then((r) => r.data),
+    listerFournisseurs: (id: string) =>
+      api.get(`/products/${id}/suppliers`).then((r) => r.data),
+    ajouterFournisseur: (id: string, body: unknown) =>
+      api.post(`/products/${id}/suppliers`, body).then((r) => r.data),
+    retirerFournisseur: (linkId: string) =>
+      api.delete(`/products/suppliers/${linkId}`).then((r) => r.data),
     parCodeBarres: (code: string) =>
       api.get(`/products/by-barcode/${encodeURIComponent(code)}`).then((r) => r.data),
     create: (body: unknown) => api.post('/products', body).then((r) => r.data),
@@ -213,6 +219,8 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     createBl: (id: string) => api.post(`/quotes/${id}/create-bl`).then((r) => r.data),
     remove: (id: string) => api.delete(`/quotes/${id}`).then((r) => r.data),
     pdf: (id: string) => api.get(`/quotes/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
+    pdfProforma: (id: string) =>
+      api.get(`/quotes/${id}/pdf`, { params: { proforma: 1 }, responseType: 'blob' }).then((r) => r.data),
   };
 
   const purchasesApi = {

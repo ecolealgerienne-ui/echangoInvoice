@@ -3,9 +3,7 @@ import {
   Patch, Post, Put, Query, Res, UseGuards,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
-import {
-  ApiBearerAuth, ApiOperation, ApiResponse, ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { QuotesService } from './quotes.service';
 import { DeliveriesService } from '../deliveries/deliveries.service';
 import { InvoicePdfService } from '../invoices/invoice-pdf.service';
@@ -99,13 +97,17 @@ export class QuotesController {
 
   @Get(':id/pdf')
   @Roles('owner', 'manager', 'agent')
-  @ApiOperation({ summary: 'Générer le PDF du devis' })
+  @ApiOperation({ summary: 'Générer le PDF du devis, ou sa variante proforma' })
+  @ApiQuery({ name: 'proforma', required: false, example: '1' })
   async pdf(
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('proforma') proforma: string,
     @CurrentUser() user: any,
     @Res() reply: FastifyReply,
   ) {
-    const { buffer, filename } = await this.pdfService.generateQuotePdf(id, user.tenantId!);
+    const { buffer, filename } = await this.pdfService.generateQuotePdf(
+      id, user.tenantId!, proforma === '1' || proforma === 'true',
+    );
     void reply
       .header('Content-Type', 'application/pdf')
       .header('Content-Disposition', `attachment; filename="${filename}"`)

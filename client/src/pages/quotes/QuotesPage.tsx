@@ -17,7 +17,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, FileText, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { useScanLignes } from '@/hooks/useScanLignes';
 import { BandeauScan } from '@/components/shared/BandeauScan';
@@ -222,6 +222,17 @@ export function QuotesPage() {
       .catch(() => toast(t('errors.generic'), 'error'));
   }
 
+  /**
+   * La proforma est le même devis rendu comme une facture : offre chiffrée
+   * exigée pour la domiciliation bancaire d'un import et par les marchés
+   * publics. Même numéro, sans quoi elle se lirait comme une facture émise.
+   */
+  function downloadProforma(id: string, number: string) {
+    quotesApi.pdfProforma(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `PROFORMA-${number}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   const quotes = data?.data ?? [];
   const pagination = data?.pagination;
   // L'union couvre toutes les colonnes du menu : « notes » est masquée par
@@ -325,6 +336,10 @@ export function QuotesPage() {
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
+                      <Button size="sm" variant="ghost" title={t('quotes.proforma')}
+                        onClick={() => downloadProforma(q.id, q.quoteNumber)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
                       <Button size="sm" variant="ghost" title={t('common.pdf')} onClick={() => downloadPdf(q.id, q.quoteNumber)}>
                         <FileDown className="h-4 w-4" />
                       </Button>

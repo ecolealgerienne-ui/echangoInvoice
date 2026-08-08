@@ -249,7 +249,16 @@ export class InvoicePdfService {
     return { buffer, filename: `${a.creditNoteNumber}.pdf` };
   }
 
-  async generateQuotePdf(quoteId: string, tenantId: string) {
+  /**
+   * PDF de devis, ou sa variante **facture proforma**.
+   *
+   * Une proforma algérienne n'est pas un document comptable : c'est une offre
+   * chiffrée présentée sous forme de facture, exigée pour la domiciliation
+   * bancaire d'un import et par la plupart des marchés publics. Elle porte donc
+   * les mêmes lignes et le même numéro que le devis dont elle est le rendu —
+   * lui donner sa propre série laisserait croire à une facture émise.
+   */
+  async generateQuotePdf(quoteId: string, tenantId: string, proforma = false) {
     const rows = await this.ds.query(
       `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
@@ -271,7 +280,7 @@ export class InvoicePdfService {
     );
 
     const html = rendreDocument({
-      titre: 'DEVIS',
+      titre: proforma ? 'FACTURE PROFORMA' : 'DEVIS',
       numero: q.quoteNumber,
       entetes: [
         { libelle: 'Date', valeur: jour(q.quoteDate) },
@@ -291,16 +300,25 @@ export class InvoicePdfService {
         { libelle: 'TOTAL TTC', montant: q.totalAmount, fort: true },
       ],
       notes: q.notes,
-      signatures: ['Signature émetteur', 'Bon pour accord'],
+      montantEnLettres: proforma
+        ? `Arrêtée la présente proforma à la somme de : ${montantEnLettres(q.totalAmount)}`
+        : null,
+      signatures: proforma
+        ? ['Signature et cachet', 'Bon pour accord']
+        : ['Signature émetteur', 'Bon pour accord'],
       // La mention annonçait « valable 30 jours » quelle que soit la date de
       // validité réellement enregistrée sur le devis.
-      mention: q.expiryDate ? `Devis valable jusqu'au ${jour(q.expiryDate)}.` : null,
+      mention: proforma
+        ? "Facture proforma — document non comptable, ne vaut pas facture."
+            + (q.expiryDate ? ` Offre valable jusqu'au ${jour(q.expiryDate)}.` : '')
+        : (q.expiryDate ? `Devis valable jusqu'au ${jour(q.expiryDate)}.` : null),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'DEVIS', tenantId, documentId: q.id, filename: q.quoteNumber, html,
+      type: 'DEVIS', tenantId, documentId: q.id,
+      filename: proforma ? `PROFORMA-${q.quoteNumber}` : q.quoteNumber, html,
     });
-    return { buffer, filename: `${q.quoteNumber}.pdf` };
+    return { buffer, filename: `${proforma ? 'PROFORMA-' : ''}${q.quoteNumber}.pdf` };
   }
 
   async sendInvoiceEmail(invoiceId: string, tenantId: string): Promise<void> {

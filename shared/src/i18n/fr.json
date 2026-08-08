@@ -569,7 +569,9 @@
     "barcode_invalid_characters": "Le code-barres contient des caractères non imprimables.",
     "barcode_already_used": "Ce code-barres est déjà associé à un autre article.",
     "barcode_not_found": "Code-barres introuvable.",
-    "barcode_unknown": "Aucun article ne correspond à ce code."
+    "barcode_unknown": "Aucun article ne correspond à ce code.",
+    "product_supplier_exists": "Ce fournisseur est déjà associé à cet article.",
+    "product_supplier_not_found": "Association introuvable."
   },
   "status": {
     "active": "Actif",
@@ -673,7 +675,16 @@
     "barcodeLabel": "Libellé",
     "barcodeAdd": "Ajouter un code-barres",
     "barcodeNone": "Aucun code-barres. Scannez-en un ou saisissez-le.",
-    "barcodeHint": "Le carton de douze porte son propre code : indiquez 12 unités pour qu'un scan ajoute la bonne quantité."
+    "barcodeHint": "Le carton de douze porte son propre code : indiquez 12 unités pour qu'un scan ajoute la bonne quantité.",
+    "suppliers": "Fournisseurs",
+    "suppliersHint": "Plusieurs fournisseurs par article : le préféré est proposé au réapprovisionnement, les autres servent à comparer.",
+    "supplierRef": "Référence fournisseur",
+    "purchasePrice": "Prix d'achat",
+    "leadTime": "Délai (jours)",
+    "preferred": "Préféré",
+    "addSupplier": "Ajouter un fournisseur",
+    "noSupplier": "Aucun fournisseur associé.",
+    "suppliersCompare": "offres comparées — la moins chère apparaît en premier après le préféré."
   },
   "quotes": {
     "title": "Devis",
@@ -695,7 +706,8 @@
     "accept": "Accepter le devis",
     "reject": "Rejeter le devis",
     "accepted": "Devis accepté",
-    "rejected": "Devis rejeté"
+    "rejected": "Devis rejeté",
+    "proforma": "Facture proforma"
   },
   "purchases": {
     "title": "Achats",
