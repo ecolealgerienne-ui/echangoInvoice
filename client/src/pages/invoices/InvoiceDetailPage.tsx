@@ -73,7 +73,13 @@ export function InvoiceDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Bloc titre={t('invoices.customer')}>
-          <p className="text-sm font-medium text-foreground">{client?.name ?? '—'}</p>
+          {/* Le nom mène à la fiche client : c'est de là qu'on voit les autres
+              factures et l'encours total avant de décider d'une relance. */}
+          {client ? (
+            <Link to={`/customers/${client.id}`} className="text-sm font-medium text-primary hover:underline">
+              {client.name}
+            </Link>
+          ) : <p className="text-sm text-muted-foreground">—</p>}
           <Champ libelle={t('customers.nif')} valeur={client?.nif} />
           <Champ libelle={t('customers.rc')} valeur={client?.rc} />
           <Champ libelle={t('customers.address')} valeur={client?.address} />

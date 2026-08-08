@@ -34,7 +34,9 @@
     "description": "Description",
     "add": "Ajouter",
     "unit": "Unité",
-    "deleted": "Supprimé"
+    "deleted": "Supprimé",
+    "active": "Actif",
+    "inactive": "Inactif"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -138,11 +140,36 @@
     "contacts": "Contacts",
     "addContact": "Ajouter un contact",
     "contactRole": "Fonction",
+    "contactPerson": "Interlocuteur",
     "primary": "Contact principal"
   },
   "partners": {
     "isCustomer": "Client",
-    "isSupplier": "Fournisseur"
+    "isSupplier": "Fournisseur",
+    "detail": {
+      "contact": "Coordonnées",
+      "legal": "Identification fiscale",
+      "turnover": "CA facturé",
+      "collected": "Encaissé",
+      "outstanding": "Encours",
+      "overdue": "Dont échu",
+      "purchased": "Total acheté",
+      "settled": "Réglé",
+      "debt": "Dette",
+      "remaining": "Reste dû",
+      "method": "Mode",
+      "reference": "Référence",
+      "basePrice": "Tarif de base",
+      "priceList": "Grille tarifaire",
+      "vendorPayments": "Règlements",
+      "noInvoice": "Aucune facture",
+      "noPayment": "Aucun règlement",
+      "noDelivery": "Aucun bon de livraison",
+      "noQuote": "Aucun devis",
+      "noVendorBill": "Aucune facture fournisseur",
+      "noOrder": "Aucune commande",
+      "noReception": "Aucune réception"
+    }
   },
   "suppliers": {
     "title": "Fournisseurs",
@@ -616,6 +643,11 @@
       "partial": "Partiel",
       "paid": "Payée",
       "cancelled": "Annulée"
+    },
+    "receptionStatus": {
+      "pending": "En attente",
+      "partial": "Partielle",
+      "completed": "Complète"
     },
     "orderCreated": "Commande créée",
     "receptionCreated": "Réception créée",

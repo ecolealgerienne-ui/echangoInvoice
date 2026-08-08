@@ -68,42 +68,86 @@ export class CustomersService {
     });
     if (!customer) throw new NotFoundException('errors.customer_not_found');
 
-    const [deliveryNotes, invoices, revenueResult] = await Promise.all([
+    const [deliveryNotes, invoices, quotes, payments, chiffres, grille] = await Promise.all([
       this.dataSource.query(
         `SELECT id, "blNumber", "deliveryDate", total AS "totalAmount", status
          FROM delivery_notes
          WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
-         ORDER BY "deliveryDate" DESC LIMIT 5`,
+         ORDER BY "deliveryDate" DESC LIMIT 10`,
         [id, tenantId],
       ),
       this.dataSource.query(
-        `SELECT id, "invoiceNumber", "invoiceDate", "totalAmount", status
+        `SELECT id, "invoiceNumber", "invoiceDate", "dueDate", "totalAmount",
+                "amountPaid", "creditedAmount", "amountDue", status
          FROM sales_invoices
          WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
-         ORDER BY "invoiceDate" DESC LIMIT 5`,
+         ORDER BY "invoiceDate" DESC LIMIT 10`,
         [id, tenantId],
       ),
       this.dataSource.query(
-        `SELECT COALESCE(SUM("totalAmount"), 0) AS "totalRevenue",
-                COUNT(*) AS "totalOrders"
+        `SELECT id, "quoteNumber", "quoteDate", "totalAmount", status
+         FROM quotes
+         WHERE "customerId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+         ORDER BY "quoteDate" DESC LIMIT 10`,
+        [id, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT p.id, p."paymentDate", p.amount, p."paymentMethod", p.reference,
+                f."invoiceNumber", f.id AS "invoiceId"
+         FROM payments p
+         JOIN sales_invoices f ON f.id = p."salesInvoiceId"
+         WHERE f."customerId" = $1 AND p."tenantId" = $2 AND p."deletedAt" IS NULL
+         ORDER BY p."paymentDate" DESC LIMIT 10`,
+        [id, tenantId],
+      ),
+      // Brouillons et annulées sont exclus de tous les totaux. Une facture en
+      // brouillon n'a pas été émise : elle ne représente ni un chiffre
+      // d'affaires ni une créance, et la compter gonflerait l'encours d'un
+      // montant que le client ne doit pas — au point de faire relancer
+      // quelqu'un qui n'a jamais rien reçu.
+      //
+      // « En retard » se calcule sur la date d'échéance, pas sur le statut :
+      // le statut `overdue` est posé par une tâche planifiée, et une facture
+      // échue depuis ce matin ne l'a pas encore reçu.
+      this.dataSource.query(
+        `SELECT COALESCE(SUM("totalAmount"), 0) AS "chiffreAffaires",
+                COALESCE(SUM("amountPaid"), 0)  AS "encaisse",
+                COALESCE(SUM("creditedAmount"), 0) AS "avoirs",
+                COALESCE(SUM("amountDue"), 0)   AS "encours",
+                COALESCE(SUM("amountDue") FILTER (
+                  WHERE "dueDate" < CURRENT_DATE AND "amountDue" > 0
+                ), 0) AS "enRetard",
+                COUNT(*) AS "nbFactures"
          FROM sales_invoices
          WHERE "customerId" = $1 AND "tenantId" = $2
-           AND status = 'paid' AND "deletedAt" IS NULL`,
+           AND "deletedAt" IS NULL AND status NOT IN ('draft', 'cancelled')`,
+        [id, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT g.name FROM price_lists g
+         JOIN partners c ON c."priceListId" = g.id
+         WHERE c.id = $1 AND c."tenantId" = $2`,
         [id, tenantId],
       ),
     ]);
+
+    const c = chiffres[0] ?? {};
 
     // Object.assign plutôt qu'un spread : `{...customer}` produirait un objet
     // plain et désactiverait silencieusement les @Exclude() d'un futur
     // ClassSerializerInterceptor (R027). L'instance de classe est conservée.
     return {
       data: Object.assign(customer, {
-        history: {
-          deliveryNotes,
-          invoices,
-          totalRevenue: parseFloat(revenueResult[0]?.totalRevenue ?? '0'),
-          totalOrders: parseInt(revenueResult[0]?.totalOrders ?? '0', 10),
+        priceListName: grille[0]?.name ?? null,
+        stats: {
+          chiffreAffaires: parseFloat(c.chiffreAffaires ?? '0'),
+          encaisse: parseFloat(c.encaisse ?? '0'),
+          avoirs: parseFloat(c.avoirs ?? '0'),
+          encours: parseFloat(c.encours ?? '0'),
+          enRetard: parseFloat(c.enRetard ?? '0'),
+          nbFactures: parseInt(c.nbFactures ?? '0', 10),
         },
+        history: { invoices, deliveryNotes, quotes, payments },
       }),
     };
   }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -204,7 +205,13 @@ export function CustomersPage() {
               )}
               {data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{c.name}</td>}
+                  {col('name') && (
+                    <td className="px-4 py-3 font-medium">
+                      <Link to={`/customers/${c.id}`} className="text-primary hover:underline">
+                        {c.name}
+                      </Link>
+                    </td>
+                  )}
                   {col('nif') && <td className="px-4 py-3 font-mono text-muted-foreground">{c.nif || '—'}</td>}
                   {col('rc') && <td className="px-4 py-3 font-mono text-muted-foreground">{c.rc || '—'}</td>}
                   {col('phone') && <td className="px-4 py-3 text-muted-foreground">{c.phone || '—'}</td>}

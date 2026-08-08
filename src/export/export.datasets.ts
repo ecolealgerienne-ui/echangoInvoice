@@ -333,7 +333,8 @@ export const JEUX: Jeu[] = [
     ],
     // L'encours est la première colonne que cherche un comptable dans un
     // fichier clients : le total facturé n'a pas d'intérêt sans ce qui reste
-    // à recouvrer. Les factures annulées en sont exclues.
+    // à recouvrer. Brouillons et annulées en sont exclus — une facture non
+    // émise n'est pas une créance, et la même règle vaut sur la fiche client.
     select: `t.name AS nom, t."contactPerson" AS contact, t.email, t.phone AS telephone,
              t.nif, t.rc, t.ai, t.nis, t.address AS adresse, t.city AS ville,
              g.name AS grille, COALESCE(s.reste, 0) AS encours, t."isActive" AS actif, t.notes`,
@@ -342,7 +343,7 @@ export const JEUX: Jeu[] = [
            LEFT JOIN LATERAL (
              SELECT SUM(i."amountDue") AS reste FROM sales_invoices i
              WHERE i."customerId" = t.id AND i."tenantId" = t."tenantId"
-               AND i."deletedAt" IS NULL AND i.status <> 'cancelled'
+               AND i."deletedAt" IS NULL AND i.status NOT IN ('draft', 'cancelled')
            ) s ON TRUE`,
     conditions: ['t."isCustomer" = TRUE', 't."deletedAt" IS NULL'],
     ordre: 't.name',
@@ -371,7 +372,7 @@ export const JEUX: Jeu[] = [
            LEFT JOIN LATERAL (
              SELECT SUM(b."amountDue") AS reste FROM vendor_bills b
              WHERE b."supplierId" = t.id AND b."tenantId" = t."tenantId"
-               AND b."deletedAt" IS NULL AND b.status <> 'cancelled'
+               AND b."deletedAt" IS NULL AND b.status NOT IN ('draft', 'cancelled')
            ) s ON TRUE`,
     conditions: ['t."isSupplier" = TRUE', 't."deletedAt" IS NULL'],
     ordre: 't.name',

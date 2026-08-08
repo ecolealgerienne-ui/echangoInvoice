@@ -8,7 +8,9 @@ import { AcceptInvitePage } from '@/pages/auth/AcceptInvitePage';
 import { PriceListsPage } from '@/pages/price-lists/PriceListsPage';
 import { DashboardPage } from '@/pages/dashboard/DashboardPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
+import { CustomerDetailPage } from '@/pages/customers/CustomerDetailPage';
 import { SuppliersPage } from '@/pages/suppliers/SuppliersPage';
+import { SupplierDetailPage } from '@/pages/suppliers/SupplierDetailPage';
 import { RawMaterialsPage } from '@/pages/raw-materials/RawMaterialsPage';
 import { StockPage } from '@/pages/stock/StockPage';
 import { InvoicesPage } from '@/pages/invoices/InvoicesPage';
@@ -68,7 +70,9 @@ export function AppRouter() {
       {/* Tenant routes */}
       <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
       <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
+      <Route path="/customers/:id" element={<PrivateRoute><CustomerDetailPage /></PrivateRoute>} />
       <Route path="/suppliers" element={<PrivateRoute><SuppliersPage /></PrivateRoute>} />
+      <Route path="/suppliers/:id" element={<PrivateRoute><SupplierDetailPage /></PrivateRoute>} />
       <Route path="/raw-materials" element={<PrivateRoute><RawMaterialsPage /></PrivateRoute>} />
       <Route path="/price-lists" element={<PrivateRoute><PriceListsPage /></PrivateRoute>} />
       <Route path="/stock" element={<PrivateRoute><StockPage /></PrivateRoute>} />

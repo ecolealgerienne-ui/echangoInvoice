@@ -68,7 +68,11 @@ export function DeliveryNoteDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Bloc titre={t('common.customer')}>
-          <p className="text-sm font-medium text-foreground">{client?.name ?? '—'}</p>
+          {client ? (
+            <Link to={`/customers/${client.id}`} className="text-sm font-medium text-primary hover:underline">
+              {client.name}
+            </Link>
+          ) : <p className="text-sm text-muted-foreground">—</p>}
           <Champ libelle={t('customers.nif')} valeur={client?.nif} />
           {/* Adresse de livraison quand elle diffère : c'est celle-là que
               regarde le chauffeur, pas l'adresse de facturation. */}

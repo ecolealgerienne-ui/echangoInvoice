@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -197,7 +198,13 @@ export function SuppliersPage() {
               )}
               {data?.data?.map((s: any) => (
                 <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>}
+                  {col('name') && (
+                    <td className="px-4 py-3 font-medium">
+                      <Link to={`/suppliers/${s.id}`} className="text-primary hover:underline">
+                        {s.name}
+                      </Link>
+                    </td>
+                  )}
                   {col('nif') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.nif || '—'}</td>}
                   {col('rc') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.rc || '—'}</td>}
                   {col('phone') && <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>}
