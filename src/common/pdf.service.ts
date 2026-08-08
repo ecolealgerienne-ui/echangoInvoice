@@ -4,7 +4,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface PdfDocumentData {
-  type: 'FACTURES' | 'BL' | 'AVOIRS' | 'RAPPORTS';
+  // « DEVIS » manquait : le service des devis passait `'DEVIS' as any` pour
+  // contourner le type, et l'archivage n'aurait rien signalé si le dossier
+  // avait été mal orthographié.
+  type: 'FACTURES' | 'BL' | 'DEVIS' | 'AVOIRS' | 'RAPPORTS';
   filename: string;
   html: string;
 }

@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray, IsBoolean, IsEmail, IsNumber, IsOptional, IsString,
-  Matches, Max, Min, ValidateNested,
+  Matches, Max, MaxLength, Min, ValidateNested,
 } from 'class-validator';
 
 /**
@@ -90,6 +90,20 @@ export class UpdateSettingsDto {
   @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() address?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() footerText?: string;
+
+  // Identifiants légaux de l'émetteur, imprimés sur chaque document.
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) nif?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) rc?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) ai?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) nis?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(60) rib?: string;
+
+  // La couleur part dans une feuille de style : hors notation hexadécimale,
+  // « red; } body { display:none » y entrerait tel quel.
+  @ApiPropertyOptional({ example: '#1e3a5f' })
+  @IsOptional() @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'invalid_color' })
+  pdfAccentColor?: string;
 
   @ApiPropertyOptional({ type: [TaxRateDto] })
   @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => TaxRateDto)

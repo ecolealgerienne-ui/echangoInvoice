@@ -47,6 +47,12 @@ export class SettingsService {
       if (dto.vendorBillNumberFormat !== undefined) setting.vendorBillNumberFormat = dto.vendorBillNumberFormat;
       if (dto.creditNoteNumberFormat !== undefined) setting.creditNoteNumberFormat = dto.creditNoteNumberFormat;
       if (dto.productionOrderNumberFormat !== undefined) setting.productionOrderNumberFormat = dto.productionOrderNumberFormat;
+      if (dto.nif !== undefined) setting.nif = dto.nif;
+      if (dto.rc !== undefined) setting.rc = dto.rc;
+      if (dto.ai !== undefined) setting.ai = dto.ai;
+      if (dto.nis !== undefined) setting.nis = dto.nis;
+      if (dto.rib !== undefined) setting.rib = dto.rib;
+      if (dto.pdfAccentColor !== undefined) setting.pdfAccentColor = dto.pdfAccentColor;
       if (dto.email !== undefined) setting.email = dto.email;
       if (dto.phone !== undefined) setting.phone = dto.phone;
       if (dto.address !== undefined) setting.address = dto.address;

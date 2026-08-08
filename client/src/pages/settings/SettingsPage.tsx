@@ -246,6 +246,47 @@ export function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Les identifiants de l'ÉMETTEUR n'existaient nulle part : les
+                PDF imprimaient « NIF : » et « RC : » vides sur chaque
+                facture, ce qui la rend irrecevable en Algérie. */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.legalIds')}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t('settings.legalIdsHint')}</p>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3">
+                {[
+                  ['nif', t('customers.nif')],
+                  ['rc', t('customers.rc')],
+                  ['ai', t('customers.ai')],
+                  ['nis', t('customers.nis')],
+                ].map(([champ, label]) => (
+                  <div key={champ} className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">{label}</label>
+                    <Input {...register(champ)} />
+                  </div>
+                ))}
+                <div className="space-y-1 col-span-2">
+                  <label className="text-sm font-medium text-foreground">{t('settings.rib')}</label>
+                  <Input {...register('rib')} />
+                  <p className="text-xs text-muted-foreground">{t('settings.ribHint')}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">{t('settings.accentColor')}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      className="h-9 w-12 rounded border border-input bg-background p-1 cursor-pointer"
+                      {...register('pdfAccentColor')}
+                    />
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {watch('pdfAccentColor') ?? '#1e3a5f'}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
                 <CardTitle>{t('settings.modules')}</CardTitle>

@@ -62,10 +62,12 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | *(2026-08-08, suite)* | Fiches client et fournisseur : encours, dette, historiques |
 | *(2026-08-08, suite)* | Détail commande, réception et facture fournisseur |
 | *(2026-08-08, suite)* | Numérotation configurable : 8 formats, compteurs dédiés |
+| *(2026-08-08, suite)* | Documents PDF : identification de l'émetteur, gabarit commun |
 
 Migrations ajoutées : `1750022000000` (creditedAmount), `1750023000000`
 (price_lists), `1750024000000` (document_counters + 4 formats de
-numérotation). Toutes appliquées en local.
+numérotation), `1750025000000` (identification de l'émetteur : NIF, RC, AI,
+NIS, RIB, couleur des documents). Toutes appliquées en local.
 
 ---
 
@@ -84,17 +86,23 @@ séquence par locataire / type / année dans `document_counters`. Le service
 `NumberingService` est le seul point d'entrée ; ne pas réintroduire de
 numérotation locale.
 
-### 1. Modèles PDF personnalisables — *le prochain à prendre*
+**Les documents portent l'identification de l'émetteur** (NIF, RC, AI, NIS,
+RIB), le pied de page et la couleur choisis dans les Paramètres. Le gabarit est
+unique : `src/common/pdf/document-template.ts`, fonction pure, testable sans
+navigateur. Ne pas y réintroduire de HTML par document.
 
-Trois documents figés, sans logo positionnable ni mentions paramétrables.
+Ce qui reste sur les PDF, par ordre de valeur décroissante : positionner le
+logo, choisir les colonnes du tableau, et un gabarit par type de document.
+Aucun de ces trois points n'a été demandé par un utilisateur — à ne prendre
+que si le besoin se manifeste.
 
-### 2. La barre Erplain sur le stock
+### 1. La barre Erplain sur le stock — *le prochain à prendre*
 
 Pas de distinction réservé / disponible / entrant — donc **on peut survendre**.
 `reservedQuantity` existe mais seule la production s'en sert : une commande
 client ne réserve rien. Ni réception partielle, ni multi-dépôt.
 
-### 3. Portail client
+### 2. Portail client
 
 Chantier lourd, valeur incertaine pour une PME algérienne. À ne pas prendre
 avant le reste.

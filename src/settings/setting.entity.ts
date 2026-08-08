@@ -63,6 +63,26 @@ export class Setting {
   @Column({ type: 'text', nullable: true })
   footerText: string | null;
 
+  // Identifiants légaux de l'ÉMETTEUR. Ils n'existaient nulle part : les PDF
+  // sélectionnaient `NULL AS company_nif` et imprimaient un NIF vide.
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nif: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  rc: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  ai: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nis: string | null;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  rib: string | null;
+
+  @Column({ type: 'varchar', length: 7, default: '#1e3a5f' })
+  pdfAccentColor: string;
+
   @Column({ type: 'simple-array', nullable: true })
   units: string[];
 
