@@ -150,7 +150,7 @@ export function ExpensesPage() {
           type="month"
           value={month}
           onChange={e => setMonth(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-9 rounded-md border border-input bg-surface px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }} className="w-44">
           <option value="">{t('expenses.allCategories')}</option>
@@ -218,19 +218,19 @@ export function ExpensesPage() {
                     </td>
                   )}
                   {col('category') && <td className="px-4 py-3"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(e.amount)}</td>}
+                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(e.amount)}</td>}
                   {col('status') && <td className="px-4 py-3 text-center">
                     <Badge variant={e.isApproved ? 'success' : 'warning'}>
                       {e.isApproved ? t('expenses.approved') : t('expenses.pending')}
                     </Badge>
                   </td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{e.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       {!e.isApproved && (
                         <>
                           <Button variant="ghost" size="icon" title={t('common.approve')} onClick={() => approveMutation.mutate(e.id)}>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="h-4 w-4 text-success" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
                             <span className="text-xs">{t('common.edit')}</span>

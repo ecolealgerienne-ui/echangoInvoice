@@ -30,13 +30,13 @@ export function AdminTenantsPage() {
 
       <div className="flex gap-3">
         <input
-          className="border border-border rounded px-3 py-1.5 text-sm bg-background text-foreground"
+          className="border border-border rounded px-3 py-1.5 text-sm bg-surface text-foreground"
           placeholder={t('common.search')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
         />
         <select
-          className="border border-border rounded px-3 py-1.5 text-sm bg-background text-foreground"
+          className="border border-border rounded px-3 py-1.5 text-sm bg-surface text-foreground"
           value={status}
           onChange={e => { setStatus(e.target.value); setPage(1); }}
         >
@@ -65,9 +65,9 @@ export function AdminTenantsPage() {
                 <td className="p-3 text-foreground">{tenant.name}</td>
                 <td className="p-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    tenant.status === 'active' ? 'bg-green-100 text-green-800' :
-                    tenant.status === 'trial' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
+                    tenant.status === 'active' ? 'bg-success-subtle text-success-text' :
+                    tenant.status === 'trial' ? 'bg-warning-subtle text-warning-text' :
+                    'bg-destructive-subtle text-destructive-text'
                   }`}>
                     {t(`admin.tenants.status.${tenant.status}`)}
                   </span>
@@ -80,14 +80,14 @@ export function AdminTenantsPage() {
                   {tenant.status !== 'suspended' ? (
                     <button
                       onClick={() => patchStatus.mutate({ id: tenant.id, s: 'suspended' })}
-                      className="text-xs text-red-600 underline"
+                      className="text-xs text-destructive underline"
                     >
                       {t('admin.tenants.actions.suspend')}
                     </button>
                   ) : (
                     <button
                       onClick={() => patchStatus.mutate({ id: tenant.id, s: 'active' })}
-                      className="text-xs text-green-600 underline"
+                      className="text-xs text-success underline"
                     >
                       {t('admin.tenants.actions.activate')}
                     </button>

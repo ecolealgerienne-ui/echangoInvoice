@@ -181,7 +181,7 @@ export function RecurringInvoicesPage() {
                       {enRetard(a) ? ` — ${t('recurring.due')}` : ''}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{a.generatedCount}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground whitespace-nowrap tabular-nums">{a.generatedCount}</td>
                   <td className="px-4 py-3 text-center">
                     <Badge variant={a.isActive ? 'success' : 'secondary'}>
                       {a.isActive ? t('recurring.active') : t('recurring.paused')}

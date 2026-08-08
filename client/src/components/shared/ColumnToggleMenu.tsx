@@ -40,7 +40,7 @@ export function ColumnToggleMenu<T extends string>({ columns, visible, onToggle 
         {t('common.columns')}
       </Button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg p-2 min-w-44">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-surface-elevated border border-border rounded-lg shadow-lg p-2 min-w-44">
           {columns.map(({ key, label }) => (
             <button
               key={key}

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
 import { invoicesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { libelleMode } from '@/lib/modesReglement';
 import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -14,10 +15,6 @@ import {
   Bloc, Champ, ChampLien, DocumentEnTete, LignesDocument, Totaux,
 } from '@/components/shared/DocumentView';
 
-const STATUT_VARIANT: Record<string, string> = {
-  draft: 'muted', sent: 'info', partial: 'warning',
-  paid: 'success', overdue: 'destructive', cancelled: 'secondary',
-};
 
 
 export function InvoiceDetailPage() {
@@ -60,7 +57,7 @@ export function InvoiceDetailPage() {
         titre={facture.invoiceNumber}
         statut={{
           libelle: t(`invoices.status.${facture.status}`),
-          variant: STATUT_VARIANT[facture.status] ?? 'muted',
+          variant: varianteStatut(facture.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}>

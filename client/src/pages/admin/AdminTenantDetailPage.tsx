@@ -60,19 +60,19 @@ export function AdminTenantDetailPage() {
         <p className="text-sm text-foreground">{tenant.name} — {tenant.email}</p>
         <p className="text-sm text-foreground">{tenant.phone}</p>
         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-          tenant.status === 'active' ? 'bg-green-100 text-green-800' :
-          tenant.status === 'trial' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-red-100 text-red-800'
+          tenant.status === 'active' ? 'bg-success-subtle text-success-text' :
+          tenant.status === 'trial' ? 'bg-warning-subtle text-warning-text' :
+          'bg-destructive-subtle text-destructive-text'
         }`}>
           {t(`admin.tenants.status.${tenant.status}`)}
         </span>
         <div className="flex gap-2 mt-2">
           {tenant.status !== 'suspended' ? (
-            <button onClick={() => patchStatus.mutate('suspended')} className="px-3 py-1 text-sm bg-red-100 text-red-800 rounded">
+            <button onClick={() => patchStatus.mutate('suspended')} className="px-3 py-1 text-sm bg-destructive-subtle text-destructive-text rounded">
               {t('admin.tenants.actions.suspend')}
             </button>
           ) : (
-            <button onClick={() => patchStatus.mutate('active')} className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded">
+            <button onClick={() => patchStatus.mutate('active')} className="px-3 py-1 text-sm bg-success-subtle text-success-text rounded">
               {t('admin.tenants.actions.activate')}
             </button>
           )}
@@ -116,7 +116,7 @@ export function AdminTenantDetailPage() {
             {tenant.paymentsHistory?.map((p: any) => (
               <tr key={p.id} className="border-b border-border/50">
                 <td className="py-1 text-foreground">{new Date(p.paidAt).toLocaleDateString('fr-DZ')}</td>
-                <td className="py-1 text-right text-foreground">{parseFloat(p.amount).toLocaleString('fr-DZ')} DA</td>
+                <td className="py-1 text-right text-foreground whitespace-nowrap tabular-nums">{parseFloat(p.amount).toLocaleString('fr-DZ')} DA</td>
                 <td className="py-1 text-foreground">{t(`admin.payment.method.${p.method}`)}</td>
               </tr>
             ))}
@@ -125,8 +125,8 @@ export function AdminTenantDetailPage() {
       </div>
 
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg border border-border p-6 w-full max-w-md space-y-4">
+        <div className="fixed inset-0 bg-foreground/25 backdrop-blur-[2px] flex items-center justify-center z-50">
+          <div className="bg-surface rounded-lg border border-border p-6 w-full max-w-md space-y-4">
             <h2 className="font-semibold text-foreground">{t('admin.payment.record')}</h2>
             <div className="space-y-3">
               <input
@@ -134,12 +134,12 @@ export function AdminTenantDetailPage() {
                 placeholder={t('admin.payment.amount')}
                 value={paymentForm.amount}
                 onChange={e => setPaymentForm(f => ({ ...f, amount: e.target.value }))}
-                className="w-full border border-border rounded px-3 py-2 text-sm bg-background text-foreground"
+                className="w-full border border-border rounded px-3 py-2 text-sm bg-surface text-foreground"
               />
               <select
                 value={paymentForm.method}
                 onChange={e => setPaymentForm(f => ({ ...f, method: e.target.value }))}
-                className="w-full border border-border rounded px-3 py-2 text-sm bg-background text-foreground"
+                className="w-full border border-border rounded px-3 py-2 text-sm bg-surface text-foreground"
               >
                 <option value="bank_transfer">{t('admin.payment.method.bank_transfer')}</option>
                 <option value="cash">{t('admin.payment.method.cash')}</option>
@@ -151,20 +151,20 @@ export function AdminTenantDetailPage() {
                 placeholder={t('admin.payment.reference')}
                 value={paymentForm.reference}
                 onChange={e => setPaymentForm(f => ({ ...f, reference: e.target.value }))}
-                className="w-full border border-border rounded px-3 py-2 text-sm bg-background text-foreground"
+                className="w-full border border-border rounded px-3 py-2 text-sm bg-surface text-foreground"
               />
               <input
                 type="date"
                 value={paymentForm.paidAt}
                 onChange={e => setPaymentForm(f => ({ ...f, paidAt: e.target.value }))}
-                className="w-full border border-border rounded px-3 py-2 text-sm bg-background text-foreground"
+                className="w-full border border-border rounded px-3 py-2 text-sm bg-surface text-foreground"
               />
               <input
                 type="number"
                 placeholder={t('admin.payment.monthsCovered')}
                 value={paymentForm.monthsCovered}
                 onChange={e => setPaymentForm(f => ({ ...f, monthsCovered: e.target.value }))}
-                className="w-full border border-border rounded px-3 py-2 text-sm bg-background text-foreground"
+                className="w-full border border-border rounded px-3 py-2 text-sm bg-surface text-foreground"
               />
             </div>
             <div className="flex gap-2 justify-end">

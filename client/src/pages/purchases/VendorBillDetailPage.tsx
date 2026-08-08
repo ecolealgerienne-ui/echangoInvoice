@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { purchasesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { libelleMode } from '@/lib/modesReglement';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -12,9 +13,6 @@ import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, DocumentEnTete, Totaux } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
-const STATUT: Record<string, string> = {
-  draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'secondary',
-};
 
 export function VendorBillDetailPage() {
   const { t } = useTranslation();
@@ -55,7 +53,7 @@ export function VendorBillDetailPage() {
         titre={facture.billNumber}
         statut={{
           libelle: t(`purchases.billStatus.${facture.status}`),
-          variant: STATUT[facture.status] ?? 'muted',
+          variant: varianteStatut(facture.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}

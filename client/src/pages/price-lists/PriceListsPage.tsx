@@ -156,13 +156,13 @@ export function PriceListsPage() {
                     </button>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{g.description || '—'}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <Badge variant={g.itemCount > 0 ? 'info' : 'muted'}>{g.itemCount}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <Badge variant={g.customerCount > 0 ? 'success' : 'muted'}>{g.customerCount}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => ouvrirEdition(g)}>
                         <Pencil className="h-4 w-4" />
@@ -223,8 +223,8 @@ export function PriceListsPage() {
                         <td className="px-4 py-2 text-foreground">
                           {p.name} <span className="text-xs text-muted-foreground">({p.unit})</span>
                         </td>
-                        <td className="px-4 py-2 text-right text-muted-foreground">{formatCurrency(base)}</td>
-                        <td className="px-4 py-2 text-right">
+                        <td className="px-4 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatCurrency(base)}</td>
+                        <td className="px-4 py-2 text-right whitespace-nowrap tabular-nums">
                           <div className="flex items-center justify-end gap-1">
                             <Input
                               type="number" step="0.01" min="0"
@@ -241,7 +241,7 @@ export function PriceListsPage() {
                             )}
                           </div>
                         </td>
-                        <td className={`px-4 py-2 text-right ${ecart == null ? 'text-muted-foreground' : ecart < 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        <td className={`px-4 py-2 text-right ${ecart == null ? 'text-muted-foreground' : ecart < 0 ? 'text-success' : 'text-destructive'}`}>
                           {ecart == null ? '—' : `${ecart > 0 ? '+' : ''}${ecart} %`}
                         </td>
                       </tr>

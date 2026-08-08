@@ -8,6 +8,7 @@ import {
   productionApi, productsApi, resolveApiError,
 } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { varianteMouvement, varianteStatut } from '@/lib/statuts';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -23,22 +24,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
-const ORDER_STATUS_VARIANT: Record<string, any> = {
-  planned: 'muted',
-  in_progress: 'info',
-  completed: 'success',
-  cancelled: 'destructive',
-};
-const NOM_STATUS_VARIANT: Record<string, any> = {
-  active: 'success',
-  inactive: 'warning',
-  archived: 'muted',
-};
-const MOV_TYPE_VARIANT: Record<string, any> = {
-  mp_consumption: 'info',
-  rejection: 'destructive',
-  mp_loss: 'warning',
-};
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 const bomLineSchema = z.object({
@@ -421,7 +406,7 @@ export function ProductionPage() {
             <KpiCard
               label={t('dashboard.production.costVariance')}
               value={`${formatCurrency(prodDashboardData.data.costVariance.amount)} (${prodDashboardData.data.costVariance.pct} %)`}
-              colorClass={prodDashboardData.data.costVariance.amount > 0 ? 'text-destructive' : 'text-green-600'}
+              colorClass={prodDashboardData.data.costVariance.amount > 0 ? 'text-destructive' : 'text-success'}
             />
           </div>
 
@@ -499,13 +484,13 @@ export function ProductionPage() {
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{nom.code}</td>
                       <td className="px-4 py-3 font-medium">{nom.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
+                      <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(nom.estimatedCostPerUnit)}</td>
                       <td className="px-4 py-3 text-center">
-                        <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
+                        <Badge variant={varianteStatut(nom.status)}>
                           {String(t(`production.nomStatus.${nom.status}`, nom.status))}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => openNomEdit(nom)}>
                             <Pencil className="h-3.5 w-3.5" />
@@ -567,10 +552,10 @@ export function ProductionPage() {
                     <tr key={order.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-mono font-semibold text-primary">{order.ref}</td>
                       <td className="px-4 py-3">{order.nomenclatureName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">{order.quantityToProduce}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{order.quantityToProduce}</td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Badge variant={ORDER_STATUS_VARIANT[order.status] ?? 'muted'}>
+                          <Badge variant={varianteStatut(order.status)}>
                             {String(t(`production.status.${order.status}`, order.status))}
                           </Badge>
                           {order.priority === 'urgent' && (
@@ -578,10 +563,10 @@ export function ProductionPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(order.estimatedCost)}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatCurrency(order.estimatedCost)}</td>
                       <td className="px-4 py-3 text-center">
                         {Number(order.yieldPercentage) > 0 ? (
-                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-green-600' : Number(order.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
+                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-success' : Number(order.yieldPercentage) >= 70 ? 'text-warning' : 'text-destructive'}`}>
                             {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
                         ) : '—'}
@@ -589,7 +574,7 @@ export function ProductionPage() {
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {order.plannedStartDate ? formatDate(order.plannedStartDate) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-1">
                           {order.status === 'planned' && (
                             <Button
@@ -599,7 +584,7 @@ export function ProductionPage() {
                               onClick={() => { setViewOrder(order); startOrderMutation.mutate(order.id); }}
                               disabled={startOrderMutation.isPending}
                             >
-                              <Play className="h-3.5 w-3.5 text-blue-600" />
+                              <Play className="h-3.5 w-3.5 text-info" />
                             </Button>
                           )}
                           {order.status === 'in_progress' && (
@@ -609,7 +594,7 @@ export function ProductionPage() {
                               title={t('production.completeOrder')}
                               onClick={() => { setViewOrder(order); setCompleteModalOpen(true); }}
                             >
-                              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                              <CheckCircle className="h-3.5 w-3.5 text-success" />
                             </Button>
                           )}
                           {(order.status === 'planned' || order.status === 'in_progress') && (
@@ -694,7 +679,7 @@ export function ProductionPage() {
             <textarea
               {...nomForm.register('description')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder="Description optionnelle..."
             />
           </div>
@@ -872,7 +857,7 @@ export function ProductionPage() {
             <textarea
               {...orderForm.register('notes')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
@@ -907,8 +892,8 @@ export function ProductionPage() {
                 value={Number(orderDetail.yieldPercentage) > 0 ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
                   Number(orderDetail.yieldPercentage) === 0 ? '' :
-                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-green-600' :
-                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'
+                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-success' :
+                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-warning' : 'text-destructive'
                 }
               />
             </div>
@@ -919,7 +904,7 @@ export function ProductionPage() {
                 <InfoRow label={t('production.nomenclature')} value={orderDetail.nomenclatureName ?? '—'} />
                 <InfoRow label={t('production.finishedProduct')} value={orderDetail.finishedProductName ?? '—'} />
                 <InfoRow label={t('common.status')}>
-                  <Badge variant={ORDER_STATUS_VARIANT[orderDetail.status] ?? 'muted'}>
+                  <Badge variant={varianteStatut(orderDetail.status)}>
                     {String(t(`production.status.${orderDetail.status}`, orderDetail.status))}
                   </Badge>
                 </InfoRow>
@@ -1044,9 +1029,9 @@ export function ProductionPage() {
                               return (
                                 <tr key={id}>
                                   <td className="px-3 py-1.5 font-medium">{row.name}</td>
-                                  <td className="px-3 py-1.5 text-right text-muted-foreground">{planned !== null ? planned.toFixed(2) : '—'}</td>
-                                  <td className="px-3 py-1.5 text-right font-semibold">{row.consumed.toFixed(2)}</td>
-                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-amber-600' : ecart < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                  <td className="px-3 py-1.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{planned !== null ? planned.toFixed(2) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right font-semibold whitespace-nowrap tabular-nums">{row.consumed.toFixed(2)}</td>
+                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-warning' : ecart < 0 ? 'text-success' : 'text-muted-foreground'}`}>
                                     {ecart === null ? '—' : ecart > 0 ? `+${ecart.toFixed(2)}` : ecart.toFixed(2)}
                                   </td>
                                   <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
@@ -1063,9 +1048,9 @@ export function ProductionPage() {
                   {hasLoss && (
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pertes MP</p>
-                      <div className="rounded-md border border-amber-200 overflow-hidden">
+                      <div className="rounded-md border border-warning/30 overflow-hidden">
                         <table className="w-full text-sm">
-                          <thead className="bg-amber-50/60">
+                          <thead className="bg-warning-subtle/60">
                             <tr>
                               <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">{t('production.material')}</th>
                               <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.totalLost')}</th>
@@ -1076,7 +1061,7 @@ export function ProductionPage() {
                             {lossRows.map(([id, row]) => (
                               <tr key={id}>
                                 <td className="px-3 py-1.5 font-medium">{row.name}</td>
-                                <td className="px-3 py-1.5 text-right font-semibold text-amber-700">{row.lost.toFixed(2)}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-warning-text whitespace-nowrap tabular-nums">{row.lost.toFixed(2)}</td>
                                 <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
                               </tr>
                             ))}
@@ -1124,12 +1109,12 @@ export function ProductionPage() {
                       {movements.map((mv: any) => (
                         <tr key={mv.id} className="hover:bg-muted/20">
                           <td className="px-3 py-2">
-                            <Badge variant={MOV_TYPE_VARIANT[mv.type] ?? 'muted'}>
+                            <Badge variant={varianteMouvement(mv.type)}>
                               {String(t(`production.movType.${mv.type}`, mv.type))}
                             </Badge>
                           </td>
                           <td className="px-3 py-2">{mv.rawMaterialName ?? mv.finishedProductName ?? '—'}</td>
-                          <td className="px-3 py-2 text-right font-medium">{mv.quantity} {mv.unit}</td>
+                          <td className="px-3 py-2 text-right font-medium whitespace-nowrap tabular-nums">{mv.quantity} {mv.unit}</td>
                           <td className="px-3 py-2 text-muted-foreground text-xs">{mv.reason ?? '—'}</td>
                           <td className="px-3 py-2 text-muted-foreground text-xs">{mv.movedAt ? formatDate(mv.movedAt) : '—'}</td>
                         </tr>
@@ -1170,7 +1155,7 @@ export function ProductionPage() {
             <textarea
               {...completeForm.register('notes')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -1284,7 +1269,7 @@ export function ProductionPage() {
                     const hasDeviation = movType === 'mp_consumption' && !line.isExtra &&
                       Math.abs((line.alreadyQty + newQtyNum) - line.plannedQty) > 0.001;
                     return (
-                    <tr key={idx} className={line.isExtra ? 'bg-blue-50/30' : ''}>
+                    <tr key={idx} className={line.isExtra ? 'bg-info-subtle/30' : ''}>
                       {/* Composant */}
                       <td className="px-3 py-2">
                         {line.isExtra ? (
@@ -1311,12 +1296,12 @@ export function ProductionPage() {
                       </td>
                       {/* Prévu (mp_consumption only) */}
                       {movType === 'mp_consumption' && (
-                        <td className="px-3 py-2 text-right text-muted-foreground">
+                        <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                           {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
                         </td>
                       )}
                       {/* Déjà consommé / Total perdu (read-only) */}
-                      <td className="px-3 py-2 text-right text-muted-foreground">
+                      <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                         {line.isExtra ? '—' : line.alreadyQty.toFixed(2)}
                       </td>
                       {/* À consommer / Nouvelle perte (editable) */}
@@ -1327,7 +1312,7 @@ export function ProductionPage() {
                           min="0"
                           value={line.newQty}
                           onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, newQty: e.target.value } : l))}
-                          className={`text-right ${hasDeviation ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                          className={`text-right ${hasDeviation ? 'border-warning focus:ring-warning' : ''}`}
                         />
                       </td>
                       {/* Unité */}
@@ -1360,7 +1345,7 @@ export function ProductionPage() {
 
             {/* Légende écart (mp_consumption only) */}
             {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
-              <p className="text-xs text-amber-600 flex items-center gap-1">
+              <p className="text-xs text-warning flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> {t('production.varianceWarning')}
               </p>
             )}

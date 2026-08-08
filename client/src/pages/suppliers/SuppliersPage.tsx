@@ -228,7 +228,7 @@ export function SuppliersPage() {
                   {col('phone') && <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>}
                   {col('email') && <td className="px-4 py-3 text-muted-foreground">{s.email || '—'}</td>}
                   {col('city') && <td className="px-4 py-3 text-muted-foreground">{s.city || '—'}</td>}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('suppliers.contacts')} onClick={() => openContacts(s)}>
                         <Users className="h-4 w-4 text-muted-foreground" />

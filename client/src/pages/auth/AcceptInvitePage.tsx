@@ -27,7 +27,7 @@ export function AcceptInvitePage() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-        <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 space-y-3">
+        <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 space-y-3">
           <h1 className="text-xl font-bold text-foreground">{t('users.acceptTitle')}</h1>
           <p className="text-sm text-destructive">{t('users.missingToken')}</p>
           <Link to="/login" className="text-sm text-primary underline">{t('auth.login')}</Link>
@@ -58,7 +58,7 @@ export function AcceptInvitePage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <form onSubmit={submit} className="w-full max-w-md space-y-4 rounded-lg border border-border bg-background p-6">
+      <form onSubmit={submit} className="w-full max-w-md space-y-4 rounded-lg border border-border bg-surface p-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">{t('users.acceptTitle')}</h1>
           <p className="text-sm text-muted-foreground">{t('users.acceptHint')}</p>

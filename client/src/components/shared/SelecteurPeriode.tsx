@@ -90,7 +90,7 @@ export function SelecteurPeriode({ valeur, onChange }: {
             onClick={() => { setPersonnalise(false); onChange(RACCOURCIS[cle]()); }}
             className={cn(
               'px-3 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              actif(cle) ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted',
+              actif(cle) ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted',
             )}
           >
             {t(`dashboard.periode.${cle}`)}
@@ -101,7 +101,7 @@ export function SelecteurPeriode({ valeur, onChange }: {
           onClick={() => setPersonnalise(true)}
           className={cn(
             'px-3 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            personnalise ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted',
+            personnalise ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted',
           )}
         >
           {t('dashboard.periode.personnalisee')}

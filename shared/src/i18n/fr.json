@@ -96,7 +96,15 @@
     "registerError": "Une erreur est survenue. Réessayez.",
     "registerEmailTaken": "Cet email est déjà utilisé",
     "alreadyHaveAccount": "Déjà un compte ?",
-    "loginLink": "Se connecter"
+    "loginLink": "Se connecter",
+    "loginSubtitle": "Accédez à votre espace de facturation.",
+    "footer": "Echango Invoice — facturation et stock, conformes à la réglementation algérienne.",
+    "pitch": {
+      "titre": "Facturez, suivez votre stock, restez en règle.",
+      "documents": "Factures, devis, bons de livraison et avoirs conformes au décret 05-468 — numérotation continue, montant en toutes lettres, droit de timbre.",
+      "stock": "Stock tenu au lot, avec dates de péremption, seuils d'alerte et coût moyen pondéré.",
+      "conformite": "Aide au G50, balance âgée, et un QR de vérification sur chaque document que vous envoyez."
+    }
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -1140,5 +1148,11 @@
     },
     "generatedToast": "{{count}} facture(s) engendrée(s)",
     "labelPlaceholder": "Abonnement mensuel — Épicerie Centrale"
+  },
+  "theme": {
+    "label": "Thème",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
   }
 }

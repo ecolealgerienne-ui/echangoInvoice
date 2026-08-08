@@ -438,3 +438,71 @@ contrôle les refuser.
 `SettingsPage.tsx` portent la liste des unités par défaut (`kg`, `boîte`…).
 Ce sont des **valeurs enregistrées en base**, relues ensuite par le PDF et
 l'export — les traduire écrirait de l'arabe dans une colonne de données.
+
+
+---
+
+## E012 — Un thème déclaré, un thème absent, et une police jamais chargée
+
+**Date :** 2026-08-08 · **Gravité :** moyenne · **Statut :** corrigé
+
+`tailwind.config.ts` portait `darkMode: ['class']` depuis le premier jour.
+Aucun jeton `.dark` n'existait dans `globals.css` : le mécanisme était branché
+sur rien. Un `dark:` écrit par mégarde n'aurait rien fait, et personne ne
+l'aurait su.
+
+Trois découvertes du même ordre — déclaré mais jamais réalisé :
+
+| Déclaré | Réalité |
+|---|---|
+| `darkMode: ['class']` | aucun jeton sombre, le mode n'existait pas |
+| `font-family: 'Inter'` | Inter n'était jamais chargée, repli système silencieux |
+| 85 couleurs de palette | ne connaissent qu'un thème par construction |
+
+### Ce que le thème sombre a révélé
+
+Le sombre ne crée pas ces défauts, il les rend visibles. Trois se cachaient
+derrière le fait qu'en clair, fond de page et surface posée sont tous deux
+blancs :
+
+1. **`bg-background` sur une carte.** En sombre, la carte devient plus foncée
+   que la page — l'élévation s'inverse et creuse un trou. Soixante-sept
+   occurrences, reclassées par rôle : champ, panneau flottant, fond de page.
+
+2. **Le panneau de marque sur `bg-primary`.** En sombre, la primaire
+   s'éclaircit pour rester lisible : l'aplat de marque devenait une dalle bleu
+   clair. Il a son propre jeton, sombre dans les deux thèmes.
+
+3. **`text-white` en dur** sur le titre de la barre latérale — invisible dès
+   que la barre est passée au thème.
+
+### Dix-huit tables de statut qui se contredisaient
+
+Recopiées dans quatorze pages, elles ne disaient pas la même chose : le même
+bon de livraison signé était **vert sur sa fiche et orange dans la liste** ; un
+avoir émis passait de bleu à vert selon l'écran. Chaque page était cohérente
+avec elle-même, l'utilisateur apprenait un code couleur qui changeait sous ses
+yeux. Une seule table désormais, dans `lib/statuts.ts`.
+
+### Un faux positif à noter
+
+Une capture de la liste des factures est sortie **entièrement blanche**. Le
+diagnostic a montré que le serveur de développement tournait depuis avant le
+changement de jetons : il servait l'ancien `globals.css` avec la nouvelle
+configuration, et `oklch(222 47% 11%)` — des composantes HSL lues comme de
+l'OKLCH — donne du blanc.
+
+> Un serveur de développement qui tourne depuis avant un changement de
+> configuration Tailwind ne prouve rien. Vérifier sur un serveur neuf, ou sur
+> le build.
+
+### Correctif
+
+Jetons OKLCH complets dans les deux thèmes, sélecteur à trois positions
+(clair / sombre / système) avec pose du thème **avant le premier rendu** pour
+éviter l'éclair blanc, Inter et Noto Sans Arabic auto-hébergées, 85 couleurs
+remplacées par des rôles sémantiques, 88 cellules de montant figées sur une
+ligne, et **`npm run verify:design`** qui refuse les six formes en cause.
+
+Les défauts ont été réintroduits un par un pour voir le contrôle les refuser,
+et le rendu vérifié au navigateur dans les deux thèmes — pas seulement compilé.

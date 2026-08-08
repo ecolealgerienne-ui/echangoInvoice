@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { authApi, usersApi, resolveApiError } from '@/lib/api';
+import { varianteRole } from '@/lib/statuts';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -13,9 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useAuth } from '@/contexts/AuthContext';
 import { Copy, Trash2, UserPlus } from 'lucide-react';
 
-const ROLE_VARIANT: Record<string, any> = {
-  owner: 'success', manager: 'info', agent: 'muted', superadmin: 'destructive',
-};
 
 /**
  * Gestion des membres de l'espace.
@@ -169,13 +167,13 @@ export function UsersTab() {
                 {invitationsData.data.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-muted/30">
                     <td className="px-4 py-3 text-foreground">{inv.email}</td>
-                    <td className="px-4 py-3"><Badge variant={ROLE_VARIANT[inv.role]}>{t(`users.roles.${inv.role}`)}</Badge></td>
+                    <td className="px-4 py-3"><Badge variant={varianteRole(inv.role)}>{t(`users.roles.${inv.role}`)}</Badge></td>
                     <td className="px-4 py-3">
                       {inv.expired
                         ? <Badge variant="destructive">{t('users.expired')}</Badge>
                         : <span className="text-muted-foreground">{formatDate(inv.expiresAt)}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       <div className="flex justify-end gap-1">
                         {!inv.expired && (
                           <Button variant="ghost" size="icon" title={t('users.copyLink')}
@@ -232,7 +230,7 @@ export function UsersTab() {
                             <option value="agent">{t('users.roles.agent')}</option>
                           </Select>
                         ) : (
-                          <Badge variant={ROLE_VARIANT[u.role]}>{t(`users.roles.${u.role}`)}</Badge>
+                          <Badge variant={varianteRole(u.role)}>{t(`users.roles.${u.role}`)}</Badge>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">

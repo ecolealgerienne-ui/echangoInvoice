@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { creditNotesApi, customersApi, invoicesApi , resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -22,9 +23,6 @@ import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', issued: 'success', applied: 'info', cancelled: 'destructive',
-};
 
 const itemSchema = z.object({
   description: z.string().min(1),
@@ -192,8 +190,8 @@ export function CreditNotesPage() {
                   {col('customer') && <td className="px-4 py-3">{cn.customer?.name ?? '—'}</td>}
                   {col('date') && <td className="px-4 py-3">{formatDate(cn.creditNoteDate)}</td>}
                   {col('reason') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(cn.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[cn.status] ?? 'muted'}>{t(`status.${cn.status}`)}</Badge></td>}
+                  {col('total') && <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(cn.totalAmount)}</td>}
+                  {col('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(cn.status)}>{t(`status.${cn.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
@@ -306,7 +304,7 @@ export function CreditNotesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

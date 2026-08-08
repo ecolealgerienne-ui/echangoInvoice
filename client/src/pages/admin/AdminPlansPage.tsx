@@ -33,7 +33,7 @@ export function AdminPlansPage() {
                   type="number"
                   defaultValue={plan.pricePerMonth}
                   onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], pricePerMonth: parseFloat(e.target.value) } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
+                  className="w-full border border-border rounded px-2 py-1 bg-surface text-foreground"
                 />
                 <label className="block text-muted-foreground">{t('admin.plans.invoiceLimit')}</label>
                 <input
@@ -41,7 +41,7 @@ export function AdminPlansPage() {
                   defaultValue={plan.invoiceLimit ?? ''}
                   placeholder={t('admin.plans.unlimited')}
                   onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], invoiceLimit: e.target.value ? parseInt(e.target.value) : null } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
+                  className="w-full border border-border rounded px-2 py-1 bg-surface text-foreground"
                 />
                 <label className="block text-muted-foreground">{t('admin.plans.usersLimit')}</label>
                 <input
@@ -49,7 +49,7 @@ export function AdminPlansPage() {
                   defaultValue={plan.usersLimit ?? ''}
                   placeholder={t('admin.plans.unlimited')}
                   onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], usersLimit: e.target.value ? parseInt(e.target.value) : null } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
+                  className="w-full border border-border rounded px-2 py-1 bg-surface text-foreground"
                 />
               </div>
               <button

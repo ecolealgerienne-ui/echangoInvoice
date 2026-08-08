@@ -5,6 +5,7 @@ import { Bell } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { RechercheGlobale } from './RechercheGlobale';
 import { SelecteurLangue } from './SelecteurLangue';
+import { SelecteurTheme } from './SelecteurTheme';
 import { stockApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -24,12 +25,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const hasAlerts = lowStockCount > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-surface">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-background shrink-0">
+        <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-surface shrink-0">
           <RechercheGlobale />
           <div className="flex items-center gap-3">
+          <SelecteurTheme />
           <SelecteurLangue />
           <button
             onClick={() => navigate('/stock?tab=alerts')}

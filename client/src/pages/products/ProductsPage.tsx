@@ -174,7 +174,7 @@ export function ProductsPage() {
           {TYPE_FILTERS.map(f => (
             <button key={f}
               onClick={() => { setTypeFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 transition-colors ${typeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
+              className={`px-3 py-1.5 transition-colors ${typeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted'}`}>
               {t(`products.type.${f}`)}
             </button>
           ))}
@@ -238,9 +238,9 @@ export function ProductsPage() {
                   {col('type') && (
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.type === 'material' ? 'bg-orange-100 text-orange-700' :
-                        p.type === 'both' ? 'bg-purple-100 text-purple-700' :
-                        'bg-blue-100 text-blue-700'
+                        p.type === 'material' ? 'bg-warning-subtle text-warning-text' :
+                        p.type === 'both' ? 'bg-info-subtle text-info-text' :
+                        'bg-info-subtle text-info-text'
                       }`}>{t(`products.type.${p.type}`)}</span>
                     </td>
                   )}
@@ -252,12 +252,12 @@ export function ProductsPage() {
                   {col('code') && <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>}
                   {col('unit') && <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>}
                   {col('salesPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.defaultSalesPrice != null ? formatCurrency(p.defaultSalesPrice) : '—'}
                     </td>
                   )}
                   {col('costPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.lastCostPerUnit != null ? formatCurrency(p.lastCostPerUnit) : '—'}
                     </td>
                   )}
@@ -267,7 +267,7 @@ export function ProductsPage() {
                   {col('description') && (
                     <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
                   )}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
                         <Pencil className="h-4 w-4" />
@@ -295,7 +295,7 @@ export function ProductsPage() {
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('products.type.label')} *</label>
             <select {...register('type')}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+              className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm">
               <option value="product">{t('products.type.product')}</option>
               <option value="material">{t('products.type.material')}</option>
               <option value="both">{t('products.type.both')}</option>
@@ -337,7 +337,7 @@ export function ProductsPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('nav.suppliers')}</label>
               <select {...register('supplierId')}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm">
                 <option value="">{t('common.select')}</option>
                 {suppliers.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name}</option>

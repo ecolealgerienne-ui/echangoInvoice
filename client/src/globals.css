@@ -2,39 +2,293 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Typographie
+ *
+ * `font-family: 'Inter'` était déclaré depuis le début — sans qu'Inter soit
+ * jamais chargée. L'application affichait donc le repli système, et la
+ * typographie voulue n'a jamais été vue. Les deux familles sont désormais
+ * auto-hébergées : pas de CDN, donc rien à charger sur un réseau qu'on n'a
+ * pas — l'application est aussi utilisée en mobilité, et une police manquante
+ * décale toute la mise en page au moment où l'on en a le plus besoin.
+ *
+ * Ce sont des fontes variables : un seul fichier couvre 400 à 700, là où les
+ * graisses statiques en auraient demandé quatre.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2190-2193, U+2212, U+20AC;
+}
+
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('/fonts/noto-sans-arabic.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 @layer base {
+  /* ═════════════════════════════════════════════════════════════════════════
+   * Thème clair
+   *
+   * Les couleurs sont en OKLCH et non en HSL. La raison est concrète : en HSL,
+   * deux teintes de même « lightness » ne paraissent pas de la même clarté —
+   * un jaune à 50 % éblouit là où un bleu à 50 % reste sombre. Une palette
+   * bâtie ainsi paraît déséquilibrée sans qu'on sache pourquoi. OKLCH est
+   * perceptuellement uniforme : la même lightness donne la même clarté
+   * ressentie, quelle que soit la teinte. C'est ce qui permet d'écrire un
+   * thème sombre en décalant les valeurs plutôt qu'en les redevinant.
+   *
+   * La couleur primaire n'est plus le bleu par défaut de shadcn. Elle descend
+   * du bleu nuit `#1e3a5f` déjà imprimé sur chaque facture, devis et bon de
+   * livraison depuis le premier jour : l'écran et le document que le client
+   * reçoit parlaient deux langues différentes.
+   * ═════════════════════════════════════════════════════════════════════════ */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --primary: 217 91% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 92%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 50%;
-    --radius: 0.5rem;
-    --sidebar: 220 27% 14%;
-    --sidebar-foreground: 210 40% 92%;
-    --sidebar-accent: 220 27% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 27% 20%;
+    /* Fonds, du plus profond au plus élevé. En clair, l'élévation monte vers
+       le blanc ; en sombre, elle montera vers le gris — voir plus bas. */
+    --background: 0.985 0.003 250;
+    --surface: 1     0     0;
+    --surface-elevated: 1     0     0;
+    --foreground: 0.21  0.024 253;
+
+    --card: 1     0     0;
+    --card-foreground: 0.21  0.024 253;
+
+    /* Bleu nuit de la marque, remonté en clarté pour rester cliquable sur
+       blanc : `#1e3a5f` tel quel ferait un bouton presque noir. */
+    --primary: 0.45 0.098 254;
+    --primary-foreground: 0.99 0.002 250;
+    --primary-hover: 0.39 0.095 254;
+    /* Fond ténu de la primaire : sélections, lignes actives, puces. */
+    --primary-subtle: 0.955 0.021 254;
+
+    --secondary: 0.965 0.006 253;
+    --secondary-foreground: 0.28  0.022 253;
+
+    /* Neutres légèrement biaisés vers la teinte de la marque plutôt que gris
+       purs : un gris neutre à côté d'un bleu paraît sale. */
+    --muted: 0.965 0.006 253;
+    --muted-foreground: 0.53  0.019 253;
+    --accent: 0.945 0.010 253;
+    --accent-foreground: 0.24  0.024 253;
+
+    --border: 0.915 0.008 253;
+    --border-strong: 0.86 0.011 253;
+    --input: 0.915 0.008 253;
+    --ring: 0.55  0.115 254;
+
+    /* ── Couleurs sémantiques ──────────────────────────────────────────────
+     * Elles manquaient : les badges de statut codaient `bg-green-100
+     * text-green-800` en dur, quatre-vingt-cinq fois dans l'application. Une
+     * couleur écrite en dur ne connaît qu'un seul thème — en sombre, ces
+     * badges seraient restés des pastilles claires posées sur du gris foncé.
+     *
+     * Chaque rôle a deux valeurs : la couleur pleine (texte, icône, bordure)
+     * et sa version ténue (fond de pastille). */
+    --success: 0.52 0.115 155;
+    --success-foreground: 0.99 0.002 250;
+    --success-subtle: 0.955 0.033 155;
+    --success-text: 0.42 0.100 155;
+
+    --warning: 0.70 0.150 72;
+    --warning-foreground: 0.20 0.030 72;
+    --warning-subtle: 0.965 0.045 82;
+    --warning-text: 0.47 0.105 62;
+
+    --destructive: 0.55 0.185 25;
+    --destructive-foreground: 0.99 0.002 250;
+    --destructive-subtle: 0.955 0.030 25;
+    --destructive-text: 0.46 0.155 25;
+
+    --info: 0.55 0.115 240;
+    --info-foreground: 0.99 0.002 250;
+    --info-subtle: 0.955 0.028 240;
+    --info-text: 0.44 0.105 240;
+
+    /* ── Barre latérale ────────────────────────────────────────────────────
+     * Elle était une dalle sombre fixe, quel que soit le reste. Ce contraste
+     * permanent était une mode de 2020 ; en 2026 la navigation appartient au
+     * thème comme le reste, sinon le mode sombre donne une page à deux
+     * ambiances. */
+    --sidebar: 0.975 0.005 253;
+    --sidebar-foreground: 0.34  0.021 253;
+    --sidebar-accent: 0.935 0.020 254;
+    --sidebar-accent-foreground: 0.34  0.075 254;
+    --sidebar-border: 0.915 0.008 253;
+
+    /* ── Panneau de présentation des écrans d'entrée ───────────────────────
+     * Il ne peut pas prendre `--primary` : en sombre, la primaire s'éclaircit
+     * pour rester lisible sur fond noir, et le panneau devenait une dalle bleu
+     * clair au milieu d'une page sombre — l'inverse de ce qu'on veut d'un
+     * aplat de marque. Il garde donc son propre bleu nuit dans les deux
+     * thèmes, simplement assombri en sombre pour ne pas éblouir.
+     */
+    --panneau: 0.34 0.078 254;
+    --panneau-foreground: 0.97 0.006 250;
+
+    --radius: 0.625rem;
+
+    /* Ombres portées : très basses en opacité, deux couches — une pour le
+       contact, une pour la diffusion. Une seule couche donne toujours l'ombre
+       « boîte flottante » qu'on reconnaît immédiatement comme un défaut. */
+    --shadow-sm: 0 1px 2px 0 oklch(0.21 0.024 253 / 0.05);
+    --shadow:    0 1px 3px 0 oklch(0.21 0.024 253 / 0.07), 0 1px 2px -1px oklch(0.21 0.024 253 / 0.05);
+    --shadow-md: 0 4px 12px -2px oklch(0.21 0.024 253 / 0.08), 0 2px 4px -2px oklch(0.21 0.024 253 / 0.05);
+    --shadow-lg: 0 12px 32px -8px oklch(0.21 0.024 253 / 0.14), 0 4px 8px -4px oklch(0.21 0.024 253 / 0.06);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+   * Thème sombre
+   *
+   * Trois règles le gouvernent, et elles ne sont pas décoratives :
+   *
+   * 1. **Pas de noir pur.** Du blanc sur du noir provoque un halo qui fatigue
+   *    l'œil en quelques minutes — et sur du vrai noir, aucune élévation ne
+   *    peut plus se voir, faute de place sous le fond.
+   *
+   * 2. **L'élévation se lit en clarté, pas en ombre.** Une ombre noire sur un
+   *    fond sombre n'existe pas. Chaque surface posée sur une autre est donc
+   *    d'environ 3 à 5 % plus claire que celle qui la porte : fond → carte →
+   *    surface flottante.
+   *
+   * 3. **Les accents se désaturent.** Une couleur vive garde sa force sur du
+   *    blanc et vibre désagréablement sur du sombre. Chroma réduite, lightness
+   *    remontée pour garder le contraste du texte.
+   *
+   * Le texte n'est pas blanc pur non plus, pour la même raison que le fond
+   * n'est pas noir.
+   * ═════════════════════════════════════════════════════════════════════════ */
+  .dark {
+    --background: 0.185 0.014 254;
+    --surface: 0.225 0.016 254;
+    --surface-elevated: 0.265 0.017 254;
+    --foreground: 0.93  0.008 250;
+
+    --card: 0.225 0.016 254;
+    --card-foreground: 0.93  0.008 250;
+
+    --primary: 0.70 0.115 250;
+    --primary-foreground: 0.17 0.020 254;
+    --primary-hover: 0.76 0.110 250;
+    --primary-subtle: 0.29 0.045 252;
+
+    --secondary: 0.275 0.016 254;
+    --secondary-foreground: 0.90  0.010 250;
+
+    --muted: 0.265 0.015 254;
+    --muted-foreground: 0.685 0.017 252;
+    --accent: 0.295 0.018 254;
+    --accent-foreground: 0.94  0.008 250;
+
+    --border: 0.315 0.017 254;
+    --border-strong: 0.40  0.020 254;
+    --input: 0.315 0.017 254;
+    --ring: 0.66  0.110 250;
+
+    --success: 0.66 0.115 158;
+    --success-foreground: 0.16 0.020 158;
+    --success-subtle: 0.30 0.048 158;
+    --success-text: 0.79 0.110 158;
+
+    --warning: 0.76 0.130 78;
+    --warning-foreground: 0.18 0.028 78;
+    --warning-subtle: 0.32 0.055 72;
+    --warning-text: 0.84 0.115 82;
+
+    --destructive: 0.63 0.165 25;
+    --destructive-foreground: 0.16 0.020 25;
+    --destructive-subtle: 0.31 0.062 25;
+    --destructive-text: 0.78 0.120 25;
+
+    --info: 0.68 0.105 242;
+    --info-foreground: 0.16 0.020 242;
+    --info-subtle: 0.30 0.050 242;
+    --info-text: 0.80 0.090 242;
+
+    --panneau: 0.245 0.048 254;
+    --panneau-foreground: 0.90 0.012 250;
+
+    --sidebar: 0.205 0.015 254;
+    --sidebar-foreground: 0.80  0.013 252;
+    --sidebar-accent: 0.30  0.043 252;
+    --sidebar-accent-foreground: 0.93  0.030 250;
+    --sidebar-border: 0.29  0.016 254;
+
+    /* En sombre les ombres ne portent plus l'élévation — c'est la clarté des
+       surfaces qui s'en charge. Elles restent, très discrètes, seulement pour
+       détacher les couches flottantes du fond. */
+    --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.30);
+    --shadow:    0 1px 3px 0 oklch(0 0 0 / 0.40), 0 1px 2px -1px oklch(0 0 0 / 0.30);
+    --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.45), 0 2px 4px -2px oklch(0 0 0 / 0.30);
+    --shadow-lg: 0 12px 32px -8px oklch(0 0 0 / 0.55), 0 4px 8px -4px oklch(0 0 0 / 0.35);
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  body { @apply bg-background text-foreground; font-family: 'Inter', system-ui, sans-serif; }
-}
 
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Noto Sans Arabic', system-ui, -apple-system, sans-serif;
+    /* Les chiffres s'alignent en colonne partout. Sur un logiciel de
+       facturation, une colonne de montants dont les chiffres n'ont pas la même
+       largeur oblige l'œil à relire chaque ligne pour comparer deux totaux. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* L'arabe passe en premier quand la page est en RTL : Inter n'a pas de
+     glyphes arabes, et laisser le repli décider donne un rendu différent
+     selon la machine. */
+  [dir="rtl"] body {
+    font-family: 'Noto Sans Arabic', 'Inter', system-ui, sans-serif;
+  }
+
+  /* Le titrage est légèrement resserré : à graisse égale, un titre non
+     resserré paraît lâche à côté d'un texte courant dense. */
+  h1, h2, h3 { letter-spacing: -0.011em; }
+
+  /* Le focus doit se voir. Il était rendu par un anneau sans décalage, qui se
+     confondait avec la bordure du champ dès que les deux se touchaient. Le
+     décalage l'en détache, et l'anneau suit le thème. */
+  :focus-visible {
+    outline: 2px solid oklch(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Barres de défilement accordées au thème : une barre système claire au
+     milieu d'une page sombre trahit immédiatement un thème posé à moitié. */
+  * { scrollbar-color: oklch(var(--border-strong)) transparent; scrollbar-width: thin; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(var(--border-strong));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(var(--muted-foreground)); background-clip: content-box; }
+
+  /* Le changement de thème est instantané là où il compte — sur les surfaces —
+     et jamais sur autre chose : animer toutes les propriétés ferait ramer les
+     tableaux longs au moment de la bascule. */
+  @media (prefers-reduced-motion: no-preference) {
+    body, .theme-transition * {
+      transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+  }
+}
 
 /* ─── Écriture de droite à gauche ────────────────────────────────────────
  *

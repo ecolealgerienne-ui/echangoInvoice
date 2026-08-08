@@ -181,7 +181,7 @@ export function SettingsPage() {
                       <div className="relative border border-border rounded p-1 bg-muted flex items-center justify-center" style={{ minWidth: 120, minHeight: 60 }}>
                         <img src={logo} alt="logo" className="max-h-14 max-w-[120px] object-contain" />
                         <button type="button" onClick={() => setLogo(null)}
-                          className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
+                          className="absolute -top-2 -right-2 bg-surface-elevated border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
@@ -212,7 +212,7 @@ export function SettingsPage() {
                       <div className="relative border border-border rounded p-1 bg-muted flex items-center justify-center" style={{ minWidth: 120, minHeight: 60 }}>
                         <img src={cachet} alt="cachet" className="max-h-14 max-w-[120px] object-contain" />
                         <button type="button" onClick={() => setCachet(null)}
-                          className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
+                          className="absolute -top-2 -right-2 bg-surface-elevated border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
@@ -311,7 +311,7 @@ export function SettingsPage() {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      className="h-9 w-12 rounded border border-input bg-background p-1 cursor-pointer"
+                      className="h-9 w-12 rounded border border-input bg-surface p-1 cursor-pointer"
                       {...register('pdfAccentColor')}
                     />
                     <span className="text-xs text-muted-foreground font-mono">

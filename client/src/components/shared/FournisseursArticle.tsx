@@ -104,17 +104,17 @@ export function FournisseursArticle({ productId }: { productId: string }) {
                   <td className="px-3 py-2 text-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       {l.isPreferred && (
-                        <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-label={t('products.preferred')} />
+                        <Star className="h-3.5 w-3.5 fill-current text-warning" aria-label={t('products.preferred')} />
                       )}
                       {l.supplierName}
                     </span>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{l.supplierRef || '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCurrency(l.purchasePrice)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap tabular-nums">{formatCurrency(l.purchasePrice)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap tabular-nums">
                     {l.leadTimeDays != null ? `${l.leadTimeDays} j` : '—'}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                     <Button variant="ghost" size="icon" onClick={() => suppression.mutate(l.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

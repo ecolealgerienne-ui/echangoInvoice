@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { purchasesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -12,12 +13,6 @@ import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, ChampLien, DocumentEnTete } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
-const STATUT: Record<string, string> = {
-  pending: 'muted', partial: 'warning', completed: 'success',
-};
-const STATUT_LOT: Record<string, string> = {
-  available: 'success', reserved: 'warning', sold: 'muted', adjusted: 'secondary',
-};
 
 export function ReceptionDetailPage() {
   const { t } = useTranslation();
@@ -64,7 +59,7 @@ export function ReceptionDetailPage() {
         titre={reception.blNumber}
         statut={{
           libelle: t(`purchases.receptionStatus.${reception.status}`),
-          variant: STATUT[reception.status] ?? 'muted',
+          variant: varianteStatut(reception.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}>
@@ -126,7 +121,7 @@ export function ReceptionDetailPage() {
           {
             entete: t('common.status'),
             rendu: (l: any) => (
-              <Badge variant={STATUT_LOT[l.status] as never}>{t(`stock.lotStatus.${l.status}`)}</Badge>
+              <Badge variant={varianteStatut(l.status) as never}>{t(`stock.lotStatus.${l.status}`)}</Badge>
             ),
           },
         ]}

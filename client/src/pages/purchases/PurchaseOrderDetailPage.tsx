@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { purchasesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -12,15 +13,6 @@ import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, DocumentEnTete, Totaux } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
-const STATUT: Record<string, string> = {
-  draft: 'muted', sent: 'info', received: 'success', invoiced: 'success', cancelled: 'secondary',
-};
-const STATUT_RECEPTION: Record<string, string> = {
-  pending: 'muted', partial: 'warning', completed: 'success',
-};
-const STATUT_FACTURE: Record<string, string> = {
-  draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'secondary',
-};
 
 export function PurchaseOrderDetailPage() {
   const { t } = useTranslation();
@@ -61,7 +53,7 @@ export function PurchaseOrderDetailPage() {
         titre={commande.poNumber}
         statut={{
           libelle: t(`status.${commande.status}`),
-          variant: STATUT[commande.status] ?? 'muted',
+          variant: varianteStatut(commande.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}>
@@ -150,7 +142,7 @@ export function PurchaseOrderDetailPage() {
             {
               entete: t('common.status'),
               rendu: (r: any) => (
-                <Badge variant={STATUT_RECEPTION[r.status] as never}>
+                <Badge variant={varianteStatut(r.status) as never}>
                   {t(`purchases.receptionStatus.${r.status}`)}
                 </Badge>
               ),
@@ -176,7 +168,7 @@ export function PurchaseOrderDetailPage() {
             {
               entete: t('common.status'),
               rendu: (f: any) => (
-                <Badge variant={STATUT_FACTURE[f.status] as never}>
+                <Badge variant={varianteStatut(f.status) as never}>
                   {t(`purchases.billStatus.${f.status}`)}
                 </Badge>
               ),

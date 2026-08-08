@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoicesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { useUnits } from '@/lib/useUnits';
 import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -27,9 +28,6 @@ import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', partial: 'warning', paid: 'success', overdue: 'destructive', cancelled: 'secondary',
-};
 
 const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
@@ -369,16 +367,16 @@ export function InvoicesPage() {
                   {col('origin') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.blNumber ?? inv.quoteNumber ?? '—'}</td>}
                   {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
                   {col('dueDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(inv.totalAmount)}</td>}
+                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.totalAmount)}</td>}
                   {col('credited') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {Number(inv.creditedAmount) > 0 ? formatCurrency(inv.creditedAmount) : '—'}
                     </td>
                   )}
-                  {col('due') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(inv.amountDue)}</td>}
-                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={STATUS_VARIANT[inv.status]}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
+                  {col('due') && <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.amountDue)}</td>}
+                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={varianteStatut(inv.status)}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{inv.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
@@ -448,7 +446,7 @@ export function InvoicesPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1 col-span-1">
               <label className="text-sm font-medium text-foreground">{t('invoices.customer')} *</label>
-              <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('customerId')}>
+              <select className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" {...register('customerId')}>
                 <option value="">{t('common.select')}</option>
                 {customers?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -503,7 +501,7 @@ export function InvoicesPage() {
               const lineTTC = lineHT * (1 + lineTaxRate / 100);
               return (
                 <div key={field.id} className="grid grid-cols-[2fr_70px_60px_100px_130px_110px_32px] gap-2 items-center">
-                  <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                  <select className="w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm"
                     {...register(`items.${i}.finishedProductId`)}
                     onChange={e => {
                       setInvValue(`items.${i}.finishedProductId`, e.target.value);
@@ -525,7 +523,7 @@ export function InvoicesPage() {
                   </span>
                   <input type="hidden" {...register(`items.${i}.unit`)} />
                   <Input type="number" step="0.01" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
-                  <select className="w-full rounded-md border border-input bg-background px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
+                  <select className="w-full rounded-md border border-input bg-surface px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
                     {taxRates.length > 0
                       ? taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{v}%</option>; })
                       : <option value="19">19%</option>
@@ -661,8 +659,8 @@ export function InvoicesPage() {
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(p.paymentDate)}</td>
                         <td className="px-4 py-3 text-foreground">{t(`invoices.methods.${p.paymentMethod}`)}</td>
                         <td className="px-4 py-3 text-muted-foreground">{p.reference || '—'}</td>
-                        <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(p.amount)}</td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(p.amount)}</td>
+                        <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                           <Button variant="ghost" size="icon" title={t('invoices.cancelPayment')}
                             disabled={removePaymentMutation.isPending}
                             onClick={() => removePaymentMutation.mutate(p.id)}>

@@ -99,16 +99,16 @@ export function CodesBarres({ productId }: { productId: string }) {
                 <tr key={c.id} className="hover:bg-muted/30">
                   <td className="px-3 py-2 font-mono text-foreground">
                     <span className="inline-flex items-center gap-1.5">
-                      {c.isPrimary && <Star className="h-3.5 w-3.5 fill-current text-amber-500" aria-label={t('products.barcodePrimary')} />}
+                      {c.isPrimary && <Star className="h-3.5 w-3.5 fill-current text-warning" aria-label={t('products.barcodePrimary')} />}
                       {c.barcode}
                     </span>
                   </td>
                   <td className="px-3 py-2"><Badge variant="secondary">{c.type}</Badge></td>
                   <td className="px-3 py-2 text-muted-foreground">{c.label || '—'}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground whitespace-nowrap tabular-nums">
                     {Number(c.packQuantity)}
                   </td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                     <Button variant="ghost" size="icon" onClick={() => suppression.mutate(c.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

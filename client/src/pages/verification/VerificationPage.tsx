@@ -58,8 +58,8 @@ export function VerificationPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <div className="w-full max-w-md rounded-lg border border-border overflow-hidden">
-        <div className={`p-6 text-center ${d.valide ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-destructive/10'}`}>
-          <Icone className={`h-12 w-12 mx-auto ${d.valide ? 'text-emerald-600' : 'text-destructive'}`} />
+        <div className={`p-6 text-center ${d.valide ? 'bg-success-subtle dark:bg-success/30' : 'bg-destructive/10'}`}>
+          <Icone className={`h-12 w-12 mx-auto ${d.valide ? 'text-success' : 'text-destructive'}`} />
           <h1 className="mt-3 text-lg font-bold text-foreground">
             {d.valide ? t('verification.authentique') : t('verification.annule')}
           </h1>

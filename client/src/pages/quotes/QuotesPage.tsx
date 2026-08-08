@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { quotesApi, customersApi, productsApi, settingsApi, deliveriesApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { useUnits } from '@/lib/useUnits';
 import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -27,10 +28,6 @@ import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', accepted: 'success',
-  rejected: 'destructive', expired: 'secondary', converted: 'warning',
-};
 
 const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
@@ -331,8 +328,8 @@ export function QuotesPage() {
                   {col('customer') && <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>}
                   {col('quoteDate') && <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>}
                   {col('expiryDate') && <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge></td>}
+                  {col('total') && <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(q.totalAmount)}</td>}
+                  {col('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(q.status)}>{t(`status.${q.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
@@ -349,7 +346,7 @@ export function QuotesPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" title={t('quotes.send')} onClick={() => sendMutation.mutate(q.id)}>
-                            <Send className="h-4 w-4 text-blue-600" />
+                            <Send className="h-4 w-4 text-info" />
                           </Button>
                           <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -362,7 +359,7 @@ export function QuotesPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" title={t('quotes.accept')} onClick={() => acceptMutation.mutate(q.id)}>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="h-4 w-4 text-success" />
                           </Button>
                           <Button size="sm" variant="ghost" title={t('quotes.reject')} onClick={() => rejectMutation.mutate(q.id)}>
                             <XCircle className="h-4 w-4 text-destructive" />
@@ -372,10 +369,10 @@ export function QuotesPage() {
                       {q.status === 'accepted' && (
                         <>
                           <Button size="sm" variant="ghost" title={t('quotes.createBl')} onClick={() => createBlMutation.mutate(q.id)}>
-                            <Truck className="h-4 w-4 text-blue-600" />
+                            <Truck className="h-4 w-4 text-info" />
                           </Button>
                           <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
-                            <RefreshCw className="h-4 w-4 text-green-600" />
+                            <RefreshCw className="h-4 w-4 text-success" />
                           </Button>
                         </>
                       )}
@@ -523,7 +520,7 @@ export function QuotesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

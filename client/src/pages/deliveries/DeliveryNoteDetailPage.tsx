@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
 import { deliveriesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +13,6 @@ import {
   Bloc, Champ, ChampLien, DocumentEnTete, LignesDocument, Totaux,
 } from '@/components/shared/DocumentView';
 
-const STATUT_VARIANT: Record<string, string> = {
-  draft: 'muted', sent: 'info', signed: 'success',
-  delivered: 'success', cancelled: 'secondary',
-};
 
 export function DeliveryNoteDetailPage() {
   const { t } = useTranslation();
@@ -57,7 +54,7 @@ export function DeliveryNoteDetailPage() {
         titre={bl.blNumber}
         statut={{
           libelle: t(`deliveries.status.${bl.status}`),
-          variant: STATUT_VARIANT[bl.status] ?? 'muted',
+          variant: varianteStatut(bl.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}>

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { productsApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -10,10 +11,6 @@ import { Chiffres, Historique } from '@/components/shared/Historique';
 import { CodesBarres } from '@/components/shared/CodesBarres';
 import { FournisseursArticle } from '@/components/shared/FournisseursArticle';
 
-const STATUT_FACTURE: Record<string, string> = {
-  draft: 'muted', sent: 'info', partial: 'warning',
-  paid: 'success', overdue: 'destructive', cancelled: 'secondary',
-};
 
 /** Nombre de jours au-delà duquel une péremption cesse d'être une alerte. */
 const SEUIL_PEREMPTION_JOURS = 30;
@@ -174,7 +171,7 @@ export function ProductDetailPage() {
           { entete: t('common.total'), rendu: (v: any) => formatCurrency(v.lineTotal), droite: true },
           {
             entete: t('common.status'),
-            rendu: (v: any) => <Badge variant={(STATUT_FACTURE[v.status] ?? 'muted') as any}>{t(`status.${v.status}`)}</Badge>,
+            rendu: (v: any) => <Badge variant={(varianteStatut(v.status)) as any}>{t(`status.${v.status}`)}</Badge>,
           },
         ]}
       />

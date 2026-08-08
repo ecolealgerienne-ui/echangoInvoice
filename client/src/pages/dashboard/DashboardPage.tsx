@@ -25,7 +25,7 @@ function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boole
   const favorable = inverse ? valeur <= 0 : valeur >= 0;
   const signe = valeur > 0 ? '+' : '';
   return (
-    <p className={`text-xs mt-0.5 font-medium ${favorable ? 'text-emerald-600' : 'text-destructive'}`}>
+    <p className={`text-xs mt-0.5 font-medium ${favorable ? 'text-success' : 'text-destructive'}`}>
       {signe}{valeur} % {t('dashboard.vsPeriodePrecedente')}
     </p>
   );
@@ -189,7 +189,7 @@ export function DashboardPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-yellow-500" />
+                <Clock className="h-4 w-4 text-warning" />
                 <span className="text-muted-foreground">{t('dashboard.expiringSoon')}</span>
               </div>
               <Badge variant={alerts.expiringStockCount > 0 ? 'warning' : 'muted'}>
@@ -198,7 +198,7 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-red-500" />
+                <FileText className="h-4 w-4 text-destructive" />
                 <span className="text-muted-foreground">{t('dashboard.unpaidInvoices')}</span>
               </div>
               <Badge variant={alerts.unpaidInvoicesCount > 0 ? 'destructive' : 'muted'}>
@@ -207,7 +207,7 @@ export function DashboardPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                <AlertTriangle className="h-4 w-4 text-warning" />
                 <span className="text-muted-foreground">{t('dashboard.lowStock')}</span>
               </div>
               <Badge variant={alerts.lowStockCount > 0 ? 'warning' : 'muted'}>

@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -23,12 +24,6 @@ import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 
-const PO_STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', received: 'success', invoiced: 'warning', cancelled: 'destructive',
-};
-const REC_STATUS_VARIANT: Record<string, any> = {
-  pending: 'warning', partial: 'info', completed: 'success',
-};
 
 // ── Purchase Order form ──────────────────────────────────────────────────────
 const poItemSchema = z.object({
@@ -416,8 +411,8 @@ export function PurchasesPage() {
                   {poCol('supplier') && <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
                   {poCol('orderDate') && <td className="px-4 py-3">{formatDate(o.orderDate)}</td>}
                   {poCol('expectedDelivery') && <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
-                  {poCol('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>}
-                  {poCol('status') && <td className="px-4 py-3"><Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge></td>}
+                  {poCol('total') && <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(o.total)}</td>}
+                  {poCol('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(o.status)}>{t(`status.${o.status}`)}</Badge></td>}
                   {poCol('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{o.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
@@ -502,8 +497,8 @@ export function PurchasesPage() {
                   )}
                   {recCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
                   {recCol('receptionDate') && <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>}
-                  {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
-                  {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
+                  {recCol('totalReceived') && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
+                  {recCol('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(r.status)}>{t(`status.${r.status}`)}</Badge></td>}
                   <td className="px-4 py-3">
 <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" title={t('purchases.viewDetail')}
@@ -656,7 +651,7 @@ export function PurchasesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...poForm.register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">
@@ -677,7 +672,7 @@ export function PurchasesPage() {
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
                 <div><span className="text-muted-foreground">{t('purchases.supplier')} :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
-                <div><span className="text-muted-foreground">{t('common.status')} :</span> <Badge variant={PO_STATUS_VARIANT[d.status] ?? 'muted'} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
+                <div><span className="text-muted-foreground">{t('common.status')} :</span> <Badge variant={varianteStatut(d.status)} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
                 <div><span className="text-muted-foreground">{t('purchases.orderDate')} :</span> {formatDate(d.orderDate)}</div>
                 <div><span className="text-muted-foreground">{t('purchases.expectedDelivery')} :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
               </div>
@@ -698,10 +693,10 @@ export function PurchasesPage() {
                     return (
                       <tr key={idx} className="border-t border-border">
                         <td className="px-3 py-2">{prod?.name ?? it.rawMaterialId}</td>
-                        <td className="px-3 py-2 text-right">{Number(it.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{Number(it.quantity).toFixed(2)}</td>
                         <td className="px-3 py-2">{prod?.unit ?? it.unit}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(it.unitPrice)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(Number(it.quantity) * Number(it.unitPrice))}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(it.unitPrice)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(Number(it.quantity) * Number(it.unitPrice))}</td>
                       </tr>
                     );
                   })}
@@ -744,9 +739,9 @@ export function PurchasesPage() {
                     return (
                       <tr key={idx} className="border-t border-border">
                         <td className="px-3 py-2">{prod?.name ?? se.rawMaterialId}</td>
-                        <td className="px-3 py-2 text-right">{Number(se.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{Number(se.quantity).toFixed(2)}</td>
                         <td className="px-3 py-2">{prod?.unit ?? '—'}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(se.costPerUnit)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(se.costPerUnit)}</td>
                         <td className="px-3 py-2">{se.batchNumber ?? '—'}</td>
                         <td className="px-3 py-2">{se.expiresAt ? formatDate(se.expiresAt) : '—'}</td>
                       </tr>
@@ -834,7 +829,7 @@ export function PurchasesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...recForm.register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

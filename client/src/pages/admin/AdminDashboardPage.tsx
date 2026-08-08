@@ -63,7 +63,7 @@ export function AdminDashboardPage() {
               <tr key={tenant.tenantId} className="border-b border-border/50">
                 <td className="py-2 text-foreground">{tenant.name}</td>
                 <td className="py-2 text-foreground">{tenant.plan}</td>
-                <td className="py-2 text-right text-foreground">{tenant.invoicesThisMonth}</td>
+                <td className="py-2 text-right text-foreground whitespace-nowrap tabular-nums">{tenant.invoicesThisMonth}</td>
               </tr>
             ))}
           </tbody>

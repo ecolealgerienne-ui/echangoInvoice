@@ -92,7 +92,7 @@ export function RechercheGlobale() {
       <button
         type="button"
         onClick={() => setOuvert(true)}
-        className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center gap-2 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Search className="h-4 w-4" />
         <span className="hidden sm:inline">{t('recherche.placeholder')}</span>
@@ -101,14 +101,14 @@ export function RechercheGlobale() {
 
       {ouvert && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[10vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/25 backdrop-blur-[2px] p-4 pt-[10vh]"
           onClick={() => setOuvert(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t('recherche.titre')}
-            className="w-full max-w-2xl rounded-lg border border-border bg-background shadow-lg overflow-hidden"
+            className="w-full max-w-2xl rounded-lg border border-border bg-surface-elevated shadow-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 border-b border-border px-4">

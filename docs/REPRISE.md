@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : *feat(i18n): arabe complet — 683 clés traduites, 143 chaînes externalisées*
+> Dernier commit : *feat(design): système de jetons OKLCH, thème sombre, typographie*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses

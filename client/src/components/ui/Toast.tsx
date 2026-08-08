@@ -38,14 +38,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className={cn(
               'flex items-start gap-3 rounded-lg border p-4 shadow-lg text-sm',
-              t.variant === 'success' && 'bg-green-50 border-green-200 text-green-900',
-              t.variant === 'error' && 'bg-red-50 border-red-200 text-red-900',
-              t.variant === 'warning' && 'bg-yellow-50 border-yellow-200 text-yellow-900',
+              t.variant === 'success' && 'bg-success-subtle border-success/30 text-success-text',
+              t.variant === 'error' && 'bg-destructive-subtle border-destructive/30 text-destructive-text',
+              t.variant === 'warning' && 'bg-warning-subtle border-warning/30 text-warning-text',
             )}
           >
-            {t.variant === 'success' && <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />}
-            {t.variant === 'error' && <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />}
-            {t.variant === 'warning' && <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />}
+            {t.variant === 'success' && <CheckCircle className="h-4 w-4 text-success mt-0.5 shrink-0" />}
+            {t.variant === 'error' && <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />}
+            {t.variant === 'warning' && <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />}
             <span className="flex-1">{t.message}</span>
             <button onClick={() => remove(t.id)} className="opacity-50 hover:opacity-100">
               <X className="h-3 w-3" />

@@ -82,7 +82,7 @@ export function ExportButton({ dataset, filtres, libelle }: Props) {
         {libelle ?? t('exportButton.label')}
       </Button>
       {ouvert && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg p-1 w-64">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-surface-elevated border border-border rounded-lg shadow-lg p-1 w-64">
           {DIALECTES.map(({ cle, libelle, detail }) => (
             <button
               key={cle}

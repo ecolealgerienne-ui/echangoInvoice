@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { creditNotesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
@@ -12,9 +13,6 @@ import { Historique } from '@/components/shared/Historique';
 import { useToast } from '@/components/ui/Toast';
 import { FileDown } from 'lucide-react';
 
-const STATUT: Record<string, string> = {
-  draft: 'muted', issued: 'info', applied: 'success', cancelled: 'secondary',
-};
 
 /**
  * Fiche avoir — le dernier document commercial qui n'en avait pas.
@@ -59,7 +57,7 @@ export function CreditNoteDetailPage() {
         retourVers="/credit-notes"
         retourLibelle={t('creditNotes.title')}
         titre={`${t('creditNotes.one')} ${a.creditNoteNumber}`}
-        statut={{ libelle: t(`status.${a.status}`), variant: (STATUT[a.status] ?? 'muted') as any }}
+        statut={{ libelle: t(`status.${a.status}`), variant: (varianteStatut(a.status)) as any }}
         actions={
           <Button size="sm" variant="outline" onClick={telecharger}>
             <FileDown className="h-4 w-4" /> {t('common.pdf')}

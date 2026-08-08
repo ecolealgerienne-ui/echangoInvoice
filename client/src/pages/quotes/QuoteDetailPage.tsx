@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
 import { quotesApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +13,6 @@ import {
   Bloc, Champ, ChampLien, DocumentEnTete, LignesDocument, Totaux,
 } from '@/components/shared/DocumentView';
 
-const STATUT_VARIANT: Record<string, string> = {
-  draft: 'muted', sent: 'info', accepted: 'success',
-  rejected: 'destructive', expired: 'secondary', converted: 'success',
-};
 
 export function QuoteDetailPage() {
   const { t } = useTranslation();
@@ -57,7 +54,7 @@ export function QuoteDetailPage() {
         titre={devis.quoteNumber}
         statut={{
           libelle: t(`status.${devis.status}`),
-          variant: STATUT_VARIANT[devis.status] ?? 'muted',
+          variant: varianteStatut(devis.status),
         }}
         actions={
           <Button variant="outline" size="sm" onClick={telechargerPdf}>

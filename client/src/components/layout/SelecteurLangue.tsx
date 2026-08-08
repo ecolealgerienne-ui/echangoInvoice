@@ -36,7 +36,7 @@ export function SelecteurLangue() {
         value={langue}
         onChange={(e) => changer(e.target.value as Langue)}
         aria-label="Langue"
-        className="h-8 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-8 rounded-md border border-input bg-surface px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {LANGUES.map((l) => (
           <option key={l.code} value={l.code}>{l.nom}</option>

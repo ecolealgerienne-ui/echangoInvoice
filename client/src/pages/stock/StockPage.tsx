@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { stockApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
@@ -21,9 +22,6 @@ import { useToast } from '@/components/ui/Toast';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
 
-const LOT_STATUS_VARIANT: Record<string, any> = {
-  available: 'success', reserved: 'warning', sold: 'muted', adjusted: 'secondary',
-};
 
 const adjustSchema = z.object({
   newQuantity: z.coerce.number().min(0, 'common.invalidQuantity'),
@@ -211,21 +209,21 @@ export function StockPage() {
                         </button>
                         <span className="text-muted-foreground ml-1 text-xs">({item.unit})</span>
                       </td>}
-                      {col('physical') && <td className="px-4 py-3 text-right text-muted-foreground">{formatNumber(item.physicalQuantity)}</td>}
+                      {col('physical') && <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatNumber(item.physicalQuantity)}</td>}
                       {/* Le réservé n'est pas neutre : c'est de la marchandise
                           présente mais déjà promise. */}
-                      {col('reserved') && <td className="px-4 py-3 text-right">
+                      {col('reserved') && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                         {item.reservedQuantity > 0
                           ? <span className="text-warning-foreground font-medium">{formatNumber(item.reservedQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('quantity') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatNumber(item.availableQuantity)}</td>}
-                      {col('incoming') && <td className="px-4 py-3 text-right">
+                      {col('quantity') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatNumber(item.availableQuantity)}</td>}
+                      {col('incoming') && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                         {item.incomingQuantity > 0
                           ? <span className="text-primary">+{formatNumber(item.incomingQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
+                      {col('value') && <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(item.totalValue)}</td>}
                       {col('expiryAlert') && <td className="px-4 py-3 text-center">
                         {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
                         {item.expiryAlert === 'orange' && <Badge variant="warning">{t('stock.soon')}</Badge>}
@@ -268,12 +266,12 @@ export function StockPage() {
                                     {entriesData?.data?.map((lot: any) => (
                                       <tr key={lot.id}>
                                         <td className="px-2 py-1.5 font-mono text-foreground">{lot.batchNumber || '—'}</td>
-                                        <td className="px-2 py-1.5 text-right text-foreground">{formatNumber(lot.quantity)}</td>
-                                        <td className="px-2 py-1.5 text-right text-foreground">{formatCurrency(lot.costPerUnit)}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatNumber(lot.quantity)}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(lot.costPerUnit)}</td>
                                         <td className="px-2 py-1.5 text-muted-foreground">{formatDate(lot.enteredAt)}</td>
                                         <td className="px-2 py-1.5 text-muted-foreground">{lot.expiresAt ? formatDate(lot.expiresAt) : '—'}</td>
                                         <td className="px-2 py-1.5 text-center">
-                                          <Badge variant={LOT_STATUS_VARIANT[lot.status] ?? 'muted'}>
+                                          <Badge variant={varianteStatut(lot.status)}>
                                             {t(`stock.lotStatus.${lot.status}`)}
                                           </Badge>
                                         </td>
@@ -304,7 +302,7 @@ export function StockPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-yellow-500" /> {t('dashboard.expiringSoon')}
+                  <Clock className="h-4 w-4 text-warning" /> {t('dashboard.expiringSoon')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -331,7 +329,7 @@ export function StockPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-500" /> {t('dashboard.lowStock')}
+                  <AlertTriangle className="h-4 w-4 text-warning" /> {t('dashboard.lowStock')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -374,14 +372,14 @@ export function StockPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 {...adjustForm.register('newQuantity')}
               />
               {adjustForm.formState.errors.newQuantity && (
                 <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message ? t(adjustForm.formState.errors.newQuantity.message) : ''}</p>
               )}
               {delta !== 0 && (
-                <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-success' : 'text-destructive'}`}>
                   {delta > 0 ? '+' : ''}{Math.round(delta * 100) / 100} {adjustTarget.unit}
                 </p>
               )}
@@ -390,7 +388,7 @@ export function StockPage() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('stock.adjustReason')}</label>
               <select
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 {...adjustForm.register('reason')}
               >
                 {REASONS.map(r => (
@@ -403,7 +401,7 @@ export function StockPage() {
               <label className="block text-sm font-medium text-foreground mb-1">{t('common.notes')}</label>
               <textarea
                 rows={2}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 {...adjustForm.register('notes')}
               />
             </div>
@@ -441,7 +439,7 @@ export function StockPage() {
                 value={thresholdValue}
                 onChange={e => setThresholdValue(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-1">{t('stock.thresholdHint')}</p>
             </div>

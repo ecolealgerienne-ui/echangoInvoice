@@ -78,10 +78,10 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-56 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-5 py-5 border-b border-sidebar-border">
-        <h1 className="text-lg font-bold text-white tracking-tight">Echango Invoice</h1>
+        <h1 className="text-base font-semibold text-sidebar-accent-foreground tracking-tight">Echango Invoice</h1>
         {user && <p className="text-xs text-sidebar-foreground/60 mt-0.5 truncate">{user.email}</p>}
         {isSuperAdmin && (
-          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-amber-400">
+          <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-warning">
             <Shield className="h-3 w-3" /> Superadmin
           </span>
         )}

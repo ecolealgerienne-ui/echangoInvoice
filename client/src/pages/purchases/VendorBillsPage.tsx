@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -17,9 +18,6 @@ import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw, FileDown } from 'lucide-react';
 
-const BILL_STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'destructive',
-};
 
 const PAYMENT_METHODS = ['bank_transfer', 'cheque', 'cash', 'other'] as const;
 
@@ -287,11 +285,11 @@ export function VendorBillsPage() {
                     </td>
                     <td className="px-4 py-3 text-foreground">{bill.supplierName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(bill.billDate)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(bill.totalAmount)}</td>
-                    <td className="px-4 py-3 text-right text-green-600">{formatCurrency(bill.amountPaid)}</td>
-                    <td className="px-4 py-3 text-right text-destructive">{formatCurrency(bill.amountDue)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bill.totalAmount)}</td>
+                    <td className="px-4 py-3 text-right text-success whitespace-nowrap tabular-nums">{formatCurrency(bill.amountPaid)}</td>
+                    <td className="px-4 py-3 text-right text-destructive whitespace-nowrap tabular-nums">{formatCurrency(bill.amountDue)}</td>
                     <td className="px-4 py-3 text-center">
-                      <Badge variant={BILL_STATUS_VARIANT[bill.status]}>
+                      <Badge variant={varianteStatut(bill.status)}>
                         {t(`purchases.billStatus.${bill.status}`)}
                       </Badge>
                     </td>
@@ -317,7 +315,7 @@ export function VendorBillsPage() {
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => validateMutation.mutate(bill.id)} title={t('purchases.validate')}>
-                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <CheckCircle className="h-4 w-4 text-success" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(bill.id)} title={t('common.delete')}>
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -327,7 +325,7 @@ export function VendorBillsPage() {
                         {['validated', 'partial'].includes(bill.status) && (
                           <>
                             <Button variant="ghost" size="sm" onClick={() => openPayment(bill)} title={t('purchases.addPayment')}>
-                              <CreditCard className="h-4 w-4 text-blue-600" />
+                              <CreditCard className="h-4 w-4 text-info" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => cancelMutation.mutate(bill.id)} title={t('common.cancel')}>
                               <XCircle className="h-4 w-4 text-muted-foreground" />
@@ -364,7 +362,7 @@ export function VendorBillsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-foreground mb-1">{t('suppliers.name')}</label>
-              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              <select className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 {...billForm.register('supplierId')}
                 onChange={e => {
                   billForm.setValue('supplierId', e.target.value);
@@ -378,7 +376,7 @@ export function VendorBillsPage() {
             {watchSupplierId && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.linkedPO')}</label>
-                <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                <select className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   {...billForm.register('purchaseOrderId')}
                   onChange={e => handlePoSelect(e.target.value)}>
                   <option value="">{t('purchases.noPO')}</option>
@@ -393,11 +391,11 @@ export function VendorBillsPage() {
             )}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.billDate')}</label>
-              <input type="date" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('billDate')} />
+              <input type="date" className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('billDate')} />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.dueDate')}</label>
-              <input type="date" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('dueDate')} />
+              <input type="date" className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...billForm.register('dueDate')} />
             </div>
           </div>
 
@@ -429,7 +427,7 @@ export function VendorBillsPage() {
                   <div key={field.id} className="grid gap-2 items-center"
                     style={{ gridTemplateColumns: '2fr 70px 60px 100px 160px 110px 32px' }}>
                     {/* Product */}
-                    <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                    <select className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.finishedProductId`)}
                       onChange={(e) => {
                         const p = products.find((p: any) => p.id === e.target.value);
@@ -444,7 +442,7 @@ export function VendorBillsPage() {
                     </select>
                     {/* Qty */}
                     <input type="number" step="0.01"
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.quantity`)} />
                     {/* Unit — read-only badge */}
                     <span className="inline-flex items-center justify-center rounded bg-muted px-1.5 py-1 text-xs text-muted-foreground font-medium truncate">
@@ -452,10 +450,10 @@ export function VendorBillsPage() {
                     </span>
                     {/* Unit price */}
                     <input type="number" step="0.01"
-                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.unitPrice`)} />
                     {/* TVA dropdown */}
-                    <select className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                    <select className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
                       {...billForm.register(`items.${idx}.taxRate`)}>
                       <option value="0">0%</option>
                       {taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{r.name} ({v}%)</option>; })}
@@ -486,7 +484,7 @@ export function VendorBillsPage() {
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">{t('common.notes')}</label>
-            <textarea rows={2} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" {...billForm.register('notes')} />
+            <textarea rows={2} className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" {...billForm.register('notes')} />
           </div>
 
           <div className="flex gap-2 justify-end pt-2">
@@ -509,18 +507,18 @@ export function VendorBillsPage() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.paymentAmount')}</label>
               <input type="number" step="0.01" min="0.01"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 {...paymentForm.register('amount')} />
               {paymentForm.formState.errors.amount && <p className="text-xs text-destructive mt-1">{paymentForm.formState.errors.amount.message ? t(paymentForm.formState.errors.amount.message) : ''}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.paymentDate')}</label>
-                <input type="date" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('paymentDate')} />
+                <input type="date" className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('paymentDate')} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.paymentMethod')}</label>
-                <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('method')}>
+                <select className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('method')}>
                   {PAYMENT_METHODS.map(m => (
                     <option key={m} value={m}>{t(`invoices.methods.${m}`)}</option>
                   ))}
@@ -529,7 +527,7 @@ export function VendorBillsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('purchases.paymentReference')}</label>
-              <input type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('reference')} />
+              <input type="text" className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" {...paymentForm.register('reference')} />
             </div>
             <div className="flex gap-2 justify-end pt-2">
               <Button type="button" variant="outline" onClick={() => setPaymentTarget(null)}>{t('common.cancel')}</Button>
@@ -547,7 +545,7 @@ export function VendorBillsPage() {
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <div><span className="text-muted-foreground">{t('suppliers.name')}:</span> <span className="font-medium">{viewTarget.supplierName}</span></div>
-              <div><span className="text-muted-foreground">{t('common.status')}:</span> <Badge variant={BILL_STATUS_VARIANT[viewTarget.status]}>{t(`purchases.billStatus.${viewTarget.status}`)}</Badge></div>
+              <div><span className="text-muted-foreground">{t('common.status')}:</span> <Badge variant={varianteStatut(viewTarget.status)}>{t(`purchases.billStatus.${viewTarget.status}`)}</Badge></div>
               <div><span className="text-muted-foreground">{t('purchases.billDate')}:</span> {formatDate(viewTarget.billDate)}</div>
               {viewTarget.dueDate && <div><span className="text-muted-foreground">{t('purchases.dueDate')}:</span> {formatDate(viewTarget.dueDate)}</div>}
             </div>
@@ -565,10 +563,10 @@ export function VendorBillsPage() {
                 {viewTarget.items?.map((i: any, idx: number) => (
                   <tr key={idx}>
                     <td className="px-2 py-1.5">{i.productName ?? i.description ?? '—'}</td>
-                    <td className="px-2 py-1.5 text-right">{parseFloat(i.quantity)} {i.unit}</td>
-                    <td className="px-2 py-1.5 text-right">{formatCurrency(i.unitPrice)}</td>
-                    <td className="px-2 py-1.5 text-right">{i.taxRate != null ? `${parseFloat(i.taxRate)}%` : '—'}</td>
-                    <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(i.lineTotal)}</td>
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">{parseFloat(i.quantity)} {i.unit}</td>
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">{formatCurrency(i.unitPrice)}</td>
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap tabular-nums">{i.taxRate != null ? `${parseFloat(i.taxRate)}%` : '—'}</td>
+                    <td className="px-2 py-1.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(i.lineTotal)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -577,7 +575,7 @@ export function VendorBillsPage() {
               <p className="text-muted-foreground">HT: {formatCurrency(viewTarget.subtotal)}</p>
               <p className="text-muted-foreground">TVA: {formatCurrency(viewTarget.taxAmount)}</p>
               <p className="font-bold text-foreground">{t('common.total')}: {formatCurrency(viewTarget.totalAmount)}</p>
-              <p className="text-green-600">{t('purchases.amountPaid')}: {formatCurrency(viewTarget.amountPaid)}</p>
+              <p className="text-success">{t('purchases.amountPaid')}: {formatCurrency(viewTarget.amountPaid)}</p>
               <p className="text-destructive font-semibold">{t('purchases.amountDue')}: {formatCurrency(viewTarget.amountDue)}</p>
             </div>
             {viewTarget.payments?.length > 0 && (

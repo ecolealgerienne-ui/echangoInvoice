@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { libelleMode } from '@/lib/modesReglement';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
@@ -9,17 +10,6 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Bloc, Champ, DocumentEnTete } from '@/components/shared/DocumentView';
 import { Chiffres, Historique } from '@/components/shared/Historique';
 
-const STATUT_FACTURE: Record<string, string> = {
-  draft: 'muted', sent: 'info', partial: 'warning',
-  paid: 'success', overdue: 'destructive', cancelled: 'secondary',
-};
-const STATUT_BL: Record<string, string> = {
-  draft: 'muted', sent: 'info', signed: 'success', delivered: 'success', cancelled: 'secondary',
-};
-const STATUT_DEVIS: Record<string, string> = {
-  draft: 'muted', sent: 'info', accepted: 'success',
-  rejected: 'destructive', expired: 'secondary', converted: 'success',
-};
 
 export function CustomerDetailPage() {
   const { t } = useTranslation();
@@ -121,7 +111,7 @@ export function CustomerDetailPage() {
           {
             entete: t('common.status'),
             rendu: (f: any) => (
-              <Badge variant={STATUT_FACTURE[f.status] as never}>
+              <Badge variant={varianteStatut(f.status) as never}>
                 {t(`invoices.status.${f.status}`)}
               </Badge>
             ),
@@ -168,7 +158,7 @@ export function CustomerDetailPage() {
             {
               entete: t('common.status'),
               rendu: (b: any) => (
-                <Badge variant={STATUT_BL[b.status] as never}>{t(`deliveries.status.${b.status}`)}</Badge>
+                <Badge variant={varianteStatut(b.status) as never}>{t(`deliveries.status.${b.status}`)}</Badge>
               ),
             },
           ]}
@@ -192,7 +182,7 @@ export function CustomerDetailPage() {
             {
               entete: t('common.status'),
               rendu: (q: any) => (
-                <Badge variant={STATUT_DEVIS[q.status] as never}>{t(`status.${q.status}`)}</Badge>
+                <Badge variant={varianteStatut(q.status) as never}>{t(`status.${q.status}`)}</Badge>
               ),
             },
           ]}
