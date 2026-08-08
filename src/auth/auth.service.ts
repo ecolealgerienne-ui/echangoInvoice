@@ -30,6 +30,43 @@ export class AuthService {
     private readonly usersService: UsersService,
   ) {}
 
+  /**
+   * Le compte connecté, tel que l'interface a besoin de le connaître.
+   *
+   * Il se composait jusqu'ici de la seule charge utile du jeton — identifiant,
+   * espace, adresse, rôle. Le **nom** y manquait, alors que la connexion, elle,
+   * le rendait : l'application affichait donc « Bonjour Amar » juste après la
+   * saisie du mot de passe, et plus rien après un simple rafraîchissement de
+   * page. Le défaut ne se voyait pas tant que rien n'affichait le nom ; le bloc
+   * utilisateur de la barre latérale et la salutation du tableau de bord le
+   * rendent visible à chaque ouverture.
+   *
+   * Le nom ne peut pas venir du jeton : il y serait figé jusqu'à l'expiration,
+   * et quelqu'un qui corrige l'orthographe du sien attendrait la déconnexion
+   * pour la voir. Une lecture par ouverture d'application est le bon prix.
+   *
+   * Le compte introuvable — supprimé pendant que son jeton court encore — rend
+   * un 401 et non un 404 : du point de vue de l'appelant, la session n'est plus
+   * valide, et c'est la seule chose qu'il ait à en faire.
+   */
+  async moi(charge: JwtPayload) {
+    const utilisateur = await this.dataSource.manager.findOne(User, {
+      where: { id: charge.sub, deletedAt: IsNull() },
+      select: ['id', 'tenantId', 'email', 'name', 'role'],
+    });
+    if (!utilisateur) throw new UnauthorizedException('errors.invalid_credentials');
+
+    return {
+      data: {
+        id: utilisateur.id,
+        tenantId: utilisateur.tenantId,
+        email: utilisateur.email,
+        name: utilisateur.name,
+        role: utilisateur.role,
+      },
+    };
+  }
+
   async register(dto: RegisterDto) {
     const qr = this.dataSource.createQueryRunner();
     await qr.connect();

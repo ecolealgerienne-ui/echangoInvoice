@@ -65,14 +65,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiResponse({ status: 200, description: 'Current user' })
   async me(@CurrentUser() user: JwtPayload) {
-    return {
-      data: {
-        id: user.sub,
-        tenantId: user.tenantId!,
-        email: user.email,
-        role: user.role,
-      },
-    };
+    return this.authService.moi(user);
   }
 
   @Post('logout')

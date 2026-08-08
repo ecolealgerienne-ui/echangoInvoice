@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : *feat(ui): alertes actionnables, avatars, menus d'actions*
+> Dernier commit : *feat(ui): composition des maquettes appliquée*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -135,6 +135,32 @@ Une journée.
 Deux réserves à tenir : ne **jamais** conditionner à l'abonnement les mentions
 *légales* — NIF, RC, montant en lettres, timbre —, et rester sobre. Formulation
 retenue : « Facture émise avec Echango Invoice — echango.dz ».
+
+#### Écarts assumés avec les maquettes (pour mémoire)
+
+Les maquettes du consultant font autorité sur la composition, sauf sur trois
+points où les suivre aurait produit du décor :
+
+- **Sous-titre de métier sous le nom du client** (« Grossiste », « Superette »).
+  `partners` ne porte aucun champ de ce genre : dans les données, le métier fait
+  partie du nom. Le rendre aurait voulu dire découper au dernier mot — faux dès
+  « ETS Boussaada Alim. Générale ». Si vous voulez cette colonne, il faut un
+  champ, pas une astuce d'affichage.
+- **Sélecteurs « Ce mois » sur Top clients et Encaissements.** Les deux blocs
+  suivent déjà la période de l'en-tête ; un second sélecteur aurait été soit
+  dupliqué, soit décoratif.
+- **« Filtres » n'est pas un bouton** mais l'étiquette de la rangée : les listes
+  sont à côté, il n'aurait rien ouvert. Un bouton « Réinitialiser » apparaît en
+  revanche dès qu'un filtre est posé.
+
+Deux conséquences techniques à connaître :
+
+- La largeur utile passe de 80 rem à 100 rem. À 80 rem, la liste des clients
+  repliait l'e-mail sur trois lignes.
+- La colonne d'actions est **collante** à droite et le RC sort de la vue par
+  défaut : huit colonnes plus les actions ne tenaient pas sur un portable, et
+  c'est la colonne d'état qui passait dessous. Le RC reste à un clic dans le
+  menu des colonnes.
 
 #### Décisions prises sur les PDF d'achat (pour mémoire)
 

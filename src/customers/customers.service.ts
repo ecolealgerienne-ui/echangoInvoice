@@ -10,6 +10,11 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { ListCustomersDto } from './dto/list-customers.dto';
 import { CreateCustomerContactDto } from './dto/create-customer-contact.dto';
 import { resoudreTri } from '../common/tri';
+// Fonctions pures : la date du jour à Alger, les bornes d'un mois, l'écart
+// relatif. Elles vivent dans le module du tableau de bord parce qu'il les a
+// posées le premier — les recopier ici ferait diverger la définition de « ce
+// mois-ci » entre la liste des clients et l'écran qui la résume.
+import { aujourdhuiAlger, bornesDuMois, evolution } from '../dashboard/periode';
 
 /** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
 const COLONNES_TRIABLES = ['name', 'city', 'phone', 'email', 'createdAt'] as const;
@@ -41,18 +46,27 @@ export class CustomersService {
   }
 
   async findAll(query: ListCustomersDto, tenantId: string) {
-    const { page, limit, search, isActive } = query;
+    const { page, limit, search, isActive, city, type } = query;
     const skip = (page - 1) * limit;
 
     const base: FindOptionsWhere<Partner> = { tenantId, isCustomer: true, deletedAt: IsNull() };
     if (isActive !== undefined) base.isActive = isActive;
+    // Égalité insensible à la casse plutôt que `=` : les villes sont saisies à
+    // la main, et « BÉCHAR » ne doit pas former une deuxième entrée.
+    if (city) base.city = ILike(city);
+    if (type) base.isSupplier = type === 'both';
 
+    // La recherche porte aussi sur le NIF et le RC : c'est ce que le champ
+    // annonce à l'écran, et un identifiant fiscal est précisément ce qu'on colle
+    // dans une recherche quand on tient une facture entre les mains.
     const where: FindOptionsWhere<Partner>[] = search
       ? [
           { ...base, name: ILike(`%${search}%`) },
           { ...base, contactPerson: ILike(`%${search}%`) },
           { ...base, email: ILike(`%${search}%`) },
           { ...base, phone: ILike(`%${search}%`) },
+          { ...base, nif: ILike(`%${search}%`) },
+          { ...base, rc: ILike(`%${search}%`) },
         ]
       : [base];
 
@@ -63,7 +77,92 @@ export class CustomersService {
       order: resoudreTri(COLONNES_TRIABLES, { colonne: 'name', sens: 'ASC' }, query),
     });
 
-    return { data, pagination: { total, page, limit } };
+    return {
+      data: await this.avecChiffreDuMois(data, tenantId),
+      pagination: { total, page, limit },
+    };
+  }
+
+  /**
+   * Chiffre d'affaires du mois en cours, et son écart avec le mois précédent.
+   *
+   * Une **seule** requête pour toute la page, sur les identifiants déjà lus :
+   * une sous-requête corrélée par ligne aurait multiplié les allers-retours par
+   * la taille de page, et la liste des clients est l'écran le plus ouvert de
+   * l'application.
+   *
+   * Les deux mois sont agrégés dans la même passe, par `FILTER` : deux requêtes
+   * auraient pu diverger sur la règle d'exclusion, et c'est exactement l'écart
+   * affiché qui serait alors devenu faux — sans que rien ne le signale.
+   *
+   * La règle est celle du tableau de bord, à la lettre : tout sauf `cancelled`
+   * et les supprimées. Le même client doit peser le même montant dans les
+   * « top clients » et dans sa ligne de liste, sinon l'un des deux écrans ment.
+   *
+   * L'écart est `null` quand le mois précédent est vide : un client qui
+   * n'existait pas n'a pas progressé de l'infini, il est nouveau.
+   */
+  private async avecChiffreDuMois(clients: Partner[], tenantId: string) {
+    if (!clients.length) return clients;
+
+    const moisCourant = bornesDuMois(aujourdhuiAlger().slice(0, 7));
+    const debut = new Date(`${moisCourant.dateFrom}T12:00:00Z`);
+    const finPrecedent = new Date(debut.getTime() - 86_400_000).toISOString().slice(0, 10);
+    const moisPrecedent = bornesDuMois(finPrecedent.slice(0, 7));
+
+    const lignes: { id: string; courant: string; precedent: string }[] = await this.dataSource.query(
+      `SELECT inv."customerId" AS id,
+              COALESCE(SUM(inv."totalAmount")
+                FILTER (WHERE inv."invoiceDate" BETWEEN $2 AND $3), 0) AS courant,
+              COALESCE(SUM(inv."totalAmount")
+                FILTER (WHERE inv."invoiceDate" BETWEEN $4 AND $5), 0) AS precedent
+       FROM sales_invoices inv
+       WHERE inv."tenantId" = $1
+         AND inv."customerId" = ANY($6::uuid[])
+         AND inv."invoiceDate" BETWEEN $4 AND $3
+         AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
+       GROUP BY inv."customerId"`,
+      [
+        tenantId,
+        moisCourant.dateFrom, moisCourant.dateTo,
+        moisPrecedent.dateFrom, moisPrecedent.dateTo,
+        clients.map((c) => c.id),
+      ],
+    );
+
+    const parClient = new Map(lignes.map((l) => [l.id, l]));
+
+    // Object.assign sur l'instance, jamais un spread : un objet plain
+    // désactiverait silencieusement les @Exclude() d'un futur
+    // ClassSerializerInterceptor (R027).
+    return clients.map((c) => {
+      const l = parClient.get(c.id);
+      const courant = Math.round(parseFloat(l?.courant ?? '0') * 100) / 100;
+      const precedent = Math.round(parseFloat(l?.precedent ?? '0') * 100) / 100;
+      return Object.assign(c, {
+        revenueThisMonth: courant,
+        revenueEvolution: evolution(courant, precedent),
+      });
+    });
+  }
+
+  /**
+   * Inventaire des villes réellement présentes chez ce locataire.
+   *
+   * Il peuple la liste déroulante de filtre. Une liste des wilayas d'Algérie
+   * écrite en dur aurait proposé quarante-huit entrées dont quarante-cinq ne
+   * rendent aucune ligne — un filtre qui promet plus qu'il ne contient est pire
+   * qu'un filtre absent.
+   */
+  async cities(tenantId: string) {
+    const lignes: { city: string }[] = await this.dataSource.query(
+      `SELECT DISTINCT city FROM partners
+       WHERE "tenantId" = $1 AND "isCustomer" = TRUE AND "deletedAt" IS NULL
+         AND city IS NOT NULL AND btrim(city) <> ''
+       ORDER BY city`,
+      [tenantId],
+    );
+    return { data: lignes.map((l) => l.city) };
   }
 
   async findOne(id: string, tenantId: string) {

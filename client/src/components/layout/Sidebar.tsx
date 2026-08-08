@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -5,12 +6,15 @@ import {
   FileText, BarChart2, Settings, LogOut, ClipboardList,
   FileSignature, ShoppingCart, Receipt, Factory,
   Shield, Building2, CreditCard, FileMinus, Tags,
+  PanelLeftClose, PanelLeftOpen, ChevronsUpDown,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { settingsApi } from '@/lib/api';
 import { teinteFiliere, type Filiere } from '@/lib/filieres';
+import { Avatar } from '@/components/shared/Avatar';
+import { Deroulant, EntreeDeroulant } from '@/components/shared/Deroulant';
 
 /**
  * Barre latérale.
@@ -100,16 +104,22 @@ const adminGroups: Groupe[] = [
 
 /** Une entrée de navigation. Le rendu de l'état actif est écrit une fois. */
 function Entree({
-  to, icon: Icone, libelle, filiere,
-}: { to: string; icon: React.ElementType; libelle: string; filiere: Filiere }) {
+  to, icon: Icone, libelle, filiere, repliee,
+}: {
+  to: string; icon: React.ElementType; libelle: string; filiere: Filiere;
+  /** Barre repliée : le libellé disparaît, l'infobulle le rend au survol. */
+  repliee?: boolean;
+}) {
   const teinte = teinteFiliere(filiere);
 
   return (
     <NavLink
       to={to}
+      title={repliee ? libelle : undefined}
       className={({ isActive }) =>
         cn(
-          'group/entree relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
+          'group/entree relative flex items-center gap-3 rounded-md py-2 text-sm font-medium',
+          repliee ? 'justify-center px-2' : 'px-3',
           'transition-[background-color,color,transform] duration-150 ease-ci',
           isActive
             ? cn(teinte.fond, 'text-sidebar-accent-foreground')
@@ -136,7 +146,7 @@ function Entree({
               isActive ? teinte.texte : cn(teinte.texte, 'opacity-65 group-hover/entree:opacity-100'),
             )}
           />
-          {libelle}
+          {!repliee && libelle}
         </>
       )}
     </NavLink>
@@ -153,9 +163,22 @@ function TitreGroupe({ libelle, filiere }: { libelle: string; filiere: Filiere }
   );
 }
 
+const CLE_REPLI = 'echango-barre-repliee';
+
 export function Sidebar() {
   const { t } = useTranslation();
   const { user, logout, isSuperAdmin } = useAuth();
+  // Le repli est un réglage de poste, pas de session : celui qui travaille sur
+  // un portable de treize pouces le choisit une fois.
+  const [repliee, setRepliee] = useState(() => localStorage.getItem(CLE_REPLI) === '1');
+
+  function basculerRepli() {
+    setRepliee((r) => {
+      localStorage.setItem(CLE_REPLI, r ? '0' : '1');
+      return !r;
+    });
+  }
+
   const { data: settingsData } = useQuery({
     queryKey: ['settings'],
     queryFn: settingsApi.get,
@@ -166,7 +189,13 @@ export function Sidebar() {
   const visibles = groups.filter((g) => g.key !== 'nav.group.production' || productionEnabled);
 
   return (
-    <aside className="relative flex h-screen w-56 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+    <aside
+      className={cn(
+        'relative flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
+        'transition-[width] duration-200 ease-ci',
+        repliee ? 'w-16' : 'w-56',
+      )}
+    >
       {/* Voile vertical : la barre s'ancre en bas au lieu de flotter. Il est
           posé en arrière-plan et n'intercepte rien. */}
       <div
@@ -174,31 +203,51 @@ export function Sidebar() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.07] via-transparent to-filiere-finance/[0.06]"
       />
 
-      <div className="relative border-b border-sidebar-border px-4 py-4">
+      <div className="relative border-b border-sidebar-border px-3 py-4">
         <div className="flex items-center gap-2.5">
           <MarqueEchango />
-          <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold tracking-tight text-sidebar-accent-foreground">
+          {!repliee && (
+            <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-sidebar-accent-foreground">
               Echango Invoice
             </h1>
-            {user && <p className="truncate text-2xs text-sidebar-foreground">{user.email}</p>}
-          </div>
+          )}
+          {/* Le bouton de repli est posé contre le logo, comme dans la
+              maquette : c'est le seul endroit de la barre où l'on est sûr
+              qu'aucune entrée de navigation ne viendra le pousser. Replié, il
+              passe sous le logo faute de place à côté. */}
+          <button
+            type="button"
+            onClick={basculerRepli}
+            aria-label={t(repliee ? 'nav.deplier' : 'nav.replier')}
+            title={t(repliee ? 'nav.deplier' : 'nav.replier')}
+            aria-expanded={!repliee}
+            className={cn(
+              'shrink-0 rounded-md p-1.5 text-sidebar-foreground transition-colors duration-150',
+              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              repliee && 'absolute end-1 top-16',
+            )}
+          >
+            {repliee
+              ? <PanelLeftOpen className="h-4 w-4 rtl:rotate-180" aria-hidden />
+              : <PanelLeftClose className="h-4 w-4 rtl:rotate-180" aria-hidden />}
+          </button>
         </div>
-        {isSuperAdmin && (
+        {isSuperAdmin && !repliee && (
           <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-warning-subtle px-1.5 py-0.5 text-[10px] font-semibold text-warning-text">
             <Shield className="h-3 w-3" /> Superadmin
           </span>
         )}
       </div>
 
-      <nav className="relative flex-1 overflow-y-auto px-2 py-3">
+      <nav className={cn('relative flex-1 overflow-y-auto overflow-x-hidden py-3', repliee ? 'mt-6 px-2' : 'px-2')}>
         {isSuperAdmin ? (
           adminGroups.map((groupe) => (
             <div key={groupe.key} className="mt-3">
-              <TitreGroupe libelle={t(groupe.key)} filiere={groupe.filiere} />
+              {!repliee && <TitreGroupe libelle={t(groupe.key)} filiere={groupe.filiere} />}
               <div className="space-y-0.5">
                 {groupe.items.map(({ to, icon, key }) => (
-                  <Entree key={to} to={to} icon={icon} libelle={t(key)} filiere={groupe.filiere} />
+                  <Entree key={to} to={to} icon={icon} libelle={t(key)} filiere={groupe.filiere} repliee={repliee} />
                 ))}
               </div>
             </div>
@@ -206,15 +255,20 @@ export function Sidebar() {
         ) : (
           <>
             <div className="mb-1">
-              <Entree to="/dashboard" icon={LayoutDashboard} libelle={t('nav.dashboard')} filiere="ventes" />
+              <Entree to="/dashboard" icon={LayoutDashboard} libelle={t('nav.dashboard')} filiere="ventes" repliee={repliee} />
             </div>
 
             {visibles.map((groupe) => (
               <div key={groupe.key} className="mt-3">
-                <TitreGroupe libelle={t(groupe.key)} filiere={groupe.filiere} />
+                {/* Replié, l'intitulé de groupe est remplacé par un filet de sa
+                    teinte : le mot ne tiendrait pas, mais la césure entre deux
+                    métiers doit rester visible. */}
+                {repliee
+                  ? <span aria-hidden className={cn('mx-auto mb-1.5 block h-px w-6 rounded-full', teinteFiliere(groupe.filiere).barre)} />
+                  : <TitreGroupe libelle={t(groupe.key)} filiere={groupe.filiere} />}
                 <div className="space-y-0.5">
                   {groupe.items.map(({ to, icon, key }) => (
-                    <Entree key={to} to={to} icon={icon} libelle={t(key)} filiere={groupe.filiere} />
+                    <Entree key={to} to={to} icon={icon} libelle={t(key)} filiere={groupe.filiere} repliee={repliee} />
                   ))}
                 </div>
               </div>
@@ -223,21 +277,79 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="relative space-y-0.5 border-t border-sidebar-border px-2 py-3">
-        <Entree to="/settings" icon={Settings} libelle={t('nav.settings')} filiere="catalogue" />
-        <button
-          onClick={logout}
-          className={cn(
-            'group/entree flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-            'text-sidebar-foreground transition-colors duration-150',
-            'hover:bg-destructive-subtle hover:text-destructive-text',
-          )}
-        >
-          <LogOut className="h-4 w-4 shrink-0 opacity-65 transition-opacity group-hover/entree:opacity-100" />
-          {t('auth.logout')}
-        </button>
-      </div>
+      <BlocUtilisateur repliee={repliee} />
     </aside>
+  );
+}
+
+/**
+ * Bloc utilisateur, en pied de barre.
+ *
+ * L'adresse de courrier était écrite en haut, sous le nom du produit, et les
+ * deux entrées qui la concernent — « Paramètres », « Déconnexion » — vivaient
+ * en bas, mêlées à la navigation. Rien ne les reliait, et « Déconnexion »
+ * occupait dans la liste des écrans une place aussi grande que « Factures ».
+ *
+ * Le pied les rassemble en un seul objet : qui je suis, à quel titre, et ce que
+ * je peux faire de mon compte. C'est la convention de tous les outils de
+ * gestion, et elle rend à la navigation deux lignes qui ne sont pas des écrans.
+ *
+ * L'adresse cède la place au **rôle** : sur un poste partagé, savoir qu'on est
+ * connecté en gestionnaire plutôt qu'en propriétaire explique pourquoi un bouton
+ * manque — l'adresse, elle, ne l'explique pas. Elle reste dans le menu.
+ */
+function BlocUtilisateur({ repliee }: { repliee: boolean }) {
+  const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  if (!user) return null;
+
+  const role = t(`users.roles.${user.role}`);
+
+  return (
+    <div className="relative border-t border-sidebar-border p-2">
+      <Deroulant
+        largeur="w-52"
+        aligne="start"
+        // Le panneau s'ouvre **vers le haut** : sous le bouton, il sortirait de
+        // la fenêtre, puisque le bloc est collé au bas de l'écran.
+        className="bottom-full mb-1"
+        declencheur={({ ouvert, basculer }) => (
+          <button
+            type="button"
+            onClick={basculer}
+            aria-haspopup="menu"
+            aria-expanded={ouvert}
+            title={repliee ? `${user.name} — ${role}` : undefined}
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-md py-2 text-start transition-colors duration-150',
+              repliee ? 'justify-center px-1' : 'px-2',
+              'hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              ouvert && 'bg-sidebar-accent',
+            )}
+          >
+            <Avatar nom={user.name} />
+            {!repliee && (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-sidebar-accent-foreground">
+                    {user.name}
+                  </span>
+                  <span className="block truncate text-2xs text-sidebar-foreground">{role}</span>
+                </span>
+                <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-foreground" aria-hidden />
+              </>
+            )}
+          </button>
+        )}
+      >
+        <p className="truncate px-2.5 pb-1.5 pt-1 text-2xs text-muted-foreground" title={user.email}>
+          {user.email}
+        </p>
+        <div className="mb-1 h-px bg-border" aria-hidden />
+        <EntreeDeroulant icone={Settings} to="/settings">{t('nav.settings')}</EntreeDeroulant>
+        <EntreeDeroulant icone={LogOut} danger onSelect={logout}>{t('auth.logout')}</EntreeDeroulant>
+      </Deroulant>
+    </div>
   );
 }
 

@@ -1,8 +1,8 @@
 import { useId, useMemo, useState } from 'react';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { couleurSerie, creneauSerie } from '@/lib/filieres';
-import { abrege, ecartPourcent } from '@/lib/montants';
+import { abrege, ecartPourcent, pourcentage } from '@/lib/montants';
 
 export { couleurSerie };
 
@@ -60,6 +60,22 @@ interface ProprietesCourbe {
   className?: string;
   /** Créneau de série (0 à 5). Par défaut le premier — l'azur de la marque. */
   serie?: number;
+  /**
+   * Affiche sous la valeur lue son écart avec le **premier point** de la série,
+   * et la date de ce point.
+   *
+   * C'est la question que pose une courbe courte — « ça monte ou ça descend
+   * depuis lundi ? » — et à laquelle la forme seule répond mal quand deux jours
+   * creusent au milieu. L'écart suit le point survolé : on peut donc lire
+   * l'évolution jusqu'à n'importe quel jour de la fenêtre, pas seulement
+   * jusqu'au dernier.
+   *
+   * Rien n'est affiché quand le premier point est nul : « +∞ » et « +100 % »
+   * seraient tous deux faux.
+   */
+  compare?: boolean;
+  /** Libellé de comparaison, interpolé sur la date du premier point. */
+  formatComparaison?: (libelle: string) => string;
 }
 
 /** Arrondit la borne haute pour que les graduations tombent juste. */
@@ -93,7 +109,9 @@ function borneHaute(max: number): number {
  * descend de 30 % d'opacité à zéro : au-delà, elle concurrence la ligne ; en
  * deçà, elle ne dit plus rien du volume.
  */
-export function CourbeAire({ points, format, hauteur = 190, className, serie = 0 }: ProprietesCourbe) {
+export function CourbeAire({
+  points, format, hauteur = 190, className, serie = 0, compare, formatComparaison,
+}: ProprietesCourbe) {
   const id = useId();
   const [survole, setSurvole] = useState<number | null>(null);
 
@@ -130,11 +148,35 @@ export function CourbeAire({ points, format, hauteur = 190, className, serie = 0
           il doit être le premier lu. Sous la courbe, il entrait en collision
           avec la dernière graduation de l'axe. */}
       {actif && (
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold tabular-nums text-foreground">
-            {format(actif.valeur)}
-          </span>
-          <span className="text-xs text-muted-foreground">{actif.libelle}</span>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold tabular-nums text-foreground">
+              {format(actif.valeur)}
+            </span>
+            <span className="text-xs text-muted-foreground">{actif.libelle}</span>
+          </div>
+          {compare && coords.length > 1 && coords[0].valeur > 0 && indexActif > 0 && (() => {
+            const ecart = Math.round(
+              ((actif.valeur - coords[0].valeur) / coords[0].valeur) * 1000,
+            ) / 10;
+            const Fleche = ecart > 0 ? TrendingUp : ecart < 0 ? TrendingDown : Minus;
+            return (
+              <div className="mt-1 flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-2xs font-semibold',
+                    ecart >= 0 ? 'bg-success-subtle text-success-text' : 'bg-destructive-subtle text-destructive-text',
+                  )}
+                >
+                  <Fleche className="h-3 w-3" aria-hidden />
+                  {ecartPourcent(ecart)}
+                </span>
+                <span className="text-2xs text-muted-foreground">
+                  {formatComparaison ? formatComparaison(coords[0].libelle) : coords[0].libelle}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -343,7 +385,7 @@ export function Sparkline({
  * vide plutôt que de mentir.
  */
 export function BarresClassement({
-  lignes, format, className, serie = 0, teintes, rangs,
+  lignes, format, className, serie = 0, teintes, rangs, icones,
 }: {
   lignes: { libelle: string; valeur: number; variation?: number | null }[];
   format: (v: number) => string;
@@ -351,6 +393,17 @@ export function BarresClassement({
   serie?: number;
   teintes?: number[];
   rangs?: boolean;
+  /**
+   * Une icône par ligne. Fournie, la pastille ronde devient un carré arrondi
+   * qui la porte — c'est la forme des modes de règlement dans la maquette.
+   *
+   * Le glyphe prend `primary-foreground`, qui est clair en thème clair et
+   * sombre en thème sombre : c'est exactement l'inverse de la clarté des
+   * séries dans chaque thème, donc le seul jeton qui reste lisible sur un
+   * aplat de série des deux côtés. Un `text-white` en dur aurait disparu sur
+   * les séries claires du thème sombre.
+   */
+  icones?: React.ElementType[];
 }) {
   const max = Math.max(...lignes.map((l) => l.valeur), 0) || 1;
 
@@ -360,6 +413,7 @@ export function BarresClassement({
         const creneau = creneauSerie(teintes ? teintes[i] : serie);
         const part = Math.max(1.5, (l.valeur / max) * 100);
         const Fleche = l.variation != null && l.variation < 0 ? TrendingDown : TrendingUp;
+        const Pastille = icones?.[i];
         return (
           <div key={l.libelle} className="group/barre space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 text-xs">
@@ -372,7 +426,15 @@ export function BarresClassement({
                     {String(i + 1).padStart(2, '0')}
                   </span>
                 )}
-                {teintes && (
+                {Pastille ? (
+                  <span
+                    aria-hidden
+                    className="flex h-4 w-4 shrink-0 translate-y-0.5 items-center justify-center rounded-[5px]"
+                    style={{ backgroundColor: couleurSerie(creneau) }}
+                  >
+                    <Pastille className="h-2.5 w-2.5 text-primary-foreground" />
+                  </span>
+                ) : teintes && (
                   <span
                     aria-hidden
                     className="h-2 w-2 shrink-0 rounded-full"
@@ -420,6 +482,126 @@ export function BarresClassement({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Anneau de répartition.
+ *
+ * Les dépenses par catégorie étaient six barres horizontales. Une barre répond
+ * à « laquelle est la plus grosse » ; elle ne répond pas à « quelle part du
+ * total », qui est pourtant la question posée dès qu'un total est écrit
+ * au-dessus. Il fallait faire la division de tête, six fois.
+ *
+ * L'anneau répond aux deux d'un coup : la longueur d'arc **est** la part, et le
+ * total se lit au centre, dans le trou que l'anneau laisse justement — un
+ * camembert plein n'aurait nulle part où le mettre. La légende garde le montant
+ * exact et le pourcentage écrit, parce qu'un arc ne se lit pas au dixième.
+ *
+ * ── Fabrication ──────────────────────────────────────────────────────────
+ *
+ * Le rayon vaut 15,9155 pour que la circonférence tombe **exactement à 100** :
+ * chaque `stroke-dasharray` s'écrit alors en pourcentage sans conversion, et
+ * aucun arrondi ne peut laisser un cheveu de fond entre deux segments. Le
+ * décalage part de 25 pour que le premier segment commence à midi, là où l'œil
+ * commence à lire un cadran.
+ *
+ * Les segments sont des arcs de cercle et non des secteurs dessinés en `path` :
+ * un `stroke` garde son épaisseur quelle que soit la taille rendue.
+ *
+ * Une part sous un demi pour cent n'est pas dessinée — elle produirait un trait
+ * plus fin que la jointure entre deux segments — mais elle reste en légende
+ * avec son montant : ne pas la voir dans l'anneau est juste, ne pas la trouver
+ * du tout serait un oubli.
+ *
+ * La couleur vient du **créneau de l'entité**, jamais du rang : le loyer garde
+ * sa teinte le mois où il passe deuxième.
+ */
+export interface PartAnneau {
+  libelle: string;
+  valeur: number;
+  /** Créneau de couleur de l'entité — sa position de référence, pas son rang. */
+  creneau: number;
+}
+
+export function Anneau({
+  parts, format, libelleTotal, className,
+}: {
+  parts: PartAnneau[];
+  format: (v: number) => string;
+  /** Intitulé posé au-dessus du total, au centre de l'anneau. */
+  libelleTotal: string;
+  className?: string;
+}) {
+  const total = parts.reduce((s, p) => s + p.valeur, 0);
+
+  const segments = useMemo(() => {
+    if (total <= 0) return [];
+    let debut = 0;
+    return parts.map((p) => {
+      const part = (p.valeur / total) * 100;
+      const segment = { libelle: p.libelle, creneau: p.creneau, part, decalage: 25 - debut };
+      debut += part;
+      return segment;
+    });
+  }, [parts, total]);
+
+  if (total <= 0) return null;
+
+  return (
+    <div className={cn('flex flex-wrap items-center gap-x-5 gap-y-4', className)}>
+      <div className="surgir relative h-36 w-36 shrink-0">
+        <svg
+          viewBox="0 0 42 42"
+          className="h-full w-full -rotate-90"
+          role="img"
+          aria-label={`${libelleTotal} ${format(total)}`}
+        >
+          {/* La rainure : la même que sous les barres, pour qu'un anneau
+              presque vide reste un anneau et non un arc qui flotte. */}
+          <circle
+            cx="21" cy="21" r="15.9155" fill="none"
+            stroke="oklch(var(--ci-border))" strokeWidth="5.5"
+          />
+          {segments.map((s) => (s.part < 0.5 ? null : (
+            <circle
+              key={s.libelle}
+              cx="21" cy="21" r="15.9155" fill="none"
+              stroke={couleurSerie(s.creneau)}
+              strokeWidth="5.5"
+              strokeDasharray={`${s.part} ${100 - s.part}`}
+              strokeDashoffset={s.decalage}
+            />
+          )))}
+        </svg>
+
+        {/* Le total est posé en HTML par-dessus : dans le SVG il aurait suivi
+            la rotation du cadran et se serait écrit sur le flanc. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-2xs text-muted-foreground">{libelleTotal}</span>
+          <span className="text-base font-bold tabular-nums text-foreground">{format(total)}</span>
+        </div>
+      </div>
+
+      <div className="min-w-[10rem] flex-1 space-y-2">
+        {parts.map((p) => (
+          <div key={p.libelle} className="flex items-center gap-2 text-xs">
+            <span
+              aria-hidden
+              className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+              style={{ backgroundColor: couleurSerie(p.creneau) }}
+            />
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">{p.libelle}</span>
+            <span className="w-8 shrink-0 text-end tabular-nums text-muted-foreground">
+              {pourcentage(p.valeur, total, 0)}
+            </span>
+            <span className="w-16 shrink-0 text-end font-medium tabular-nums text-foreground">
+              {format(p.valeur)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

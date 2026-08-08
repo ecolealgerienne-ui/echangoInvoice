@@ -1,23 +1,30 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   TrendingUp, TrendingDown, FileText, Package, DollarSign,
   AlertTriangle, Percent, Minus, ChevronRight, Hourglass, Wallet,
+  Plus, SlidersHorizontal, RefreshCw, Check,
+  Banknote, Landmark, FileCheck, CircleDollarSign,
 } from 'lucide-react';
 import { dashboardApi } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
 import { ecartPourcent, montantAbrege, pourcentage } from '@/lib/montants';
-import { SelecteurPeriode, periodeParDefaut } from '@/components/shared/SelecteurPeriode';
+import { SelecteurPeriode, periodeParDefaut, derniersJours } from '@/components/shared/SelecteurPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { LienCarte } from '@/components/shared/LienCarte';
+import { Deroulant, EntreeDeroulant } from '@/components/shared/Deroulant';
 import { SqueletteCarte, SqueletteGraphique, SqueletteIndicateur } from '@/components/ui/Squelette';
-import { BarresClassement, CourbeAire, Sparkline } from '@/components/ui/Graphique';
+import { Anneau, BarresClassement, CourbeAire, Sparkline } from '@/components/ui/Graphique';
 import { useCompteurAnime } from '@/hooks/useCompteurAnime';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useAuth } from '@/contexts/AuthContext';
 import { teinteFiliere, type Filiere } from '@/lib/filieres';
-import { creneauMode } from '@/lib/modesReglement';
+import { creneauMode, libelleMode } from '@/lib/modesReglement';
 
 /**
  * Tableau de bord.
@@ -27,7 +34,7 @@ import { creneauMode } from '@/lib/modesReglement';
  * Rien n'y hiérarchisait quoi que ce soit, et surtout rien n'y répondait à la
  * question qu'on se pose en l'ouvrant — *est-ce que ça va ?*
  *
- * Trois changements y répondent :
+ * Les changements qui y répondent :
  *
  * - **les indicateurs comptent.** Le montant monte jusqu'à sa valeur en huit
  *   dixièmes de seconde. L'ordre de grandeur se perçoit pendant la montée, et
@@ -35,18 +42,60 @@ import { creneauMode } from '@/lib/modesReglement';
  *   d'icône porte le dégradé de sa filière : quatre cartes identiques ne se
  *   distinguaient que par leur intitulé, lu de haut en bas ;
  *
- * - **les dépenses deviennent une composition.** Six lignes de montants
- *   obligeaient à faire la division de tête pour savoir si le loyer pesait un
- *   dixième ou un tiers. Une barre découpée le dit sans calcul, et la légende
- *   garde le montant exact ;
+ * - **les dépenses sont un anneau.** Six lignes de montants obligeaient à
+ *   faire la division de tête pour savoir si le loyer pesait un dixième ou un
+ *   tiers. L'arc dit la part sans calcul, le total occupe le trou du centre, et
+ *   la légende garde le montant exact ;
  *
  * - **les alertes cessent d'être une liste.** Chacune est un bloc teinté de sa
- *   gravité, et le nombre y est gros. Une alerte à zéro reste affichée mais
- *   passe au neutre : savoir qu'il n'y a rien est une information.
+ *   gravité, le nombre y est gros, et le clic mène sur la liste exactement
+ *   filtrée ;
+ *
+ * - **chaque carte dit où continuer.** Une carte montre cinq lignes sur
+ *   trois cents ; le pied de carte est l'endroit où l'on arrive en se demandant
+ *   « et le reste ? ».
+ *
+ * ── L'ordre des blocs ────────────────────────────────────────────────────
+ *
+ * La première rangée après les indicateurs rassemble les quatre **états** :
+ * où part l'argent, qui le rapporte, ce qui reste à faire, ce qui dort en
+ * stock. La seconde rassemble les trois **séries** : le chiffre d'affaires
+ * jour par jour, les encaissements par mode, les lots qui approchent de leur
+ * date. On lit d'abord une situation, ensuite un mouvement — l'inverse
+ * obligeait à interpréter une courbe avant de savoir de quoi elle parlait.
  *
  * Sur le chargement, des squelettes remplacent le disque qui tourne : la mise
  * en page ne bouge plus quand les données arrivent.
  */
+
+/**
+ * Blocs que « Personnaliser » sait masquer.
+ *
+ * Les quatre indicateurs du haut n'y sont pas : ils tiennent sur une rangée,
+ * ils sont la raison d'ouvrir l'écran, et un tableau de bord dont on peut
+ * retirer le chiffre d'affaires n'est plus un tableau de bord.
+ *
+ * Le réglage passe par `useColumnVisibility`, le hook des colonnes de tableau :
+ * c'est exactement la même mécanique — une liste de clés visibles, une bascule,
+ * un enregistrement local — et une seconde copie aurait divergé au premier
+ * ajustement.
+ */
+const BLOCS = [
+  'depenses', 'topClients', 'aTraiter', 'stockArticle',
+  'chiffreAffaires', 'encaissements', 'lots',
+] as const;
+type Bloc = (typeof BLOCS)[number];
+
+/** Icône de chaque mode de règlement, dans l'ordre de référence des modes. */
+const ICONES_MODE: Record<string, React.ElementType> = {
+  cash: Banknote,
+  bank_transfer: Landmark,
+  cheque: FileCheck,
+  other: CircleDollarSign,
+};
+
+/** Fenêtres proposées sous le graphique de chiffre d'affaires. */
+const FENETRES_COURBE = [7, 14, 30, 90] as const;
 
 /**
  * Écart par rapport à la période précédente.
@@ -55,9 +104,9 @@ import { creneauMode } from '@/lib/modesReglement';
  * pourcentage, parce qu'aucun n'aurait de sens — et un « 0 % » se lirait comme
  * une stagnation alors qu'on part de rien.
  *
- * L'écart est devenu une pastille au lieu d'une ligne de texte colorée : sur
- * fond ténu, la couleur porte plus loin, et la flèche double le signal pour
- * qui distingue mal le rouge du vert.
+ * L'écart est une pastille au lieu d'une ligne de texte colorée : sur fond
+ * ténu, la couleur porte plus loin, et la flèche double le signal pour qui
+ * distingue mal le rouge du vert.
  */
 function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boolean }) {
   const { t } = useTranslation();
@@ -109,7 +158,7 @@ function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boole
  * pas une étape.
  */
 function CarteIndicateur({
-  titre, valeur, sub, icon: Icone, filiere, evolution, evolutionInverse, tendance,
+  titre, valeur, sub, icon: Icone, filiere, evolution, evolutionInverse, tendance, coin,
 }: {
   titre: string;
   valeur: number;
@@ -120,6 +169,8 @@ function CarteIndicateur({
   evolutionInverse?: boolean;
   /** Série pour l'étincelle du bas. Omise, la carte n'en porte pas. */
   tendance?: number[];
+  /** Mention posée au-dessus de la pastille : fraîcheur de la donnée, rafraîchissement. */
+  coin?: React.ReactNode;
 }) {
   const anime = useCompteurAnime(valeur);
   const teinte = teinteFiliere(filiere);
@@ -135,7 +186,13 @@ function CarteIndicateur({
           <Sparkline className="h-full" valeurs={tendance} couleur={couleurFiliere} />
         </div>
       )}
-      <CardContent className="relative p-5">
+      <CardContent className={cn('relative p-5', coin && 'pt-7')}>
+        {/* La mention de fraîcheur est posée **hors du flux**, dans le coin
+            haut : dans la colonne de droite, elle poussait la pastille d'icône
+            vers le bas et surtout volait sa largeur au montant, qui passait
+            alors sur deux lignes — la seule carte des quatre à le faire, et
+            toute la rangée perdait sa ligne de base. */}
+        {coin && <div className="absolute end-3 top-2 flex items-center">{coin}</div>}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -219,7 +276,7 @@ function LigneATraiter({
           aria-hidden
         />
         <span className="min-w-0">
-          <span className="block truncate text-sm text-foreground">{libelle}</span>
+          <span className="block text-sm leading-snug text-foreground">{libelle}</span>
           {montant !== undefined && montant > 0 && (
             <span className="block truncate text-2xs tabular-nums text-muted-foreground">
               {montantAbrege(montant)}
@@ -247,9 +304,41 @@ function LigneATraiter({
   );
 }
 
+/** Carte qui porte un lien de pied : le contenu pousse, le lien reste en bas. */
+function CarteBloc({
+  titre, action, lienVers, lienLibelle, children,
+}: {
+  titre: string;
+  /** Contrôle posé à droite du titre — un sélecteur de fenêtre, par exemple. */
+  action?: React.ReactNode;
+  lienVers?: string;
+  lienLibelle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card vivante className="flex h-full flex-col">
+      {/* Le titre revient à la ligne plutôt que de se couper : « Valeur du
+          stock par arti… » n'apprend rien, alors que deux lignes coûtent seize
+          pixels — et la carte est de toute façon étirée à la hauteur de sa
+          voisine la plus haute. */}
+      <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
+        <CardTitle className="min-w-0 leading-snug">{titre}</CardTitle>
+        {action}
+      </CardHeader>
+      <CardContent className="flex-1">{children}</CardContent>
+      {lienVers && lienLibelle && <LienCarte vers={lienVers} libelle={lienLibelle} />}
+    </Card>
+  );
+}
+
 export function DashboardPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [periode, setPeriode] = useState(periodeParDefaut());
+  const [joursCourbe, setJoursCourbe] = useState<number>(7);
+  const { toggle: basculerBloc, col: blocVisible } = useColumnVisibility<Bloc>(
+    'dashboard_blocs', [...BLOCS],
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-stats', periode],
@@ -261,15 +350,27 @@ export function DashboardPage() {
     queryFn: () => dashboardApi.salesChart(periode),
   });
 
+  // Le graphique de chiffre d'affaires a sa propre fenêtre : on suit les sept
+  // derniers jours pendant que les indicateurs du haut parlent du mois. C'est
+  // une deuxième requête, et non un découpage de la première : la période de
+  // l'en-tête peut être plus courte que la fenêtre demandée.
+  const periodeCourbe = useMemo(() => derniersJours(joursCourbe), [joursCourbe]);
+  const { data: courbeData } = useQuery({
+    queryKey: ['dashboard-sales-chart', periodeCourbe],
+    queryFn: () => dashboardApi.salesChart(periodeCourbe),
+  });
+
   // Pas de période en paramètre : le stock est une photo à l'instant t.
-  const { data: stockChartData } = useQuery({
+  const {
+    data: stockChartData, dataUpdatedAt: stockMaj, refetch: rafraichirStock, isFetching: stockEnCours,
+  } = useQuery({
     queryKey: ['dashboard-stock-chart'],
     queryFn: () => dashboardApi.stockChart(),
   });
 
   const salesChart = salesChartData?.data;
   const stockChart = stockChartData?.data;
-  const byDate: any[] = salesChart?.byDate ?? [];
+  const byDate: any[] = courbeData?.data?.byDate ?? [];
 
   if (isLoading) {
     return (
@@ -302,13 +403,13 @@ export function DashboardPage() {
   // d'affaires : une facture émise en juin et réglée en juillet fausserait les
   // deux bouts du rapport.
   const totalEncaisse = byMethod.reduce((s, [, v]) => s + Number(v), 0);
-  const topStock: any[] = (stockChart?.byRawMaterial ?? []).slice(0, 8);
+  const topStock: any[] = (stockChart?.byRawMaterial ?? []).slice(0, 6);
   const expiring: any[] = stockChart?.expiringWithin30Days ?? [];
-  // Une catégorie à zéro n'a pas de barre à montrer : elle allongeait le bloc
+  // Une catégorie à zéro n'a pas d'arc à montrer : elle allongeait la légende
   // sans rien y mettre.
   const categories = (Object.entries(expenses.byCategory) as [string, number][])
     .filter(([, montant]) => Number(montant) > 0);
-  const tendanceCa = byDate.map((d: any) => Number(d.revenue));
+  const tendanceCa = (salesChart?.byDate ?? []).map((d: any) => Number(d.revenue));
 
   // Le travail en attente, dans l'ordre où il presse. Chaque entrée porte le
   // filtre qui rendra exactement le nombre annoncé.
@@ -358,11 +459,89 @@ export function DashboardPage() {
     },
   ].filter((l) => l.nombre > 0);
 
+  // Le prénom seul : « Bonjour Amar Amar » se lit comme un formulaire. Un compte
+  // sans nom n'a rien à saluer — l'en-tête retombe alors sur le titre de
+  // l'écran, plutôt que sur un « Bonjour  » à trou.
+  const prenom = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const heureMaj = stockMaj
+    ? new Intl.DateTimeFormat('fr-DZ', {
+      // `hourCycle` explicite : selon la bibliothèque ICU du navigateur,
+      // `fr-DZ` rendait « 12:46 AM » — une heure anglo-saxonne au milieu
+      // d'une interface française.
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).format(stockMaj)
+    : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-foreground">{t('dashboard.title')}</h1>
-        <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+      {/* ── En-tête ─────────────────────────────────────────────────────────
+          La salutation remplace le titre « Tableau de bord » : sur l'écran
+          d'accueil, répéter le nom de l'écran n'apprend rien à celui qui vient
+          d'y arriver. La phrase de contexte, elle, dit ce qu'on y regarde. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-foreground">
+            {prenom ? t('dashboard.salutation', { prenom }) : t('dashboard.title')}
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t('dashboard.salutationContexte')}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+
+          {/* « Personnaliser » masque et rétablit les blocs, et le choix est
+              gardé sur le poste. Ce n'est pas un bouton d'apparat : un écran
+              d'accueil dont le tiers ne sert pas à tout le monde — la
+              production, par exemple, n'est pas activée partout — se range. */}
+          <Deroulant
+            largeur="w-56"
+            declencheur={({ ouvert, basculer }) => (
+              <Button variant="outline" size="sm" onClick={basculer} aria-expanded={ouvert} aria-haspopup="menu">
+                <SlidersHorizontal className="h-4 w-4" />
+                {t('dashboard.personnaliser')}
+              </Button>
+            )}
+          >
+            <p className="px-2.5 pb-1.5 pt-1 text-2xs text-muted-foreground">
+              {t('dashboard.personnaliserAide')}
+            </p>
+            {BLOCS.map((bloc) => (
+              <button
+                key={bloc}
+                type="button"
+                onClick={() => basculerBloc(bloc)}
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-start text-sm text-foreground transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                    blocVisible(bloc) ? 'border-primary bg-primary text-primary-foreground' : 'border-input',
+                  )}
+                >
+                  {blocVisible(bloc) && <Check className="h-3 w-3" aria-hidden />}
+                </span>
+                <span className="min-w-0 truncate">{t(`dashboard.blocs.${bloc}`)}</span>
+              </button>
+            ))}
+          </Deroulant>
+
+          {/* « + Nouveau » n'invente rien : chaque entrée ouvre le formulaire de
+              création de son écran, par le paramètre `?nouveau=1` que ces
+              écrans savent lire. */}
+          <Deroulant
+            largeur="w-52"
+            declencheur={({ ouvert, basculer }) => (
+              <Button size="sm" onClick={basculer} aria-expanded={ouvert} aria-haspopup="menu">
+                <Plus className="h-4 w-4" />
+                {t('dashboard.nouveau')}
+              </Button>
+            )}
+          >
+            <EntreeDeroulant icone={FileText} to="/invoices?nouveau=1">{t('invoices.new')}</EntreeDeroulant>
+            <EntreeDeroulant icone={FileText} to="/quotes?nouveau=1">{t('quotes.new')}</EntreeDeroulant>
+            <EntreeDeroulant icone={DollarSign} to="/customers?nouveau=1">{t('customers.new')}</EntreeDeroulant>
+          </Deroulant>
+        </div>
       </div>
 
       {/* ── Indicateurs ─────────────────────────────────────────────────── */}
@@ -395,186 +574,236 @@ export function DashboardPage() {
           icon={TrendingUp}
           filiere="achats"
         />
+        {/* La valeur du stock est la seule des quatre à ne pas dépendre de la
+            période : c'est une photo prise à l'instant du chargement. Elle est
+            donc la seule à devoir dire **quand** elle a été prise, et à offrir
+            d'en reprendre une — les entrées de stock bougent toute la journée,
+            et rien d'autre à l'écran ne le signalerait. */}
         <CarteIndicateur
           titre={t('dashboard.stockValue')}
           valeur={Number(stock.totalStockValue)}
           icon={Package}
           filiere="catalogue"
+          coin={heureMaj && (
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="hidden truncate xl:inline">
+                {t('dashboard.derniereMaj', { heure: heureMaj })}
+              </span>
+              <button
+                type="button"
+                onClick={() => rafraichirStock()}
+                disabled={stockEnCours}
+                aria-label={t('dashboard.rafraichir')}
+                title={t('dashboard.rafraichir')}
+                className="rounded p-0.5 transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <RefreshCw className={cn('h-3 w-3', stockEnCours && 'animate-spin')} aria-hidden />
+              </button>
+            </span>
+          )}
         />
       </div>
 
-      <div className="echelonner grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Dépenses.
-            Le total est passé **en tête** et non plus en pied : c'est le
-            chiffre qu'on vient chercher, et il se lisait après six lignes de
-            détail. Les catégories sont ensuite des barres — la longueur dit la
-            part, ce que faisait auparavant un pourcentage imprimé à côté du
-            montant. Les deux ensemble étaient une redite, et une ligne de
-            trois nombres se lit trois fois plus lentement qu'une barre. */}
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.expenses')}</CardTitle></CardHeader>
-          <CardContent>
-            {categories.length === 0 ? (
-              <EtatVide compact texte={t('common.videTexte')} />
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t('common.total')}
-                  </p>
-                  <p
-                    className="mt-0.5 cursor-help text-xl font-bold tabular-nums text-foreground"
-                    title={formatCurrency(expenses.totalExpenses)}
-                  >
-                    {montantAbrege(expenses.totalExpenses)}
-                  </p>
-                </div>
-                {/* Les catégories de dépense sont des entités fixes : chacune
-                    garde son créneau de couleur d'un mois à l'autre, comme les
-                    modes de règlement. */}
-                <BarresClassement
-                  teintes={categories.map(([, ], i) => i)}
-                  lignes={categories.map(([cat, montant]) => ({
+      {/* ── Les quatre états ────────────────────────────────────────────── */}
+      <div className="echelonner grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-12">
+        {blocVisible('depenses') && (
+          <div className="lg:col-span-4">
+            <CarteBloc
+              titre={t('dashboard.expenses')}
+              lienVers="/expenses"
+              lienLibelle={t('dashboard.voirDepenses')}
+            >
+              {categories.length === 0 ? (
+                <EtatVide compact texte={t('common.videTexte')} />
+              ) : (
+                /* Les catégories de dépense sont des entités fixes : chacune
+                   garde son créneau de couleur d'un mois à l'autre, comme les
+                   modes de règlement. Le créneau vient de la position dans la
+                   liste rendue par le serveur, qui est elle-même figée. */
+                <Anneau
+                  libelleTotal={t('common.total')}
+                  parts={categories.map(([cat, montant], i) => ({
                     libelle: t(`expenses.categories.${cat}`),
                     valeur: Number(montant),
+                    creneau: i,
                   }))}
                   format={(v) => montantAbrege(v)}
                 />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CarteBloc>
+          </div>
+        )}
 
         {/* Top clients : un classement — teinte unique, rangs numérotés, et
             l'écart avec la période précédente quand le serveur sait le
             calculer. */}
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.topCustomers')}</CardTitle></CardHeader>
-          <CardContent>
-            {sales.topCustomers.length === 0 ? (
-              <EtatVide compact texte={t('common.videTexte')} />
-            ) : (
-              <BarresClassement
-                serie={0}
-                rangs
-                lignes={sales.topCustomers.map((c: any) => ({
-                  libelle: c.name,
-                  valeur: Number(c.total),
-                  variation: c.evolution ?? null,
-                }))}
-                format={(v) => montantAbrege(v)}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* À traiter */}
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.toDo')}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {aTraiter.length === 0 ? (
-              <EtatVide compact texte={t('dashboard.nothingToDo')} />
-            ) : aTraiter.map((l) => (
-              <LigneATraiter
-                key={l.cle}
-                libelle={l.libelle}
-                nombre={l.nombre}
-                montant={l.montant}
-                vers={l.vers}
-                icon={l.icon}
-                gravite={l.gravite}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Graphiques ──────────────────────────────────────────────────── */}
-      <div className="echelonner grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card vivante voile>
-          <CardHeader><CardTitle>{t('dashboard.revenueByDay')}</CardTitle></CardHeader>
-          <CardContent>
-            {byDate.length === 0
-              ? <EtatVide compact texte={t('common.videTexte')} />
-              : (
-                <CourbeAire
+        {blocVisible('topClients') && (
+          <div className="lg:col-span-3">
+            <CarteBloc
+              titre={t('dashboard.topCustomers')}
+              lienVers="/customers"
+              lienLibelle={t('dashboard.voirClients')}
+            >
+              {sales.topCustomers.length === 0 ? (
+                <EtatVide compact texte={t('common.videTexte')} />
+              ) : (
+                <BarresClassement
                   serie={0}
-                  points={byDate.map((d: any) => ({
-                    libelle: formatDate(d.date),
-                    valeur: Number(d.revenue),
-                  }))}
-                  format={(v) => formatCurrency(v)}
-                />
-              )}
-          </CardContent>
-        </Card>
-
-        {/* Modes de règlement : quatre entités fixes, donc quatre créneaux de
-            couleur fixes — le créneau vient de la position du mode dans sa
-            liste de référence, jamais de son rang du mois. */}
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.byPaymentMethod')}</CardTitle></CardHeader>
-          <CardContent>
-            {maxMethod === 0
-              ? <EtatVide compact texte={t('common.videTexte')} />
-              : (
-                <BarresClassement
-                  teintes={byMethod.map(([mode]) => creneauMode(mode))}
-                  lignes={byMethod.map(([method, amount]: any) => ({
-                    libelle: t(`invoices.methods.${method}`),
-                    valeur: Number(amount),
-                  }))}
-                  /* Deux décimales ici, une seule sur les cartes : c'est le
-                     seul bloc où l'on met les valeurs en regard les unes des
-                     autres, et « 5,4 M » contre « 5,4 M » ne dirait plus
-                     laquelle domine. Le pourcentage répond à la question
-                     réellement posée — quelle part de ce qui est rentré. */
-                  format={(v) => `${montantAbrege(v, 2)} (${pourcentage(v, totalEncaisse)})`}
-                />
-              )}
-          </CardContent>
-        </Card>
-
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.stockByProduct')}</CardTitle></CardHeader>
-          <CardContent>
-            {topStock.length === 0
-              ? <EtatVide compact texte={t('common.videTexte')} />
-              : (
-                <BarresClassement
-                  serie={3}
                   rangs
-                  lignes={topStock.map((r: any) => ({
-                    libelle: r.name,
-                    valeur: Number(r.stockValue),
+                  lignes={sales.topCustomers.map((c: any) => ({
+                    libelle: c.name,
+                    valeur: Number(c.total),
+                    variation: c.evolution ?? null,
                   }))}
                   format={(v) => montantAbrege(v)}
                 />
               )}
-          </CardContent>
-        </Card>
+            </CarteBloc>
+          </div>
+        )}
 
-        <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.expiringLots')}</CardTitle></CardHeader>
-          <CardContent className="space-y-1.5">
-            {expiring.length === 0
-              ? <EtatVide compact texte={t('dashboard.noExpiringLots')} />
-              : expiring.slice(0, 8).map((e: any) => (
-                <div
-                  key={e.stockEntryId}
-                  className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/60"
+        {blocVisible('aTraiter') && (
+          <div className="lg:col-span-3">
+            <CarteBloc
+              titre={t('dashboard.toDo')}
+              lienVers="/stock?tab=alerts"
+              lienLibelle={t('dashboard.voirAlertes')}
+            >
+              <div className="space-y-2">
+                {aTraiter.length === 0 ? (
+                  <EtatVide compact texte={t('dashboard.nothingToDo')} />
+                ) : aTraiter.map((l) => (
+                  <LigneATraiter
+                    key={l.cle}
+                    libelle={l.libelle}
+                    nombre={l.nombre}
+                    montant={l.montant}
+                    vers={l.vers}
+                    icon={l.icon}
+                    gravite={l.gravite}
+                  />
+                ))}
+              </div>
+            </CarteBloc>
+          </div>
+        )}
+
+        {blocVisible('stockArticle') && (
+          <div className="lg:col-span-2">
+            <CarteBloc
+              titre={t('dashboard.stockByProduct')}
+              lienVers="/products"
+              lienLibelle={t('dashboard.voirArticles')}
+            >
+              {topStock.length === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <BarresClassement
+                    serie={3}
+                    lignes={topStock.map((r: any) => ({
+                      libelle: r.name,
+                      valeur: Number(r.stockValue),
+                    }))}
+                    format={(v) => montantAbrege(v)}
+                  />
+                )}
+            </CarteBloc>
+          </div>
+        )}
+      </div>
+
+      {/* ── Les trois séries ────────────────────────────────────────────── */}
+      <div className="echelonner grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {blocVisible('chiffreAffaires') && (
+          <div className="lg:col-span-5">
+            <CarteBloc
+              titre={t('dashboard.revenueByDay')}
+              action={(
+                <select
+                  value={joursCourbe}
+                  onChange={(e) => setJoursCourbe(Number(e.target.value))}
+                  aria-label={t('dashboard.fenetreCourbe')}
+                  className="h-7 shrink-0 rounded-md border border-border bg-surface px-2 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="min-w-0 flex-1 truncate text-foreground">{e.name}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {e.quantity} {e.unit}
-                  </span>
-                  <Badge point variant={e.daysUntilExpiry <= 7 ? 'destructive' : 'warning'}>
-                    {t('dashboard.inDays', { count: e.daysUntilExpiry })}
-                  </Badge>
-                </div>
-              ))}
-          </CardContent>
-        </Card>
+                  {FENETRES_COURBE.map((n) => (
+                    <option key={n} value={n}>{t('dashboard.derniersJours', { count: n })}</option>
+                  ))}
+                </select>
+              )}
+            >
+              {byDate.length === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <CourbeAire
+                    serie={0}
+                    compare
+                    formatComparaison={(d) => t('dashboard.vsDate', { date: d })}
+                    points={byDate.map((d: any) => ({
+                      libelle: formatDate(d.date),
+                      valeur: Number(d.revenue),
+                    }))}
+                    format={(v) => montantAbrege(v, 2)}
+                  />
+                )}
+            </CarteBloc>
+          </div>
+        )}
+
+        {/* Modes de règlement : quatre entités fixes, donc quatre créneaux de
+            couleur fixes — le créneau vient de la position du mode dans sa
+            liste de référence, jamais de son rang du mois. La pastille est un
+            carré arrondi portant l'icône du moyen : sur quatre lignes, un point
+            de couleur seul obligeait à faire l'aller-retour avec la légende. */}
+        {blocVisible('encaissements') && (
+          <div className="lg:col-span-4">
+            <CarteBloc titre={t('dashboard.byPaymentMethod')}>
+              {maxMethod === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <BarresClassement
+                    teintes={byMethod.map(([mode]) => creneauMode(mode))}
+                    icones={byMethod.map(([mode]) => ICONES_MODE[mode] ?? CircleDollarSign)}
+                    lignes={byMethod.map(([method, amount]: any) => ({
+                      libelle: libelleMode(t, method),
+                      valeur: Number(amount),
+                    }))}
+                    /* Deux décimales ici, une seule sur les cartes : c'est le
+                       seul bloc où l'on met les valeurs en regard les unes des
+                       autres, et « 5,4 M » contre « 5,4 M » ne dirait plus
+                       laquelle domine. Le pourcentage répond à la question
+                       réellement posée — quelle part de ce qui est rentré. */
+                    format={(v) => `${montantAbrege(v, 2)} (${pourcentage(v, totalEncaisse)})`}
+                  />
+                )}
+            </CarteBloc>
+          </div>
+        )}
+
+        {blocVisible('lots') && (
+          <div className="lg:col-span-3">
+            <CarteBloc
+              titre={t('dashboard.expiringLots')}
+              lienVers="/stock"
+              lienLibelle={t('dashboard.voirLots')}
+            >
+              <div className="space-y-1.5">
+                {expiring.length === 0
+                  ? <EtatVide compact texte={t('dashboard.noExpiringLots')} />
+                  : expiring.slice(0, 6).map((e: any) => (
+                    <div
+                      key={e.stockEntryId}
+                      className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-muted/60"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-foreground">{e.name}</span>
+                      <Badge point variant={e.daysUntilExpiry <= 7 ? 'destructive' : 'warning'}>
+                        {t('dashboard.inDays', { count: e.daysUntilExpiry })}
+                      </Badge>
+                    </div>
+                  ))}
+              </div>
+            </CarteBloc>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -86,7 +86,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="relative flex-1 overflow-y-auto">
-          <div className="ci-page container mx-auto max-w-7xl px-6 py-6">{children}</div>
+          {/* La largeur utile passe de 80 à 100 rem. À 80, la liste des clients
+              — neuf colonnes, dont une adresse de courrier — repliait l'e-mail
+              sur trois lignes et faisait de chaque ligne un pavé de soixante
+              pixels de haut, comme les maquettes ne le montrent pas. Le plafond
+              demeure : au-delà de 100 rem, une ligne de tableau devient trop
+              longue pour que l'œil retrouve sa colonne en revenant à gauche. */}
+          <div className="ci-page container mx-auto max-w-[100rem] px-6 py-6">{children}</div>
         </main>
       </div>
     </div>

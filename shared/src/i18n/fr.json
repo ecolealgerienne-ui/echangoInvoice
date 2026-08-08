@@ -46,7 +46,16 @@
     "totalTtc": "Total TTC",
     "none": "— Aucune —",
     "invalidQuantity": "Quantité invalide",
-    "reopen": "Rouvrir"
+    "reopen": "Rouvrir",
+    "pagination": {
+      "libelle": "Pagination",
+      "precedent": "Page précédente",
+      "suivant": "Page suivante",
+      "page": "Page {{nombre}}",
+      "affichage": "Affichage {{debut}}-{{fin}} sur {{total}}",
+      "parPage": "Lignes par page",
+      "parPageOption": "{{nombre}} / page"
+    }
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -81,7 +90,9 @@
       "tenants": "Clients",
       "plans": "Plans"
     },
-    "recurring": "Abonnements"
+    "recurring": "Abonnements",
+    "replier": "Replier la barre",
+    "deplier": "Déplier la barre"
   },
   "auth": {
     "login": "Connexion",
@@ -158,7 +169,31 @@
     "overdueInvoices": "Factures en retard",
     "sentInvoices": "Factures à encaisser",
     "partialInvoices": "Règlements partiels",
-    "partDuCa": "{{part}} du CA"
+    "partDuCa": "{{part}} du CA",
+    "salutation": "Bonjour {{prenom}} 👋",
+    "salutationContexte": "Voici la situation de votre activité aujourd'hui.",
+    "personnaliser": "Personnaliser",
+    "personnaliserAide": "Blocs affichés sur cet écran",
+    "nouveau": "Nouveau",
+    "derniereMaj": "Dernière mise à jour : {{heure}}",
+    "rafraichir": "Rafraîchir",
+    "fenetreCourbe": "Fenêtre du graphique",
+    "derniersJours": "{{count}} derniers jours",
+    "vsDate": "vs {{date}}",
+    "voirDepenses": "Voir le détail des dépenses",
+    "voirClients": "Voir tous les clients",
+    "voirAlertes": "Voir toutes les alertes",
+    "voirArticles": "Voir tous les articles",
+    "voirLots": "Voir tous les lots",
+    "blocs": {
+      "depenses": "Dépenses par catégorie",
+      "topClients": "Top clients",
+      "aTraiter": "À traiter",
+      "stockArticle": "Valeur du stock par article",
+      "chiffreAffaires": "Chiffre d'affaires",
+      "encaissements": "Encaissements par mode de règlement",
+      "lots": "Lots expirant sous 30 jours"
+    }
   },
   "customers": {
     "title": "Clients",
@@ -181,7 +216,16 @@
     "contactRole": "Fonction",
     "contactPerson": "Interlocuteur",
     "primary": "Contact principal",
-    "totalCount": "{{nombre}} clients au total"
+    "totalCount": "{{nombre}} clients au total",
+    "rechercherPlaceholder": "Rechercher un client, NIF, téléphone, email…",
+    "caCeMois": "CA (ce mois)",
+    "filtres": {
+      "titre": "Filtres",
+      "type": "Type",
+      "typeClient": "Client",
+      "typeMixte": "Client et fournisseur",
+      "reinitialiser": "Réinitialiser"
+    }
   },
   "partners": {
     "isCustomer": "Client",

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -192,6 +192,22 @@ export function QuotesPage() {
   });
 
   function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }] }); setModalOpen(true); }
+
+  /**
+   * `?nouveau=1` ouvre le formulaire de création à l'arrivée — c'est ce qui
+   * donne un sens au menu « + Nouveau » du tableau de bord. Le paramètre est
+   * retiré aussitôt lu : un rafraîchissement de page rouvrirait sinon la
+   * modale sans qu'on l'ait demandé.
+   */
+  const [parametres, setParametres] = useSearchParams();
+  useEffect(() => {
+    if (parametres.get('nouveau') !== '1') return;
+    openCreate();
+    const suite = new URLSearchParams(parametres);
+    suite.delete('nouveau');
+    setParametres(suite, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametres]);
   function openEdit(row: any) {
     quotesApi.get(row.id).then((res: any) => {
       const q = res.data ?? res;

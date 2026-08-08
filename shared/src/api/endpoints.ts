@@ -53,6 +53,8 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
 
   const customersApi = {
     list: (params?: Params) => api.get('/customers', { params }).then((r) => r.data),
+    /** Villes réellement présentes chez le locataire, pour la liste de filtre. */
+    cities: () => api.get('/customers/cities').then((r) => r.data),
     get: (id: string) => api.get(`/customers/${id}`).then((r) => r.data),
     create: (body: unknown) => api.post('/customers', body).then((r) => r.data),
     update: (id: string, body: unknown) => api.put(`/customers/${id}`, body).then((r) => r.data),

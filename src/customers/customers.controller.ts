@@ -37,6 +37,17 @@ export class CustomersController {
     return this.service.findAll(query, user.tenantId!);
   }
 
+  /**
+   * Déclarée AVANT `:id`, qui avalerait « cities » et chercherait un client
+   * dont l'identifiant serait ce mot — un 404 sur une route pourtant écrite.
+   */
+  @Get('cities')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Villes présentes dans le fichier clients' })
+  cities(@CurrentUser() user: JwtPayload) {
+    return this.service.cities(user.tenantId!);
+  }
+
   @Get(':id')
   @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get customer with history' })

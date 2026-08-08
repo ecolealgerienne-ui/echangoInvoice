@@ -68,6 +68,20 @@ export function periodeParDefaut(): Periode {
   return RACCOURCIS.mois();
 }
 
+/**
+ * Les `n` derniers jours, aujourd'hui compris.
+ *
+ * Sert au graphique de chiffre d'affaires, qui porte son propre sélecteur : on
+ * suit la courbe des sept derniers jours pendant que les indicateurs du haut
+ * parlent du mois. Le calcul vit ici, avec les autres, pour que « aujourd'hui »
+ * reste le jour d'Alger partout — sinon la courbe et les cartes se décaleraient
+ * d'une journée entre minuit et une heure du matin.
+ */
+export function derniersJours(n: number): Periode {
+  const j = aujourdhui();
+  return { from: iso(decalerJours(j, -(n - 1))), to: iso(j) };
+}
+
 export function SelecteurPeriode({ valeur, onChange }: {
   valeur: Periode;
   onChange: (p: Periode) => void;

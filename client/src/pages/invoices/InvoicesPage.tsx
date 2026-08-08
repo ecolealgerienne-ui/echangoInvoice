@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -252,6 +252,25 @@ export function InvoicesPage() {
     reset({ invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] });
     setModalOpen(true);
   }
+
+  /**
+   * `?nouveau=1` ouvre le formulaire de création à l'arrivée.
+   *
+   * C'est ce qui donne un sens au menu « + Nouveau » du tableau de bord : sans
+   * lui, l'entrée « Nouvelle facture » n'aurait fait qu'amener sur la liste, en
+   * laissant chercher le bouton — un raccourci qui ne raccourcit rien.
+   *
+   * Le paramètre est retiré de l'URL aussitôt lu, sinon un rafraîchissement de
+   * page rouvrirait la modale sans qu'on l'ait demandé.
+   */
+  useEffect(() => {
+    if (parametres.get('nouveau') !== '1') return;
+    openCreate();
+    const suite = new URLSearchParams(parametres);
+    suite.delete('nouveau');
+    setParametres(suite, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametres]);
 
   function openEdit(inv: any) {
     invoicesApi.get(inv.id).then((res: any) => {

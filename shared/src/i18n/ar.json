@@ -46,7 +46,16 @@
     "totalTtc": "المجموع بكل الرسوم",
     "none": "— بلا —",
     "invalidQuantity": "كمية غير صالحة",
-    "reopen": "إعادة الفتح"
+    "reopen": "إعادة الفتح",
+    "pagination": {
+      "libelle": "ترقيم الصفحات",
+      "precedent": "الصفحة السابقة",
+      "suivant": "الصفحة التالية",
+      "page": "الصفحة {{nombre}}",
+      "affichage": "عرض {{debut}}-{{fin}} من {{total}}",
+      "parPage": "الأسطر في الصفحة",
+      "parPageOption": "{{nombre}} / صفحة"
+    }
   },
   "nav": {
     "dashboard": "لوحة القيادة",
@@ -81,7 +90,9 @@
       "tenants": "الزبائن",
       "plans": "الاشتراكات"
     },
-    "recurring": "الاشتراكات الدورية"
+    "recurring": "الاشتراكات الدورية",
+    "replier": "طي الشريط الجانبي",
+    "deplier": "توسيع الشريط الجانبي"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -158,7 +169,31 @@
     "overdueInvoices": "فواتير متأخرة",
     "sentInvoices": "فواتير للتحصيل",
     "partialInvoices": "تسديدات جزئية",
-    "partDuCa": "{{part}} من رقم الأعمال"
+    "partDuCa": "{{part}} من رقم الأعمال",
+    "salutation": "مرحبًا {{prenom}} 👋",
+    "salutationContexte": "إليك وضع نشاطك اليوم.",
+    "personnaliser": "تخصيص",
+    "personnaliserAide": "الكتل المعروضة في هذه الشاشة",
+    "nouveau": "جديد",
+    "derniereMaj": "آخر تحديث: {{heure}}",
+    "rafraichir": "تحديث",
+    "fenetreCourbe": "نطاق الرسم البياني",
+    "derniersJours": "آخر {{count}} يوم",
+    "vsDate": "مقارنة بـ {{date}}",
+    "voirDepenses": "عرض تفاصيل المصاريف",
+    "voirClients": "عرض كل العملاء",
+    "voirAlertes": "عرض كل التنبيهات",
+    "voirArticles": "عرض كل الأصناف",
+    "voirLots": "عرض كل الدفعات",
+    "blocs": {
+      "depenses": "المصاريف حسب الفئة",
+      "topClients": "أفضل العملاء",
+      "aTraiter": "قيد المعالجة",
+      "stockArticle": "قيمة المخزون حسب الصنف",
+      "chiffreAffaires": "رقم الأعمال",
+      "encaissements": "التحصيلات حسب طريقة الدفع",
+      "lots": "الدفعات المنتهية خلال 30 يومًا"
+    }
   },
   "customers": {
     "title": "الزبائن",
@@ -181,7 +216,16 @@
     "contactRole": "الوظيفة",
     "contactPerson": "المحاور",
     "primary": "جهة الاتصال الرئيسية",
-    "totalCount": "{{nombre}} عميلًا إجمالًا"
+    "totalCount": "{{nombre}} عميلًا إجمالًا",
+    "rechercherPlaceholder": "ابحث عن عميل، رقم التعريف الجبائي، هاتف، بريد إلكتروني…",
+    "caCeMois": "رقم الأعمال (هذا الشهر)",
+    "filtres": {
+      "titre": "عوامل التصفية",
+      "type": "النوع",
+      "typeClient": "عميل",
+      "typeMixte": "عميل ومورّد",
+      "reinitialiser": "إعادة التعيين"
+    }
   },
   "partners": {
     "isCustomer": "زبون",
