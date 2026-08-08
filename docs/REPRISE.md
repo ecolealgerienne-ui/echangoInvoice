@@ -57,6 +57,8 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | `f19e513` | Grilles tarifaires par client |
 | *(2026-08-08, suite)* | Export CSV — 15 jeux de données, deux dialectes |
 | *(2026-08-08, suite)* | Recherche factures et devis : 400 sur chaque frappe |
+| *(2026-08-08, suite)* | Pages détail facture / devis / BL, liens entre documents |
+| *(2026-08-08, suite)* | Seed : la chaîne devis → BL → facture n'existait pas |
 
 Trois migrations ajoutées : `1750022000000` (creditedAmount),
 `1750023000000` (price_lists). Toutes appliquées en local.
@@ -67,18 +69,17 @@ Trois migrations ajoutées : `1750022000000` (creditedAmount),
 
 Ordre recommandé, issu de `docs/BENCHMARK.md`.
 
-### 1. Pages détail — *le prochain à prendre*
+### 1. Fiches client et fournisseur — *le prochain à prendre*
 
-L'export CSV est livré (15 jeux, `GET /export/:dataset`). **Reste les pages
-détail** : les lignes d'une facture envoyée ou payée sont toujours
-inconsultables à l'écran — les modales sont réservées aux brouillons, et aucune
-page détail n'existe pour aucune entité. L'export `lignes-factures` permet de
-les lire dans un tableur, ce qui répond au besoin comptable mais pas au besoin
-de consultation courante.
+L'export CSV et les pages détail des trois documents de vente sont livrés.
+**Reste les fiches tiers** : ouvrir un client devrait montrer son encours, ses
+factures, ses BL et ses règlements — c'est de là qu'on relance un impayé. Rien
+de tel n'existe, et les `get(id)` de clients, fournisseurs, matières, dépenses
+et avoirs ne sont toujours appelés par personne.
 
-Symptôme connexe : les cinq `get(id)` de la couche API
-(clients, fournisseurs, matières, dépenses, avoirs) ne sont jamais appelés — un
-seul sujet, pas cinq.
+Manquent aussi les pages détail des documents d'achat (commande, réception,
+facture fournisseur) ; celle des factures fournisseurs a déjà une modale de
+consultation, les deux autres non.
 
 ### 2. Formats de numérotation
 

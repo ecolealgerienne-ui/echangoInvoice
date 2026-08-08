@@ -462,8 +462,33 @@ async function seedDemo() {
     const yy = String(new Date().getFullYear()).slice(-2);
     const pad = (n: number, width: number) => String(n).padStart(width, '0');
 
+    /**
+     * Recopie les lignes d'un document vers un autre.
+     *
+     * Un BL issu d'un devis porte les mêmes articles aux mêmes prix : sans
+     * cette recopie, le lien entre les deux documents serait un mensonge —
+     * la page détail afficherait « issu du devis DEV-26-050 » au-dessus
+     * d'articles qui n'y figurent pas.
+     *
+     * Disposition d'une ligne : [id, tenantId, parentId, productId, …].
+     */
+    const clonerLignes = (source: unknown[][], nouveauParent: string) =>
+      source.map((l) => [uuid(), tenantId, nouveauParent, ...l.slice(3)]);
+
+    const auPlusTard = (d: Date) => (d > new Date() ? new Date() : d);
+
     // ── Devis ─────────────────────────────────────────────────────────────────
-    const quoteRows: unknown[][] = [];
+    // Les devis ne sont pas insérés tout de suite : leur statut dépend de ce
+    // qu'ils deviennent. Un devis n'est « converti » que si un BL ou une
+    // facture en est réellement issu — c'est la règle qu'applique l'API, et la
+    // version précédente du seed la violait sur 74 devis.
+    type Devis = {
+      id: string; numero: string; customerId: string; date: Date;
+      subtotal: number; taxAmount: number; totalAmount: number;
+      lignes: unknown[][]; statut: string; notes: string | null;
+      versBl: string | null; versFacture: string | null;
+    };
+    const devis: Devis[] = [];
     const quoteItemRows: unknown[][] = [];
     const quoteWidth = Math.max(3, String(N.quotes).length);
 
@@ -474,25 +499,27 @@ async function seedDemo() {
       quoteItemRows.push(...rows);
 
       const age = Math.floor((Date.now() - d.getTime()) / 86400000);
-      const status = age > 45 ? pick(['expired', 'rejected', 'converted'] as const)
+      const statut = age > 45 ? pick(['expired', 'rejected', 'accepted'] as const)
         : pick(['draft', 'sent', 'sent', 'accepted', 'rejected'] as const);
 
-      quoteRows.push([
-        id, tenantId, `DEV-${yy}-${pad(i + 1, quoteWidth)}`, pick(customerIds),
-        isoDate(d), isoDate(addDays(d, 30)), status,
-        subtotal, taxAmount, totalAmount,
-        rnd() < 0.15 ? 'Offre valable 30 jours, franco de port au-delà de 50 000 DA' : null,
-        author, author, d, d,
-      ]);
+      devis.push({
+        id, numero: `DEV-${yy}-${pad(i + 1, quoteWidth)}`, customerId: pick(customerIds),
+        date: d, subtotal, taxAmount, totalAmount, lignes: rows, statut,
+        notes: rnd() < 0.15 ? 'Offre valable 30 jours, franco de port au-delà de 50 000 DA' : null,
+        versBl: null, versFacture: null,
+      });
     }
 
-    await insertBatch(qr, 'quotes', [
-      'id', 'tenantId', 'quoteNumber', 'customerId', 'quoteDate', 'expiryDate', 'status',
-      'subtotal', 'taxAmount', 'totalAmount', 'notes', 'createdBy', 'updatedBy',
-      'createdAt', 'updatedAt',
-    ], quoteRows);
-    await insertBatch(qr, 'quote_items', itemCols('quoteId'), quoteItemRows);
-    console.log(`Devis     : ${quoteRows.length} (${quoteItemRows.length} lignes)`);
+    // Vivier des devis qui peuvent donner une suite : seul un devis accepté se
+    // transforme, l'API refuse les autres.
+    //
+    // Le vivier est PARTAGÉ entre les deux débouchés, sinon les BL le vident
+    // et plus aucune facture ne descend directement d'un devis — c'est ce qui
+    // s'est produit au premier essai : 113 BL issus d'un devis, 0 facture.
+    const devisAcceptes = devis.filter((q) => q.statut === 'accepted').sort(() => rnd() - 0.5);
+    const coupure = Math.floor(devisAcceptes.length * 0.7);
+    const devisPourBl = devisAcceptes.slice(0, coupure);
+    const devisPourFacture = devisAcceptes.slice(coupure);
 
     // ── Bons de livraison ─────────────────────────────────────────────────────
     const dnRows: unknown[][] = [];
@@ -503,14 +530,37 @@ async function seedDemo() {
     // Ils servent à dimensionner les achats, puis à consommer les lots en FIFO.
     const sorties: Array<{ dnId: string; lignes: Array<{ productId: string; quantity: number }> }> = [];
 
+    // Un BL sur quatre prolonge un devis accepté : c'est le parcours que vend
+    // le produit, et sans lui la colonne « Origine » des écrans reste vide.
+    type Bl = {
+      id: string; numero: string; customerId: string; date: Date;
+      totalAmount: number; statut: string; versFacture: string | null;
+    };
+    const bls: Bl[] = [];
+
     for (let i = 0; i < N.deliveryNotes; i++) {
       const id = uuid();
-      const d = dateInWindow();
-      const { rows, subtotal, taxAmount, totalAmount } = buildLines(id, 'deliveryNoteId');
+      const source = rnd() < 0.25 ? devisPourBl.find((q) => !q.versBl) : undefined;
+
+      // Un BL ne peut pas précéder le devis dont il découle.
+      const d = source ? auPlusTard(addDays(source.date, ri(1, 12))) : dateInWindow();
+      const { rows, subtotal, taxAmount, totalAmount } = source
+        ? {
+            rows: clonerLignes(source.lignes, id),
+            subtotal: source.subtotal,
+            taxAmount: source.taxAmount,
+            totalAmount: source.totalAmount,
+          }
+        : buildLines(id, 'deliveryNoteId');
       dnItemRows.push(...rows);
 
       const status = pick(['delivered', 'delivered', 'delivered', 'signed', 'sent', 'draft', 'cancelled'] as const);
       const signe = status === 'signed' || status === 'delivered';
+
+      if (source) {
+        source.versBl = id;
+        source.statut = 'converted';
+      }
 
       if (status === 'delivered' || status === 'signed') {
         sorties.push({
@@ -520,23 +570,50 @@ async function seedDemo() {
         });
       }
 
+      // Un seul tirage du client : deux appels à pick() donneraient au BL un
+      // client différent de celui enregistré en mémoire pour la suite.
+      const clientId = source ? source.customerId : pick(customerIds);
+      const numero = `BL-${yy}-${pad(i + 1, dnWidth)}`;
+
+      bls.push({
+        id, numero, customerId: clientId,
+        date: d, totalAmount, statut: status, versFacture: null,
+      });
+
       dnRows.push([
-        id, tenantId, `BL-${yy}-${pad(i + 1, dnWidth)}`, pick(customerIds),
+        id, tenantId, numero, clientId,
         isoDate(d), status, subtotal, taxAmount, totalAmount,
         signe && rnd() < 0.5 ? `${pick(PRENOMS)} ${pick(NOMS)}` : null,
         signe ? isoDate(d) : null,
         rnd() < 0.12 ? pick(['Livraison partielle', 'Camion frigo n° 3', 'Réception par le chef de dépôt']) : null,
+        source?.id ?? null,
         author, author, d, d,
       ]);
     }
 
+    // Les devis sont insérés maintenant : leur statut est arrêté, et la clé
+    // étrangère delivery_notes.quoteId exige qu'ils existent d'abord.
+    await insertBatch(qr, 'quotes', [
+      'id', 'tenantId', 'quoteNumber', 'customerId', 'quoteDate', 'expiryDate', 'status',
+      'subtotal', 'taxAmount', 'totalAmount', 'notes', 'convertedToDeliveryNoteId',
+      'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+    ], devis.map((q) => [
+      q.id, tenantId, q.numero, q.customerId, isoDate(q.date), isoDate(addDays(q.date, 30)),
+      q.statut, q.subtotal, q.taxAmount, q.totalAmount, q.notes, q.versBl,
+      author, author, q.date, q.date,
+    ]));
+    await insertBatch(qr, 'quote_items', itemCols('quoteId'), quoteItemRows);
+    console.log(`Devis     : ${devis.length} (${quoteItemRows.length} lignes, `
+      + `${devis.filter((q) => q.versBl).length} convertis en BL)`);
+
     await insertBatch(qr, 'delivery_notes', [
       'id', 'tenantId', 'blNumber', 'customerId', 'deliveryDate', 'status',
       'subtotal', 'taxAmount', 'total', 'customerSignature', 'signedDate', 'notes',
-      'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+      'quoteId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
     ], dnRows);
     await insertBatch(qr, 'delivery_note_items', itemCols('deliveryNoteId'), dnItemRows);
-    console.log(`BL        : ${dnRows.length} (${dnItemRows.length} lignes)`);
+    console.log(`BL        : ${dnRows.length} (${dnItemRows.length} lignes, `
+      + `${dnRows.filter((r) => r[12]).length} issus d'un devis)`);
 
     // ── Achats : commandes, réceptions, lots ──────────────────────────────────
     // Le seed ne créait ni commande, ni réception, ni lot : tout le cycle achat
@@ -943,20 +1020,65 @@ async function seedDemo() {
     type Inv = {
       id: string; number: string; customerId: string; date: Date; due: Date;
       subtotal: number; taxAmount: number; totalAmount: number;
+      blId: string | null; devisId: string | null;
     };
     const invoices: Inv[] = [];
     const invItemRows: unknown[][] = [];
     const invWidth = Math.max(3, String(N.invoices).length);
 
+    // Un BL livré ou signé se facture ; un devis accepté peut être facturé
+    // directement, sans passer par un BL. Les deux parcours existent dans
+    // l'application, les deux doivent exister dans la démonstration.
+    const blsFacturables = bls
+      .filter((b) => b.statut === 'delivered' || b.statut === 'signed')
+      .sort(() => rnd() - 0.5);
+    let curseurBl = 0;
+
     for (let i = 0; i < N.invoices; i++) {
       const id = uuid();
-      const d = dateInWindow();
-      const { rows, subtotal, taxAmount, totalAmount } = buildLines(id, 'salesInvoiceId');
+
+      const depuisBl = rnd() < 0.3 && curseurBl < blsFacturables.length
+        ? blsFacturables[curseurBl++]
+        : undefined;
+      const depuisDevis = !depuisBl && rnd() < 0.4
+        ? devisPourFacture.find((q) => !q.versFacture)
+        : undefined;
+
+      const sourceLignes = depuisBl
+        ? dnItemRows.filter((l) => l[2] === depuisBl.id)
+        : depuisDevis?.lignes;
+
+      const d = depuisBl ? auPlusTard(addDays(depuisBl.date, ri(0, 7)))
+        : depuisDevis ? auPlusTard(addDays(depuisDevis.date, ri(1, 15)))
+        : dateInWindow();
+
+      const { rows, subtotal, taxAmount, totalAmount } = sourceLignes
+        ? {
+            rows: clonerLignes(sourceLignes, id),
+            // Les totaux sont recopiés de la source : les recalculer ferait
+            // apparaître un écart d'arrondi entre le BL et sa facture, que
+            // personne ne saurait expliquer.
+            subtotal: depuisBl
+              ? Number(dnRows.find((r) => r[0] === depuisBl.id)![6])
+              : depuisDevis!.subtotal,
+            taxAmount: depuisBl
+              ? Number(dnRows.find((r) => r[0] === depuisBl.id)![7])
+              : depuisDevis!.taxAmount,
+            totalAmount: depuisBl ? depuisBl.totalAmount : depuisDevis!.totalAmount,
+          }
+        : buildLines(id, 'salesInvoiceId');
+
       invItemRows.push(...rows);
+
+      if (depuisBl) depuisBl.versFacture = id;
+      if (depuisDevis) { depuisDevis.versFacture = id; depuisDevis.statut = 'converted'; }
+
       invoices.push({
-        id, number: `FAC-${yy}-${pad(i + 1, invWidth)}`, customerId: pick(customerIds),
+        id, number: `FAC-${yy}-${pad(i + 1, invWidth)}`,
+        customerId: depuisBl?.customerId ?? depuisDevis?.customerId ?? pick(customerIds),
         date: d, due: addDays(d, pick([15, 30, 30, 45, 60])),
         subtotal, taxAmount, totalAmount,
+        blId: depuisBl?.id ?? null, devisId: depuisDevis?.id ?? null,
       });
     }
 
@@ -1075,6 +1197,7 @@ async function seedDemo() {
         inv.id, tenantId, inv.number, inv.customerId, inv.date, isoDate(inv.due), status,
         inv.subtotal, inv.taxAmount, inv.totalAmount, amountPaid, creditedAmount, amountDue,
         rnd() < 0.1 ? 'Facture émise au titre du contrat annuel' : null,
+        inv.blId, inv.devisId,
         author, author, inv.date, inv.date,
       ];
     });
@@ -1082,10 +1205,33 @@ async function seedDemo() {
     await insertBatch(qr, 'sales_invoices', [
       'id', 'tenantId', 'invoiceNumber', 'customerId', 'invoiceDate', 'dueDate', 'status',
       'subtotal', 'taxAmount', 'totalAmount', 'amountPaid', 'creditedAmount', 'amountDue', 'notes',
+      'deliveryNoteId', 'quoteId',
       'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
     ], invRows);
     await insertBatch(qr, 'sales_invoice_items', itemCols('salesInvoiceId'), invItemRows);
-    console.log(`Factures  : ${invRows.length} (${invItemRows.length} lignes)`);
+
+    // Le retour BL → facture et devis → facture ne peut être posé qu'ici : les
+    // deux tables se référencent mutuellement, l'une des deux flèches doit
+    // forcément attendre. L'API procède exactement ainsi lorsqu'elle facture
+    // un BL.
+    const versFacture = invoices.filter((inv) => inv.blId);
+    for (const inv of versFacture) {
+      await qr.query(
+        `UPDATE delivery_notes SET "convertedToInvoiceId" = $1 WHERE id = $2 AND "tenantId" = $3`,
+        [inv.id, inv.blId, tenantId],
+      );
+    }
+    const devisFactures = invoices.filter((inv) => inv.devisId);
+    for (const inv of devisFactures) {
+      await qr.query(
+        `UPDATE quotes SET "convertedToInvoiceId" = $1, status = 'converted'
+         WHERE id = $2 AND "tenantId" = $3`,
+        [inv.id, inv.devisId, tenantId],
+      );
+    }
+
+    console.log(`Factures  : ${invRows.length} (${invItemRows.length} lignes, `
+      + `${versFacture.length} issues d'un BL, ${devisFactures.length} d'un devis)`);
 
     await insertBatch(qr, 'payments', [
       'id', 'tenantId', 'salesInvoiceId', 'amount', 'paymentDate', 'paymentMethod',
@@ -1171,6 +1317,69 @@ async function seedDemo() {
                 AND NOT EXISTS (
                   SELECT 1 FROM sales_invoice_items it WHERE it."salesInvoiceId" = i.id
                 )`,
+      },
+
+      // ── Chaîne devis → BL → facture ──────────────────────────────────────
+      // La version précédente du seed produisait 74 devis « convertis » qui ne
+      // pointaient vers rien, et pas une seule facture rattachée à son BL.
+      {
+        label: 'Chaîne : un devis converti a une suite',
+        sql: `SELECT count(*)::int AS n FROM quotes
+              WHERE "tenantId" = $1 AND status = 'converted'
+                AND "convertedToInvoiceId" IS NULL
+                AND "convertedToDeliveryNoteId" IS NULL`,
+      },
+      {
+        label: 'Chaîne : un devis avec une suite est au statut converti',
+        sql: `SELECT count(*)::int AS n FROM quotes
+              WHERE "tenantId" = $1 AND status <> 'converted'
+                AND ("convertedToInvoiceId" IS NOT NULL
+                     OR "convertedToDeliveryNoteId" IS NOT NULL)`,
+      },
+      {
+        label: 'Chaîne : la facture et son BL portent le même client',
+        sql: `SELECT count(*)::int AS n FROM sales_invoices i
+              JOIN delivery_notes bl ON bl.id = i."deliveryNoteId"
+              WHERE i."tenantId" = $1 AND i."customerId" <> bl."customerId"`,
+      },
+      {
+        label: 'Chaîne : le BL et son devis portent le même client',
+        sql: `SELECT count(*)::int AS n FROM delivery_notes bl
+              JOIN quotes q ON q.id = bl."quoteId"
+              WHERE bl."tenantId" = $1 AND bl."customerId" <> q."customerId"`,
+      },
+      {
+        label: 'Chaîne : la facture et son BL portent le même total',
+        sql: `SELECT count(*)::int AS n FROM sales_invoices i
+              JOIN delivery_notes bl ON bl.id = i."deliveryNoteId"
+              WHERE i."tenantId" = $1
+                AND abs(i."totalAmount" - bl."total") > 0.01`,
+      },
+      {
+        label: 'Chaîne : le retour BL → facture est réciproque',
+        sql: `SELECT count(*)::int AS n FROM sales_invoices i
+              JOIN delivery_notes bl ON bl.id = i."deliveryNoteId"
+              WHERE i."tenantId" = $1 AND bl."convertedToInvoiceId" IS DISTINCT FROM i.id`,
+      },
+      {
+        label: 'Chaîne : un document ne précède pas celui dont il découle',
+        sql: `SELECT count(*)::int AS n FROM sales_invoices i
+              JOIN delivery_notes bl ON bl.id = i."deliveryNoteId"
+              WHERE i."tenantId" = $1 AND i."invoiceDate"::date < bl."deliveryDate"`,
+      },
+      {
+        label: 'Chaîne : un BL n\'est facturé qu\'une fois',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT "deliveryNoteId" FROM sales_invoices
+                WHERE "tenantId" = $1 AND "deliveryNoteId" IS NOT NULL
+                GROUP BY "deliveryNoteId" HAVING count(*) > 1
+              ) x`,
+      },
+      {
+        label: 'Chaîne : au moins une facture est issue d\'un BL',
+        sql: `SELECT CASE WHEN count(*) > 0 THEN 0 ELSE 1 END::int AS n
+              FROM sales_invoices
+              WHERE "tenantId" = $1 AND "deliveryNoteId" IS NOT NULL`,
       },
       {
         label: 'Paiements : somme par facture = amountPaid',
