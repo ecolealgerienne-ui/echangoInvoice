@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt, Mail, PenLine } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
 import { useSort } from '@/hooks/useSort';
 import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
@@ -105,7 +107,23 @@ export function DeliveryNotesPage() {
       items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }],
     },
   });
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, update } = useFieldArray({ control, name: 'items' });
+
+  // Saisie par douchette, active seulement quand la modale est ouverte.
+  const scan = useScanLignes({
+    actif: modalOpen,
+    lignes: (watchDN('items') ?? []) as any[],
+    ajouter: (l) => append(l as any),
+    remplacer: (i, l) => update(i, l as any),
+    majQuantite: (i, q) => setDNValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      finishedProductId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || 'unité',
+      unitPrice: Number(produit.defaultSalesPrice ?? 0),
+      taxRate1: String(defaultTaxRate),
+    }) as any,
+  });
 
   const { priceFor, priceListName } = useCustomerPrices(watchDN('customerId'));
 
@@ -417,6 +435,7 @@ export function DeliveryNotesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
+              <BandeauScan onScan={scan.traiter} enCours={scan.enCours} dernier={scan.dernier} />
               <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any })}>
                 <Plus className="h-3 w-3" />
               </Button>

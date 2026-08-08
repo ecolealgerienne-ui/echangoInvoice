@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw, Mail, History } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
 import { useSort } from '@/hooks/useSort';
 import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
@@ -121,7 +123,26 @@ export function InvoicesPage() {
     resolver: zodResolver(schema),
     defaultValues: { invoiceDate: today, dueDate: inN, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }] },
   });
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, update } = useFieldArray({ control, name: 'items' });
+
+  // Saisie par douchette. Active seulement quand la modale est ouverte : sinon
+  // le lecteur écrirait dans le vide depuis n'importe quel écran.
+  const lignesCourantes = watchInv('items') ?? [];
+  const scan = useScanLignes({
+    actif: modalOpen,
+    lignes: lignesCourantes as any[],
+    ajouter: (l) => append(l as any),
+    remplacer: (i, l) => update(i, l as any),
+    majQuantite: (i, q) => setInvValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      finishedProductId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || 'unité',
+      // Même règle que la sélection manuelle : grille du client si elle existe.
+      unitPrice: priceFor(produit as any) ?? Number(produit.defaultSalesPrice ?? 0),
+      taxRate1: String(defaultTaxRate),
+    }) as any,
+  });
 
   // Grille tarifaire du client sélectionné : le prix proposé à chaque ligne
   // en dépend, il doit donc suivre le changement de client.
@@ -459,6 +480,7 @@ export function InvoicesPage() {
           </div>
 
           <div className="space-y-2">
+            <BandeauScan onScan={scan.traiter} enCours={scan.enCours} dernier={scan.dernier} />
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
               <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any })}>

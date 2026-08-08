@@ -41,6 +41,19 @@ export class SearchService {
     if (q.length < 2) return { data: [] };
     const motif = `%${q}%`;
 
+    // Un scan arrive ici comme n'importe quelle saisie. S'il correspond
+    // exactement à un code-barres, l'article visé passe en tête : c'est la
+    // seule réponse attendue quand on a passé une douchette.
+    const parScan: any[] = await this.ds.query(
+      `SELECT p.id, p.name, p.code, cb.barcode
+       FROM product_barcodes cb
+       JOIN finished_products p ON p.id = cb."finishedProductId"
+       WHERE cb."tenantId" = $1 AND cb.barcode = $2
+         AND cb."deletedAt" IS NULL AND p."deletedAt" IS NULL
+       LIMIT 1`,
+      [tenantId, q.replace(/[\s-]/g, '')],
+    );
+
     const [clients, fournisseurs, produits, factures, devis, bl, commandes, facturesF, avoirs] =
       await Promise.all([
         this.ds.query(
@@ -97,9 +110,13 @@ export class SearchService {
       ]);
 
     const data: Resultat[] = [
+      ...parScan.map((r: any) =>
+        this.ligne('product', r.id, r.name, r.barcode, `/products/${r.id}`, null)),
       ...clients.map((r: any) => this.ligne('customer', r.id, r.name, r.city ?? r.nif, `/customers/${r.id}`, null)),
       ...fournisseurs.map((r: any) => this.ligne('supplier', r.id, r.name, r.city ?? r.nif, `/suppliers/${r.id}`, null)),
-      ...produits.map((r: any) => this.ligne('product', r.id, r.name, r.code, `/products/${r.id}`, r.unit)),
+      ...produits
+        .filter((r: any) => !parScan.some((p: any) => p.id === r.id))
+        .map((r: any) => this.ligne('product', r.id, r.name, r.code, `/products/${r.id}`, r.unit)),
       ...factures.map((r: any) => this.ligne('invoice', r.id, r.invoiceNumber, r.client, `/invoices/${r.id}`, r.totalAmount)),
       ...devis.map((r: any) => this.ligne('quote', r.id, r.quoteNumber, r.client, `/quotes/${r.id}`, r.totalAmount)),
       ...bl.map((r: any) => this.ligne('deliveryNote', r.id, r.blNumber, r.client, `/deliveries/${r.id}`, r.total)),

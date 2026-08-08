@@ -16,6 +16,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
 import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
@@ -139,7 +141,26 @@ export function PurchasesPage() {
     resolver: zodResolver(poSchema),
     defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 }] },
   });
-  const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
+  const { fields: poFields, append: poAppend, remove: poRemove, update: poUpdate } =
+    useFieldArray({ control: poForm.control, name: 'items' });
+
+  // Saisie par douchette sur la commande d'achat. Le prix proposé est le coût
+  // d'achat connu, pas le prix de vente : on achète, on ne vend pas.
+  const scanPo = useScanLignes({
+    actif: poModalOpen,
+    cleProduit: 'rawMaterialId',
+    lignes: (poForm.watch('items') ?? []) as any[],
+    ajouter: (l) => poAppend(l as any),
+    remplacer: (i, l) => poUpdate(i, l as any),
+    majQuantite: (i, q) => poForm.setValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      rawMaterialId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || '',
+      unitPrice: Number(produit.lastCostPerUnit ?? 0),
+      taxRate: 0,
+    }) as any,
+  });
 
   const createPoMutation = useMutation({
     mutationFn: (d: PoFormData) => purchasesApi.createOrder(d),
@@ -512,6 +533,7 @@ export function PurchasesPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
+              <BandeauScan onScan={scanPo.traiter} enCours={scanPo.enCours} dernier={scanPo.dernier} />
               <Button type="button" size="sm" variant="outline"
                 onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}

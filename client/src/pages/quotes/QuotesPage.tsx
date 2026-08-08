@@ -19,6 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
 import { useSort } from '@/hooks/useSort';
 import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
@@ -110,7 +112,23 @@ export function QuotesPage() {
 
   const { priceFor, priceListName } = useCustomerPrices(watchQ('customerId'));
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, update } = useFieldArray({ control, name: 'items' });
+
+  // Saisie par douchette, active seulement quand la modale est ouverte.
+  const scan = useScanLignes({
+    actif: modalOpen,
+    lignes: (watchQ('items') ?? []) as any[],
+    ajouter: (l) => append(l as any),
+    remplacer: (i, l) => update(i, l as any),
+    majQuantite: (i, q) => setQValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      finishedProductId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || 'unité',
+      unitPrice: Number(produit.defaultSalesPrice ?? 0),
+      taxRate1: defaultTaxRate,
+    }) as any,
+  });
 
   const createMutation = useMutation({
     mutationFn: (d: FormData) => editing ? quotesApi.update(editing.id, d) : quotesApi.create(d),
@@ -396,6 +414,7 @@ export function QuotesPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
+              <BandeauScan onScan={scan.traiter} enCours={scan.enCours} dernier={scan.dernier} />
               <Button type="button" size="sm" variant="outline"
                 onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}

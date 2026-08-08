@@ -947,5 +947,12 @@
       "vendorBill": "Facture fourn.",
       "creditNote": "Avoir"
     }
+  },
+  "scan": {
+    "placeholder": "Scanner ou saisir un code…",
+    "ajouter": "Ajouter",
+    "aide": "Douchette prête — scannez un article.",
+    "dernier": "Dernier : {{produit}}",
+    "inconnu": "Aucun article pour le code {{code}}."
   }
 }
