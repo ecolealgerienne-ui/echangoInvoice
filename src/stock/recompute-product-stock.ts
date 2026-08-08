@@ -129,7 +129,16 @@ export async function consumeStockFifo(
   }
 
   if (reste > 0) {
-    return `Stock insuffisant pour le produit ${productId} : ${reste} unité(s) sortie(s) sans lot correspondant`;
+    // L'avertissement remonte jusqu'à l'écran : il doit nommer l'article.
+    // La version précédente affichait son identifiant technique, ce qui
+    // obligeait l'utilisateur à deviner de quel produit on lui parlait.
+    const [article] = await qr.query(
+      `SELECT name, unit FROM finished_products WHERE id = $1 AND "tenantId" = $2`,
+      [productId, tenantId],
+    );
+    const nom = article?.name ?? productId;
+    const unite = article?.unit ? ` ${article.unit}` : '';
+    return `Stock insuffisant pour « ${nom} » : ${reste}${unite} sorti(s) sans lot correspondant.`;
   }
   return null;
 }

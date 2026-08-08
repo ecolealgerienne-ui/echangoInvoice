@@ -155,8 +155,9 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
       api.put(`/deliveries/delivery-notes/${id}`, body).then((r) => r.data),
     updateStatus: (id: string, body: unknown) =>
       api.patch(`/deliveries/delivery-notes/${id}/status`, body).then((r) => r.data),
-    cancel: (id: string) =>
-      api.patch(`/deliveries/delivery-notes/${id}/cancel`).then((r) => r.data),
+    // Pas de `cancel` : la route /cancel n'existe pas côté serveur — la
+    // fonction rendait 404. L'annulation passe par updateStatus, qui délègue
+    // à la même méthode de service et restaure le stock.
     remove: (id: string) => api.delete(`/deliveries/delivery-notes/${id}`).then((r) => r.data),
     pdf: (id: string) =>
       api.get(`/deliveries/delivery-notes/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),

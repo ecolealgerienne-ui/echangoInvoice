@@ -63,6 +63,7 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | *(2026-08-08, suite)* | Détail commande, réception et facture fournisseur |
 | *(2026-08-08, suite)* | Numérotation configurable : 8 formats, compteurs dédiés |
 | *(2026-08-08, suite)* | Documents PDF : identification de l'émetteur, gabarit commun |
+| *(2026-08-08, suite)* | Stock : réservé / disponible / entrant, survente nommée |
 
 Migrations ajoutées : `1750022000000` (creditedAmount), `1750023000000`
 (price_lists), `1750024000000` (document_counters + 4 formats de
@@ -96,13 +97,12 @@ logo, choisir les colonnes du tableau, et un gabarit par type de document.
 Aucun de ces trois points n'a été demandé par un utilisateur — à ne prendre
 que si le besoin se manifeste.
 
-### 1. La barre Erplain sur le stock — *le prochain à prendre*
+**Le stock distingue physique / réservé / disponible / entrant**
+(`src/stock/stock-availability.ts`, calculé et non stocké — ne pas y
+réintroduire de colonne compteur). Restent hors périmètre : la réception
+partielle et le multi-dépôt, deux chantiers de structure que rien n'a réclamés.
 
-Pas de distinction réservé / disponible / entrant — donc **on peut survendre**.
-`reservedQuantity` existe mais seule la production s'en sert : une commande
-client ne réserve rien. Ni réception partielle, ni multi-dépôt.
-
-### 2. Portail client
+### 1. Portail client — *le prochain à prendre*
 
 Chantier lourd, valeur incertaine pour une PME algérienne. À ne pas prendre
 avant le reste.

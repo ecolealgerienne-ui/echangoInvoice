@@ -51,9 +51,15 @@ export function StockPage() {
   // Produit dont les lots sont dépliés. Un seul à la fois : les lots ne sont
   // chargés qu'à l'ouverture, pas pour toute la page.
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  // « quantity » désigne le DISPONIBLE : c'est ce que la colonne affichait
+  // déjà, sous un intitulé qui ne le disait pas. La clé est conservée pour ne
+  // pas réinitialiser les préférences enregistrées dans le navigateur.
+  const { visible, toggle, col } = useColumnVisibility<
+    'name' | 'physical' | 'reserved' | 'quantity' | 'incoming'
+    | 'value' | 'expiryAlert' | 'lowStockAlert' | 'expiry'
+  >(
     'stock_visible_columns',
-    ['name', 'quantity', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
+    ['name', 'reserved', 'quantity', 'incoming', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
   );
 
   const { data: invData, isLoading: invLoading } = useQuery({
@@ -155,7 +161,10 @@ export function StockPage() {
               <ColumnToggleMenu
                 columns={[
                   { key: 'name', label: t('rawMaterials.name') },
-                  { key: 'quantity', label: t('stock.quantity') },
+                  { key: 'physical', label: t('stock.physical') },
+                  { key: 'reserved', label: t('stock.reserved') },
+                  { key: 'quantity', label: t('stock.available') },
+                  { key: 'incoming', label: t('stock.incoming') },
                   { key: 'value', label: t('stock.value') },
                   { key: 'expiryAlert', label: t('stock.expiryAlert') },
                   { key: 'lowStockAlert', label: t('stock.lowStockAlert') },
@@ -170,7 +179,10 @@ export function StockPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('rawMaterials.name')}</th>}
-                    {col('quantity') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.quantity')}</th>}
+                    {col('physical') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.physical')}</th>}
+                    {col('reserved') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.reserved')}</th>}
+                    {col('quantity') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.available')}</th>}
+                    {col('incoming') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.incoming')}</th>}
                     {col('value') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.value')}</th>}
                     {col('expiryAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>}
                     {col('lowStockAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>}
@@ -199,7 +211,20 @@ export function StockPage() {
                         </button>
                         <span className="text-muted-foreground ml-1 text-xs">({item.unit})</span>
                       </td>}
-                      {col('quantity') && <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>}
+                      {col('physical') && <td className="px-4 py-3 text-right text-muted-foreground">{formatNumber(item.physicalQuantity)}</td>}
+                      {/* Le réservé n'est pas neutre : c'est de la marchandise
+                          présente mais déjà promise. */}
+                      {col('reserved') && <td className="px-4 py-3 text-right">
+                        {item.reservedQuantity > 0
+                          ? <span className="text-warning-foreground font-medium">{formatNumber(item.reservedQuantity)}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>}
+                      {col('quantity') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatNumber(item.availableQuantity)}</td>}
+                      {col('incoming') && <td className="px-4 py-3 text-right">
+                        {item.incomingQuantity > 0
+                          ? <span className="text-primary">+{formatNumber(item.incomingQuantity)}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>}
                       {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
                       {col('expiryAlert') && <td className="px-4 py-3 text-center">
                         {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}

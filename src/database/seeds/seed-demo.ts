@@ -564,7 +564,12 @@ async function seedDemo() {
         source.statut = 'converted';
       }
 
-      if (status === 'delivered' || status === 'signed') {
+      // Tout BL non annulé consomme ses lots, y compris en brouillon : c'est
+      // ce que fait `DeliveriesService.create`, dès la création. Le seed ne
+      // sortait que les BL livrés ou signés, si bien que la démonstration
+      // n'affichait aucune réservation — un état que l'application ne sait
+      // pas produire.
+      if (status !== 'cancelled') {
         sorties.push({
           dnId: id,
           // rows suit itemCols : [id, tenantId, parentId, productId, quantity, ...]
@@ -1674,6 +1679,45 @@ async function seedDemo() {
                 SELECT "billNumber" FROM vendor_bills
                 WHERE "tenantId" = $1
                 GROUP BY "billNumber" HAVING count(*) > 1
+              ) x`,
+      },
+      {
+        // Un BL annulé ne doit retenir aucun lot : sa marchandise est
+        // retournée au stock, et la compter comme réservée la rendrait
+        // invendable pour toujours.
+        label: 'Stock : aucun lot retenu par un BL annulé',
+        sql: `SELECT count(*)::int AS n
+              FROM stock_entries se
+              JOIN delivery_notes bl ON bl.id = se."reservedByDeliveryNoteId"
+              WHERE se."tenantId" = $1 AND bl.status = 'cancelled'`,
+      },
+      {
+        // Le disponible ne peut pas être négatif dans un jeu cohérent : s'il
+        // l'était, c'est que le seed aurait promis plus qu'il n'a acheté.
+        label: 'Stock : aucun disponible négatif',
+        sql: `SELECT count(*)::int AS n FROM finished_products
+              WHERE "tenantId" = $1 AND "deletedAt" IS NULL
+                AND ("stockQuantity" - "reservedQuantity") < -0.01`,
+      },
+      {
+        // Ce qu'un BL non livré retient en lots doit correspondre à ce qu'il
+        // porte en lignes : sinon la réserve affichée ne veut rien dire.
+        label: 'Stock : la réserve d\'un BL correspond à ses lignes',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT bl.id
+                FROM delivery_notes bl
+                JOIN LATERAL (
+                  SELECT COALESCE(SUM(quantity), 0) AS q FROM delivery_note_items
+                  WHERE "deliveryNoteId" = bl.id
+                ) lignes ON TRUE
+                JOIN LATERAL (
+                  SELECT COALESCE(SUM(quantity), 0) AS q FROM stock_entries
+                  WHERE "reservedByDeliveryNoteId" = bl.id AND status = 'sold'
+                    AND "deletedAt" IS NULL
+                ) lots ON TRUE
+                WHERE bl."tenantId" = $1 AND bl."deletedAt" IS NULL
+                  AND bl.status IN ('draft', 'sent')
+                  AND abs(lignes.q - lots.q) > 0.01
               ) x`,
       },
       {
