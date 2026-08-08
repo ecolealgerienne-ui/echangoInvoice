@@ -12,4 +12,7 @@ export { cn, formatDate, formatCurrency, formatNumber, currentMonth } from './ut
 
 export { rules, validate } from './validation';
 
-export { createI18n, fr } from './i18n';
+export {
+  createI18n, fr, ar, LANGUES, SENS,
+  langueInitiale, memoriserLangue, type Langue,
+} from './i18n';

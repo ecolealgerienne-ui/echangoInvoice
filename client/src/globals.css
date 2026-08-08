@@ -34,3 +34,42 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; font-family: 'Inter', system-ui, sans-serif; }
 }
+
+
+/* ─── Écriture de droite à gauche ────────────────────────────────────────
+ *
+ * L'interface est écrite avec les utilitaires physiques de Tailwind — `ml-`,
+ * `text-left`, `left-3`. Les réécrire un par un en propriétés logiques
+ * toucherait une quarantaine de fichiers pour un gain invisible en français.
+ * Ces règles inversent donc les plus fréquents quand `dir="rtl"`, ce qui donne
+ * une mise en page cohérente sans réécriture.
+ *
+ * Limite assumée : les cas non listés ici restent orientés à gauche. Ils se
+ * repèrent à l'œil, une capture d'écran en arabe suffit à les trouver.
+ */
+
+[dir="rtl"] .text-left  { text-align: right; }
+[dir="rtl"] .text-right { text-align: left; }
+
+/* Marges et espacements horizontaux les plus utilisés. */
+[dir="rtl"] .ml-auto { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .mr-auto { margin-right: 0; margin-left: auto; }
+[dir="rtl"] .ml-2 { margin-left: 0; margin-right: 0.5rem; }
+[dir="rtl"] .mr-2 { margin-right: 0; margin-left: 0.5rem; }
+[dir="rtl"] .pl-9 { padding-left: 0.75rem; padding-right: 2.25rem; }
+[dir="rtl"] .pl-3 { padding-left: 0; padding-right: 0.75rem; }
+[dir="rtl"] .pr-3 { padding-right: 0; padding-left: 0.75rem; }
+
+/* Icônes posées en absolu dans les champs de recherche. */
+[dir="rtl"] .left-3  { left: auto; right: 0.75rem; }
+[dir="rtl"] .right-3 { right: auto; left: 0.75rem; }
+
+/* La barre latérale change de côté avec le sens de lecture. */
+[dir="rtl"] aside.border-r { border-right: 0; border-left-width: 1px; }
+
+/* Les listes gardent leur puce du bon côté. */
+[dir="rtl"] ul, [dir="rtl"] ol { padding-left: 0; padding-right: 1.5rem; }
+
+/* Les montants restent lisibles : les chiffres ne s'inversent pas, seul leur
+ * alignement suit le sens du texte. */
+[dir="rtl"] .tabular-nums { direction: ltr; display: inline-block; }

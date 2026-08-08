@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { RechercheGlobale } from './RechercheGlobale';
+import { SelecteurLangue } from './SelecteurLangue';
 import { stockApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -28,6 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-background shrink-0">
           <RechercheGlobale />
+          <div className="flex items-center gap-3">
+          <SelecteurLangue />
           <button
             onClick={() => navigate('/stock?tab=alerts')}
             className="relative p-2 rounded-md hover:bg-muted transition-colors"
@@ -40,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
             )}
           </button>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto max-w-7xl px-6 py-6">{children}</div>
