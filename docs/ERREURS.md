@@ -609,3 +609,75 @@ Partis pris de rendu, tirés de ce que font les tableaux de bord financiers :
 Densité revue dans la foulée — 325 cellules et 220 en-têtes de colonne : lignes
 ramenées de 48 à 40 px, en-têtes en petites capitales grises. La hiérarchie
 vient du poids et de l'espace, la couleur reste réservée à l'état.
+
+
+---
+
+## E015 — Une marge brute qui n'en était pas une
+
+**Date :** 2026-08-08 · **Gravité :** critique · **Statut :** corrigé
+
+Le tableau de bord annonçait **96,83 % de marge brute** pour un grossiste en
+surgelés. La formule, à `dashboard.service.ts:197` :
+
+```ts
+const grossMargin = totalRevenue - totalPurchaseCost;   // achats REÇUS sur la période
+```
+
+Ce n'est pas une marge brute. C'est le chiffre d'affaires moins les **dépenses
+d'approvisionnement de la période** — une trésorerie, pas un résultat.
+
+| Mois | Ce que la formule affichait |
+|---|---|
+| Ventes sur stock, peu de réassort | marge proche de 100 % |
+| Gros réapprovisionnement | marge **négative** |
+
+Les deux étaient faux, et le résultat net, qui en dérivait, était **surestimé
+d'un facteur cinq** : 16,4 M au lieu de 4,5 M.
+
+### Ce qui rend ce défaut particulier
+
+Rien ne plantait. La requête était juste, le code propre, les tests verts. C'est
+la **définition** qui était fausse. Aucun contrôle de forme ne pouvait le voir —
+il n'y a pas de faute de syntaxe dans une soustraction qui soustrait la mauvaise
+chose.
+
+> Trois passes de revue de design sont passées sur cet écran sans voir que le
+> chiffre le plus visible était faux. On regardait comment il était présenté.
+
+Le signalement est venu d'une relecture extérieure, à l'œil : « 96,83 % de marge
+brute pour de l'alimentaire, c'est extrêmement inhabituel ». C'est l'ordre de
+grandeur qui a alerté, pas le code.
+
+### La cause profonde
+
+Les lignes de facture ne portaient **aucun coût**. La marge ne pouvait donc se
+calculer qu'à partir du coût moyen courant de l'article — qui bouge à chaque
+réception. La marge d'une facture de janvier changeait en mars.
+
+Le correctif traite les deux niveaux :
+
+1. **`unitCost` figé sur la ligne** à l'émission (migration
+   `1750034000000`, remplissage rétroactif au coût moyen actuel). Une facture
+   émise ne bouge plus, ni son montant ni sa marge. Les trois chemins de
+   création — saisie, bon de livraison, devis — passent par un même
+   `avecCouts()` : à trois endroits distincts, l'un aurait fini par être oublié.
+2. **La marge se calcule sur le coût des marchandises vendues.** Les achats
+   reçus restent exposés, mais comme information de période, plus comme un coût.
+
+### Résultat sur les données réelles
+
+| | Avant | Après |
+|---|---|---|
+| Marge brute | 96,83 % | **38,57 %** |
+| Résultat net | 16,4 M DA | **4,5 M DA** (21,99 %) |
+
+38 % sur du négoce alimentaire est plausible. 96 % ne l'était pas.
+
+### Le contrôle
+
+`scripts/verifier-comptabilite.js` vérifie la **propriété comptable**, pas la
+forme du code : identité marge = CA − coût des ventes, résultat = marge −
+charges, coût des ventes distinct des achats reçus, bornes de plausibilité, et
+couverture du coût figé sur toutes les lignes. Vu refuser en rétablissant
+l'ancienne formule : deux contrôles passent au rouge.

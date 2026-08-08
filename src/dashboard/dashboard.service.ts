@@ -17,7 +17,7 @@ export class DashboardService {
    * deviendrait faux sans que rien ne le signale.
    */
   private async chiffresPeriode(tenantId: string, dateFrom: string, dateTo: string) {
-    const [ventes, achats, depenses] = await Promise.all([
+    const [ventes, achats, depenses, coutVentes] = await Promise.all([
       this.ds.query(
         `SELECT COALESCE(SUM("totalAmount"),0) AS total, COUNT(*) AS nb,
                 COALESCE(AVG("totalAmount"),0) AS moyenne
@@ -39,11 +39,30 @@ export class DashboardService {
          FROM expenses
          WHERE "tenantId"=$1 AND "expenseDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
         [tenantId, dateFrom, dateTo]),
+      // Coût des marchandises vendues.
+      //
+      // `unitCost` est figé sur la ligne à l'émission ; le repli sur le coût
+      // moyen de l'article ne sert qu'aux lignes antérieures à cette règle. Un
+      // article supprimé du catalogue laisse un coût nul, ce qui surestime la
+      // marge — mieux vaut une marge trop belle qu'un chiffre inventé.
+      this.ds.query(
+        `SELECT COALESCE(SUM(sii.quantity * COALESCE(
+                  sii."unitCost",
+                  NULLIF(fp."averageCostPerUnit", 0),
+                  NULLIF(fp."lastCostPerUnit", 0),
+                  0)),0) AS total
+         FROM sales_invoice_items sii
+         JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+         LEFT JOIN finished_products fp ON fp.id = sii."finishedProductId"
+         WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+           AND si.status != 'cancelled' AND si."deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
     ]);
 
     const revenue = parseFloat(ventes[0]?.total ?? 0);
     const purchases = parseFloat(achats[0]?.total ?? 0);
     const expenses = parseFloat(depenses[0]?.approuvees ?? 0);
+    const cogs = parseFloat(coutVentes[0]?.total ?? 0);
 
     return {
       revenue,
@@ -53,7 +72,12 @@ export class DashboardService {
       receptionCount: parseInt(achats[0]?.nb ?? 0),
       expenses,
       totalExpenses: parseFloat(depenses[0]?.total ?? 0),
-      netProfit: Math.round((revenue - purchases - expenses) * 100) / 100,
+      cogs,
+      // Résultat net = marge brute − charges. La marge brute se calcule sur ce
+      // qui a été **vendu**, pas sur ce qui a été **acheté** : un mois écoulé
+      // sans réassort affichait autrefois près de 100 % de marge, et un mois de
+      // gros approvisionnement l'aurait affichée négative.
+      netProfit: Math.round((revenue - cogs - expenses) * 100) / 100,
     };
   }
 
@@ -194,7 +218,13 @@ export class DashboardService {
     approvedExpenses = Math.round(courant.expenses * 100) / 100;
 
     // Profit (R008)
-    const grossMargin = Math.round((totalRevenue - totalPurchaseCost) * 100) / 100;
+    //
+    // La marge brute est le chiffre d'affaires moins le **coût des marchandises
+    // vendues**. Elle valait auparavant « CA moins achats reçus sur la
+    // période », ce qui n'est pas une marge mais une trésorerie : sur un mois
+    // à deux réceptions et vingt millions de ventes, elle affichait 93 %.
+    const costOfGoodsSold = courant.cogs;
+    const grossMargin = Math.round((totalRevenue - costOfGoodsSold) * 100) / 100;
     const netProfit = Math.round((grossMargin - approvedExpenses) * 100) / 100;
     const grossMarginPercent = totalRevenue > 0 ? Math.round((grossMargin / totalRevenue) * 10000) / 100 : 0;
     const netProfitPercent = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 10000) / 100 : 0;
@@ -235,7 +265,12 @@ export class DashboardService {
           pendingExpenses: Math.round((totalExpenses - approvedExpenses) * 100) / 100,
           byCategory,
         },
-        profit: { grossMargin, grossMarginPercent, netProfit, netProfitPercent },
+        profit: {
+          grossMargin, grossMarginPercent, netProfit, netProfitPercent,
+          // Exposé pour que l'écran puisse le montrer : une marge sans son coût
+          // ne se vérifie pas.
+          costOfGoodsSold: Math.round(costOfGoodsSold * 100) / 100,
+        },
         alerts: {
           expiringStockCount: parseInt(alertStockRows[0]?.count ?? 0),
           unpaidInvoicesCount: unpaidCount,

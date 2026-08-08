@@ -31,6 +31,8 @@ interface ComputedItem {
   quantity: number;
   unit: string;
   unitPrice: number;
+  /** Coût figé au moment de l'émission — voir l'entité. */
+  unitCost: number | null;
   taxName1: string | null;
   taxRate1: number | null;
   taxAmount1: number;
@@ -66,7 +68,46 @@ export class SalesInvoicesService {
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
 
-  private computeItem(dto: CreateSalesInvoiceItemDto): ComputedItem {
+  /**
+   * Coût unitaire des articles vendus, lu une fois pour toute la facture.
+   *
+   * On prend le coût moyen pondéré, et le dernier coût d'achat à défaut : un
+   * article jamais réceptionné n'a pas de moyenne. Un article introuvable donne
+   * `null`, jamais zéro implicite — la différence compte au moment de calculer
+   * la marge.
+   */
+  private async coutsUnitaires(
+    ids: string[], tenantId: string, qr?: QueryRunner,
+  ): Promise<Map<string, number>> {
+    const uniques = [...new Set(ids.filter(Boolean))];
+    if (!uniques.length) return new Map();
+    const executeur = qr ?? this.dataSource;
+    const lignes: { id: string; cout: string }[] = await executeur.query(
+      `SELECT id, COALESCE(NULLIF("averageCostPerUnit", 0), NULLIF("lastCostPerUnit", 0), 0) AS cout
+         FROM finished_products WHERE id = ANY($1) AND "tenantId" = $2`,
+      [uniques, tenantId],
+    );
+    return new Map(lignes.map((l) => [l.id, parseFloat(l.cout)]));
+  }
+
+  /**
+   * Pose le coût figé sur des lignes déjà calculées.
+   *
+   * Trois chemins mènent à une facture — saisie directe, bon de livraison,
+   * devis — et les trois doivent figer le coût. Le faire à trois endroits
+   * garantissait qu'un jour l'un des trois serait oublié, et la marge d'une
+   * facture issue d'un BL serait devenue fausse sans que rien ne le dise.
+   */
+  private async avecCouts(
+    items: ComputedItem[], tenantId: string, qr?: QueryRunner,
+  ): Promise<ComputedItem[]> {
+    const couts = await this.coutsUnitaires(
+      items.map((i) => i.finishedProductId), tenantId, qr,
+    );
+    return items.map((i) => ({ ...i, unitCost: couts.get(i.finishedProductId) ?? null }));
+  }
+
+  private computeItem(dto: CreateSalesInvoiceItemDto, cout?: number | null): ComputedItem {
     // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
     // peuvent produire un produit qui déborde numeric(12,2) (R021).
     const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
@@ -76,6 +117,7 @@ export class SalesInvoicesService {
     return {
       finishedProductId: dto.finishedProductId,
       quantity: dto.quantity, unit: dto.unit, unitPrice: dto.unitPrice,
+      unitCost: cout ?? null,
       taxName1: dto.taxName1 ?? null, taxRate1: dto.taxRate1 ?? null, taxAmount1,
       taxName2: dto.taxName2 ?? null, taxRate2: dto.taxRate2 ?? null, taxAmount2,
       lineTaxTotal, lineTotal: Math.round((lineHT + lineTaxTotal) * 100) / 100,
@@ -168,9 +210,10 @@ export class SalesInvoicesService {
         taxAmount1: parseFloat(r.taxAmount1 ?? 0),
         taxName2: r.taxName2 ?? null, taxRate2: r.taxRate2 ? parseFloat(r.taxRate2) : null,
         taxAmount2: parseFloat(r.taxAmount2 ?? 0),
+        unitCost: null,
         lineTaxTotal: parseFloat(r.lineTaxTotal ?? 0), lineTotal: parseFloat(r.lineTotal),
       }));
-      return { items, deliveryNoteId: dto.deliveryNoteId, quoteId: null };
+      return { items: await this.avecCouts(items, tenantId, qr), deliveryNoteId: dto.deliveryNoteId, quoteId: null };
     }
 
     if (dto.quoteId) {
@@ -186,15 +229,19 @@ export class SalesInvoicesService {
         taxAmount1: parseFloat(r.taxAmount1 ?? 0),
         taxName2: r.taxName2 ?? null, taxRate2: r.taxRate2 ? parseFloat(r.taxRate2) : null,
         taxAmount2: parseFloat(r.taxAmount2 ?? 0),
+        unitCost: null,
         lineTaxTotal: parseFloat(r.lineTaxTotal ?? 0), lineTotal: parseFloat(r.lineTotal),
       }));
-      return { items, deliveryNoteId: null, quoteId: dto.quoteId };
+      return { items: await this.avecCouts(items, tenantId, qr), deliveryNoteId: null, quoteId: dto.quoteId };
     }
 
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('invoice_items_required');
     }
-    return { items: dto.items.map((i) => this.computeItem(i)), deliveryNoteId: null, quoteId: null };
+    return {
+      items: await this.avecCouts(dto.items.map((i) => this.computeItem(i)), tenantId, qr),
+      deliveryNoteId: null, quoteId: null,
+    };
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────

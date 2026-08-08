@@ -31,6 +31,21 @@ export class SalesInvoiceItem {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   unitPrice: number;
 
+  /**
+   * Coût unitaire de l'article **au moment de l'émission**.
+   *
+   * Sans lui, la marge d'une facture se recalculait sur le coût moyen courant
+   * de l'article : une facture de janvier changeait de marge en mars, au gré
+   * des réceptions. Une facture émise ne bouge plus — ni son montant, ni sa
+   * marge.
+   *
+   * `null` sur les lignes antérieures à la migration dont l'article a disparu :
+   * le calcul les traite comme un coût nul, ce qui surestime la marge plutôt
+   * que d'inventer un chiffre.
+   */
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  unitCost: number | null;
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   taxName1: string | null;
 

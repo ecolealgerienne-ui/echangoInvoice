@@ -35,7 +35,8 @@
     "verify:gabarit-pdf": "node scripts/verifier-gabarit-pdf.js",
     "verify:pdf-achats": "node scripts/verifier-pdf-achats.js",
     "verify:i18n": "node scripts/verifier-i18n.js",
-    "verify:design": "node scripts/verifier-design.js"
+    "verify:design": "node scripts/verifier-design.js",
+    "verify:compta": "node scripts/verifier-comptabilite.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
