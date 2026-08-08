@@ -109,7 +109,91 @@ d'annulation, cachet et proforma sont livrés.
 Arbitré avec le client le 2026-08-08 : RTL arabe et facturation récurrente
 étaient prioritaires et sont livrés. Le reste est ici, en attente.
 
-#### 1. Relecture de la traduction arabe
+⚠️ **Liste complétée le 2026-08-08 après vérification.** Dix points en étaient
+absents, dont la demande client n° 11 — la mention conditionnelle sur les PDF —
+qui avait été approuvée puis oubliée. Les manques venaient de constats faits en
+cours de session sans être reportés ici : c'est exactement ce que R031 décrit,
+un état qui cesse d'être vrai fait prendre des décisions.
+
+⚠️ **Le barème du droit de timbre reste à faire confirmer par un comptable**
+(`docs/CONFORMITE-FISCALE.md` §2). Il est désactivé par défaut.
+
+#### 1. Mention « Echango Invoice » conditionnelle — *demande client n° 11, approuvée*
+
+**Analysée, jamais faite.** Le point avait pourtant été validé le 2026-08-08 et
+il est oublié depuis. La mention **n'existe plus** sur les documents : elle a
+disparu lors de l'unification du gabarit PDF. Il s'agit donc de l'*ajouter*,
+puis d'en faire un avantage payant.
+
+L'infrastructure est prête : `plans.features` est un JSONB déjà utilisé par
+`PlanFeaturesGuard` pour `creditNotes`, `vendorBills` et `production`. Ajouter
+`whitelabelPdf: false` sur Starter, `true` sur Pro et Enterprise, et lire le
+drapeau dans `invoice-pdf.service.ts` au moment de composer le pied de page.
+Une journée.
+
+Deux réserves à tenir : ne **jamais** conditionner à l'abonnement les mentions
+*légales* — NIF, RC, montant en lettres, timbre —, et rester sobre. Formulation
+retenue : « Facture émise avec Echango Invoice — echango.dz ».
+
+#### 2. Fiche avoir
+
+Les avoirs ont leur PDF et leur entrée de menu, pas leur page de détail. C'est
+le seul document commercial qui n'en a pas : facture, devis, BL, commande,
+réception et facture fournisseur en ont une.
+
+#### 3. Champs manquants sur la fiche produit
+
+Signalés comme prioritaires dans l'audit, non traités. Par ordre d'impact :
+
+- **Taux de TVA au produit.** Il est saisi ligne par ligne alors qu'en Algérie
+  c'est 19 % ou 9 % *selon le produit* — donc une propriété de l'article.
+- **Famille / catégorie.** Sans elle, pas d'analyse par gamme, et aucun filtre
+  praticable sur un catalogue de 500 références.
+- **Photo.** Indispensable dès qu'un commercial saisit sur mobile.
+- **Stock min/max et suggestion de réapprovisionnement.** Il n'y a qu'un seuil
+  d'alerte ; rien ne propose quoi commander, alors que le fournisseur préféré
+  et son délai sont désormais connus.
+- **Colisage.** La table des codes-barres porte un `packQuantity`, mais l'article
+  n'a pas de conditionnement propre : facturer au carton et tenir le stock à la
+  pièce reste impossible hors scan.
+
+#### 4. Champs manquants sur la fiche dépense
+
+Fournisseur rattaché, mode de paiement, **TVA récupérable** — qui alimenterait
+le G50 aujourd'hui limité aux factures fournisseurs — et caractère récurrent
+(loyer, salaires).
+
+#### 5. Tri sur les colonnes issues d'une jointure
+
+Le nom du client sur une facture, le fournisseur sur une commande, le devis lié
+sur un BL : ces en-têtes restent inertes. La liste blanche ne les porte pas
+parce que trier dessus demande de trier sur la table jointe, ce qui change la
+requête. Faisable, mais c'est un lot en soi.
+
+#### 6. Journal d'activité visible
+
+`createdBy` et `updatedBy` sont alimentés par l'intercepteur d'audit sur toutes
+les entités, et **affichés nulle part**. « Qui a modifié cette facture, et
+quand » est une question courante en contrôle.
+
+#### 7. Chaîne devis → BL → facture en un geste
+
+La conversion devis → facture existe ; le passage par le bon de livraison, non.
+Le négociant qui livre puis facture repasse par la saisie.
+
+#### 8. Rôle *agent* exclu du tableau de bord — *à trancher*
+
+`@Roles('owner', 'manager', 'accountant')` sur les trois routes du tableau de
+bord : un agent reçoit un 403 et voit un écran vide au lieu de sa page
+d'accueil. Volontaire ou hérité, la question n'a jamais été posée au client.
+
+#### 9. Caisse / point de vente
+
+Rien n'existe. C'est le débouché naturel du scan et du droit de timbre, tous
+deux livrés — mais c'est un terrain où d'autres éditeurs algériens sont déjà
+installés. À ne prendre que si un client le demande.
+
+#### 10. Relecture de la traduction arabe
 249 clés sur 865. Le reste retombe sur le français, ce qui reste lisible mais
 donne une interface mixte. **Une relecture par un arabophone est nécessaire
 avant mise en production** : le vocabulaire comptable algérien a ses usages —
@@ -117,7 +201,7 @@ avant mise en production** : le vocabulaire comptable algérien a ses usages —
 sans avoir pu être confirmés. Les règles RTL couvrent les utilitaires Tailwind
 les plus fréquents ; les cas non couverts se repèrent sur une capture d'écran.
 
-#### 2. Pièces jointes
+#### 11. Pièces jointes
 Reporté sur décision. Rien n'existe : ni `@fastify/multipart`, ni intercepteur,
 ni table. Par ordre de valeur métier : justificatif de **dépense** — c'est la
 raison d'être du module —, **facture fournisseur** reçue, **BL de réception**
@@ -130,41 +214,41 @@ l'extension ; téléchargement **servi par l'API** après contrôle du locataire
 `Content-Disposition: attachment` systématique. Plus un plafond par fichier et
 un quota par offre, sans quoi le stockage devient un coût non borné.
 
-#### 3. Scan par caméra
+#### 12. Scan par caméra
 La douchette couvre le poste fixe, la caméra vise le mobile. `BarcodeDetector`
 natif quand il est disponible — Chrome Android et Edge, pas Safari iOS —, repli
 `@zxing/browser` en WASM, et plugin natif MLKit côté Capacitor plutôt qu'une
 `<video>` dans la webview. **Éviter `html5-qrcode`** : populaire mais non
 maintenu, et adossé à un portage ZXing lui-même abandonné.
 
-#### 4. Facture récapitulative
+#### 13. Facture récapitulative
 Dernier écart au décret 05-468. Regrouper les BL d'une période en une seule
 facture, ce que le décret n'autorise que pour des ventes répétitives et
 régulières — le ministère évoque trois transactions par semaine au même client
 — et sur autorisation préalable. Aligné sur le profil visé : le négociant en
 froid qui livre plusieurs fois par semaine.
 
-#### 5. Multi-dépôts
+#### 14. Multi-dépôts
 Chantier de structure. Une chambre froide, c'est plusieurs chambres à
 températures distinctes. Non réclamé à ce jour, mais c'est ce qui distinguerait
 durablement le produit sur l'agroalimentaire.
 
-#### 6. Traçabilité par lot
+#### 15. Traçabilité par lot
 Les lots et les péremptions sont saisis à la réception et suivis en stock ; ce
 qui manque est le sens inverse — remonter d'un lot aux clients livrés, pour un
 rappel sanitaire.
 
-#### 7. Portail client
+#### 16. Portail client
 Reporté de longue date. Le QR de vérification en couvre déjà l'usage principal :
 le client atteint son document sans compte.
 
-#### 8. Dérive de schéma résiduelle
+#### 17. Dérive de schéma résiduelle
 354 opérations, 13 `DROP COLUMN`. Les deux causes destructrices sont traitées ;
 le reste est mécanique — `varchar(255)` déclaré contre `varchar` sans longueur,
 `numeric(10,2)` contre `numeric`, et 61 clés étrangères. **Ne pas lancer
 `migration:generate` sans lire sa sortie entière** tant que ce n'est pas soldé.
 
-#### 9. Dette de moindre portée
+#### 18. Dette de moindre portée
 - `Total TTC` en dur sur la page Devis (R018).
 - 130 avertissements de lint, surtout `no-explicit-any`.
 - Bundle client à ~900 ko, aucun découpage de code.
