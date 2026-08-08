@@ -35,11 +35,12 @@ catégories, et se mesurer à eux ne dirait rien d'utile.
 
 **Écarté du périmètre**, sur arbitrage :
 - **Paiement en ligne** et passerelles bancaires — sans objet en Algérie
-- **Conformité fiscale** (mentions obligatoires, G50, facture normalisée) — fera
-  l'objet d'une étude à part. ⚠️ *À noter quand même : c'est l'argument de vente
-  numéro un de presque tous les acteurs algériens observés. La barrière à
-  l'entrée face aux éditeurs étrangers y est réglementaire avant d'être
-  technique.*
+- **Conformité fiscale** (mentions obligatoires, G50, facture normalisée) —
+  **l'étude a été faite le 2026-08-08 : voir `docs/CONFORMITE-FISCALE.md`.**
+  C'est bien l'argument de vente numéro un de presque tous les acteurs algériens
+  observés : la barrière à l'entrée face aux éditeurs étrangers y est
+  réglementaire avant d'être technique. Écart principal restant : le **droit de
+  timbre** sur les ventes au comptant.
 
 **Notre état de référence** a été établi **en lisant le code**, pas la
 documentation — `docs/STATUS.md` s'était déjà révélé faux sur au moins un point.

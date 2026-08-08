@@ -19,7 +19,17 @@ export class NumberingService {
    */
   async prochain(qr: QueryRunner, tenantId: string, type: TypeDocument): Promise<string> {
     const maintenant = new Date();
-    const annee = maintenant.getFullYear();
+    const format = await this.format(qr, tenantId, type);
+
+    // La séquence ne repart à 1 au 1er janvier QUE si le format porte l'année.
+    // Sans ce test, un format tel que « FAC-### » aurait produit FAC-001 le
+    // 1er janvier suivant — un numéro déjà émis l'année précédente. L'index
+    // unique l'aurait refusé, et la première facture de l'année serait tombée
+    // en erreur. Le droit algérien impose une numérotation continue par
+    // exercice (décret exécutif 05-468) : sans marqueur d'année dans le
+    // numéro, la continuité doit être perpétuelle.
+    const porteLAnnee = /YY/.test(format);
+    const cle = porteLAnnee ? maintenant.getFullYear() : 0;
 
     const [compteur] = await qr.query(
       `INSERT INTO document_counters ("tenantId", "kind", "year", "lastValue")
@@ -28,10 +38,9 @@ export class NumberingService {
          SET "lastValue" = document_counters."lastValue" + 1,
              "updatedAt" = now()
        RETURNING "lastValue"`,
-      [tenantId, type, annee],
+      [tenantId, type, cle],
     );
 
-    const format = await this.format(qr, tenantId, type);
     return appliquerFormat(format, compteur.lastValue, maintenant);
   }
 

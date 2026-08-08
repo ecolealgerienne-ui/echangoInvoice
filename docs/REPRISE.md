@@ -102,7 +102,19 @@ que si le besoin se manifeste.
 réintroduire de colonne compteur). Restent hors périmètre : la réception
 partielle et le multi-dépôt, deux chantiers de structure que rien n'a réclamés.
 
-### 1. Portail client — **reporté, décision du 2026-08-08**
+### 1. Conformité fiscale algérienne — *le prochain à prendre*
+
+Étude complète dans **`docs/CONFORMITE-FISCALE.md`** (2026-08-08). Par ordre de
+valeur : le **droit de timbre** sur les ventes au comptant — le seul écart qui
+empêche d'émettre une facture correcte —, le **total TTC en toutes lettres**,
+la **TVA déductible** pour compléter le G50, le cachet, la facture
+récapitulative et la mention « facture annulée ».
+
+⚠️ **La facturation électronique n'est PAS obligatoire en Algérie à ce jour.**
+Plusieurs éditeurs l'affirment en citant des textes introuvables au JO, ou en
+recopiant le calendrier marocain. Ne pas la vendre, ne pas bâtir dessus.
+
+### 2. Portail client — **reporté, décision du 2026-08-08**
 
 Chantier lourd, valeur incertaine pour une PME algérienne. **Arbitré : on le
 garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
