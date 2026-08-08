@@ -126,6 +126,9 @@ export class InvoicePdfService {
       ],
       notes: inv.notes,
       montantEnLettres: `Arrêtée la présente facture à la somme de : ${montantEnLettres(netAPayer)}`,
+      // Le décret 05-468 impose la mention en diagonale : le statut en base ne
+      // suffit pas, c'est le papier qui circule.
+      filigrane: inv.status === 'cancelled' ? 'FACTURE ANNULÉE' : null,
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -181,6 +184,69 @@ export class InvoicePdfService {
       type: 'BL', tenantId, documentId: dn.id, filename: dn.blNumber, html,
     });
     return { buffer, filename: `${dn.blNumber}.pdf` };
+  }
+
+  /**
+   * PDF d'avoir. Un avoir sans document imprimable n'a aucune valeur : ni le
+   * client ni l'émetteur ne peuvent le porter en comptabilité. La mention de
+   * rattachement à la facture d'origine est obligatoire.
+   */
+  async generateCreditNotePdf(creditNoteId: string, tenantId: string) {
+    const rows = await this.ds.query(
+      `SELECT a.*, c.name AS customer_name, c.address AS customer_address,
+              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
+              f."invoiceNumber" AS origine_numero, f."invoiceDate" AS origine_date,
+              ${CHAMPS_EMETTEUR}
+       FROM credit_notes a
+       JOIN partners c ON c.id = a."customerId"
+       LEFT JOIN sales_invoices f ON f.id = a."salesInvoiceId"
+       LEFT JOIN settings s ON s."tenantId" = a."tenantId"
+       WHERE a.id = $1 AND a."tenantId" = $2 AND a."deletedAt" IS NULL`,
+      [creditNoteId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('credit_note_not_found');
+    const a = rows[0];
+
+    const items = await this.ds.query(
+      // `credit_note_items` n'a pas d'horodatage : contrairement aux autres
+      // tables de lignes, elle ne porte ni createdAt ni rang. On trie sur l'id
+      // pour que deux générations du même avoir rendent le même ordre.
+      `SELECT * FROM credit_note_items
+       WHERE "creditNoteId" = $1 AND "tenantId" = $2 ORDER BY id`,
+      [creditNoteId, tenantId],
+    );
+
+    const html = rendreDocument({
+      titre: 'AVOIR',
+      numero: a.creditNoteNumber,
+      entetes: [{ libelle: 'Date', valeur: jour(a.creditNoteDate) }],
+      labelEmetteur: 'Émetteur',
+      labelDestinataire: 'Client',
+      emetteur: this.emetteur(a),
+      destinataire: {
+        name: a.customer_name, address: a.customer_address,
+        nif: a.customer_nif, rc: a.customer_rc, ai: a.customer_ai,
+      },
+      lignes: this.lignes(items),
+      totaux: [
+        { libelle: 'Sous-total HT', montant: a.subtotal },
+        { libelle: 'TVA', montant: a.taxAmount },
+        { libelle: 'TOTAL AVOIR TTC', montant: a.totalAmount, fort: true },
+      ],
+      notes: a.notes,
+      montantEnLettres: `Arrêté le présent avoir à la somme de : ${montantEnLettres(a.totalAmount)}`,
+      // Mention de rattachement : sans elle, l'avoir ne s'impute à rien.
+      mention: a.origine_numero
+        ? `Avoir se rapportant à la facture n° ${a.origine_numero} du ${jour(a.origine_date)}.`
+            + (a.reason ? ` Motif : ${a.reason}` : '')
+        : (a.reason ? `Motif : ${a.reason}` : null),
+      filigrane: a.status === 'cancelled' ? 'AVOIR ANNULÉ' : null,
+    });
+
+    const { buffer } = await this.pdfService.generateAndArchive({
+      type: 'AVOIRS', tenantId, documentId: a.id, filename: a.creditNoteNumber, html,
+    });
+    return { buffer, filename: `${a.creditNoteNumber}.pdf` };
   }
 
   async generateQuotePdf(quoteId: string, tenantId: string) {

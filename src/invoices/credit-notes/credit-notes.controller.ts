@@ -1,6 +1,8 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreditNotesService } from './credit-notes.service';
+import { InvoicePdfService } from '../invoice-pdf.service';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -13,7 +15,25 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('invoices/credit-notes')
 export class CreditNotesController {
-  constructor(private readonly service: CreditNotesService) {}
+  constructor(
+    private readonly service: CreditNotesService,
+    private readonly pdfService: InvoicePdfService,
+  ) {}
+
+  @Get(':id/pdf')
+  @Roles('owner', 'manager', 'agent')
+  @ApiOperation({ summary: "Générer le PDF de l'avoir" })
+  async pdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: any,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateCreditNotePdf(id, user.tenantId!);
+    void reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(buffer);
+  }
 
   @Post()
   @Roles('owner', 'manager')

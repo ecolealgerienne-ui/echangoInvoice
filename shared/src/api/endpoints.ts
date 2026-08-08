@@ -300,6 +300,8 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     issue: (id: string) => api.patch(`/invoices/credit-notes/${id}/issue`).then((r) => r.data),
     cancel: (id: string) => api.patch(`/invoices/credit-notes/${id}/cancel`).then((r) => r.data),
     remove: (id: string) => api.delete(`/invoices/credit-notes/${id}`).then((r) => r.data),
+    pdf: (id: string) =>
+      api.get(`/invoices/credit-notes/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
   };
 
   const exportApi = {

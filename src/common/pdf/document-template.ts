@@ -66,6 +66,12 @@ export interface OptionsDocument {
   /** Mention propre au document, avant le pied de page du locataire. */
   mention?: string | null;
   /**
+   * Filigrane en diagonale. Le décret 05-468 impose de porter « facture
+   * annulée » sur le document ; conserver le seul statut en base ne suffit
+   * pas, puisque c'est le papier qui circule.
+   */
+  filigrane?: string | null;
+  /**
    * Total en toutes lettres — mention obligatoire du décret 05-468. Le texte
    * est composé par l'appelant : lui seul sait quel total fait foi (net à
    * payer quand un droit de timbre s'ajoute au TTC).
@@ -164,6 +170,9 @@ function styles(accent: string): string {
     .total-row.fort { background: ${accent}; color: white; font-weight: bold; font-size: 11px; border-bottom: none; }
     .notes { border: 1px solid #dde; border-radius: 4px; padding: 10px; font-size: 10px; color: #444; margin-bottom: 12px; }
     .rib { font-size: 10px; color: #444; margin-bottom: 12px; }
+    .filigrane { position: fixed; top: 42%; left: 0; right: 0; text-align: center;
+      font-size: 72px; font-weight: bold; color: rgba(200, 30, 30, 0.16);
+      transform: rotate(-28deg); letter-spacing: 6px; pointer-events: none; }
     .somme { border: 1px solid #dde; border-radius: 4px; padding: 8px 10px; font-size: 10px; margin-bottom: 12px; text-transform: uppercase; }
     .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
     .signature { text-align: center; width: 200px; }
@@ -209,6 +218,7 @@ export function rendreDocument(o: OptionsDocument): string {
   ];
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">${styles(accent)}</head><body>
+  ${o.filigrane ? `<div class="filigrane">${echapper(o.filigrane)}</div>` : ''}
   <div class="page">
     <div class="header">
       <div style="display:flex; align-items:flex-start; gap:12px;">

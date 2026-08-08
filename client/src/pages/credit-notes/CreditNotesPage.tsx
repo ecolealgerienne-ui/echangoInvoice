@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { creditNotesApi, customersApi, invoicesApi , resolveApiError } from '@/lib/api';
+import { enregistrerBlob } from '@/lib/download';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, FileDown } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
@@ -130,6 +131,12 @@ export function CreditNotesPage() {
     ['number', 'customer', 'date', 'reason', 'total', 'status'],
   );
   const customerList = customers?.data ?? [];
+
+  function telechargerPdf(id: string, numero: string) {
+    creditNotesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
   const invoiceList = invoicesData?.data ?? [];
 
   return (
@@ -185,6 +192,10 @@ export function CreditNotesPage() {
                   {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
+                      <Button size="sm" variant="ghost" title={t('common.pdf')}
+                        onClick={() => telechargerPdf(cn.id, cn.creditNoteNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
                       {cn.status === 'draft' && (
                         <>
                           <Button size="sm" variant="ghost" onClick={() => issueMutation.mutate(cn.id)}>
