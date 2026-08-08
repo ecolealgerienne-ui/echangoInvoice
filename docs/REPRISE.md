@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : `23aef3b` *feat(tableau de bord): périodes libres et comparaison*
+> Dernier commit : `d0f8e67` *fix(schéma): désamorcer les deux dérives destructrices*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -95,7 +95,27 @@ sur aucun contrôleur (E003).
 **Suite de la session** — douchette USB sur les quatre écrans de saisie et dans
 la recherche, PDF d'avoir, mention « facture annulée » en diagonale, facture
 proforma, fournisseurs multiples par article, balance âgée, rôle « comptable »
-en lecture seule.
+en lecture seule, et désamorçage des deux dérives de schéma destructrices.
+
+### Ce qui reste ouvert, par ordre de valeur
+
+| Sujet | État |
+|---|---|
+| **Pièces jointes** | Reporté sur décision — voir §2 ci-dessous, tout y est préparé |
+| **TVA déductible / G50 complet** | Nous fournissons la moitié d'un G50 ; les données existent |
+| **Scan par caméra** | La douchette couvre le poste fixe ; la caméra vise le mobile (`BarcodeDetector`, repli `@zxing/browser`, plugin MLKit côté Capacitor) |
+| **QR de vérification sur les documents** | Modèle et gabarit prêts ; reste le jeton signé et la page publique |
+| **Multi-dépôts** | Chantier de structure, non réclamé à ce jour |
+| **Traçabilité par lot** | Les lots et péremptions sont saisis ; le rappel sanitaire n'est pas outillé |
+| **Interface arabe (RTL)** | L'i18n est en place, le RTL non |
+| **Facturation récurrente** | Abonnements, locations |
+| **Cachet sur les PDF** | Emplacement + image dans les Paramètres |
+| **Facture récapitulative** | Regrouper les BL d'une période en une facture |
+| **Dérive de schéma résiduelle** | 354 opérations, 13 `DROP COLUMN` — mécanique, à traiter avant de refaire confiance à `migration:generate` |
+
+⚠️ **Le barème du droit de timbre reste à faire confirmer par un comptable.**
+Il est désactivé par défaut : rien ne bouge tant que la case des Paramètres
+n'est pas cochée.
 
 **Contrôles exécutables** : `npm run verify` — 131 assertions sur cinq suites
 (sécurité, conformité, tri, périodes). Chacune a été vue **refuser** avant
