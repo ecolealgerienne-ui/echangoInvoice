@@ -12,6 +12,7 @@ import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
 import {
   consumeStockFifo, recomputeProductStock, releaseStockForDeliveryNote,
 } from '../stock/recompute-product-stock';
@@ -47,6 +48,7 @@ export class DeliveriesService {
     @InjectRepository(DeliveryNote) private readonly dnRepo: Repository<DeliveryNote>,
     @InjectRepository(DeliveryNoteItem) private readonly itemRepo: Repository<DeliveryNoteItem>,
     private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
@@ -90,23 +92,7 @@ export class DeliveriesService {
   // ─── Auto-numérotation BL-YY-### (R013) ──────────────────────────────────
 
   private async generateBlNumber(qr: QueryRunner, tenantId: string): Promise<string> {
-    await qr.query(
-      `SELECT pg_advisory_xact_lock(hashtext('bl_number_' || $1))`,
-      [tenantId],
-    );
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    // withDeleted : un numéro émis est consommé définitivement (voir R013).
-    const last = await qr.manager
-      .createQueryBuilder(DeliveryNote, 'dn')
-      .withDeleted()
-      .where('dn.tenantId = :tenantId', { tenantId })
-      .andWhere('EXTRACT(YEAR FROM dn."createdAt") = :year', { year })
-      .orderBy('dn.blNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.blNumber.split('-')[2], 10) : 0;
-    return `BL-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'delivery_note');
   }
 
   // ─── Mise à jour stock (direct, sans FIFO) ────────────────────────────────
@@ -494,23 +480,10 @@ export class DeliveriesService {
         throw new UnprocessableEntityException('bl_already_converted_to_invoice');
       }
 
-      await qr.query(
-        `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
-        [tenantId],
-      );
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      const lastInv: any[] = await qr.query(
-        // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
-        `SELECT "invoiceNumber" FROM sales_invoices
-         WHERE "tenantId" = $1 AND EXTRACT(YEAR FROM "createdAt") = $2
-         ORDER BY "invoiceNumber" DESC LIMIT 1`,
-        [tenantId, year],
-      );
-      const lastSeq = lastInv.length > 0
-        ? parseInt(lastInv[0].invoiceNumber.split('-')[2], 10)
-        : 0;
-      const invoiceNumber = `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+      // Même numérotation que par la voie normale : cette méthode en portait
+      // une copie complète, si bien qu'une facture créée depuis un BL aurait
+      // ignoré le format choisi dans les Paramètres.
+      const invoiceNumber = await this.numbering.prochain(qr, tenantId, 'invoice');
 
       const [invoice] = await qr.query(
         `INSERT INTO sales_invoices

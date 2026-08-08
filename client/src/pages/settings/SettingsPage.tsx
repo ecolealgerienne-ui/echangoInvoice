@@ -19,6 +19,25 @@ interface TaxRow { name: string; rate: string; isDefault: boolean; }
 
 const DEFAULT_UNITS = ['kg', 'g', 'tonne', 'L', 'mL', 'pcs', 'm', 'm²', 'm³', 'boîte', 'palette', 'sac'];
 
+/**
+ * Aperçu du prochain numéro tel que le serveur le composerait.
+ *
+ * Les jetons ne se devinent pas : sans exemple sous le champ, on ne sait pas
+ * si « YY » vaut l'année ou le mois, ni combien de dièses il faut. Le rendu
+ * reproduit `appliquerFormat` du serveur — YYYY avant YY, sinon les deux
+ * premiers Y seraient consommés par la règle des deux chiffres.
+ */
+function apercuNumero(format: string | undefined): string {
+  if (!format) return '';
+  const maintenant = new Date();
+  const rendu = format
+    .replace(/YYYY/g, String(maintenant.getFullYear()))
+    .replace(/YY/g, String(maintenant.getFullYear()).slice(-2))
+    .replace(/MM/g, String(maintenant.getMonth() + 1).padStart(2, '0'))
+    .replace(/#+/g, (d) => '1'.padStart(d.length, '0'));
+  return `Ex. : ${rendu}`;
+}
+
 export function SettingsPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -41,7 +60,7 @@ export function SettingsPage() {
     queryFn: () => settingsApi.get(),
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<any>();
 
   useEffect(() => {
     if (!data?.data) return;
@@ -397,15 +416,25 @@ export function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>{t('settings.numberFormats')}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
+              {/* Les huit documents numérotés, et non quatre : les formats des
+                  réceptions, factures fournisseurs, avoirs et ordres de
+                  fabrication n'étaient réglables nulle part. */}
               {[
-                ['blNumberFormat', t('settings.blFormat')],
                 ['invoiceNumberFormat', t('settings.invoiceFormat')],
                 ['quoteNumberFormat', t('settings.quoteFormat')],
+                ['blNumberFormat', t('settings.blFormat')],
+                ['creditNoteNumberFormat', t('settings.creditNoteFormat')],
                 ['poNumberFormat', t('settings.poFormat')],
+                ['receptionNumberFormat', t('settings.receptionFormat')],
+                ['vendorBillNumberFormat', t('settings.vendorBillFormat')],
+                ['productionOrderNumberFormat', t('settings.productionOrderFormat')],
               ].map(([field, label]) => (
                 <div key={field} className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{label}</label>
                   <Input {...register(field)} />
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {apercuNumero(watch(field) as string)}
+                  </p>
                 </div>
               ))}
               <div className="col-span-2">

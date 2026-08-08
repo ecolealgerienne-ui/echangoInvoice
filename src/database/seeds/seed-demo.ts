@@ -260,6 +260,8 @@ async function seedDemo() {
       'price_list_items', 'price_lists',
       // référentiels
       'expenses', 'partner_contacts', 'finished_products', 'partners',
+      // compteurs : ils décrivent les documents qu'on vient d'effacer
+      'document_counters',
     ];
     for (const table of purge) {
       await qr.query(`DELETE FROM ${table} WHERE "tenantId" = $1`, [tenantId]);
@@ -1261,6 +1263,39 @@ async function seedDemo() {
     ], expenseRows);
     console.log(`Dépenses  : ${expenseRows.length}`);
 
+    // ── Compteurs de documents ────────────────────────────────────────────────
+    // Le seed écrit les numéros directement, sans passer par le service de
+    // numérotation. Sans ce rattrapage, le premier document créé depuis
+    // l'application repartirait à 1 et heurterait l'index unique — panne
+    // garantie à la première démonstration.
+    const compteurs: [string, string, string][] = [
+      ['invoice', 'sales_invoices', 'invoiceNumber'],
+      ['delivery_note', 'delivery_notes', 'blNumber'],
+      ['quote', 'quotes', 'quoteNumber'],
+      ['purchase_order', 'purchase_orders', 'poNumber'],
+      ['reception', 'reception_bls', 'blNumber'],
+      ['vendor_bill', 'vendor_bills', 'billNumber'],
+      ['credit_note', 'credit_notes', 'creditNoteNumber'],
+    ];
+    for (const [kind, table, colonne] of compteurs) {
+      await qr.query(
+        `INSERT INTO document_counters ("tenantId", "kind", "year", "lastValue")
+         SELECT "tenantId", '${kind}', EXTRACT(YEAR FROM "createdAt")::int,
+                MAX(regexp_replace("${colonne}", '^.*-', '')::int)
+         FROM "${table}"
+         WHERE "tenantId" = $1 AND "${colonne}" ~ '-[0-9]+$'
+         GROUP BY "tenantId", EXTRACT(YEAR FROM "createdAt")
+         ON CONFLICT ("tenantId", "kind", "year") DO UPDATE
+           SET "lastValue" = GREATEST(document_counters."lastValue", EXCLUDED."lastValue")`,
+        [tenantId],
+      );
+    }
+    const [{ n: nbCompteurs }] = await qr.query(
+      `SELECT count(*)::int AS n FROM document_counters WHERE "tenantId" = $1`,
+      [tenantId],
+    );
+    console.log(`Compteurs : ${nbCompteurs}`);
+
     // ── Contrôles d'intégrité avant commit ────────────────────────────────────
     const checks: Array<{ label: string; sql: string }> = [
       {
@@ -1639,6 +1674,22 @@ async function seedDemo() {
                 SELECT "billNumber" FROM vendor_bills
                 WHERE "tenantId" = $1
                 GROUP BY "billNumber" HAVING count(*) > 1
+              ) x`,
+      },
+      {
+        // Sans ce contrôle, le seed pourrait de nouveau laisser les compteurs
+        // en arrière et l'on ne s'en apercevrait qu'en créant un document.
+        label: 'Compteurs : au moins aussi hauts que les numéros émis',
+        sql: `SELECT count(*)::int AS n FROM (
+                SELECT c."kind"
+                FROM document_counters c
+                JOIN LATERAL (
+                  SELECT MAX(regexp_replace("invoiceNumber", '^.*-', '')::int) AS m
+                  FROM sales_invoices
+                  WHERE "tenantId" = c."tenantId"
+                    AND EXTRACT(YEAR FROM "createdAt")::int = c."year"
+                ) f ON c."kind" = 'invoice'
+                WHERE c."tenantId" = $1 AND c."lastValue" < f.m
               ) x`,
       },
     ];

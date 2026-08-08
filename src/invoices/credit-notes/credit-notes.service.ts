@@ -1,11 +1,12 @@
 import { Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, QueryRunner, Repository } from 'typeorm';
 import { CreditNote } from '../entities/credit-note.entity';
 import { CreditNoteItem } from '../entities/credit-note-item.entity';
 import { SalesInvoice } from '../entities/sales-invoice.entity';
 import { CreateCreditNoteDto, CreateCreditNoteItemDto } from './dto/create-credit-note.dto';
 import { assertMontant } from '../../common/limits';
+import { NumberingService } from '../../common/numbering/numbering.service';
 
 @Injectable()
 export class CreditNotesService {
@@ -15,6 +16,7 @@ export class CreditNotesService {
     @InjectRepository(CreditNote) private readonly cnRepo: Repository<CreditNote>,
     @InjectRepository(CreditNoteItem) private readonly itemRepo: Repository<CreditNoteItem>,
     private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
   ) {}
 
   private computeItem(dto: CreateCreditNoteItemDto) {
@@ -48,33 +50,14 @@ export class CreditNotesService {
     return { subtotal, taxAmount, totalAmount };
   }
 
-  private async generateNumber(tenantId: string): Promise<string> {
-    const qr = this.dataSource.createQueryRunner();
-    await qr.connect();
-    await qr.startTransaction();
-    try {
-      await qr.query(`SELECT pg_advisory_xact_lock(hashtext('credit_note_number_' || $1))`, [tenantId]);
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      // withDeleted : un numéro émis est consommé définitivement (voir R013).
-      const last = await qr.manager
-        .createQueryBuilder(CreditNote, 'cn')
-        .withDeleted()
-        .where('cn.tenantId = :tenantId', { tenantId })
-        .andWhere('EXTRACT(YEAR FROM cn."createdAt") = :year', { year })
-        .orderBy('cn.creditNoteNumber', 'DESC')
-        .limit(1)
-        .getOne();
-      const lastSeq = last ? parseInt(last.creditNoteNumber.split('-')[2], 10) : 0;
-      const num = `AV-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
-      await qr.commitTransaction();
-      return num;
-    } catch (err) {
-      await qr.rollbackTransaction();
-      throw err;
-    } finally {
-      await qr.release();
-    }
+  /**
+   * La numérotation ouvrait sa PROPRE transaction, qu'elle validait avant que
+   * l'avoir ne soit écrit. Elle prend maintenant celle de l'appelant : le
+   * compteur avance et recule avec l'avoir, sans laisser de trou si la
+   * création échoue plus loin.
+   */
+  private async generateNumber(qr: QueryRunner, tenantId: string): Promise<string> {
+    return this.numbering.prochain(qr, tenantId, 'credit_note');
   }
 
   async create(dto: CreateCreditNoteDto, tenantId: string, userId: string) {
@@ -82,7 +65,7 @@ export class CreditNotesService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      const creditNoteNumber = await this.generateNumber(tenantId);
+      const creditNoteNumber = await this.generateNumber(qr, tenantId);
       const computed = dto.items.map(i => this.computeItem(i));
       const totals = this.computeTotals(computed);
 

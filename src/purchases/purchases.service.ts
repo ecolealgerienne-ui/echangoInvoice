@@ -19,6 +19,7 @@ import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 import { recomputeProductStock } from '../stock/recompute-product-stock';
 import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -32,7 +33,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 export class PurchasesService {
   private readonly logger = new Logger(PurchasesService.name);
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
+  ) {}
 
   // ─── Purchase Orders ───────────────────────────────────────────────────────
 
@@ -706,59 +710,30 @@ export class PurchasesService {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
+  // Les trois numérotations d'achat découpaient le numéro sur les tirets pour
+  // en relire la séquence — à l'indice 2 pour la commande, 3 pour la réception
+  // et la facture, parce que leurs préfixes portent un tiret de plus. Une
+  // fragilité de plus à chaque format ajouté ; le compteur dédié la supprime.
+
   private async generateVendorBillNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last: any[] = await qr.query(
-      // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
-      `SELECT "billNumber" FROM vendor_bills
-       WHERE "tenantId"=$1 AND EXTRACT(YEAR FROM "createdAt")=$2
-       ORDER BY "billNumber" DESC LIMIT 1`,
-      [tenantId, year],
-    );
-    const lastSeq = last.length > 0
-      ? parseInt(last[0].billNumber.split('-')[3] ?? '0', 10)
-      : 0;
-    return `FAC-ACH-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'vendor_bill');
   }
 
   private async generatePoNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await qr.manager
-      .createQueryBuilder(PurchaseOrder, 'po')
-      .where('po.tenantId = :tenantId', { tenantId })
-      .andWhere(`EXTRACT(YEAR FROM po."createdAt") = :year`, { year })
-      .withDeleted()
-      .orderBy('po.poNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.poNumber.split('-')[2] ?? '0', 10) : 0;
-    return `PO-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'purchase_order');
   }
 
   private async generateBlRecNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await qr.manager
-      .createQueryBuilder(ReceptionBL, 'bl')
-      .where('bl.tenantId = :tenantId', { tenantId })
-      .andWhere(`EXTRACT(YEAR FROM bl."createdAt") = :year`, { year })
-      .withDeleted()
-      .orderBy('bl.blNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.blNumber.split('-')[3] ?? '0', 10) : 0;
-    return `BL-REC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'reception');
   }
 
   /**

@@ -9,6 +9,7 @@ import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
+import { NumberingService } from '../common/numbering/numbering.service';
 
 @Injectable()
 export class ProductionOrderService {
@@ -19,6 +20,7 @@ export class ProductionOrderService {
     @InjectRepository(Nomenclature) private readonly nomRepo: Repository<Nomenclature>,
     @InjectRepository(FinishedProduct) private readonly fpRepo: Repository<FinishedProduct>,
     @InjectDataSource() private readonly ds: DataSource,
+    private readonly numbering: NumberingService,
   ) {}
 
   private async enrichOrders(orders: ProductionOrder[], tenantId: string) {
@@ -80,23 +82,7 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      await qr.query(
-        `SELECT pg_advisory_xact_lock(hashtext('mo_ref_' || $1 || '_' || $2))`,
-        [tenantId, new Date().getFullYear()],
-      );
-
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      // withDeleted : une référence émise est consommée définitivement (R013).
-      const last = await qr.manager
-        .createQueryBuilder(ProductionOrder, 'o')
-        .withDeleted()
-        .where('o.tenantId = :tenantId', { tenantId })
-        .andWhere('EXTRACT(YEAR FROM o.createdAt) = :year', { year })
-        .orderBy('o.ref', 'DESC')
-        .getOne();
-      const seq = last ? parseInt(last.ref.split('-').pop() ?? '0') + 1 : 1;
-      const ref = `MO-${yy}-${String(seq).padStart(3, '0')}`;
+      const ref = await this.numbering.prochain(qr, tenantId, 'production_order');
 
       const estimatedCost =
         Number(nom.estimatedCostPerUnit) * Number(dto.quantityToProduce);

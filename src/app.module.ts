@@ -24,6 +24,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ProductionModule } from './production/production.module';
 import { AdminModule } from './admin/admin.module';
 import { ExportModule } from './export/export.module';
+import { NumberingModule } from './common/numbering/numbering.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ExportModule } from './export/export.module';
     // conservent leurs limites strictes via @Throttle (R017, R023).
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 600 }]),
     ScheduleModule.forRoot(),
+    NumberingModule,
     HealthModule,
     AuthModule,
     AdminModule,

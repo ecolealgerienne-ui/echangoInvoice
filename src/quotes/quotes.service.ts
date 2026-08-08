@@ -12,6 +12,7 @@ import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { ListQuotesDto } from './dto/list-quotes.dto';
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent'],
@@ -42,6 +43,7 @@ export class QuotesService {
     @InjectRepository(Quote) private readonly quoteRepo: Repository<Quote>,
     @InjectRepository(QuoteItem) private readonly itemRepo: Repository<QuoteItem>,
     private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
@@ -92,23 +94,7 @@ export class QuotesService {
   // ─── Auto-numérotation DEV-YY-### (R013) ─────────────────────────────────
 
   async generateQuoteNumber(queryRunner: QueryRunner, tenantId: string): Promise<string> {
-    await queryRunner.query(
-      `SELECT pg_advisory_xact_lock(hashtext('quote_number_' || $1))`,
-      [tenantId],
-    );
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    // withDeleted : un numéro émis est consommé définitivement (voir R013).
-    const last = await queryRunner.manager
-      .createQueryBuilder(Quote, 'q')
-      .withDeleted()
-      .where('q.tenantId = :tenantId', { tenantId })
-      .andWhere('EXTRACT(YEAR FROM q."createdAt") = :year', { year })
-      .orderBy('q.quoteNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.quoteNumber.split('-')[2], 10) : 0;
-    return `DEV-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(queryRunner, tenantId, 'quote');
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -289,26 +275,10 @@ export class QuotesService {
         throw new UnprocessableEntityException('quote_not_accepted');
       }
 
-      // Generate invoice number with advisory lock (R013)
-      await qr.query(
-        `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
-        [tenantId],
-      );
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      const lastInv = await qr.manager.query(
-        // Pas de filtre sur deletedAt : un numéro émis est consommé (R013).
-        `SELECT "invoiceNumber" FROM sales_invoices
-         WHERE "tenantId" = $1
-           AND EXTRACT(YEAR FROM "createdAt") = $2
-         ORDER BY "invoiceNumber" DESC
-         LIMIT 1`,
-        [tenantId, year],
-      );
-      const lastSeq = lastInv.length > 0
-        ? parseInt(lastInv[0].invoiceNumber.split('-')[2], 10)
-        : 0;
-      const invoiceNumber = `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+      // Seconde copie de la numérotation des factures, jumelle de celle qui
+      // se trouvait dans DeliveriesService : convertir un devis produisait un
+      // numéro selon le format d'origine, quel que soit le réglage.
+      const invoiceNumber = await this.numbering.prochain(qr, tenantId, 'invoice');
 
       // Create stub sales_invoice row (full module comes later)
       const [invoice] = await qr.query(

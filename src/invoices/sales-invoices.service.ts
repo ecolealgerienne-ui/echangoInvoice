@@ -14,6 +14,7 @@ import { ListInvoicesDto } from './dto/list-invoices.dto';
 import { EmailService } from '../common/email.service';
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -48,6 +49,7 @@ export class SalesInvoicesService {
     @InjectRepository(Subscription) private readonly subRepo: Repository<Subscription>,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
+    private readonly numbering: NumberingService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
@@ -81,30 +83,17 @@ export class SalesInvoicesService {
     return { subtotal, taxAmount, totalAmount };
   }
 
-  // ─── Auto-numérotation FAC-YY-### (R013) ─────────────────────────────────
+  // ─── Auto-numérotation (R013) ────────────────────────────────────────────
+  //
+  // Le format vient des Paramètres ; la séquence vient d'un compteur dédié.
+  // La version précédente relisait le plus grand numéro existant et découpait
+  // la chaîne sur les tirets — ce qui n'a de sens que si le format ne change
+  // jamais. Un numéro émis reste consommé même si le document est supprimé :
+  // le compteur n'est jamais décrémenté, et une numérotation fiscale ne se
+  // réattribue pas.
 
   async generateInvoiceNumber(qr: QueryRunner, tenantId: string): Promise<string> {
-    await qr.query(
-      `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
-      [tenantId],
-    );
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    // withDeleted : un numéro émis est consommé définitivement, même si le
-    // document est supprimé — l'index unique (invoiceNumber, tenantId) ne
-    // distingue pas les lignes supprimées, et la numérotation fiscale ne se
-    // réattribue pas. @DeleteDateColumn filtre les supprimés par défaut, donc
-    // l'exclure ici est explicite et non un simple retrait de condition.
-    const last = await qr.manager
-      .createQueryBuilder(SalesInvoice, 'inv')
-      .withDeleted()
-      .where('inv.tenantId = :tenantId', { tenantId })
-      .andWhere('EXTRACT(YEAR FROM inv."createdAt") = :year', { year })
-      .orderBy('inv.invoiceNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.invoiceNumber.split('-')[2], 10) : 0;
-    return `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'invoice');
   }
 
   // ─── Freemium check ───────────────────────────────────────────────────────

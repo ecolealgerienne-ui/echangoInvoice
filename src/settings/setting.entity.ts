@@ -34,6 +34,20 @@ export class Setting {
   @Column({ type: 'varchar', length: 30, default: 'PO-YY-###' })
   poNumberFormat: string;
 
+  // Quatre formats manquaient : leurs compteurs étaient codés en dur, si bien
+  // que la page Numérotation ne réglait que la moitié des documents émis.
+  @Column({ type: 'varchar', length: 30, default: 'BL-REC-YY-###' })
+  receptionNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'FAC-ACH-YY-###' })
+  vendorBillNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'AV-YY-###' })
+  creditNoteNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'MO-YY-###' })
+  productionOrderNumberFormat: string;
+
   @Column({ type: 'text', nullable: true })
   logo: string | null;
 

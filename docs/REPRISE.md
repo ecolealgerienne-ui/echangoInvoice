@@ -61,9 +61,11 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | *(2026-08-08, suite)* | Seed : la chaîne devis → BL → facture n'existait pas |
 | *(2026-08-08, suite)* | Fiches client et fournisseur : encours, dette, historiques |
 | *(2026-08-08, suite)* | Détail commande, réception et facture fournisseur |
+| *(2026-08-08, suite)* | Numérotation configurable : 8 formats, compteurs dédiés |
 
-Trois migrations ajoutées : `1750022000000` (creditedAmount),
-`1750023000000` (price_lists). Toutes appliquées en local.
+Migrations ajoutées : `1750022000000` (creditedAmount), `1750023000000`
+(price_lists), `1750024000000` (document_counters + 4 formats de
+numérotation). Toutes appliquées en local.
 
 ---
 
@@ -77,24 +79,22 @@ page, reliées par des liens dans les deux sens. Restent sans page détail les
 avoirs, les dépenses et les matières premières — moins urgents, ces documents
 n'ont ni lignes ni rapprochement à consulter.
 
-### 1. Formats de numérotation — *le prochain à prendre*
+**La numérotation est configurable** : huit formats dans les Paramètres, une
+séquence par locataire / type / année dans `document_counters`. Le service
+`NumberingService` est le seul point d'entrée ; ne pas réintroduire de
+numérotation locale.
 
-Les huit compteurs sont codés en dur. Les formats des Paramètres
-(`invoiceNumberFormat`, `blNumberFormat`, …) sont stockés, validés, éditables —
-et lus par personne. **Vérifié le 2026-08-08** : ils n'apparaissent que dans les
-valeurs par défaut de `settings.service.ts`. Le réglage ment à l'utilisateur.
-
-### 2. Modèles PDF personnalisables
+### 1. Modèles PDF personnalisables — *le prochain à prendre*
 
 Trois documents figés, sans logo positionnable ni mentions paramétrables.
 
-### 3. La barre Erplain sur le stock
+### 2. La barre Erplain sur le stock
 
 Pas de distinction réservé / disponible / entrant — donc **on peut survendre**.
 `reservedQuantity` existe mais seule la production s'en sert : une commande
 client ne réserve rien. Ni réception partielle, ni multi-dépôt.
 
-### 4. Portail client
+### 3. Portail client
 
 Chantier lourd, valeur incertaine pour une PME algérienne. À ne pas prendre
 avant le reste.

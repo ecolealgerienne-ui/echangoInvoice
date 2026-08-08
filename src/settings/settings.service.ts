@@ -43,6 +43,10 @@ export class SettingsService {
       if (dto.invoiceNumberFormat !== undefined) setting.invoiceNumberFormat = dto.invoiceNumberFormat;
       if (dto.quoteNumberFormat !== undefined) setting.quoteNumberFormat = dto.quoteNumberFormat;
       if (dto.poNumberFormat !== undefined) setting.poNumberFormat = dto.poNumberFormat;
+      if (dto.receptionNumberFormat !== undefined) setting.receptionNumberFormat = dto.receptionNumberFormat;
+      if (dto.vendorBillNumberFormat !== undefined) setting.vendorBillNumberFormat = dto.vendorBillNumberFormat;
+      if (dto.creditNoteNumberFormat !== undefined) setting.creditNoteNumberFormat = dto.creditNoteNumberFormat;
+      if (dto.productionOrderNumberFormat !== undefined) setting.productionOrderNumberFormat = dto.productionOrderNumberFormat;
       if (dto.email !== undefined) setting.email = dto.email;
       if (dto.phone !== undefined) setting.phone = dto.phone;
       if (dto.address !== undefined) setting.address = dto.address;
@@ -98,6 +102,10 @@ export class SettingsService {
         invoiceNumberFormat: 'FAC-YY-###',
         quoteNumberFormat: 'DEV-YY-###',
         poNumberFormat: 'PO-YY-###',
+        receptionNumberFormat: 'BL-REC-YY-###',
+        vendorBillNumberFormat: 'FAC-ACH-YY-###',
+        creditNoteNumberFormat: 'AV-YY-###',
+        productionOrderNumberFormat: 'MO-YY-###',
         units: ['kg', 'g', 'tonne', 'L', 'mL', 'pcs', 'm', 'm²', 'm³', 'boîte', 'palette', 'sac'],
       });
       const saved = await qr.manager.save(Setting, setting);

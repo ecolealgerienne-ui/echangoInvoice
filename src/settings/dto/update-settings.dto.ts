@@ -5,6 +5,21 @@ import {
   Matches, Max, Min, ValidateNested,
 } from 'class-validator';
 
+/**
+ * Un format valide contient exactement UN groupe de 3 à 6 dièses.
+ *
+ * Le motif est ancré et interdit tout autre dièse. Une version non ancrée
+ * — `/#{3,6}/` — acceptait « FAC-####### » : elle y trouvait six dièses et se
+ * déclarait satisfaite, alors que le septième aurait élargi la séquence sans
+ * que personne ne l'ait voulu. Deux groupes séparés sont refusés pour la même
+ * raison : `appliquerFormat` les remplirait tous les deux avec la même
+ * séquence, et le numéro contiendrait deux fois le même nombre.
+ *
+ * Sans dièse du tout, tous les documents porteraient le même numéro et
+ * l'index unique refuserait le second.
+ */
+const FORMAT_NUMEROTATION = /^[^#]*#{3,6}[^#]*$/;
+
 class TaxRateDto {
   @ApiPropertyOptional() @IsString() name: string;
   @ApiPropertyOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) rate: number;
@@ -18,25 +33,45 @@ export class UpdateSettingsDto {
 
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
 
-  @ApiPropertyOptional({ description: 'Must contain ### or ####' })
+  @ApiPropertyOptional({ description: 'Doit contenir de ### à ###### (largeur de la séquence).' })
   @IsOptional() @IsString()
-  @Matches(/#{3,4}/, { message: 'blNumberFormat must contain ### or ####' })
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
   blNumberFormat?: string;
 
   @ApiPropertyOptional()
   @IsOptional() @IsString()
-  @Matches(/#{3,4}/, { message: 'invoiceNumberFormat must contain ### or ####' })
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
   invoiceNumberFormat?: string;
 
   @ApiPropertyOptional()
   @IsOptional() @IsString()
-  @Matches(/#{3,4}/, { message: 'quoteNumberFormat must contain ### or ####' })
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
   quoteNumberFormat?: string;
 
   @ApiPropertyOptional()
   @IsOptional() @IsString()
-  @Matches(/#{3,4}/, { message: 'poNumberFormat must contain ### or ####' })
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
   poNumberFormat?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
+  receptionNumberFormat?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
+  vendorBillNumberFormat?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
+  creditNoteNumberFormat?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  @Matches(FORMAT_NUMEROTATION, { message: 'format_sequence_required' })
+  productionOrderNumberFormat?: string;
 
   @ApiPropertyOptional({ description: 'List of allowed measurement units' })
   @IsOptional() @IsArray() @IsString({ each: true })
