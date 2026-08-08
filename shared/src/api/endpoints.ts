@@ -196,6 +196,7 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
   };
 
   const reportsApi = {
+    balanceAgee: () => api.get('/reports/aged-balance').then((r) => r.data),
     sales: (params: Params) => api.get('/reports/sales', { params }).then((r) => r.data),
     purchases: (params: Params) => api.get('/reports/purchases', { params }).then((r) => r.data),
     expenses: (params: Params) => api.get('/reports/expenses', { params }).then((r) => r.data),

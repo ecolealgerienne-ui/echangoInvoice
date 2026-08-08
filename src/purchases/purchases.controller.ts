@@ -39,14 +39,14 @@ export class PurchasesController {
   }
 
   @Get('purchase-orders')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List purchase orders (paginated + filters)' })
   findAllPos(@Query() query: ListPurchaseOrdersDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllPurchaseOrders(query, user.tenantId!);
   }
 
   @Get('purchase-orders/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get purchase order with items and receptions' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -101,14 +101,14 @@ export class PurchasesController {
   }
 
   @Get('reception-bls')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List reception BLs (paginated)' })
   findAllBls(@Query() query: ListReceptionBlsDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllReceptionBls(query, user.tenantId!);
   }
 
   @Get('reception-bls/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get reception BL with stock entries' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -126,14 +126,14 @@ export class PurchasesController {
   }
 
   @Get('vendor-bills')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List vendor bills (paginated + filters)' })
   findAllVendorBills(@Query() query: ListVendorBillsDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllVendorBills(query, user.tenantId!);
   }
 
   @Get('vendor-bills/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get vendor bill with items and payments' })
   findOneVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOneVendorBill(id, user.tenantId!);

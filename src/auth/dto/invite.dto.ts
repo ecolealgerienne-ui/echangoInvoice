@@ -6,10 +6,10 @@ export class InviteDto {
   @IsEmail()
   email: string;
 
-  @ApiPropertyOptional({ enum: ['manager', 'agent'], default: 'agent' })
+  @ApiPropertyOptional({ enum: ['manager', 'agent', 'accountant'], default: 'agent' })
   @IsOptional()
-  @IsEnum(['manager', 'agent'])
-  role?: 'manager' | 'agent';
+  @IsEnum(['manager', 'agent', 'accountant'])
+  role?: 'manager' | 'agent' | 'accountant';
 }
 
 export class AcceptInviteDto {

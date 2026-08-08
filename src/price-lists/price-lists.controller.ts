@@ -18,7 +18,7 @@ export class PriceListsController {
   constructor(private readonly service: PriceListsService) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les grilles tarifaires' })
   findAll(@CurrentUser() user: any) {
     return this.service.findAll(user.tenantId!);
@@ -30,7 +30,7 @@ export class PriceListsController {
    * rejetterait la route.
    */
   @Get('for-customer/:customerId')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Prix de la grille d'un client (map article → prix)" })
   resolveForCustomer(
     @Param('customerId', ParseUUIDPipe) customerId: string,
@@ -40,7 +40,7 @@ export class PriceListsController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Détail d'une grille avec ses prix" })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.findOne(id, user.tenantId!);

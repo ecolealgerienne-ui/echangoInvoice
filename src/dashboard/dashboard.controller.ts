@@ -16,21 +16,21 @@ export class DashboardController {
   constructor(private readonly service: DashboardService) {}
 
   @Get('stats')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Statistiques globales du mois' })
   getStats(@Query() query: DashboardQueryDto, @CurrentUser() user: any) {
     return this.service.getStats(user.tenantId!, query);
   }
 
   @Get('charts/sales')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Données graphiques des ventes' })
   getSalesChart(@Query() query: DashboardQueryDto, @CurrentUser() user: any) {
     return this.service.getSalesChart(user.tenantId!, query);
   }
 
   @Get('charts/stock')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Données graphiques du stock' })
   getStockChart(@CurrentUser() user: any) {
     return this.service.getStockChart(user.tenantId!);

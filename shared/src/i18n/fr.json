@@ -410,7 +410,10 @@
     "htBase": "Base HT",
     "taxCollected": "TVA collectée",
     "invoiceCount": "Factures",
-    "month": "Mois"
+    "month": "Mois",
+    "agedBalance": "Balance âgée",
+    "oldest": "Plus ancien",
+    "agedBalanceNote": "Le retard est calculé sur l'échéance et non sur le statut : une facture dont l'échéance est passée compte comme en retard, que la bascule automatique ait eu lieu ou non. Les factures sans échéance sont comptées comme non échues."
   },
   "settings": {
     "title": "Paramètres",

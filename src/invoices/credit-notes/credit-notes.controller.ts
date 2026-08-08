@@ -21,7 +21,7 @@ export class CreditNotesController {
   ) {}
 
   @Get(':id/pdf')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Générer le PDF de l'avoir" })
   async pdf(
     @Param('id', ParseUUIDPipe) id: string,
@@ -43,7 +43,7 @@ export class CreditNotesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les avoirs' })
   findAll(
     @CurrentUser() user: any,
@@ -54,7 +54,7 @@ export class CreditNotesController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un avoir' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.findOne(id, user.tenantId!);

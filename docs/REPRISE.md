@@ -81,16 +81,23 @@ NIS, RIB, couleur des documents). Toutes appliquées en local.
 | `9b343d9` | Tri par colonne sur les sept listes principales |
 | `23aef3b` | Périodes libres au tableau de bord, comparaison à la période précédente |
 
-Migration ajoutée : `1750026000000` (droit de timbre — `paymentMode` et
-`stampDuty` sur les factures, `stampDutyEnabled` dans les réglages). Appliquée
-en local.
+Migrations ajoutées : `1750026000000` (droit de timbre), `1750027000000`
+(`product_barcodes`), `1750028000000` (`product_suppliers`, avec reprise du
+fournisseur unique existant), `1750029000000` (rôle `accountant` dans l'enum).
+Toutes appliquées en local. ⚠️ `1750029000000` utilise `ALTER TYPE … ADD VALUE`,
+qui est **irréversible** : son `down` refuse tant qu'un compte porte le rôle.
 
 **Trois défauts de sécurité corrigés**, tous consignés dans le nouveau
 `docs/ERREURS.md` : l'archivage PDF écrasait les factures entre sociétés (E001),
 le schéma du logo n'était pas contraint (E002), et `TenantGuard` n'était monté
 sur aucun contrôleur (E003).
 
-**Contrôles exécutables** : `npm run verify` — 111 assertions sur quatre suites
+**Suite de la session** — douchette USB sur les quatre écrans de saisie et dans
+la recherche, PDF d'avoir, mention « facture annulée » en diagonale, facture
+proforma, fournisseurs multiples par article, balance âgée, rôle « comptable »
+en lecture seule.
+
+**Contrôles exécutables** : `npm run verify` — 131 assertions sur cinq suites
 (sécurité, conformité, tri, périodes). Chacune a été vue **refuser** avant
 d'être déclarée bonne (R030).
 
@@ -187,11 +194,13 @@ garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
   vingt premières lignes ne contiennent que des `DROP CONSTRAINT` et donnent une
   fausse impression d'innocuité (voir `docs/ERREURS.md` E006). Les migrations de
   la session 2 ont toutes été écrites à la main.
-- **SMTP est un placeholder** — `EMAIL_SMTP_HOST=smtp.example.com` dans `.env`.
-  Relances, envoi de factures et de BL, invitations : rien ne part. Le code gère
-  l'échec proprement (503 `email_send_failed`, et le lien d'invitation est
-  renvoyé par l'API), mais la fonction reste inutilisable sans vrais
-  identifiants.
+- **SMTP est un placeholder — en attente du passage au VPS** (décision du
+  2026-08-08). `EMAIL_SMTP_HOST=smtp.example.com` dans `.env` : relances, envoi
+  de factures et de BL, invitations, rien ne part. Le code gère l'échec
+  proprement (503 `email_send_failed`, et le lien d'invitation est renvoyé par
+  l'API) — **la fonction n'est donc pas cassée, elle est débranchée**. À
+  rebrancher avec les identifiants réels au moment de la mise en VPS, et à
+  éprouver alors sur les quatre usages, pas seulement sur l'envoi de facture.
 - `subscriptions.usersCount` n'est jamais mis à jour. Sans conséquence : le
   quota se calcule en direct sur `users` + `invitations`.
 - 130 avertissements de lint (0 erreur), surtout `no-explicit-any`.

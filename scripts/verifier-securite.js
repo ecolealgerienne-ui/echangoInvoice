@@ -56,6 +56,18 @@ for (const fichier of controleurs(SRC)) {
     defauts.push(`${rel} : TenantGuard doit précéder RolesGuard`);
   }
 
+  // `accountant` est un rôle de lecture seule : le décorateur ne connaît pas
+  // les verbes, donc rien n'empêcherait de le poser sur une écriture. Ce
+  // contrôle est la seule chose qui l'en empêche.
+  const lignes = src.split(/\r?\n/);
+  lignes.forEach((ligne, i) => {
+    if (!/@Roles\(.*accountant/.test(ligne)) return;
+    const contexte = lignes.slice(Math.max(0, i - 4), i).join(' ');
+    if (/@(Post|Put|Patch|Delete)\(/.test(contexte)) {
+      defauts.push(`${rel}:${i + 1} : rôle « accountant » sur une écriture — il est en lecture seule`);
+    }
+  });
+
   const h = (src.match(/^\s*@(Get|Post|Put|Patch|Delete)\(/gm) || []).length;
   const r = (src.match(/^\s*@Roles\(/gm) || []).length;
   nbHandlers += h;

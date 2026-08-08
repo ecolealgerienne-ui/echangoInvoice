@@ -34,7 +34,7 @@ export class SuppliersController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List suppliers (paginated)' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListSuppliersDto, @CurrentUser() user: JwtPayload) {
@@ -42,7 +42,7 @@ export class SuppliersController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get supplier with raw materials' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -75,7 +75,7 @@ export class SuppliersController {
   // ─── Contacts ─────────────────────────────────────────────────────────────
 
   @Get(':id/contacts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les contacts d\'un fournisseur' })
   listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.listContacts(id, user.tenantId!);

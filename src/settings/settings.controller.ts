@@ -16,7 +16,7 @@ export class SettingsController {
   constructor(private readonly service: SettingsService) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Paramètres du tenant courant' })
   get(@CurrentUser() user: any) {
     return this.service.get(user.tenantId!);

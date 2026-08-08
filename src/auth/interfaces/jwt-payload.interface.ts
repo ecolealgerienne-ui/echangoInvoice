@@ -7,7 +7,7 @@ export interface JwtPayload {
    */
   id?: string;
   tenantId: string | null;
-  role: 'owner' | 'manager' | 'agent' | 'superadmin';
+  role: 'owner' | 'manager' | 'agent' | 'accountant' | 'superadmin';
   email: string;
   iat?: number;
   exp?: number;

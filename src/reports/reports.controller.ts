@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
+import { BalanceAgeeService } from './balance-agee.service';
 import { ReportQueryDto, ExpenseReportQueryDto } from './dto/report-query.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -13,38 +14,48 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 @UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly service: ReportsService) {}
+  constructor(
+    private readonly service: ReportsService,
+    private readonly balance: BalanceAgeeService,
+  ) {}
+
+  @Get('aged-balance')
+  @Roles('owner', 'manager', 'accountant')
+  @ApiOperation({ summary: 'Balance âgée client : encours par ancienneté de retard' })
+  balanceAgee(@CurrentUser() user: any) {
+    return this.balance.parClient(user.tenantId!);
+  }
 
   @Get('sales')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Rapport des ventes sur une période' })
   getSales(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
     return this.service.getSalesReport(user.tenantId!, query);
   }
 
   @Get('purchases')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Rapport des achats sur une période' })
   getPurchases(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
     return this.service.getPurchasesReport(user.tenantId!, query);
   }
 
   @Get('expenses')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Rapport des dépenses sur une période' })
   getExpenses(@Query() query: ExpenseReportQueryDto, @CurrentUser() user: any) {
     return this.service.getExpensesReport(user.tenantId!, query);
   }
 
   @Get('stock')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'État courant du stock' })
   getStock(@CurrentUser() user: any) {
     return this.service.getStockReport(user.tenantId!);
   }
 
   @Get('tax-summary')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Résumé TVA par taux et par mois (déclaration DGI)' })
   getTaxSummary(@Query() query: ReportQueryDto, @CurrentUser() user: any) {
     return this.service.getTaxSummary(user.tenantId!, query);

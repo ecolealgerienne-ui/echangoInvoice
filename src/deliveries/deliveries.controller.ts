@@ -34,14 +34,14 @@ export class DeliveriesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les bons de livraison' })
   findAll(@Query() query: ListDeliveryNotesDto, @CurrentUser() user: any) {
     return this.deliveriesService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un bon de livraison' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.deliveriesService.findOne(id, user.tenantId!);
@@ -88,7 +88,7 @@ export class DeliveriesController {
   }
 
   @Get(':id/pdf')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Générer le PDF du bon de livraison' })
   async pdf(
     @Param('id', ParseUUIDPipe) id: string,

@@ -27,7 +27,7 @@ export class ExpensesController {
   }
 
   @Get('summary')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Résumé mensuel des dépenses' })
   @ApiQuery({ name: 'month', example: '2024-06' })
   getSummary(@Query('month') month: string, @CurrentUser() user: any) {
@@ -36,14 +36,14 @@ export class ExpensesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les dépenses' })
   findAll(@Query() query: ListExpensesDto, @CurrentUser() user: any) {
     return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'une dépense' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.findOne(id, user.tenantId!);

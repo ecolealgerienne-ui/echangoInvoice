@@ -17,7 +17,7 @@ export class ProductionDashboardController {
   constructor(private readonly service: ProductionDashboardService) {}
 
   @Get()
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Dashboard production : KPIs, stock critique, production/jour' })
   @ApiResponse({ status: 200 })
   getDashboard(@CurrentUser() user: JwtPayload) {

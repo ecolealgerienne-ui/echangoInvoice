@@ -31,14 +31,14 @@ export class CustomersController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List customers (paginated)' })
   findAll(@Query() query: ListCustomersDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get customer with history' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -66,7 +66,7 @@ export class CustomersController {
   // ─── Contacts ─────────────────────────────────────────────────────────────
 
   @Get(':id/contacts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les contacts d\'un client' })
   listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.listContacts(id, user.tenantId!);

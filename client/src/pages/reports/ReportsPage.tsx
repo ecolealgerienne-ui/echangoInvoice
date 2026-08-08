@@ -10,7 +10,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Card, CardContent } from '@/components/ui/Card';
 
-type ReportType = 'sales' | 'purchases' | 'expenses' | 'stock' | 'tax';
+type ReportType = 'sales' | 'purchases' | 'expenses' | 'stock' | 'tax' | 'agedBalance';
 
 export function ReportsPage() {
   const { t } = useTranslation();
@@ -24,13 +24,16 @@ export function ReportsPage() {
     queryKey: ['report', tab, dateFrom, dateTo, page],
     queryFn: () => {
       if (tab === 'stock') return reportsApi.stock();
+      // La balance est arrêtée à aujourd'hui : une période n'aurait pas de sens,
+      // le retard se mesure par rapport à la date du jour.
+      if (tab === 'agedBalance') return reportsApi.balanceAgee();
       if (tab === 'tax') return reportsApi.taxSummary({ dateFrom, dateTo });
       return reportsApi[tab]({ dateFrom, dateTo, page, limit: 20 });
     },
-    enabled: ready || tab === 'stock',
+    enabled: ready || tab === 'stock' || tab === 'agedBalance',
   });
 
-  const tabs: ReportType[] = ['sales', 'purchases', 'expenses', 'stock', 'tax'];
+  const tabs: ReportType[] = ['sales', 'purchases', 'expenses', 'stock', 'tax', 'agedBalance'];
 
   return (
     <div className="space-y-5">
@@ -44,7 +47,7 @@ export function ReportsPage() {
         ))}
       </div>
 
-      {tab !== 'stock' && (
+      {tab !== 'stock' && tab !== 'agedBalance' && (
         <div className="flex gap-3 items-end">
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('reports.dateFrom')}</label>
@@ -369,6 +372,71 @@ export function ReportsPage() {
           )}
         </div>
       )}
+      {tab === 'agedBalance' && data?.data && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {data.data.tranches.map((tr: any) => (
+              <Card key={tr.cle}>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground">{tr.libelle}</p>
+                  {/* Le rouge est réservé aux tranches en retard : « non échu »
+                      n'est pas une mauvaise nouvelle. */}
+                  <p className={`text-lg font-bold ${tr.cle === 'j90plus' && data.data.totaux[tr.cle] > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                    {formatCurrency(data.data.totaux[tr.cle] ?? 0)}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('customers.title')}</th>
+                  {data.data.tranches.map((tr: any) => (
+                    <th key={tr.cle} className="px-3 py-2 text-right font-medium text-muted-foreground">{tr.libelle}</th>
+                  ))}
+                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('common.total')}</th>
+                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.oldest')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data.data.clients.map((c: any) => (
+                  <tr key={c.customerId} className="hover:bg-muted/30">
+                    <td className="px-3 py-2 text-foreground">{c.customerName}</td>
+                    {data.data.tranches.map((tr: any) => (
+                      <td key={tr.cle} className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                        {c[tr.cle] ? formatCurrency(c[tr.cle]) : '—'}
+                      </td>
+                    ))}
+                    <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
+                      {formatCurrency(c.total)}
+                    </td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${c.plusAncien > 90 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                      {c.plusAncien > 0 ? `${c.plusAncien} j` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-muted/50">
+                <tr>
+                  <td className="px-3 py-2 font-semibold text-foreground">{t('common.total')}</td>
+                  {data.data.tranches.map((tr: any) => (
+                    <td key={tr.cle} className="px-3 py-2 text-right tabular-nums font-semibold">
+                      {formatCurrency(data.data.totaux[tr.cle] ?? 0)}
+                    </td>
+                  ))}
+                  <td className="px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(data.data.totalGeneral)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground">{t('reports.agedBalanceNote')}</p>
+        </div>
+      )}
+
     </div>
   );
 }

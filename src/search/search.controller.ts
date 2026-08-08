@@ -17,7 +17,7 @@ export class SearchController {
   constructor(private readonly service: SearchService) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Recherche transverse : tiers, articles et documents' })
   rechercher(@Query() query: SearchQueryDto, @CurrentUser() user: JwtPayload) {
     return this.service.rechercher(user.tenantId!, query.q);

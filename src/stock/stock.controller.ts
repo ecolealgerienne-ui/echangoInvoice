@@ -21,14 +21,14 @@ export class StockController {
   constructor(private readonly service: StockService) {}
 
   @Get('inventory')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Inventaire courant par matière première' })
   getInventory(@Query() query: ListInventoryDto, @CurrentUser() user: any) {
     return this.service.getInventory(user.tenantId!, query);
   }
 
   @Get('alerts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Alertes stock (expiration et seuil bas)' })
   getAlerts(@CurrentUser() user: any) {
     return this.service.getAlerts(user.tenantId!);
@@ -53,7 +53,7 @@ export class StockController {
   }
 
   @Get('entries/:rawMaterialId')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lots de stock pour une matière première' })
   listEntries(
     @Param('rawMaterialId', ParseUUIDPipe) rawMaterialId: string,

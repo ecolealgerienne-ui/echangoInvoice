@@ -29,7 +29,7 @@ export class ProductionOrderController {
   ) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Liste des ordres de production' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListProductionOrdersDto, @CurrentUser() user: JwtPayload) {
@@ -37,7 +37,7 @@ export class ProductionOrderController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un ordre de production' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'production_order_not_found' })
@@ -93,7 +93,7 @@ export class ProductionOrderController {
   // ── Movements ──────────────────────────────────────────────────────────────
 
   @Get(':id/movements')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Journal des mouvements d\'un ordre' })
   @ApiResponse({ status: 200 })
   getMovements(

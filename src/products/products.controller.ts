@@ -30,7 +30,7 @@ export class ProductsController {
   ) {}
 
   @Get(':id/suppliers')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Fournisseurs d'un article, préféré puis moins cher" })
   listerFournisseurs(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     return this.fournisseurs.lister(id, user.tenantId!);
@@ -59,14 +59,14 @@ export class ProductsController {
    * UUID, mais l'ordre des routes se lit, il ne se devine pas.
    */
   @Get('by-barcode/:code')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Retrouver un article par son code-barres ou sa référence" })
   parCodeBarres(@Param('code') code: string, @CurrentUser() user: JwtPayload) {
     return this.barcodes.parCodeBarres(code, user.tenantId!);
   }
 
   @Get(':id/barcodes')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: "Codes-barres d'un article" })
   listerCodes(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     return this.barcodes.lister(id, user.tenantId!);
@@ -99,14 +99,14 @@ export class ProductsController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List finished products (paginated)' })
   findAll(@Query() query: ListProductsDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get a finished product' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })

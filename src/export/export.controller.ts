@@ -20,7 +20,7 @@ export class ExportController {
   constructor(private readonly service: ExportService) {}
 
   @Get()
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Lister les jeux de données exportables' })
   catalogue() {
     return {
@@ -45,7 +45,7 @@ export class ExportController {
    * perd le plus facilement et regrette le plus longtemps.
    */
   @Get(':dataset')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   // Une requête d'export balaye une table entière. Le plafond doit laisser
   // passer une session de fin de mois — quinze fichiers à la suite pour le
   // comptable — tout en empêchant qu'un clic répété sature la base.

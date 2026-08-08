@@ -37,14 +37,14 @@ export class QuotesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les devis' })
   findAll(@Query() query: ListQuotesDto, @CurrentUser() user: any) {
     return this.quotesService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un devis' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.quotesService.findOne(id, user.tenantId!);
@@ -96,7 +96,7 @@ export class QuotesController {
   }
 
   @Get(':id/pdf')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Générer le PDF du devis, ou sa variante proforma' })
   @ApiQuery({ name: 'proforma', required: false, example: '1' })
   async pdf(

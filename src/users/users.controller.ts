@@ -18,21 +18,21 @@ export class UsersController {
   constructor(private readonly service: UsersService) {}
 
   @Get()
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: "Lister les membres de l'espace" })
   findAll(@CurrentUser() user: any) {
     return this.service.findAll(user.tenantId!);
   }
 
   @Get('quota')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Places occupées et limite du plan' })
   quota(@CurrentUser() user: any) {
     return this.service.quota(user.tenantId!);
   }
 
   @Get('invitations')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'manager', 'accountant')
   @ApiOperation({ summary: 'Invitations émises non encore acceptées' })
   listInvitations(@CurrentUser() user: any) {
     return this.service.listInvitations(user.tenantId!);

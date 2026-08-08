@@ -22,7 +22,7 @@ export class NomenclatureController {
   constructor(private readonly service: NomenclatureService) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Liste des nomenclatures (BOMs)' })
   @ApiResponse({ status: 200 })
   findAll(
@@ -37,7 +37,7 @@ export class NomenclatureController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'une nomenclature' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'nomenclature_not_found' })
