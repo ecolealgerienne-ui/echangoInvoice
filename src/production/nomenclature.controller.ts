@@ -8,6 +8,7 @@ import { CreateNomenclatureDto } from './dto/create-nomenclature.dto';
 import { UpdateNomenclatureDto } from './dto/update-nomenclature.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -15,7 +16,7 @@ import { ProductionModuleGuard } from './production-module.guard';
 
 @ApiTags('Production — Nomenclatures')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard, ProductionModuleGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard, ProductionModuleGuard)
 @Controller('production/nomenclatures')
 export class NomenclatureController {
   constructor(private readonly service: NomenclatureService) {}

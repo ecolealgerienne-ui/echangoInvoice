@@ -6,12 +6,13 @@ import { PriceListsService } from './price-lists.service';
 import { CreatePriceListDto, SetPriceListItemsDto } from './dto/price-list.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('PriceLists')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('price-lists')
 export class PriceListsController {
   constructor(private readonly service: PriceListsService) {}

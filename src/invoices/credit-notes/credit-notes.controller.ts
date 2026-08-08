@@ -4,12 +4,13 @@ import { CreditNotesService } from './credit-notes.service';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { TenantGuard } from '../../common/guards/tenant.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Credit Notes')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('invoices/credit-notes')
 export class CreditNotesController {
   constructor(private readonly service: CreditNotesService) {}

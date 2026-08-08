@@ -3,6 +3,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { PdfService } from '../common/pdf.service';
 import { EmailService } from '../common/email.service';
+import { montantEnLettres } from '../common/montant-en-lettres';
+import { MENTION_TIMBRE, calculerNetAPayer } from '../common/droit-de-timbre';
 import {
   Emetteur, LignePdf, jour, montant, rendreDocument,
 } from '../common/pdf/document-template';
@@ -84,6 +86,9 @@ export class InvoicePdfService {
 
     const credite = Number(inv.creditedAmount ?? 0);
     const paye = Number(inv.amountPaid ?? 0);
+    // Les decimal de TypeORM reviennent en chaîne : convertir avant de comparer.
+    const timbre = Number(inv.stampDuty ?? 0);
+    const netAPayer = calculerNetAPayer(inv.totalAmount, timbre);
 
     const html = rendreDocument({
       titre: 'FACTURE',
@@ -103,7 +108,13 @@ export class InvoicePdfService {
       totaux: [
         { libelle: 'Sous-total HT', montant: inv.subtotal },
         { libelle: 'TVA', montant: inv.taxAmount },
-        { libelle: 'TOTAL TTC', montant: inv.totalAmount, fort: true },
+        // Quand un timbre s'ajoute, le TTC cesse d'être le montant à payer :
+        // il perd donc la mise en avant au profit du net à payer.
+        { libelle: 'Total TTC', montant: inv.totalAmount, fort: timbre === 0 },
+        ...(timbre > 0 ? [
+          { libelle: MENTION_TIMBRE, montant: timbre },
+          { libelle: 'NET À PAYER', montant: netAPayer, fort: true },
+        ] : []),
         ...(paye > 0 ? [{ libelle: 'Montant payé', montant: inv.amountPaid }] : []),
         // Sans cette ligne, une facture partiellement soldée par un avoir
         // affiche un reste dû inférieur au total moins les encaissements,
@@ -114,10 +125,11 @@ export class InvoicePdfService {
           : []),
       ],
       notes: inv.notes,
+      montantEnLettres: `Arrêtée la présente facture à la somme de : ${montantEnLettres(netAPayer)}`,
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'FACTURES', filename: inv.invoiceNumber, html,
+      type: 'FACTURES', tenantId, documentId: inv.id, filename: inv.invoiceNumber, html,
     });
     return { buffer, filename: `${inv.invoiceNumber}.pdf` };
   }
@@ -166,7 +178,7 @@ export class InvoicePdfService {
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'BL', filename: dn.blNumber, html,
+      type: 'BL', tenantId, documentId: dn.id, filename: dn.blNumber, html,
     });
     return { buffer, filename: `${dn.blNumber}.pdf` };
   }
@@ -220,7 +232,7 @@ export class InvoicePdfService {
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'DEVIS', filename: q.quoteNumber, html,
+      type: 'DEVIS', tenantId, documentId: q.id, filename: q.quoteNumber, html,
     });
     return { buffer, filename: `${q.quoteNumber}.pdf` };
   }

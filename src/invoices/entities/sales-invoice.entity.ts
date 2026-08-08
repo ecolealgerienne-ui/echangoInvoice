@@ -66,13 +66,27 @@ export class SalesInvoice {
    * avoir n'est pas un encaissement, et les confondre fausserait à la fois
    * l'historique des règlements et le montant encaissé des rapports.
    *
-   * Invariant : amountPaid + creditedAmount + amountDue = totalAmount.
+   * Invariant : amountPaid + creditedAmount + amountDue = totalAmount + stampDuty.
+   * (le droit de timbre s'ajoute au dû, il n'entre pas dans le TTC)
    */
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   creditedAmount: number;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   amountDue: number;
+
+  /**
+   * Mode de règlement prévu à l'émission. C'est lui qui décide si le droit de
+   * timbre est dû : les règlements électroniques en sont dispensés (art. 47 de
+   * la loi de finances 2025). Distinct de `payments.paymentMethod`, qui
+   * constate le règlement effectif après coup.
+   */
+  @Column({ type: 'varchar', length: 20, default: 'other' })
+  paymentMode: string;
+
+  /** Droit de timbre, calculé côté serveur (R008). S'ajoute au TTC. */
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  stampDuty: number;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;

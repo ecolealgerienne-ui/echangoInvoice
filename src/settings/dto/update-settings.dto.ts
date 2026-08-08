@@ -112,4 +112,8 @@ export class UpdateSettingsDto {
   @ApiPropertyOptional({ description: 'Activer ou désactiver le module production' })
   @IsOptional() @IsBoolean()
   productionModuleEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'Applique le droit de timbre aux règlements en espèces' })
+  @IsOptional() @IsBoolean()
+  stampDutyEnabled?: boolean;
 }

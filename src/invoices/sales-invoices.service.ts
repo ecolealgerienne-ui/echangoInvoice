@@ -12,6 +12,7 @@ import { CreateSalesInvoiceDto, CreateSalesInvoiceItemDto } from './dto/create-s
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
 import { EmailService } from '../common/email.service';
+import { calculerDroitDeTimbre, calculerNetAPayer, estSoumisAuTimbre } from '../common/droit-de-timbre';
 import { assertMontant } from '../common/limits';
 import { ajouterArticles } from '../common/document-lines';
 import { NumberingService } from '../common/numbering/numbering.service';
@@ -81,6 +82,21 @@ export class SalesInvoicesService {
       'totalAmount',
     );
     return { subtotal, taxAmount, totalAmount };
+  }
+
+  /**
+   * Droit de timbre dû sur cette facture (R008 : jamais calculé côté client).
+   * Zéro si la société ne l'a pas activé, ou si le règlement n'est pas en espèces.
+   */
+  private async computeStampDuty(
+    qr: QueryRunner, tenantId: string, paymentMode: string, totalTTC: number,
+  ): Promise<number> {
+    if (!estSoumisAuTimbre(paymentMode)) return 0;
+    const [reglages] = await qr.query(
+      `SELECT "stampDutyEnabled" FROM settings WHERE "tenantId" = $1`, [tenantId],
+    );
+    if (!reglages?.stampDutyEnabled) return 0;
+    return calculerDroitDeTimbre(totalTTC);
   }
 
   // ─── Auto-numérotation (R013) ────────────────────────────────────────────
@@ -182,6 +198,8 @@ export class SalesInvoicesService {
       const invoiceNumber = await this.generateInvoiceNumber(qr, tenantId);
       const { items, deliveryNoteId, quoteId } = await this.resolveItems(dto, tenantId, qr);
       const totals = this.computeTotals(items);
+      const paymentMode = dto.paymentMode ?? 'other';
+      const stampDuty = await this.computeStampDuty(qr, tenantId, paymentMode, totals.totalAmount);
 
       const invoice = qr.manager.create(SalesInvoice, {
         tenantId,
@@ -193,8 +211,10 @@ export class SalesInvoicesService {
         deliveryNoteId,
         quoteId,
         ...totals,
+        paymentMode,
+        stampDuty,
         amountPaid: 0,
-        amountDue: totals.totalAmount,
+        amountDue: calculerNetAPayer(totals.totalAmount, stampDuty),
         status: 'draft',
         createdBy: userId,
         updatedBy: userId,
@@ -346,11 +366,17 @@ export class SalesInvoicesService {
       invoice.subtotal = totals.subtotal;
       invoice.taxAmount = totals.taxAmount;
       invoice.totalAmount = totals.totalAmount;
+      invoice.paymentMode = dto.paymentMode ?? invoice.paymentMode;
+      invoice.stampDuty = await this.computeStampDuty(qr, tenantId, invoice.paymentMode, totals.totalAmount);
       // Retrancher aussi la part créditée. Un brouillon ne peut pas porter
       // d'avoir (issue le refuse), mais la formule doit rester juste : c'est ce
       // genre de recalcul partiel qui avait fait ressusciter du stock livré.
       invoice.amountDue = Math.round(
-        Math.max(totals.totalAmount - Number(invoice.amountPaid) - Number(invoice.creditedAmount), 0) * 100,
+        Math.max(
+          calculerNetAPayer(totals.totalAmount, invoice.stampDuty)
+            - Number(invoice.amountPaid) - Number(invoice.creditedAmount),
+          0,
+        ) * 100,
       ) / 100;
       invoice.updatedBy = userId;
       await qr.manager.save(SalesInvoice, invoice);

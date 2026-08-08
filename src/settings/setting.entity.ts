@@ -95,6 +95,14 @@ export class Setting {
   @Column({ type: 'boolean', default: false })
   productionModuleEnabled: boolean;
 
+  /**
+   * Applique le droit de timbre aux factures réglées en espèces. Faux par
+   * défaut : une société qui n'encaisse pas d'espèces ne doit pas voir
+   * apparaître une ligne qu'elle ne doit pas.
+   */
+  @Column({ type: 'boolean', default: false })
+  stampDutyEnabled: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   updatedBy: string | null;
 

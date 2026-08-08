@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsDateString, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
 import { PRIX_MAX, QUANTITE_MAX, TAUX_MAX } from '../../common/limits';
 
 export class CreateSalesInvoiceItemDto {
@@ -16,7 +16,17 @@ export class CreateSalesInvoiceItemDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() @Max(TAUX_MAX) @Min(0) taxRate2?: number;
 }
 
+export const MODES_REGLEMENT = ['cash', 'bank_transfer', 'cheque', 'other'] as const;
+
 export class CreateSalesInvoiceDto {
+  /**
+   * Mode de règlement prévu. Seules les espèces déclenchent le droit de timbre ;
+   * le montant, lui, est calculé côté serveur (R008).
+   */
+  @ApiPropertyOptional({ enum: MODES_REGLEMENT, default: 'other' })
+  @IsOptional() @IsIn(MODES_REGLEMENT as unknown as string[])
+  paymentMode?: string;
+
   @ApiProperty() @IsUUID() customerId: string;
   @ApiProperty() @IsDateString() invoiceDate: string;
 

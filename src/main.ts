@@ -42,6 +42,10 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Swagger décrit toute la surface d'API, les DTO et les champs internes :
+  // hors production uniquement.
+  const swaggerActif = process.env.NODE_ENV !== 'production';
+  if (swaggerActif) {
   const config = new DocumentBuilder()
     .setTitle('Echango Invoice API')
     .setDescription('Multi-tenant invoicing SaaS API')
@@ -50,6 +54,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = parseInt(requireEnv('PORT'), 10);
   await app.listen(port, '0.0.0.0');

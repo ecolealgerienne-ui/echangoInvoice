@@ -35,10 +35,15 @@ const itemSchema = z.object({
   taxRate1: z.coerce.number().min(0).max(100).optional(),
 });
 
+const MODES_REGLEMENT = ['other', 'cash', 'bank_transfer', 'cheque'] as const;
+
 const schema = z.object({
   customerId: z.string().uuid(),
   invoiceDate: z.string().min(1),
   dueDate: z.string().min(1),
+  // Le droit de timbre en découle, mais il est calculé côté serveur (R008) :
+  // le front ne transmet que l'intention de règlement.
+  paymentMode: z.enum(MODES_REGLEMENT).default('other'),
   notes: z.string().optional(),
   items: z.array(itemSchema).min(1),
 });
@@ -417,6 +422,16 @@ export function InvoicesPage() {
               <label className="text-sm font-medium text-foreground">{t('invoices.dueDate')} *</label>
               <Input type="date" {...register('dueDate')} />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">{t('invoices.paymentMode')}</label>
+            <Select {...register('paymentMode')}>
+              {MODES_REGLEMENT.map((m) => (
+                <option key={m} value={m}>{t(`invoices.methods.${m}`)}</option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted-foreground">{t('invoices.paymentModeHint')}</p>
           </div>
 
           <div className="space-y-2">

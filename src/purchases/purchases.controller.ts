@@ -16,13 +16,14 @@ import { PatchVendorBillStatusDto } from './dto/patch-vendor-bill-status.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('purchases')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('purchases')
 export class PurchasesController {
   constructor(private readonly service: PurchasesService) {}

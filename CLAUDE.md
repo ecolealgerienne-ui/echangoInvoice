@@ -430,8 +430,16 @@ ailleurs, le filtre `deletedAt IS NULL` reste obligatoire.
 
 ### R014 — PDF : archivage au chemin imposé
 
+> ⚠️ **Réécrit le 2026-08-08.** La forme précédente, sans `tenantId`, **était le
+> défaut** : voir `docs/ERREURS.md` E001.
+
 ```typescript
 // ✅ CORRECT
+`ARCHIVES/${tenantId}/${year}/${month}/${type}/${numéro}__${documentId}.pdf`
+
+// ❌ INTERDIT — le numéro est séquentiel PAR locataire (R013/R020) : sans le
+//    tenantId, deux sociétés produisent le même fichier et la seconde écrase
+//    l'archive légale de la première, sans erreur ni journal.
 const path = `ARCHIVES/${year}/${month}/${type}/${filename}.pdf`;
 // Exemples :
 // ARCHIVES/2024/06/BL/BL-24-001.pdf

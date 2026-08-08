@@ -297,7 +297,9 @@
       "cheque": "Chèque",
       "cash": "Espèces",
       "other": "Autre"
-    }
+    },
+    "paymentMode": "Mode de règlement prévu",
+    "paymentModeHint": "En espèces, le droit de timbre est ajouté automatiquement."
   },
   "priceLists": {
     "title": "Grilles tarifaires",
@@ -451,7 +453,11 @@
     "logoHint": "PNG, JPG ou SVG recommandé. Le logo apparaît dans les PDF (factures, BL, devis).",
     "defaultPaymentTerms": "Délai de paiement par défaut",
     "defaultPaymentTermsHint": "Nombre de jours ajoutés à la date de facturation pour calculer l'échéance.",
-    "days": "jours"
+    "days": "jours",
+    "stampDuty": "Droit de timbre",
+    "stampDutyHint": "Dû sur les règlements en espèces (art. 100 du code du timbre). Les virements et paiements électroniques en sont dispensés.",
+    "stampDutyEnabled": "Appliquer le droit de timbre",
+    "stampDutyEnabledHint": "Ajoute le timbre aux factures dont le règlement est prévu en espèces."
   },
   "errors": {
     "generic": "Une erreur est survenue",
@@ -531,7 +537,9 @@
     "invalid_status_transition": "Transition de statut non autorisée",
     "settings_multiple_default_tax": "Un seul taux de TVA peut être défini par défaut",
     "amount_out_of_range": "Le montant dépasse la valeur maximale autorisée",
-    "amount_not_finite": "Le montant saisi n'est pas un nombre valide"
+    "amount_not_finite": "Le montant saisi n'est pas un nombre valide",
+    "tenant_context_missing": "Session invalide : aucune société associée à ce compte.",
+    "pdf_archive_identity_missing": "Le document ne peut pas être archivé : identifiant de société ou de document manquant."
   },
   "status": {
     "active": "Actif",

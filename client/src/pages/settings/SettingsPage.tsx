@@ -306,6 +306,26 @@ export function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.stampDuty')}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t('settings.stampDutyHint')}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium text-foreground">{t('settings.stampDutyEnabled')}</label>
+                    <p className="text-xs text-muted-foreground">{t('settings.stampDutyEnabledHint')}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary cursor-pointer"
+                    {...register('stampDutyEnabled')}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </>
         )}
 

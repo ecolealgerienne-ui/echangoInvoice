@@ -65,6 +65,12 @@ export interface OptionsDocument {
   signatures?: [string, string];
   /** Mention propre au document, avant le pied de page du locataire. */
   mention?: string | null;
+  /**
+   * Total en toutes lettres — mention obligatoire du décret 05-468. Le texte
+   * est composé par l'appelant : lui seul sait quel total fait foi (net à
+   * payer quand un droit de timbre s'ajoute au TTC).
+   */
+  montantEnLettres?: string | null;
 }
 
 /** Couleur de repli si le réglage est vide ou mal formé. */
@@ -96,6 +102,21 @@ export function echapper(valeur: unknown): string {
  */
 export function couleurSure(valeur: string | null | undefined): string {
   return valeur && /^#[0-9a-fA-F]{6}$/.test(valeur) ? valeur : ACCENT_DEFAUT;
+}
+
+const IMAGE_DATA_RE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * `echapper` empêche de sortir de l'attribut `src`, pas d'y mettre une adresse
+ * que Chrome ira chercher : `file:///etc/passwd` ou une adresse de service
+ * interne restent des requêtes valides pour lui. Le logo est stocké en
+ * data-URL (settings.logo) — toute autre forme est refusée plutôt que corrigée,
+ * un logo absent étant un défaut visible, une requête sortante non.
+ */
+export function sourceImageSure(valeur: unknown): string | null {
+  if (typeof valeur !== 'string') return null;
+  const v = valeur.trim();
+  return IMAGE_DATA_RE.test(v) ? v : null;
 }
 
 export function montant(valeur: number | string | null | undefined): string {
@@ -143,6 +164,7 @@ function styles(accent: string): string {
     .total-row.fort { background: ${accent}; color: white; font-weight: bold; font-size: 11px; border-bottom: none; }
     .notes { border: 1px solid #dde; border-radius: 4px; padding: 10px; font-size: 10px; color: #444; margin-bottom: 12px; }
     .rib { font-size: 10px; color: #444; margin-bottom: 12px; }
+    .somme { border: 1px solid #dde; border-radius: 4px; padding: 8px 10px; font-size: 10px; margin-bottom: 12px; text-transform: uppercase; }
     .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
     .signature { text-align: center; width: 200px; }
     .signature div { border-top: 1px solid #333; padding-top: 4px; font-size: 10px; }
@@ -177,6 +199,7 @@ function partie(
 export function rendreDocument(o: OptionsDocument): string {
   const accent = couleurSure(o.emetteur.accentColor);
   const e = o.emetteur;
+  const logo = sourceImageSure(e.logo);
 
   const idsEmetteur = [
     { libelle: 'NIF', valeur: e.nif },
@@ -189,7 +212,7 @@ export function rendreDocument(o: OptionsDocument): string {
   <div class="page">
     <div class="header">
       <div style="display:flex; align-items:flex-start; gap:12px;">
-        ${e.logo ? `<img src="${echapper(e.logo)}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
+        ${logo ? `<img src="${logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
         <div>
           <div class="company-name">${echapper(e.companyName ?? 'Mon Entreprise')}</div>
           ${e.address ? `<div class="company-info">${echapper(e.address)}</div>` : ''}
@@ -241,6 +264,10 @@ export function rendreDocument(o: OptionsDocument): string {
         </div>`).join('')}
       </div>
     </div>
+
+    ${o.montantEnLettres
+      ? `<div class="somme">${echapper(o.montantEnLettres)}</div>`
+      : ''}
 
     ${o.notes ? `<div class="notes"><strong>Notes :</strong> ${echapper(o.notes)}</div>` : ''}
     ${e.rib ? `<div class="rib"><strong>RIB :</strong> ${echapper(e.rib)}</div>` : ''}

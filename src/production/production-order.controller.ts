@@ -12,6 +12,7 @@ import { BatchCreateMovementsDto } from './dto/batch-create-movements.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -19,7 +20,7 @@ import { ProductionModuleGuard } from './production-module.guard';
 
 @ApiTags('Production — Ordres')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard, ProductionModuleGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard, ProductionModuleGuard)
 @Controller('production/orders')
 export class ProductionOrderController {
   constructor(
