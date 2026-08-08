@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { AlertTriangle, Clock, TrendingDown, Pencil, Target, ChevronDown, ChevronRight } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
@@ -144,7 +145,13 @@ export function StockPage() {
       {tab === 'inventory' && (
         invLoading ? <LoadingSpinner /> : (
           <>
-            <div className="flex justify-end">
+            <div className="flex justify-end items-center gap-2">
+              {/* Deux fichiers distincts : l'inventaire agrégé se lit article
+                  par article, les lots détaillent l'origine et le coût de
+                  chaque entrée — c'est ce dernier qu'un inventaire physique
+                  demande. */}
+              <ExportButton dataset="articles" libelle={t('stock.exportInventory')} />
+              <ExportButton dataset="lots-stock" libelle={t('stock.exportLots')} />
               <ColumnToggleMenu
                 columns={[
                   { key: 'name', label: t('rawMaterials.name') },

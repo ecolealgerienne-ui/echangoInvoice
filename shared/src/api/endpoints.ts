@@ -301,11 +301,20 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     remove: (id: string) => api.delete(`/invoices/credit-notes/${id}`).then((r) => r.data),
   };
 
+  const exportApi = {
+    catalogue: () => api.get('/export').then((r) => r.data),
+    // Renvoie la réponse entière, et non le seul corps : le nom du fichier est
+    // porté par Content-Disposition, et c'est le serveur qui fait autorité
+    // dessus. Le client se contenterait sinon de le réinventer.
+    download: (dataset: string, params?: Params) =>
+      api.get(`/export/${dataset}`, { params, responseType: 'blob' }),
+  };
+
   return {
     authApi, customersApi, suppliersApi, rawMaterialsApi, stockApi, invoicesApi,
     productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
     quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
-    priceListsApi,
+    priceListsApi, exportApi,
   };
 }
 

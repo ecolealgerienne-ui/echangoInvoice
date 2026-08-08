@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', issued: 'success', applied: 'info', cancelled: 'destructive',
@@ -140,7 +141,8 @@ export function CreditNotesPage() {
         </Button>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
+        <ExportButton dataset="avoirs" />
         <ColumnToggleMenu
           columns={[
             { key: 'number', label: t('creditNotes.creditNoteNumber') },

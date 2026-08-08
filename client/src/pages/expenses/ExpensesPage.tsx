@@ -18,8 +18,23 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, CheckCircle, Trash2 } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 const CATEGORIES = ['loyer', 'utilities', 'transport', 'rh', 'maintenance', 'other'];
+
+/**
+ * L'écran filtre sur un mois, l'export sur une période : sans cette
+ * conversion, le fichier contiendrait tout l'historique alors que la liste
+ * n'affiche qu'un mois.
+ *
+ * Le jour 0 du mois suivant est le dernier jour du mois courant — la seule
+ * formule qui n'ait pas besoin de connaître les mois de 30 jours ni février.
+ */
+function bornesDuMois(mois: string) {
+  const [annee, m] = mois.split('-').map(Number);
+  const dernier = new Date(annee, m, 0).getDate();
+  return { dateFrom: `${mois}-01`, dateTo: `${mois}-${String(dernier).padStart(2, '0')}` };
+}
 
 const schema = z.object({
   expenseDate: z.string().min(1),
@@ -125,7 +140,11 @@ export function ExpensesPage() {
           <option value="">Toutes catégories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton
+            dataset="depenses"
+            filtres={{ ...bornesDuMois(month), category }}
+          />
           <ColumnToggleMenu
             columns={[
               { key: 'date', label: t('expenses.date') },

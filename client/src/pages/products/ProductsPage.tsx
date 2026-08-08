@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 
@@ -150,7 +151,13 @@ export function ProductsPage() {
           ))}
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {/* « all » et « both » n'ont pas d'équivalent dans la colonne `type` :
+              on n'envoie le filtre que lorsqu'il désigne une valeur réelle. */}
+          <ExportButton
+            dataset="articles"
+            filtres={{ type: typeFilter === 'product' || typeFilter === 'material' ? typeFilter : undefined }}
+          />
           <ColumnToggleMenu
             columns={ALL_COLUMNS.map(k => ({ key: k, label: COLUMN_LABELS[k] }))}
             visible={visibleColumns}

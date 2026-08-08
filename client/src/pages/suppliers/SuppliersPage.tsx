@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search, Users } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -159,7 +160,8 @@ export function SuppliersPage() {
           <Input placeholder={t('common.search')} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="fournisseurs" />
           <ColumnToggleMenu
             columns={[
               { key: 'name', label: t('suppliers.name') },

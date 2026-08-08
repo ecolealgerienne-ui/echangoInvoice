@@ -19,6 +19,8 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, CreditCard, FileDown, Pencil, RotateCcw, Mail, History } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { enregistrerBlob } from '@/lib/download';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', partial: 'warning', paid: 'success', overdue: 'destructive', cancelled: 'secondary',
@@ -225,12 +227,9 @@ export function InvoicesPage() {
   }
 
   function downloadPdf(id: string, number: string) {
-    invoicesApi.pdf(id).then((blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${number}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(() => toast(t('errors.generic'), 'error'));
+    invoicesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${number}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
   }
 
   return (
@@ -253,7 +252,15 @@ export function InvoicesPage() {
             <option key={s} value={s}>{t(`invoices.status.${s}`)}</option>
           ))}
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {/* Trois fichiers, trois usages : l'en-tête des factures pour le
+              journal de ventes, le détail des lignes pour l'analyse par
+              article, les encaissements pour le rapprochement bancaire. Le
+              filtre de statut ne s'applique qu'aux deux premiers — un
+              encaissement n'a pas de statut. */}
+          <ExportButton dataset="factures" filtres={{ status }} libelle={t('invoices.exportInvoices')} />
+          <ExportButton dataset="lignes-factures" filtres={{ status }} libelle={t('invoices.exportLines')} />
+          <ExportButton dataset="encaissements" libelle={t('invoices.exportPayments')} />
           <ColumnToggleMenu
             columns={[
               { key: 'number', label: t('invoices.number') },

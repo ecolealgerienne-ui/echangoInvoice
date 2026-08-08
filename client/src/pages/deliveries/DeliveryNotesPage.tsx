@@ -19,6 +19,8 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt, Mail, PenLine } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { enregistrerBlob } from '@/lib/download';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', signed: 'warning', delivered: 'success', cancelled: 'secondary',
@@ -200,12 +202,9 @@ export function DeliveryNotesPage() {
   }
 
   function downloadPdf(id: string, blNumber: string) {
-    deliveriesApi.pdf(id).then((blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${blNumber}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(() => toast(t('errors.generic'), 'error'));
+    deliveriesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${blNumber}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
   }
 
   return (
@@ -228,7 +227,8 @@ export function DeliveryNotesPage() {
             <option key={s} value={s}>{t(`deliveries.status.${s}`)}</option>
           ))}
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="bons-livraison" filtres={{ status }} />
           <ColumnToggleMenu
             columns={[
               { key: 'blNumber', label: t('deliveries.blNumber') },

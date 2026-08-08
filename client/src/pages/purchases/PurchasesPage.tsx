@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 const PO_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', received: 'success', invoiced: 'warning', cancelled: 'destructive',
@@ -337,7 +338,8 @@ export function PurchasesPage() {
 
       {isLoading ? <LoadingSpinner /> : tab === 'orders' ? (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <ExportButton dataset="commandes-achat" />
             <ColumnToggleMenu
               columns={[
                 { key: 'poNumber', label: t('purchases.poNumber') },
@@ -417,7 +419,8 @@ export function PurchasesPage() {
         </>
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <ExportButton dataset="receptions" />
             <ColumnToggleMenu
               columns={[
                 { key: 'blNumber', label: t('purchases.blNumber') },

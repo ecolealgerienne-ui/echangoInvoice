@@ -23,6 +23,10 @@ async function bootstrap() {
     origin: requireEnv('ALLOWED_ORIGINS').split(','),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    // Sans cette ligne le navigateur masque Content-Disposition au code
+    // JavaScript : le nom du fichier téléchargé devrait être réinventé côté
+    // client, et divergerait de celui que sert l'API.
+    exposedHeaders: ['Content-Disposition'],
     credentials: true,
   });
 

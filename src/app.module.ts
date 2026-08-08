@@ -23,6 +23,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
 import { ProductionModule } from './production/production.module';
 import { AdminModule } from './admin/admin.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { AdminModule } from './admin/admin.module';
     ReportsModule,
     SettingsModule,
     ProductionModule,
+    ExportModule,
   ],
   providers: [
     // R017 — sans ce fournisseur, ThrottlerModule est enregistré mais aucun

@@ -197,6 +197,8 @@
     "lotNumber": "N° de lot",
     "unitCost": "Coût unitaire",
     "enteredAt": "Entré le",
+    "exportInventory": "Exporter l'inventaire",
+    "exportLots": "Exporter les lots",
     "lotStatus": {
       "available": "Disponible",
       "reserved": "Réservé",
@@ -223,6 +225,9 @@
     "paid": "Payé",
     "credited": "Avoirs imputés",
     "due": "Solde dû",
+    "exportInvoices": "Exporter les factures",
+    "exportLines": "Exporter les lignes",
+    "exportPayments": "Exporter les encaissements",
     "status": {
       "draft": "Brouillon",
       "sent": "Envoyée",
@@ -406,6 +411,10 @@
     "internal_server_error": "Erreur interne du serveur",
     "email_send_failed": "L'envoi de l'e-mail a échoué. Vérifiez la configuration SMTP et l'adresse du destinataire.",
     "duplicate_entry": "Cet élément existe déjà (doublon)",
+    "export_dataset_not_found": "Ce jeu de données n'existe pas",
+    "export_invalid_status": "Ce statut n'existe pas pour ce jeu de données",
+    "export_invalid_category": "Cette catégorie de dépense n'existe pas",
+    "export_filter_not_supported": "Ce filtre ne s'applique pas à ce jeu de données",
     "foreign_key_violation": "Cet élément est utilisé par d'autres données et ne peut pas être supprimé",
     "invalid_credentials": "Identifiants incorrects",
     "invalid_refresh_token": "Session expirée, veuillez vous reconnecter",
@@ -568,6 +577,8 @@
     "newOrder": "Nouvelle commande",
     "newReception": "Nouvelle réception",
     "newBill": "Nouvelle facture fournisseur",
+    "exportBills": "Exporter les factures",
+    "exportPayments": "Exporter les règlements",
     "billNumber": "N° Facture",
     "billDate": "Date facture",
     "dueDate": "Échéance",
@@ -704,6 +715,13 @@
     "reason": "Motif",
     "issue": "Émettre",
     "cancel": "Annuler"
+  },
+  "exportButton": {
+    "label": "Exporter",
+    "excelFr": "Excel (français)",
+    "excelFrDetail": "Point-virgule, décimale à virgule",
+    "csvStandard": "CSV standard",
+    "csvStandardDetail": "Virgule, décimale à point, dates ISO"
   },
   "admin": {
     "dashboard": {

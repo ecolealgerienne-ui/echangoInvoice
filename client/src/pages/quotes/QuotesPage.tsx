@@ -19,6 +19,8 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { enregistrerBlob } from '@/lib/download';
 
 const STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', sent: 'info', accepted: 'success',
@@ -190,12 +192,9 @@ export function QuotesPage() {
   function closeModal() { setEditing(null); reset(); setModalOpen(false); }
 
   function downloadPdf(id: string, number: string) {
-    quotesApi.pdf(id).then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${number}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(() => toast(t('errors.generic'), 'error'));
+    quotesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${number}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
   }
 
   const quotes = data?.data ?? [];
@@ -235,7 +234,8 @@ export function QuotesPage() {
           <option value="expired">{t('status.expired')}</option>
           <option value="converted">{t('status.converted')}</option>
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="devis" filtres={{ status }} />
           <ColumnToggleMenu
             columns={[
               { key: 'number', label: t('quotes.quoteNumber') },

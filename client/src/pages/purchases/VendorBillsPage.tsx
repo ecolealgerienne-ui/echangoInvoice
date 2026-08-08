@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw } from 'lucide-react';
 
@@ -248,6 +249,11 @@ export function VendorBillsPage() {
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-1" />{t('purchases.newBill')}
         </Button>
+      </div>
+
+      <div className="flex justify-end items-center gap-2">
+        <ExportButton dataset="factures-fournisseurs" libelle={t('purchases.exportBills')} />
+        <ExportButton dataset="reglements-fournisseurs" libelle={t('purchases.exportPayments')} />
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
