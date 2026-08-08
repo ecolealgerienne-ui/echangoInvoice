@@ -413,7 +413,16 @@
     "month": "Mois",
     "agedBalance": "Balance âgée",
     "oldest": "Plus ancien",
-    "agedBalanceNote": "Le retard est calculé sur l'échéance et non sur le statut : une facture dont l'échéance est passée compte comme en retard, que la bascule automatique ait eu lieu ou non. Les factures sans échéance sont comptées comme non échues."
+    "agedBalanceNote": "Le retard est calculé sur l'échéance et non sur le statut : une facture dont l'échéance est passée compte comme en retard, que la bascule automatique ait eu lieu ou non. Les factures sans échéance sont comptées comme non échues.",
+    "g50": "Aide à la déclaration G50",
+    "vatCollected": "TVA collectée",
+    "vatDeductible": "TVA déductible",
+    "vatDue": "Solde à payer",
+    "vatCredit": "Crédit reportable",
+    "stampCollected": "Timbre encaissé",
+    "totalToRemit": "Total à reverser au Trésor",
+    "billCount": "Factures",
+    "g50Note": "Aide au calcul, pas déclaration. La TVA déductible est celle des factures fournisseurs validées de la période, à leur date de facture. Les brouillons sont exclus : une facture non validée n'ouvre pas droit à déduction. Le timbre encaissé se reverse à part de la TVA. À vérifier avec votre comptable avant dépôt sur Jibaya'tic."
   },
   "settings": {
     "title": "Paramètres",

@@ -437,6 +437,71 @@ export function ReportsPage() {
         </div>
       )}
 
+      {tab === 'tax' && data?.data?.g50 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">{t('reports.g50')}</h2>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t('reports.vatCollected')}</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(data.data.g50.tvaCollectee)}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t('reports.vatDeductible')}</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(data.data.g50.tvaDeductible)}</p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              {/* Un solde négatif est un crédit reportable, pas un dû : les deux
+                  cases sont distinctes pour qu'on ne lise pas l'un pour l'autre. */}
+              <p className="text-xs text-muted-foreground">
+                {data.data.g50.creditReportable > 0 ? t('reports.vatCredit') : t('reports.vatDue')}
+              </p>
+              <p className="text-lg font-bold text-foreground">
+                {formatCurrency(data.data.g50.creditReportable > 0
+                  ? data.data.g50.creditReportable
+                  : data.data.g50.soldeAPayer)}
+              </p>
+            </CardContent></Card>
+            <Card><CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{t('reports.stampCollected')}</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(data.data.g50.timbreEncaisse)}</p>
+            </CardContent></Card>
+          </div>
+
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">{t('reports.totalToRemit')}</span>
+              <span className="text-lg font-bold text-foreground">{formatCurrency(data.data.g50.totalAReverser)}</span>
+            </div>
+          </div>
+
+          {data.data.deductibleByRate?.length > 0 && (
+            <div className="rounded-lg border border-border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('settings.taxRate')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.vatDeductible')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.billCount')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {data.data.deductibleByRate.map((r: any) => (
+                    <tr key={r.taxRate}>
+                      <td className="px-3 py-2 text-foreground">{r.taxRate} %</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatCurrency(r.htBase)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">{formatCurrency(r.taxDeductible)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{r.billCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">{t('reports.g50Note')}</p>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -376,7 +376,7 @@ export class ReportsService {
   async getTaxSummary(tenantId: string, dto: ReportQueryDto) {
     const { dateFrom, dateTo } = dto;
 
-    const [byRateRows, totalRow, byMonthRows] = await Promise.all([
+    const [byRateRows, totalRow, byMonthRows, deductibleRows, timbreRows] = await Promise.all([
       this.ds.query(`
         SELECT tax_name, tax_rate,
                COALESCE(SUM(tax_collected),0) AS tax_collected,
@@ -428,12 +428,69 @@ export class ReportsService {
           AND status != 'cancelled' AND "deletedAt" IS NULL
         GROUP BY month ORDER BY month ASC`,
         [tenantId, dateFrom, dateTo]),
+
+      // TVA déductible : celle payée aux fournisseurs sur la période.
+      // Un G50 se solde par « collectée − déductible » ; sans cette moitié,
+      // le comptable reprend le calcul à la main et l'outil est contourné.
+      //
+      // Les brouillons sont exclus : une facture fournisseur non validée n'ouvre
+      // pas droit à déduction. La date retenue est celle de la facture, pas
+      // celle de la réception — c'est la pièce qui fait foi.
+      this.ds.query(`
+        SELECT vbi."taxRate" AS tax_rate,
+               COALESCE(SUM(vbi."taxAmount"),0) AS tax_deductible,
+               COALESCE(SUM(vbi.quantity * vbi."unitPrice"),0) AS ht_base,
+               COUNT(DISTINCT vb.id) AS bill_count
+        FROM vendor_bill_items vbi
+        JOIN vendor_bills vb ON vb.id = vbi."vendorBillId"
+        WHERE vb."tenantId"=$1 AND vb."billDate" BETWEEN $2 AND $3
+          AND vb.status NOT IN ('draft', 'cancelled') AND vb."deletedAt" IS NULL
+          AND vbi."taxRate" IS NOT NULL AND vbi."taxRate" > 0
+        GROUP BY vbi."taxRate"
+        ORDER BY vbi."taxRate" DESC`,
+        [tenantId, dateFrom, dateTo]),
+
+      // Le timbre encaissé se reverse au Trésor via le G50, à part de la TVA.
+      this.ds.query(`
+        SELECT COALESCE(SUM("stampDuty"),0) AS timbre
+        FROM sales_invoices
+        WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+          AND status != 'cancelled' AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
     ]);
 
     const tot = totalRow[0];
+    const arrondi = (v: unknown) => Math.round(parseFloat(String(v ?? 0)) * 100) / 100;
+
+    const collectee = arrondi(tot.total_tax);
+    const deductible = deductibleRows.reduce(
+      (s: number, r: any) => s + parseFloat(r.tax_deductible), 0);
+    const timbre = arrondi(timbreRows[0]?.timbre);
+    const solde = Math.round((collectee - deductible) * 100) / 100;
+
     return {
       data: {
         period: { from: dateFrom, to: dateTo },
+        /**
+         * Aide au G50, pas déclaration : les montants sont ceux du logiciel,
+         * la responsabilité de la déclaration reste au déclarant.
+         */
+        g50: {
+          tvaCollectee: collectee,
+          tvaDeductible: Math.round(deductible * 100) / 100,
+          // Un solde négatif est un crédit de TVA reportable, pas une somme à
+          // payer : le nommer évite qu'on le lise comme un dû.
+          soldeAPayer: solde > 0 ? solde : 0,
+          creditReportable: solde < 0 ? Math.abs(solde) : 0,
+          timbreEncaisse: timbre,
+          totalAReverser: Math.round(((solde > 0 ? solde : 0) + timbre) * 100) / 100,
+        },
+        deductibleByRate: deductibleRows.map((r: any) => ({
+          taxRate: parseFloat(r.tax_rate),
+          htBase: arrondi(r.ht_base),
+          taxDeductible: arrondi(r.tax_deductible),
+          billCount: parseInt(r.bill_count),
+        })),
         totals: {
           totalHT: Math.round(parseFloat(tot.total_ht) * 100) / 100,
           totalTax: Math.round(parseFloat(tot.total_tax) * 100) / 100,
