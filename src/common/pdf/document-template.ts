@@ -80,6 +80,12 @@ export interface OptionsDocument {
    */
   qrVerification?: { image: string; url: string } | null;
   /**
+   * Code-barres du numero de document, en data-URL PNG. Il sert au
+   * classement : on retrouve un dossier papier en le passant a la
+   * douchette, sans retaper le numero.
+   */
+  codeBarresNumero?: string | null;
+  /**
    * Total en toutes lettres — mention obligatoire du décret 05-468. Le texte
    * est composé par l'appelant : lui seul sait quel total fait foi (net à
    * payer quand un droit de timbre s'ajoute au TTC).
@@ -186,6 +192,15 @@ function styles(accent: string): string {
     .verif-titre { font-size: 9px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
     .verif-url { font-size: 8px; color: #888; word-break: break-all; }
     .somme { border: 1px solid #dde; border-radius: 4px; padding: 8px 10px; font-size: 10px; margin-bottom: 12px; text-transform: uppercase; }
+    .pied-technique { display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-top: 14px; padding-top: 10px; border-top: 1px solid #eee; }
+    .verif { display: flex; align-items: center; gap: 10px; }
+    .verif img { width: 66px; height: 66px; }
+    .verif-titre { font-size: 9px; font-weight: bold; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .verif-url { font-size: 7.5px; color: #888; word-break: break-all; max-width: 220px; }
+    .code-numero { text-align: right; }
+    .code-numero img { height: 42px; }
+    .code-numero div { font-size: 8px; color: #888; margin-top: 2px; }
     .signatures { display: flex; justify-content: space-between; margin-top: 30px; }
     .signature { text-align: center; width: 200px; }
     .signature .cachet { max-height: 70px; max-width: 150px; object-fit: contain; margin-bottom: 2px; }
@@ -222,6 +237,10 @@ export function rendreDocument(o: OptionsDocument): string {
   const accent = couleurSure(o.emetteur.accentColor);
   const e = o.emetteur;
   const logo = sourceImageSure(e.logo);
+  // Memes contraintes que le logo : ces valeurs finissent dans un attribut
+  // `src`, et le service PDF bloque tout ce qui n'est pas une data-URL.
+  const qr = o.qrVerification ? sourceImageSure(o.qrVerification.image) : null;
+  const codeNumero = sourceImageSure(o.codeBarresNumero);
   const cachet = sourceImageSure(e.stampImage);
 
   const idsEmetteur = [
@@ -302,6 +321,20 @@ export function rendreDocument(o: OptionsDocument): string {
         <div>${echapper(o.signatures[0])}</div>
       </div>
       <div class="signature"><div>${echapper(o.signatures[1])}</div></div>
+    </div>` : ''}
+
+    ${qr || codeNumero ? `<div class="pied-technique">
+      ${qr ? `<div class="verif">
+        <img src="${qr}" alt="QR de verification"/>
+        <div>
+          <div class="verif-titre">Verifier ce document</div>
+          <div class="verif-url">${echapper(o.qrVerification?.url)}</div>
+        </div>
+      </div>` : '<div></div>'}
+      ${codeNumero ? `<div class="code-numero">
+        <img src="${codeNumero}" alt="code-barres du numero"/>
+        <div>${echapper(o.numero)}</div>
+      </div>` : ''}
     </div>` : ''}
 
     <div class="footer">${[o.mention, e.footerText].filter(Boolean).map(echapper).join('\n')}</div>

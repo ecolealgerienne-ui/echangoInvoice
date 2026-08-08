@@ -308,3 +308,45 @@ relecture, invisible dans un `grep`, visible seulement en `od -c`.
 
 Appels rétablis dans les deux services, contrôle renforcé sur deux propriétés,
 et vérifié en retirant réellement un appel.
+
+
+---
+
+## E010 — Un champ déclaré, transmis, et jamais dessiné
+
+**Date :** 2026-08-08 · **Gravité :** élevée · **Statut :** corrigé
+
+Le QR de vérification était **généré** à chaque document, **passé** au gabarit
+PDF, **déclaré** dans son interface — et n'apparaissait sur aucune facture. Le
+client l'a signalé : « Je ne vois pas des codes barres ni des QR code sur les
+documents ». Le bloc de rendu n'avait jamais été inséré : un `.replace()` sur la
+ligne du pied de page avait échoué en silence, laissant le champ orphelin.
+
+Trois filets étaient tendus, aucun n'a retenu :
+
+- la **compilation** passait — le champ est optionnel, un champ non lu ne gêne
+  personne ;
+- la **génération** passait — le PDF sortait, valide, simplement amputé ;
+- la **relecture du service** confirmait `qrVerification: await this.qr…` sur
+  les quatre documents, ce qui était vrai et sans rapport.
+
+> « Le champ existe » et « le champ est rendu » sont deux propriétés
+> différentes. Seule la seconde intéresse le client, et c'est la seule que ces
+> trois contrôles ne regardaient pas.
+
+La même relecture a révélé que le **code-barres du numéro n'avait jamais été
+écrit** : la demande du client portait sur *« QR Code et codes barres »*, et
+seul le QR figurait dans l'étude. Une demande à deux volets tenue pour honorée
+sur un seul.
+
+### Correctif
+
+Bloc de rendu posé dans le gabarit (QR + code-barres Code 128 du numéro, les
+deux via la liste blanche de schémas), génération du code-barres câblée sur les
+quatre documents, et **`npm run verify:gabarit-pdf`** ajouté : il rend le
+gabarit et lit le HTML produit, au lieu d'inspecter la forme du code. C'est le
+seul contrôle de la série qui exerce le code compilé — un `npm run build` doit
+le précéder.
+
+Vérifié en retirant le rendu du QR du fichier compilé : le contrôle refuse.
+Vérifié aussi sur un PDF réel — 4 objets image, contre 0 auparavant.

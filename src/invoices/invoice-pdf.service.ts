@@ -81,6 +81,30 @@ export class InvoicePdfService {
     }
   }
 
+  /**
+   * Code-barres du numero de document, en Code 128.
+   *
+   * Il ne sert pas a identifier un article mais a **classer** : on retrouve un
+   * dossier papier en passant la douchette sur le numero, sans le retaper.
+   * Code 128 parce qu'il accepte les lettres et les tirets — « FAC-26-0355 »
+   * n'entre dans aucun format numerique.
+   *
+   * Comme le QR, un echec de generation ne doit pas empecher le document de
+   * sortir : il reste valable sans son code-barres.
+   */
+  private async codeBarresNumero(numero: string): Promise<string | null> {
+    try {
+      const png = await bwipjs.toBuffer({
+        bcid: 'code128', text: numero, scale: 3, height: 8,
+        includetext: false, paddingwidth: 0, paddingheight: 0,
+      } as Parameters<typeof bwipjs.toBuffer>[0]);
+      return `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
+    } catch (e) {
+      this.logger.warn(`Code-barres non genere pour ${numero}: ${String(e)}`);
+      return null;
+    }
+  }
+
   private lignes(items: Record<string, unknown>[]): LignePdf[] {
     return items.map((i) => ({
       // `product_name` vient d'une jointure sur finished_products. La facture
@@ -164,6 +188,7 @@ export class InvoicePdfService {
       // suffit pas, c'est le papier qui circule.
       filigrane: inv.status === 'cancelled' ? 'FACTURE ANNULÉE' : null,
       qrVerification: await this.qrVerification('facture', inv.id),
+      codeBarresNumero: await this.codeBarresNumero(inv.invoiceNumber),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -213,6 +238,7 @@ export class InvoicePdfService {
       ],
       notes: dn.notes,
       qrVerification: await this.qrVerification('bl', dn.id),
+      codeBarresNumero: await this.codeBarresNumero(dn.blNumber),
       signatures: ['Signature expéditeur', 'Signature destinataire'],
     });
 
@@ -278,6 +304,7 @@ export class InvoicePdfService {
         : (a.reason ? `Motif : ${a.reason}` : null),
       filigrane: a.status === 'cancelled' ? 'AVOIR ANNULÉ' : null,
       qrVerification: await this.qrVerification('avoir', a.id),
+      codeBarresNumero: await this.codeBarresNumero(a.creditNoteNumber),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -338,6 +365,7 @@ export class InvoicePdfService {
       ],
       notes: q.notes,
       qrVerification: await this.qrVerification('devis', q.id),
+      codeBarresNumero: await this.codeBarresNumero(q.quoteNumber),
       montantEnLettres: proforma
         ? `Arrêtée la présente proforma à la somme de : ${montantEnLettres(q.totalAmount)}`
         : null,

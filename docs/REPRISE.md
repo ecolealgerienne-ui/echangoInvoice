@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : *feat(fiches): avoir, champs article et dépense, tri sur jointure*
+> Dernier commit : *fix(pdf): QR et code-barres du numéro réellement dessinés*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
