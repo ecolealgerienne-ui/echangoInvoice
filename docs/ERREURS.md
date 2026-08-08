@@ -371,3 +371,70 @@ Ce contrôle a aussi révélé, en échouant à capturer quoi que ce soit, que
 plusieurs exemplaires. Sans état — un navigateur est lancé et fermé à chaque
 appel — cela ne gêne pas la production, mais un test qui substitue le mauvais
 exemplaire ne voit rien passer.
+
+
+---
+
+## E011 — Une langue qu'on croyait posée
+
+**Date :** 2026-08-08 · **Gravité :** élevée · **Statut :** corrigé
+
+L'arabe était annoncé livré. À l'usage, la moitié de l'interface restait en
+français. La mesure a donné deux défauts distincts, dont aucun ne casse à la
+compilation :
+
+| Défaut | Ampleur | Pourquoi invisible |
+|---|---|---|
+| Clés absentes de `ar.json` | **683 sur 925** | i18next se rabat sur le français sans rien dire |
+| Chaînes écrites en dur dans le JSX | **143** | elles ne passent jamais par i18next |
+
+Le repli silencieux est le bon comportement en production — une clé manquante
+ne doit pas afficher une page vide. Mais pendant le développement il supprime
+le seul signal qui aurait alerté : rien ne casse, personne ne le sait.
+
+### Une troisième forme, née de la correction
+
+Une table figée au chargement du module ne peut pas suivre la langue :
+
+```ts
+const MODE: Record<string, string> = { cash: 'Espèces', … };   // jamais traduit
+```
+
+Quatre pages en portaient une, plus la page de vérification et sa table de
+titres de document. Elles sont devenues des fonctions appelées au rendu.
+
+Même contrainte sur les schémas zod, qui vivent hors de tout composant : `t`
+n'y existe pas. Le schéma porte donc la **clé**, et l'affichage de l'erreur la
+traduit.
+
+### Le défaut que j'ai introduit en corrigeant
+
+Une expression régulière destinée aux seuls schémas a défait **63 appels
+`t('production.…')` légitimes** dans le reste du fichier, laissant
+`{'production.title'}`. TypeScript l'a accepté sans broncher : une chaîne est
+un `ReactNode` valide. L'écran aurait affiché ses propres identifiants
+techniques.
+
+> Une correction de masse par expression régulière doit délimiter sa zone
+> **avant** de substituer, pas espérer que le motif suffise à la délimiter.
+
+Et le contrôle qui aurait dû le voir ne voyait rien non plus, pour une raison
+qui mérite d'être notée : `npx tsc --noEmit` à la racine du client **ne vérifie
+aucun fichier**. Le `tsconfig.json` y porte `"files": []` et ne fait que
+référencer `tsconfig.app.json`. Chaque « tsc : 0 » obtenu ainsi était vide de
+sens. Le contrôle réel est `npx tsc --noEmit -p tsconfig.app.json`.
+
+### Correctif
+
+683 clés traduites, 143 chaînes externalisées, 12 clés arabes mortes retirées,
+et **`npm run verify:i18n`** qui refuse six choses : clé manquante, clé arabe
+orpheline, traduction vide, variable d'interpolation perdue, chaîne française
+en dur, clé affichée sans `t()`.
+
+Les trois défauts principaux ont été réintroduits un par un pour voir le
+contrôle les refuser.
+
+**Deux exceptions assumées, inscrites dans le contrôle :** `useUnits.ts` et
+`SettingsPage.tsx` portent la liste des unités par défaut (`kg`, `boîte`…).
+Ce sont des **valeurs enregistrées en base**, relues ensuite par le PDF et
+l'export — les traduire écrirait de l'arabe dans une colonne de données.

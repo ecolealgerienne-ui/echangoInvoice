@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : *feat(achats): PDF des bons de commande, réceptions et factures fournisseur*
+> Dernier commit : *feat(i18n): arabe complet — 683 clés traduites, 143 chaînes externalisées*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -184,8 +184,8 @@ deux livrés — mais c'est un terrain où d'autres éditeurs algériens sont d�
 installés. À ne prendre que si un client le demande.
 
 #### 6. Relecture de la traduction arabe
-249 clés sur 865. Le reste retombe sur le français, ce qui reste lisible mais
-donne une interface mixte. **Une relecture par un arabophone est nécessaire
+**Couverture désormais complète : 1008 clés sur 1008**, et plus aucune chaîne
+écrite en dur dans le client — `npm run verify:i18n` refuse les deux. **Une relecture par un arabophone est nécessaire
 avant mise en production** : le vocabulaire comptable algérien a ses usages —
 « إشعار الدائن » pour un avoir, « حق الطابع » pour le droit de timbre — retenus
 sans avoir pu être confirmés. Les règles RTL couvrent les utilitaires Tailwind

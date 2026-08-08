@@ -220,7 +220,7 @@ export function RecurringInvoicesPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1 col-span-2">
               <label className="text-sm font-medium text-foreground">{t('recurring.label')} *</label>
-              <Input {...register('label')} placeholder="Abonnement mensuel — Épicerie Centrale" />
+              <Input {...register('label')} placeholder={t('recurring.labelPlaceholder')} />
               {errors.label && <p className="text-xs text-destructive">{t('errors.required')}</p>}
             </div>
             <div className="space-y-1">
@@ -301,7 +301,7 @@ export function RecurringInvoicesPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Notes</label>
+            <label className="text-sm font-medium text-foreground">{t('common.notes')}</label>
             <Input {...register('notes')} />
           </div>
 

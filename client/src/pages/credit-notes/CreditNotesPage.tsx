@@ -157,9 +157,9 @@ export function CreditNotesPage() {
             { key: 'customer', label: t('customers.title') },
             { key: 'date', label: 'Date' },
             { key: 'reason', label: t('creditNotes.reason') },
-            { key: 'total', label: 'Total TTC' },
+            { key: 'total', label: t('common.totalTtc') },
             { key: 'status', label: t('quotes.status') },
-            { key: 'notes', label: 'Notes' },
+            { key: 'notes', label: t('common.notes') },
           ]}
           visible={visible}
           onToggle={toggle}
@@ -173,11 +173,11 @@ export function CreditNotesPage() {
               <tr>
                 {col('number') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.creditNoteNumber')}</th>}
                 {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
-                {col('date') && <th className="text-left px-4 py-3 font-medium">Date</th>}
+                {col('date') && <th className="text-left px-4 py-3 font-medium">{t('common.date')}</th>}
                 {col('reason') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.reason')}</th>}
-                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
+                {col('total') && <th className="text-right px-4 py-3 font-medium">{t('common.totalTtc')}</th>}
                 {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
+                {col('notes') && <th className="text-left px-4 py-3 font-medium">{t('common.notes')}</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -244,21 +244,21 @@ export function CreditNotesPage() {
               {errors.customerId && <p className="text-xs text-destructive mt-1">{t('errors.required')}</p>}
             </div>
             <div>
-              <label className="text-sm font-medium">Facture liée (optionnel)</label>
+              <label className="text-sm font-medium">{t('creditNotes.linkedInvoice')}</label>
               <Select {...register('salesInvoiceId')} className="mt-1 w-full">
-                <option value="">— Aucune —</option>
+                <option value="">{t('common.none')}</option>
                 {invoiceList.map((inv: any) => (
                   <option key={inv.id} value={inv.id}>{inv.invoiceNumber}</option>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Date de l'avoir</label>
+              <label className="text-sm font-medium">{t('creditNotes.date')}</label>
               <Input type="date" {...register('creditNoteDate')} className="mt-1" />
             </div>
             <div className="col-span-2">
               <label className="text-sm font-medium">{t('creditNotes.reason')}</label>
-              <Input {...register('reason')} className="mt-1" placeholder="Motif de l'avoir..." />
+              <Input {...register('reason')} className="mt-1" placeholder={t('creditNotes.reasonPlaceholder')} />
             </div>
           </div>
 

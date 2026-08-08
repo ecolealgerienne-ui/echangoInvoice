@@ -278,9 +278,9 @@ export function QuotesPage() {
               { key: 'customer', label: t('customers.title') },
               { key: 'quoteDate', label: t('quotes.quoteDate') },
               { key: 'expiryDate', label: t('quotes.expiryDate') },
-              { key: 'total', label: 'Total TTC' },
+              { key: 'total', label: t('common.totalTtc') },
               { key: 'status', label: t('quotes.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -307,14 +307,14 @@ export function QuotesPage() {
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
                 {col('total') && (
-                  <EnteteTriable libelle="Total TTC" colonne="totalAmount" tri={tri}
+                  <EnteteTriable libelle={t('common.totalTtc')} colonne="totalAmount" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
                 {col('status') && (
                   <EnteteTriable libelle={t('quotes.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
+                {col('notes') && <th className="text-left px-4 py-3 font-medium">{t('common.notes')}</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -514,7 +514,7 @@ export function QuotesPage() {
                 <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
                   <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
                   <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(totalTVA)}</span></span>
-                  <span className="font-semibold">Total TTC : {formatCurrency(subtotalHT + totalTVA)}</span>
+                  <span className="font-semibold">{t('common.totalTtc')} : {formatCurrency(subtotalHT + totalTVA)}</span>
                 </div>
               );
             })()}

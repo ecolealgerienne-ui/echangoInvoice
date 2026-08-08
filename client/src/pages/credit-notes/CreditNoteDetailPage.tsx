@@ -86,7 +86,7 @@ export function CreditNoteDetailPage() {
             }
           />
           <Champ libelle={t('creditNotes.reason')} valeur={a.reason || '—'} />
-          <Champ libelle="Notes" valeur={a.notes || '—'} />
+          <Champ libelle={t('common.notes')} valeur={a.notes || '—'} />
         </Bloc>
 
         <Bloc titre={t('common.total')}>

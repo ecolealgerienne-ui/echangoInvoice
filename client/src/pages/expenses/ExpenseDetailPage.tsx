@@ -56,7 +56,7 @@ export function ExpenseDetailPage() {
             libelle={t('expenses.amount')}
             valeur={<span className="font-semibold">{formatCurrency(d.amount)}</span>}
           />
-          <Champ libelle="Notes" valeur={d.notes ?? '—'} />
+          <Champ libelle={t('common.notes')} valeur={d.notes ?? '—'} />
         </Bloc>
 
         <Bloc titre={t('common.history')}>

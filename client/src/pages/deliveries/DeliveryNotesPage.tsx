@@ -262,7 +262,7 @@ export function DeliveryNotesPage() {
               { key: 'date', label: t('common.date') },
               { key: 'amount', label: t('common.amount') },
               { key: 'status', label: t('common.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -293,7 +293,7 @@ export function DeliveryNotesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>

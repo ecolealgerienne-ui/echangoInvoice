@@ -97,7 +97,7 @@ export function ReceptionDetailPage() {
             valeur={formatNumber(reception.totalQuantityReceived)}
           />
           <Champ libelle={t('stock.value')} valeur={formatCurrency(valeur)} />
-          <Champ libelle="Notes" valeur={reception.notes} />
+          <Champ libelle={t('common.notes')} valeur={reception.notes} />
         </Bloc>
       </div>
 

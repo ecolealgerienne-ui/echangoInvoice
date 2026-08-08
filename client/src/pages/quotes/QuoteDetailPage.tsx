@@ -96,7 +96,7 @@ export function QuoteDetailPage() {
             vers={devis.convertedToDeliveryNoteId
               ? `/deliveries/${devis.convertedToDeliveryNoteId}` : null}
           />
-          <Champ libelle="Notes" valeur={devis.notes} />
+          <Champ libelle={t('common.notes')} valeur={devis.notes} />
         </Bloc>
       </div>
 

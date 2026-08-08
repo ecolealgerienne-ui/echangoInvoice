@@ -153,7 +153,7 @@ export function ExpensesPage() {
           className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Select value={category} onChange={e => { setCategory(e.target.value); setPage(1); }} className="w-44">
-          <option value="">Toutes catégories</option>
+          <option value="">{t('expenses.allCategories')}</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}
         </Select>
         <div className="ml-auto flex items-center gap-2">
@@ -168,7 +168,7 @@ export function ExpensesPage() {
               { key: 'category', label: t('expenses.category') },
               { key: 'amount', label: t('expenses.amount') },
               { key: 'status', label: t('common.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -201,7 +201,7 @@ export function ExpensesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="isApproved" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
@@ -312,7 +312,7 @@ export function ExpensesPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">Notes</label>
+            <label className="text-sm font-medium text-foreground">{t('common.notes')}</label>
             <Input {...register('notes')} />
           </div>
           <div className="flex justify-end gap-2 pt-2">

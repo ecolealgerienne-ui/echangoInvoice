@@ -42,15 +42,15 @@ const MOV_TYPE_VARIANT: Record<string, any> = {
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 const bomLineSchema = z.object({
-  rawMaterialId: z.string().uuid({ message: 'Matière première requise' }),
-  quantityPerUnit: z.coerce.number().positive('Quantité > 0'),
-  unit: z.string().min(1, 'Unité requise'),
+  rawMaterialId: z.string().uuid({ message: 'production.materialRequired' }),
+  quantityPerUnit: z.coerce.number().positive('production.quantityPositive'),
+  unit: z.string().min(1, 'production.unitRequired'),
 });
 
 const nomenclatureSchema = z.object({
   code: z.string().min(1, 'Code requis').max(50),
   name: z.string().min(2, 'Nom requis').max(255),
-  finishedProductId: z.string().uuid({ message: 'Produit fini requis' }),
+  finishedProductId: z.string().uuid({ message: 'production.finishedProductRequired' }),
   description: z.string().optional(),
   lines: z.array(bomLineSchema).min(1, 'Au moins un composant requis'),
 });
@@ -58,7 +58,7 @@ type NomenclatureFormData = z.infer<typeof nomenclatureSchema>;
 
 const orderSchema = z.object({
   nomenclatureId: z.string().uuid({ message: 'Nomenclature requise' }),
-  quantityToProduce: z.coerce.number().positive('Quantité > 0'),
+  quantityToProduce: z.coerce.number().positive('production.quantityPositive'),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   priority: z.enum(['normal', 'urgent']).default('normal'),
@@ -67,7 +67,7 @@ const orderSchema = z.object({
 type OrderFormData = z.infer<typeof orderSchema>;
 
 const completeSchema = z.object({
-  quantityProduced: z.coerce.number().positive('Quantité produite > 0'),
+  quantityProduced: z.coerce.number().positive('production.producedPositive'),
   quantityRejected: z.coerce.number().min(0).default(0),
   notes: z.string().optional(),
 });
@@ -77,8 +77,8 @@ const movementSchema = z.object({
   type: z.enum(['mp_consumption', 'rejection', 'mp_loss']),
   rawMaterialId: z.string().optional(),
   finishedProductId: z.string().optional(),
-  quantity: z.coerce.number().positive('Quantité > 0'),
-  unit: z.string().min(1, 'Unité requise'),
+  quantity: z.coerce.number().positive('production.quantityPositive'),
+  unit: z.string().min(1, 'production.unitRequired'),
   reason: z.string().optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -203,7 +203,7 @@ export function ProductionPage() {
     mutationFn: (data: NomenclatureFormData) => productionApi.createNomenclature(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureCreated'), 'success');
+      toast('production.nomenclatureCreated', 'success');
       setNomModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -213,7 +213,7 @@ export function ProductionPage() {
     mutationFn: (data: NomenclatureFormData) => productionApi.updateNomenclature(editingNom.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureUpdated'), 'success');
+      toast('production.nomenclatureUpdated', 'success');
       setNomModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -223,7 +223,7 @@ export function ProductionPage() {
     mutationFn: (id: string) => productionApi.deleteNomenclature(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureDeleted'), 'success');
+      toast('production.nomenclatureDeleted', 'success');
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
@@ -242,7 +242,7 @@ export function ProductionPage() {
     mutationFn: (data: OrderFormData) => productionApi.createOrder(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
-      toast(t('production.orderCreated'), 'success');
+      toast('production.orderCreated', 'success');
       setOrderModalOpen(false);
       orderForm.reset();
     },
@@ -254,7 +254,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderStarted'), 'success');
+      toast('production.orderStarted', 'success');
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
@@ -270,7 +270,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderCompleted'), 'success');
+      toast('production.orderCompleted', 'success');
       setCompleteModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -281,7 +281,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderCancelled'), 'success');
+      toast('production.orderCancelled', 'success');
       setCancelModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -298,7 +298,7 @@ export function ProductionPage() {
     mutationFn: (data: MovementFormData) => productionApi.createMovement(viewOrder.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
-      toast(t('production.movementLogged'), 'success');
+      toast('production.movementLogged', 'success');
       setMovModalOpen(false);
       movForm.reset({ type: 'mp_consumption', quantity: 1, unit: '' });
     },
@@ -361,7 +361,7 @@ export function ProductionPage() {
     mutationFn: (items: object[]) => productionApi.createMovementBatch(viewOrder.id, items),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
-      toast(t('production.movementLogged'), 'success');
+      toast('production.movementLogged', 'success');
       setMovModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -377,7 +377,7 @@ export function ProductionPage() {
         unit: l.unit,
       }));
     if (items.length === 0) {
-      toast('Aucune quantité à enregistrer', 'error');
+      toast(t('production.nothingToLog'), 'error');
       return;
     }
     batchMovMutation.mutate(items);
@@ -478,7 +478,7 @@ export function ProductionPage() {
           ) : nomenclatures.length === 0 ? (
             <EmptyState
               icon={<ClipboardList className="h-10 w-10 text-muted-foreground" />}
-              message="Aucune nomenclature. Créez votre première BOM pour définir la recette d'un produit fini."
+              message={t('production.noNomenclature')}
             />
           ) : (
             <div className="rounded-md border border-border overflow-hidden">
@@ -488,7 +488,7 @@ export function ProductionPage() {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.code')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût / unité</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.costPerUnit')}</th>
                     <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
                   </tr>
@@ -545,7 +545,7 @@ export function ProductionPage() {
           ) : orders.length === 0 ? (
             <EmptyState
               icon={<Factory className="h-10 w-10 text-muted-foreground" />}
-              message="Aucun ordre de production. Créez un ordre à partir d'une nomenclature existante."
+              message={t('production.noOrder')}
             />
           ) : (
             <div className="rounded-md border border-border overflow-hidden">
@@ -662,13 +662,13 @@ export function ProductionPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">{t('production.code')}</label>
-              <Input {...nomForm.register('code')} placeholder="NOM-001" className="mt-1" />
-              {nomForm.formState.errors.code && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.code.message}</p>}
+              <Input {...nomForm.register('code')} placeholder={t('production.codePlaceholder')} className="mt-1" />
+              {nomForm.formState.errors.code && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.code.message ? t(nomForm.formState.errors.code.message) : ''}</p>}
             </div>
             <div>
               <label className="text-sm font-medium">{t('production.name')}</label>
-              <Input {...nomForm.register('name')} placeholder="Nom de la nomenclature" className="mt-1" />
-              {nomForm.formState.errors.name && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.name.message}</p>}
+              <Input {...nomForm.register('name')} placeholder={t('production.namePlaceholder')} className="mt-1" />
+              {nomForm.formState.errors.name && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.name.message ? t(nomForm.formState.errors.name.message) : ''}</p>}
             </div>
           </div>
 
@@ -686,7 +686,7 @@ export function ProductionPage() {
                 </Select>
               )}
             />
-            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
+            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message ? t(nomForm.formState.errors.finishedProductId.message) : ''}</p>}
           </div>
 
           <div>
@@ -714,14 +714,14 @@ export function ProductionPage() {
               </Button>
             </div>
             {nomForm.formState.errors.lines?.root && (
-              <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message}</p>
+              <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message ? t(nomForm.formState.errors.lines.root.message) : ''}</p>
             )}
             {/* En-tête colonnes */}
             <div className="grid grid-cols-12 gap-2 px-3 mb-1">
-              <div className="col-span-5 text-xs font-medium text-muted-foreground">Matière première</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground">Qté / unité</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground">Unité</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût / unité</div>
+              <div className="col-span-5 text-xs font-medium text-muted-foreground">{t('production.rawMaterial')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('production.qtyPerUnitShort')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('common.unit')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">{t('production.costPerUnit')}</div>
               <div className="col-span-1" />
             </div>
             <div className="space-y-2">
@@ -751,7 +751,7 @@ export function ProductionPage() {
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Qté"
+                      placeholder={t('common.qty')}
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
@@ -790,7 +790,7 @@ export function ProductionPage() {
               }, 0);
               return (
                 <div className="grid grid-cols-12 gap-2 px-3 pt-2 border-t border-border mt-2">
-                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">Total / unité produite</div>
+                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">{t('production.totalPerUnit')}</div>
                   <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}</div>
                   <div className="col-span-1" />
                 </div>
@@ -832,7 +832,7 @@ export function ProductionPage() {
               )}
             />
             {orderForm.formState.errors.nomenclatureId && (
-              <p className="text-xs text-destructive mt-1">{orderForm.formState.errors.nomenclatureId.message}</p>
+              <p className="text-xs text-destructive mt-1">{orderForm.formState.errors.nomenclatureId.message ? t(orderForm.formState.errors.nomenclatureId.message) : ''}</p>
             )}
           </div>
 
@@ -1030,11 +1030,11 @@ export function ProductionPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-muted/50">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Prévu</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Consommé</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Écart</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.planned')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.consumed')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.variance')}</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">{t('common.unit')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1067,9 +1067,9 @@ export function ProductionPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-amber-50/60">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Total perdu</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.totalLost')}</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">{t('common.unit')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1107,14 +1107,14 @@ export function ProductionPage() {
                 {t('production.movements')}
               </h3>
               {movements.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">Aucun mouvement enregistré.</p>
+                <p className="text-sm text-muted-foreground italic">{t('production.noMovement')}</p>
               ) : (
                 <div className="rounded-md border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movementType')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">Matière / Produit</th>
+                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.materialOrProduct')}</th>
                         <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t('production.quantity')}</th>
                         <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.reason')}</th>
                         <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movedAt')}</th>
@@ -1154,12 +1154,12 @@ export function ProductionPage() {
       >
         <form onSubmit={completeForm.handleSubmit(data => completeOrderMutation.mutate(data))} className="space-y-4">
           <div className="p-3 bg-muted/40 rounded-md text-sm text-muted-foreground">
-            Ordre : <span className="font-semibold text-foreground">{viewOrder?.ref}</span> — Planifié : <span className="font-semibold text-foreground">{viewOrder?.quantityToProduce}</span> unités
+            {t('production.orderLabel')} <span className="font-semibold text-foreground">{viewOrder?.ref}</span> — {t('production.plannedLabel')} <span className="font-semibold text-foreground">{viewOrder?.quantityToProduce}</span> {t('production.units')}
           </div>
           <div>
             <label className="text-sm font-medium">{t('production.quantityProduced')} *</label>
             <Input type="number" step="0.01" {...completeForm.register('quantityProduced')} className="mt-1" />
-            {completeForm.formState.errors.quantityProduced && <p className="text-xs text-destructive mt-1">{completeForm.formState.errors.quantityProduced.message}</p>}
+            {completeForm.formState.errors.quantityProduced && <p className="text-xs text-destructive mt-1">{completeForm.formState.errors.quantityProduced.message ? t(completeForm.formState.errors.quantityProduced.message) : ''}</p>}
           </div>
           <div>
             <label className="text-sm font-medium">{t('production.quantityRejected')}</label>
@@ -1195,7 +1195,7 @@ export function ProductionPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-md text-sm text-destructive">
             <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span>Les réservations de stock seront libérées. Cette action est irréversible.</span>
+            <span>{t('production.cancelWarning')}</span>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setCancelModalOpen(false)}>{t('common.cancel')}</Button>
@@ -1255,7 +1255,7 @@ export function ProductionPage() {
             <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
               <span className="text-muted-foreground">Ordre :</span>
               <span className="font-semibold">{viewOrder?.ref}</span>
-              <span className="text-muted-foreground ml-2">Qté à produire :</span>
+              <span className="text-muted-foreground ml-2">{t('production.qtyToProduce')}</span>
               <span className="font-semibold">{viewOrder?.quantityToProduce}</span>
             </div>
 
@@ -1266,15 +1266,15 @@ export function ProductionPage() {
                   <tr>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
                     {movType === 'mp_consumption' && (
-                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t('production.planned')}</th>
                     )}
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground">
-                      {movType === 'mp_loss' ? 'Total perdu' : 'Déjà consommé'}
+                      {movType === 'mp_loss' ? t('production.totalLost') : t('production.alreadyConsumed')}
                     </th>
                     <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
-                      {movType === 'mp_loss' ? 'Nouvelle perte' : 'À consommer'}
+                      {movType === 'mp_loss' ? t('production.newLoss') : t('production.toConsume')}
                     </th>
-                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
+                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">{t('common.unit')}</th>
                     <th className="w-8" />
                   </tr>
                 </thead>
@@ -1300,7 +1300,7 @@ export function ProductionPage() {
                               } : l));
                             }}
                           >
-                            <option value="">— Sélectionner —</option>
+                            <option value="">{t('production.selectOption')}</option>
                             {rawMaterials.map((rm: any) => (
                               <option key={rm.id} value={rm.id}>{rm.name}</option>
                             ))}
@@ -1361,7 +1361,7 @@ export function ProductionPage() {
             {/* Légende écart (mp_consumption only) */}
             {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
               <p className="text-xs text-amber-600 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Écart entre prévu et consommé
+                <AlertTriangle className="h-3 w-3" /> {t('production.varianceWarning')}
               </p>
             )}
 
@@ -1395,7 +1395,7 @@ export function ProductionPage() {
               <div>
                 <label className="text-sm font-medium">{t('production.quantity')}</label>
                 <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
-                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
+                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message ? t(movForm.formState.errors.quantity.message) : ''}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">{t('common.unit')}</label>
@@ -1405,7 +1405,7 @@ export function ProductionPage() {
 
             <div>
               <label className="text-sm font-medium">{t('production.reason')}</label>
-              <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
+              <Input {...movForm.register('reason')} placeholder={t('production.reasonPlaceholder')} className="mt-1" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

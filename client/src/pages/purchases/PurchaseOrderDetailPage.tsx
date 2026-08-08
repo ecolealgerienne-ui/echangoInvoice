@@ -91,7 +91,7 @@ export function PurchaseOrderDetailPage() {
             libelle={t('purchases.expectedDelivery')}
             valeur={commande.expectedDeliveryDate ? formatDate(commande.expectedDeliveryDate) : null}
           />
-          <Champ libelle="Notes" valeur={commande.notes} />
+          <Champ libelle={t('common.notes')} valeur={commande.notes} />
         </Bloc>
       </div>
 

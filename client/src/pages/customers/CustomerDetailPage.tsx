@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { customersApi } from '@/lib/api';
+import { libelleMode } from '@/lib/modesReglement';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -18,9 +19,6 @@ const STATUT_BL: Record<string, string> = {
 const STATUT_DEVIS: Record<string, string> = {
   draft: 'muted', sent: 'info', accepted: 'success',
   rejected: 'destructive', expired: 'secondary', converted: 'success',
-};
-const MODE: Record<string, string> = {
-  cash: 'Espèces', bank_transfer: 'Virement', cheque: 'Chèque', other: 'Autre',
 };
 
 export function CustomerDetailPage() {
@@ -91,7 +89,7 @@ export function CustomerDetailPage() {
             libelle={t('partners.detail.priceList')}
             valeur={client.priceListName ?? t('partners.detail.basePrice')}
           />
-          <Champ libelle="Notes" valeur={client.notes} />
+          <Champ libelle={t('common.notes')} valeur={client.notes} />
         </Bloc>
       </div>
 
@@ -145,7 +143,7 @@ export function CustomerDetailPage() {
               </Link>
             ),
           },
-          { entete: t('partners.detail.method'), rendu: (p: any) => MODE[p.paymentMethod] ?? p.paymentMethod },
+          { entete: t('partners.detail.method'), rendu: (p: any) => libelleMode(t, p.paymentMethod) },
           { entete: t('partners.detail.reference'), rendu: (p: any) => p.reference ?? '—' },
           { entete: t('common.amount'), rendu: (p: any) => formatCurrency(p.amount), droite: true },
         ]}

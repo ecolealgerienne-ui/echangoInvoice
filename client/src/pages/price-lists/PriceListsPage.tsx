@@ -260,7 +260,7 @@ export function PriceListsPage() {
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('priceLists.name')} *</label>
             <Input value={nom} onChange={e => setNom(e.target.value)} required minLength={2}
-              placeholder="Grossistes, Détaillants, Export…" />
+              placeholder={t('priceLists.namePlaceholder')} />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('common.description')}</label>

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { purchasesApi } from '@/lib/api';
+import { libelleMode } from '@/lib/modesReglement';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
@@ -13,9 +14,6 @@ import { Historique } from '@/components/shared/Historique';
 
 const STATUT: Record<string, string> = {
   draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'secondary',
-};
-const MODE: Record<string, string> = {
-  cash: 'Espèces', bank_transfer: 'Virement', cheque: 'Chèque', other: 'Autre',
 };
 
 export function VendorBillDetailPage() {
@@ -86,7 +84,7 @@ export function VendorBillDetailPage() {
               est la raison d'être d'une facture d'achat. */}
           <Champ libelle={t('purchases.poNumber')} valeur={facture.poNumber} />
           <Champ libelle={t('purchases.blNumber')} valeur={facture.receptionNumber} />
-          <Champ libelle="Notes" valeur={facture.notes} />
+          <Champ libelle={t('common.notes')} valeur={facture.notes} />
         </Bloc>
       </div>
 
@@ -119,7 +117,7 @@ export function VendorBillDetailPage() {
             vide={t('partners.detail.noPayment')}
             colonnes={[
               { entete: t('common.date'), rendu: (p: any) => formatDate(p.paymentDate) },
-              { entete: t('partners.detail.method'), rendu: (p: any) => MODE[p.method] ?? p.method },
+              { entete: t('partners.detail.method'), rendu: (p: any) => libelleMode(t, p.method) },
               { entete: t('partners.detail.reference'), rendu: (p: any) => p.reference ?? '—' },
               { entete: t('common.amount'), droite: true, rendu: (p: any) => formatCurrency(p.amount) },
             ]}

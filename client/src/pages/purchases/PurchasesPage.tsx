@@ -381,9 +381,9 @@ export function PurchasesPage() {
                 { key: 'supplier', label: t('purchases.supplier') },
                 { key: 'orderDate', label: t('purchases.orderDate') },
                 { key: 'expectedDelivery', label: t('purchases.expectedDelivery') },
-                { key: 'total', label: 'Total' },
+                { key: 'total', label: t('common.total') },
                 { key: 'status', label: t('quotes.status') },
-                { key: 'notes', label: 'Notes' },
+                { key: 'notes', label: t('common.notes') },
               ]}
               visible={poVisible}
               onToggle={poToggle}
@@ -397,9 +397,9 @@ export function PurchasesPage() {
                 {poCol('supplier') && <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>}
                 {poCol('orderDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>}
                 {poCol('expectedDelivery') && <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>}
-                {poCol('total') && <th className="text-right px-4 py-3 font-medium">Total</th>}
+                {poCol('total') && <th className="text-right px-4 py-3 font-medium">{t('common.total')}</th>}
                 {poCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {poCol('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
+                {poCol('notes') && <th className="text-left px-4 py-3 font-medium">{t('common.notes')}</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -421,7 +421,7 @@ export function PurchasesPage() {
                   {poCol('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{o.notes || '—'}</td>}
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" title="Voir détail"
+                      <Button size="sm" variant="ghost" title={t('purchases.viewDetail')}
                         onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -430,24 +430,24 @@ export function PurchasesPage() {
                         <FileDown className="h-4 w-4" />
                       </Button>
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
+                        <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                       {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" title="Envoyer"
+                        <Button size="sm" variant="ghost" title={t('invoices.send')}
                           onClick={() => patchStatusMutation.mutate({ id: o.id, status: 'sent' })}>
                           <CheckCircle className="h-4 w-4 text-primary" />
                         </Button>
                       )}
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Réceptionner"
+                        <Button size="sm" variant="ghost" title={t('purchases.receive')}
                           onClick={() => openReceptionFor(o.id)}>
                           <PackageCheck className="h-4 w-4 text-success" />
                         </Button>
                       )}
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Supprimer" onClick={() => removePoMutation.mutate(o.id)}>
+                        <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removePoMutation.mutate(o.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -469,7 +469,7 @@ export function PurchasesPage() {
             <ColumnToggleMenu
               columns={[
                 { key: 'blNumber', label: t('purchases.blNumber') },
-                { key: 'poNumber', label: 'Commande' },
+                { key: 'poNumber', label: t('purchases.order') },
                 { key: 'receptionDate', label: t('purchases.receptionDate') },
                 { key: 'totalReceived', label: t('purchases.totalReceived') },
                 { key: 'status', label: t('quotes.status') },
@@ -483,7 +483,7 @@ export function PurchasesPage() {
             <thead className="bg-muted">
               <tr>
                 {recCol('blNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>}
-                {recCol('poNumber') && <th className="text-left px-4 py-3 font-medium">Commande</th>}
+                {recCol('poNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.order')}</th>}
                 {recCol('receptionDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>}
                 {recCol('totalReceived') && <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>}
                 {recCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
@@ -506,7 +506,7 @@ export function PurchasesPage() {
                   {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
                   <td className="px-4 py-3">
 <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" title="Voir détail"
+                      <Button size="sm" variant="ghost" title={t('purchases.viewDetail')}
                       onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -648,7 +648,7 @@ export function PurchasesPage() {
               <div className="flex justify-end gap-6 text-sm border-t border-border pt-2">
                 <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
                 <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(taxAmount)}</span></span>
-                <span className="font-semibold">Total TTC : {formatCurrency(total)}</span>
+                <span className="font-semibold">{t('common.totalTtc')} : {formatCurrency(total)}</span>
               </div>
             );
           })()}
@@ -676,20 +676,20 @@ export function PurchasesPage() {
           return (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Fournisseur :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
-                <div><span className="text-muted-foreground">Statut :</span> <Badge variant={PO_STATUS_VARIANT[d.status] ?? 'muted'} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
-                <div><span className="text-muted-foreground">Date commande :</span> {formatDate(d.orderDate)}</div>
-                <div><span className="text-muted-foreground">Livraison prévue :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
+                <div><span className="text-muted-foreground">{t('purchases.supplier')} :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
+                <div><span className="text-muted-foreground">{t('common.status')} :</span> <Badge variant={PO_STATUS_VARIANT[d.status] ?? 'muted'} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
+                <div><span className="text-muted-foreground">{t('purchases.orderDate')} :</span> {formatDate(d.orderDate)}</div>
+                <div><span className="text-muted-foreground">{t('purchases.expectedDelivery')} :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="text-left px-3 py-2">Produit</th>
-                    <th className="text-right px-3 py-2">Qté</th>
-                    <th className="text-left px-3 py-2">Unité</th>
+                    <th className="text-left px-3 py-2">{t('common.product')}</th>
+                    <th className="text-right px-3 py-2">{t('common.qty')}</th>
+                    <th className="text-left px-3 py-2">{t('common.unit')}</th>
                     <th className="text-right px-3 py-2">P.U.</th>
-                    <th className="text-right px-3 py-2">Total</th>
+                    <th className="text-right px-3 py-2">{t('common.total')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -723,17 +723,17 @@ export function PurchasesPage() {
           return (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Commande :</span> <span className="font-mono">{d.poNumber ?? d.purchaseOrderId}</span></div>
-                <div><span className="text-muted-foreground">Date réception :</span> {formatDate(d.receptionDate)}</div>
+                <div><span className="text-muted-foreground">{t('purchases.order')} :</span> <span className="font-mono">{d.poNumber ?? d.purchaseOrderId}</span></div>
+                <div><span className="text-muted-foreground">{t('purchases.receptionDate')} :</span> {formatDate(d.receptionDate)}</div>
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="text-left px-3 py-2">Produit</th>
-                    <th className="text-right px-3 py-2">Qté reçue</th>
-                    <th className="text-left px-3 py-2">Unité</th>
-                    <th className="text-right px-3 py-2">Coût/u</th>
+                    <th className="text-left px-3 py-2">{t('common.product')}</th>
+                    <th className="text-right px-3 py-2">{t('purchases.totalReceived')}</th>
+                    <th className="text-left px-3 py-2">{t('common.unit')}</th>
+                    <th className="text-right px-3 py-2">{t('purchases.unitCostShort')}</th>
                     <th className="text-left px-3 py-2">N° lot</th>
                     <th className="text-left px-3 py-2">Expiration</th>
                   </tr>
@@ -764,7 +764,7 @@ export function PurchasesPage() {
         <form onSubmit={recForm.handleSubmit(d => createRecMutation.mutate(d))} className="space-y-4">
           {/* PO info — read-only when opened from a specific PO */}
           <div>
-            <label className="text-sm font-medium">Commande fournisseur</label>
+            <label className="text-sm font-medium">{t('purchases.supplierOrder')}</label>
             {recPoId ? (
               <p className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-sm font-mono">
                 {orders.find((o: any) => o.id === recPoId)?.poNumber ?? recPoId}
@@ -789,11 +789,11 @@ export function PurchasesPage() {
           {/* Articles from PO — no free selection */}
           {recFields.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {recPoId ? 'Chargement des articles…' : 'Sélectionnez une commande pour voir les articles'}
+              {recPoId ? t('purchases.loadingItems') : t('purchases.selectOrder')}
             </p>
           ) : (
             <div>
-              <label className="text-sm font-medium mb-2 block">Articles de la commande</label>
+              <label className="text-sm font-medium mb-2 block">{t('purchases.orderItems')}</label>
               <div className="space-y-3">
                 {recFields.map((f, i) => (
                   <div key={f.id} className="border border-border rounded-md p-3 space-y-2">
@@ -805,12 +805,12 @@ export function PurchasesPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-muted-foreground">Qté reçue</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.totalReceived')}</label>
                         <Input type="number" step="0.01" min="0.01"
                           {...recForm.register(`items.${i}.quantityReceived`)} className="text-xs mt-0.5" />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Coût/unité (DA)</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.unitCostDa')}</label>
                         <Input type="number" step="0.01" min="0"
                           {...recForm.register(`items.${i}.costPerUnit`)} className="text-xs mt-0.5" />
                       </div>
@@ -820,7 +820,7 @@ export function PurchasesPage() {
                           {...recForm.register(`items.${i}.batchNumber`)} className="text-xs mt-0.5" />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Date expiration (optionnel)</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.expiryOptional')}</label>
                         <Input type="date"
                           {...recForm.register(`items.${i}.expiresAt`)} className="text-xs mt-0.5" />
                       </div>

@@ -34,7 +34,7 @@ const billItemSchema = z.object({
 
 const billSchema = z.object({
   purchaseOrderId: z.string().uuid().optional().or(z.literal('')),
-  supplierId: z.string().uuid('Fournisseur requis'),
+  supplierId: z.string().uuid('purchases.supplierRequired'),
   billDate: z.string().min(1),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
@@ -43,7 +43,7 @@ const billSchema = z.object({
 type BillFormData = z.infer<typeof billSchema>;
 
 const paymentSchema = z.object({
-  amount: z.coerce.number().positive('Montant invalide'),
+  amount: z.coerce.number().positive('purchases.invalidAmount'),
   paymentDate: z.string().min(1),
   method: z.enum(PAYMENT_METHODS),
   reference: z.string().optional(),
@@ -201,7 +201,7 @@ export function VendorBillsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
-      toast(t('purchases.billReopened') ?? 'Facture réouverte en brouillon', 'success');
+      toast(t('purchases.billReopened'), 'success');
     },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
@@ -336,7 +336,7 @@ export function VendorBillsPage() {
                         )}
                         {bill.status === 'cancelled' && (
                           <>
-                            <Button variant="ghost" size="sm" onClick={() => reopenMutation.mutate(bill.id)} title="Réouvrir en brouillon">
+                            <Button variant="ghost" size="sm" onClick={() => reopenMutation.mutate(bill.id)} title={t('purchases.reopenDraft')}>
                               <RotateCcw className="h-4 w-4 text-primary" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(bill.id)} title={t('common.delete')}>
@@ -373,7 +373,7 @@ export function VendorBillsPage() {
                 <option value="">{t('common.select')}</option>
                 {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              {billForm.formState.errors.supplierId && <p className="text-xs text-destructive mt-1">{billForm.formState.errors.supplierId.message}</p>}
+              {billForm.formState.errors.supplierId && <p className="text-xs text-destructive mt-1">{billForm.formState.errors.supplierId.message ? t(billForm.formState.errors.supplierId.message) : ''}</p>}
             </div>
             {watchSupplierId && (
               <div className="col-span-2">
@@ -511,7 +511,7 @@ export function VendorBillsPage() {
               <input type="number" step="0.01" min="0.01"
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 {...paymentForm.register('amount')} />
-              {paymentForm.formState.errors.amount && <p className="text-xs text-destructive mt-1">{paymentForm.formState.errors.amount.message}</p>}
+              {paymentForm.formState.errors.amount && <p className="text-xs text-destructive mt-1">{paymentForm.formState.errors.amount.message ? t(paymentForm.formState.errors.amount.message) : ''}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

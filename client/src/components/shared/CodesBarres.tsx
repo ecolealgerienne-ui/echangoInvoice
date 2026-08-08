@@ -150,7 +150,7 @@ export function CodesBarres({ productId }: { productId: string }) {
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">{t('products.barcodeLabel')}</label>
           <Input value={label} onChange={(e) => setLabel(e.target.value)}
-            placeholder="Carton de 12" className="w-40" />
+            placeholder={t('products.barcodeLabelPlaceholder')} className="w-40" />
         </div>
         <Button type="submit" size="sm" disabled={!code.trim() || ajout.isPending}>
           <Plus className="h-4 w-4" /> {t('products.barcodeAdd')}

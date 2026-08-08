@@ -70,8 +70,8 @@ export function ReportsPage() {
             {[
               { label: 'CA TTC', value: formatCurrency(data.data.summary.totalRevenue) },
               { label: 'CA HT', value: formatCurrency(data.data.summary.totalHT) },
-              { label: 'Payé', value: formatCurrency(data.data.summary.totalAmountPaid) },
-              { label: 'Solde dû', value: formatCurrency(data.data.summary.totalAmountDue) },
+              { label: t('reports.paid'), value: formatCurrency(data.data.summary.totalAmountPaid) },
+              { label: t('reports.due'), value: formatCurrency(data.data.summary.totalAmountDue) },
             ].map(s => (
               <Card key={s.label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold text-foreground">{s.value}</p></CardContent></Card>
             ))}
@@ -79,11 +79,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">N° Facture</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Client</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Montant TTC</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Solde dû</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.invoiceNumber')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.due')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.map((r: any) => (
@@ -108,9 +108,9 @@ export function ReportsPage() {
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             {[
-              { label: 'Coût total achats', value: formatCurrency(data.data.summary.totalPurchaseCost) },
-              { label: 'Réceptions', value: String(data.data.summary.receptionCount) },
-              { label: 'Valeur moy. / réception', value: formatCurrency(data.data.summary.averageOrderValue) },
+              { label: t('reports.totalPurchaseCost'), value: formatCurrency(data.data.summary.totalPurchaseCost) },
+              { label: t('reports.receptions'), value: String(data.data.summary.receptionCount) },
+              { label: t('reports.avgReceptionValue'), value: formatCurrency(data.data.summary.averageOrderValue) },
             ].map(s => (
               <Card key={s.label}><CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -124,9 +124,9 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fournisseur</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Réceptions</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.supplier')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.receptions')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.total')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {data.data.bySupplier.map((r: any) => (
@@ -146,10 +146,10 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Produit</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Qté reçue</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Coût total</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Coût moy./u</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.product')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('purchases.totalReceived')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.totalCost')}</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.avgUnitCost')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {data.data.byRawMaterial.map((r: any) => (
@@ -170,10 +170,10 @@ export function ReportsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">N° BL</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Fournisseur</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Montant</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Statut</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.supplier')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.status')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
@@ -201,10 +201,10 @@ export function ReportsPage() {
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              { label: 'Total dépenses', value: formatCurrency(data.data.summary.totalExpenses) },
-              { label: 'Approuvées', value: formatCurrency(data.data.summary.approvedExpenses) },
+              { label: t('reports.totalExpenses'), value: formatCurrency(data.data.summary.totalExpenses) },
+              { label: t('reports.approvedAmount'), value: formatCurrency(data.data.summary.approvedExpenses) },
               { label: 'En attente', value: formatCurrency(data.data.summary.pendingExpenses) },
-              { label: 'Nb dépenses', value: String(data.data.summary.expenseCount) },
+              { label: t('reports.expenseCount'), value: String(data.data.summary.expenseCount) },
             ].map(s => (
               <Card key={s.label}><CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -218,9 +218,9 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Catégorie</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>
                   <th className="px-4 py-3 text-right font-medium text-muted-foreground">Nb</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total</th>
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.total')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {Object.entries(data.data.byCategory)
@@ -242,11 +242,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Catégorie</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Montant</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Approuvée</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.description')}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('reports.approvedOne')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
@@ -278,9 +278,9 @@ export function ReportsPage() {
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               { label: 'Valeur stock', value: formatCurrency(data.data.summary.totalStockValue) },
-              { label: 'Qtés disponibles', value: String(data.data.summary.availableEntries) },
-              { label: 'Expirant bientôt', value: String(data.data.summary.expiringSoon) },
-              { label: 'Stock bas', value: String(data.data.summary.lowStockItems) },
+              { label: t('reports.availableQty'), value: String(data.data.summary.availableEntries) },
+              { label: t('reports.expiringSoon'), value: String(data.data.summary.expiringSoon) },
+              { label: t('reports.lowStock'), value: String(data.data.summary.lowStockItems) },
             ].map(s => (
               <Card key={s.label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold text-foreground">{s.value}</p></CardContent></Card>
             ))}
@@ -288,11 +288,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Matière</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.material')}</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">Disponible</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Réservé</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.reserved')}</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">Valeur</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Stock bas ?</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('reports.lowStockQ')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.map((r: any) => (
@@ -315,9 +315,9 @@ export function ReportsPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
-              { label: 'Total HT', value: formatCurrency(data.data.totals.totalHT) },
-              { label: 'Total TVA', value: formatCurrency(data.data.totals.totalTax) },
-              { label: 'Total TTC', value: formatCurrency(data.data.totals.totalTTC) },
+              { label: t('reports.totalHt'), value: formatCurrency(data.data.totals.totalHT) },
+              { label: t('reports.totalVat'), value: formatCurrency(data.data.totals.totalTax) },
+              { label: t('reports.totalTtc'), value: formatCurrency(data.data.totals.totalTTC) },
               { label: 'Factures', value: String(data.data.totals.invoiceCount) },
             ].map(s => (
               <Card key={s.label}><CardContent className="p-4"><p className="text-xs text-muted-foreground">{s.label}</p><p className="text-lg font-bold text-foreground">{s.value}</p></CardContent></Card>

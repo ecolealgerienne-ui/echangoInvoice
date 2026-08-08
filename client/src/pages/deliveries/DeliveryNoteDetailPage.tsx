@@ -102,7 +102,7 @@ export function DeliveryNoteDetailPage() {
             valeur={bl.quoteNumber}
             vers={bl.quoteId ? `/quotes/${bl.quoteId}` : null}
           />
-          <Champ libelle="Notes" valeur={bl.notes} />
+          <Champ libelle={t('common.notes')} valeur={bl.notes} />
         </Bloc>
       </div>
 

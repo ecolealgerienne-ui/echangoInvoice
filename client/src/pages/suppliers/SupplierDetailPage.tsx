@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { suppliersApi } from '@/lib/api';
+import { libelleMode } from '@/lib/modesReglement';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
@@ -16,9 +17,6 @@ const STATUT_COMMANDE: Record<string, string> = {
 };
 const STATUT_RECEPTION: Record<string, string> = {
   pending: 'muted', partial: 'warning', completed: 'success',
-};
-const MODE: Record<string, string> = {
-  cash: 'Espèces', bank_transfer: 'Virement', cheque: 'Chèque', other: 'Autre',
 };
 
 export function SupplierDetailPage() {
@@ -81,7 +79,7 @@ export function SupplierDetailPage() {
           <Champ libelle={t('suppliers.rc')} valeur={fournisseur.rc} />
           <Champ libelle={t('customers.ai')} valeur={fournisseur.ai} />
           <Champ libelle={t('customers.nis')} valeur={fournisseur.nis} />
-          <Champ libelle="Notes" valeur={fournisseur.notes} />
+          <Champ libelle={t('common.notes')} valeur={fournisseur.notes} />
         </Bloc>
       </div>
 
@@ -128,7 +126,7 @@ export function SupplierDetailPage() {
         colonnes={[
           { entete: t('common.date'), rendu: (p: any) => formatDate(p.paymentDate) },
           { entete: t('invoices.detail.invoice'), rendu: (p: any) => <span className="font-mono">{p.billNumber}</span> },
-          { entete: t('partners.detail.method'), rendu: (p: any) => MODE[p.method] ?? p.method },
+          { entete: t('partners.detail.method'), rendu: (p: any) => libelleMode(t, p.method) },
           { entete: t('partners.detail.reference'), rendu: (p: any) => p.reference ?? '—' },
           { entete: t('common.amount'), rendu: (p: any) => formatCurrency(p.amount), droite: true },
         ]}

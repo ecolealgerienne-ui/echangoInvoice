@@ -26,7 +26,7 @@ const LOT_STATUS_VARIANT: Record<string, any> = {
 };
 
 const adjustSchema = z.object({
-  newQuantity: z.coerce.number().min(0, 'Quantité invalide'),
+  newQuantity: z.coerce.number().min(0, 'common.invalidQuantity'),
   reason: z.enum(REASONS),
   notes: z.string().optional(),
 });
@@ -228,7 +228,7 @@ export function StockPage() {
                       {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
                       {col('expiryAlert') && <td className="px-4 py-3 text-center">
                         {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
-                        {item.expiryAlert === 'orange' && <Badge variant="warning">Bientôt</Badge>}
+                        {item.expiryAlert === 'orange' && <Badge variant="warning">{t('stock.soon')}</Badge>}
                         {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
                       </td>}
                       {col('lowStockAlert') && <td className="px-4 py-3 text-center">
@@ -378,7 +378,7 @@ export function StockPage() {
                 {...adjustForm.register('newQuantity')}
               />
               {adjustForm.formState.errors.newQuantity && (
-                <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message}</p>
+                <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message ? t(adjustForm.formState.errors.newQuantity.message) : ''}</p>
               )}
               {delta !== 0 && (
                 <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-green-600' : 'text-destructive'}`}>

@@ -6,9 +6,16 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 
-const TITRES: Record<string, string> = {
-  facture: 'Facture', devis: 'Devis', bl: 'Bon de livraison', avoir: 'Avoir',
-};
+/**
+ * Types de document reconnus. La table ne porte plus les libelles : figee au
+ * chargement du module, elle ne pouvait pas suivre la langue choisie. Un type
+ * inconnu retombe sur sa valeur brute plutot que sur une case vide.
+ */
+const TYPES_CONNUS = ['facture', 'devis', 'bl', 'avoir'];
+
+function titreDocument(t: (cle: string) => string, type: string): string {
+  return TYPES_CONNUS.includes(type) ? t(`verification.types.${type}`) : type;
+}
 
 /**
  * Page publique atteinte en scannant le QR d'un document.
@@ -57,7 +64,7 @@ export function VerificationPage() {
             {d.valide ? t('verification.authentique') : t('verification.annule')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {TITRES[d.type] ?? d.type} n° {d.numero}
+            {titreDocument(t, d.type)} n° {d.numero}
           </p>
         </div>
 

@@ -26,14 +26,15 @@
     "seed:demo": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed-demo.ts",
     "verify:securite": "node scripts/verifier-securite.js",
     "verify:conformite": "node scripts/verifier-conformite.js",
-    "verify": "npm run verify:securite && npm run verify:conformite && npm run verify:tri && npm run verify:periodes && npm run verify:codes-barres && npm run verify:signature && npm run verify:echeances && npm run verify:gabarit-pdf",
+    "verify": "npm run verify:securite && npm run verify:conformite && npm run verify:tri && npm run verify:periodes && npm run verify:codes-barres && npm run verify:signature && npm run verify:echeances && npm run verify:gabarit-pdf && npm run verify:i18n",
     "verify:tri": "node scripts/verifier-tri.js",
     "verify:periodes": "node scripts/verifier-periodes.js",
     "verify:codes-barres": "node scripts/verifier-codes-barres.js",
     "verify:signature": "node scripts/verifier-signature.js",
     "verify:echeances": "node scripts/verifier-echeances.js",
     "verify:gabarit-pdf": "node scripts/verifier-gabarit-pdf.js",
-    "verify:pdf-achats": "node scripts/verifier-pdf-achats.js"
+    "verify:pdf-achats": "node scripts/verifier-pdf-achats.js",
+    "verify:i18n": "node scripts/verifier-i18n.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",

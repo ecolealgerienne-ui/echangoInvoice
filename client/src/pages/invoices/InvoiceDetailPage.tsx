@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
 import { invoicesApi } from '@/lib/api';
+import { libelleMode } from '@/lib/modesReglement';
 import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -18,9 +19,6 @@ const STATUT_VARIANT: Record<string, string> = {
   paid: 'success', overdue: 'destructive', cancelled: 'secondary',
 };
 
-const MODE_REGLEMENT: Record<string, string> = {
-  cash: 'Espèces', bank_transfer: 'Virement', cheque: 'Chèque', other: 'Autre',
-};
 
 export function InvoiceDetailPage() {
   const { t } = useTranslation();
@@ -103,7 +101,7 @@ export function InvoiceDetailPage() {
             valeur={facture.quoteNumber}
             vers={facture.quoteId ? `/quotes/${facture.quoteId}` : null}
           />
-          <Champ libelle="Notes" valeur={facture.notes} />
+          <Champ libelle={t('common.notes')} valeur={facture.notes} />
         </Bloc>
       </div>
 
@@ -125,7 +123,7 @@ export function InvoiceDetailPage() {
               {facture.payments.map((p: any) => (
                 <div key={p.id} className="flex justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">
-                    {formatDate(p.paymentDate)} · {MODE_REGLEMENT[p.paymentMethod] ?? p.paymentMethod}
+                    {formatDate(p.paymentDate)} · {libelleMode(t, p.paymentMethod)}
                     {p.reference ? ` · ${p.reference}` : ''}
                   </span>
                   <span className="text-foreground">{formatCurrency(p.amount)}</span>

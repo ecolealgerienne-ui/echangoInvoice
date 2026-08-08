@@ -40,7 +40,10 @@
     "history": "Historique",
     "createdAt": "Créé le",
     "updatedAt": "Modifié le",
-    "auto": "Auto"
+    "auto": "Auto",
+    "totalTtc": "Total TTC",
+    "none": "— Aucune —",
+    "invalidQuantity": "Quantité invalide"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -259,7 +262,8 @@
       "breakage": "Casse / Avarie",
       "other": "Autre"
     },
-    "belowThreshold": "sous le seuil"
+    "belowThreshold": "sous le seuil",
+    "soon": "Bientôt"
   },
   "invoices": {
     "title": "Factures",
@@ -316,7 +320,8 @@
       "other": "Autre"
     },
     "paymentMode": "Mode de règlement prévu",
-    "paymentModeHint": "En espèces, le droit de timbre est ajouté automatiquement."
+    "paymentModeHint": "En espèces, le droit de timbre est ajouté automatiquement.",
+    "referencePlaceholder": "N° chèque, virement…"
   },
   "priceLists": {
     "title": "Grilles tarifaires",
@@ -334,7 +339,8 @@
     "resetToBase": "Revenir au tarif de base",
     "basePriceOption": "Tarif de base",
     "customerHint": "Laissez « Tarif de base » pour appliquer le prix du catalogue.",
-    "applied": "Grille « {{name}} » appliquée"
+    "applied": "Grille « {{name}} » appliquée",
+    "namePlaceholder": "Grossistes, Détaillants, Export…"
   },
   "users": {
     "members": "Membres de l'espace",
@@ -399,7 +405,8 @@
     "paymentMethod": "Mode de paiement",
     "vatRate": "Taux de TVA récupérable",
     "vatHint": "Le montant se déduit du taux et du TTC saisi. Il alimente la déclaration G50.",
-    "recurring": "Dépense récurrente"
+    "recurring": "Dépense récurrente",
+    "allCategories": "Toutes catégories"
   },
   "reports": {
     "title": "Rapports",
@@ -428,7 +435,27 @@
     "stampCollected": "Timbre encaissé",
     "totalToRemit": "Total à reverser au Trésor",
     "billCount": "Factures",
-    "g50Note": "Aide au calcul, pas déclaration. La TVA déductible est celle des factures fournisseurs validées de la période, à leur date de facture. Les brouillons sont exclus : une facture non validée n'ouvre pas droit à déduction. Le timbre encaissé se reverse à part de la TVA. À vérifier avec votre comptable avant dépôt sur Jibaya'tic."
+    "g50Note": "Aide au calcul, pas déclaration. La TVA déductible est celle des factures fournisseurs validées de la période, à leur date de facture. Les brouillons sont exclus : une facture non validée n'ouvre pas droit à déduction. Le timbre encaissé se reverse à part de la TVA. À vérifier avec votre comptable avant dépôt sur Jibaya'tic.",
+    "invoiceNumber": "N° Facture",
+    "receptions": "Réceptions",
+    "totalCost": "Coût total",
+    "avgUnitCost": "Coût moy./u",
+    "material": "Matière",
+    "lowStockQ": "Stock bas ?",
+    "totalVat": "Total TVA",
+    "totalTtc": "Total TTC",
+    "totalHt": "Total HT",
+    "totalPurchaseCost": "Coût total achats",
+    "avgReceptionValue": "Valeur moy. / réception",
+    "totalExpenses": "Total dépenses",
+    "expenseCount": "Nb dépenses",
+    "availableQty": "Qtés disponibles",
+    "expiringSoon": "Expirant bientôt",
+    "lowStock": "Stock bas",
+    "paid": "Payé",
+    "due": "Solde dû",
+    "approvedAmount": "Approuvées",
+    "approvedOne": "Approuvée"
   },
   "settings": {
     "title": "Paramètres",
@@ -593,7 +620,9 @@
     "barcode_unknown": "Aucun article ne correspond à ce code.",
     "product_supplier_exists": "Ce fournisseur est déjà associé à cet article.",
     "product_supplier_not_found": "Association introuvable.",
-    "recurring_invoice_not_found": "Abonnement de facturation introuvable."
+    "recurring_invoice_not_found": "Abonnement de facturation introuvable.",
+    "boundaryTitle": "Une erreur est survenue",
+    "boundaryReload": "Recharger la page"
   },
   "status": {
     "active": "Actif",
@@ -719,7 +748,8 @@
     "moreOnSheet": "Historique des ventes, achats, lots et marge :",
     "openSheet": "ouvrir la fiche complète",
     "createdNext": "Article créé. Vous pouvez maintenant lui ajouter ses fournisseurs et ses codes-barres.",
-    "saveFirst": "Fournisseurs et codes-barres se rattachent à l'article : ils apparaîtront dès que vous l'aurez enregistré, sans quitter cette fenêtre."
+    "saveFirst": "Fournisseurs et codes-barres se rattachent à l'article : ils apparaîtront dès que vous l'aurez enregistré, sans quitter cette fenêtre.",
+    "barcodeLabelPlaceholder": "Carton de 12"
   },
   "quotes": {
     "title": "Devis",
@@ -813,7 +843,21 @@
     "pdfOrder": "Bon de commande (PDF)",
     "pdfReception": "Bon de réception (PDF)",
     "pdfBill": "Copie interne (PDF)",
-    "pdfBillHint": "L'original remis par le fournisseur reste la seule pièce comptable."
+    "pdfBillHint": "L'original remis par le fournisseur reste la seule pièce comptable.",
+    "viewDetail": "Voir détail",
+    "receive": "Réceptionner",
+    "order": "Commande",
+    "orderItems": "Articles de la commande",
+    "selectOrder": "Sélectionnez une commande pour voir les articles",
+    "loadingItems": "Chargement des articles…",
+    "unitCostDa": "Coût/unité (DA)",
+    "unitCostShort": "Coût/u",
+    "expiryOptional": "Date d'expiration (optionnel)",
+    "supplierOrder": "Commande fournisseur",
+    "supplierRequired": "Fournisseur requis",
+    "invalidAmount": "Montant invalide",
+    "reopenDraft": "Réouvrir en brouillon",
+    "billReopened": "Facture réouverte en brouillon"
   },
   "production": {
     "title": "Production",
@@ -890,7 +934,38 @@
     "priority": {
       "normal": "Normal",
       "urgent": "Urgent"
-    }
+    },
+    "costPerUnit": "Coût / unité",
+    "qtyPerUnitShort": "Qté / unité",
+    "totalPerUnit": "Total / unité produite",
+    "material": "Matière",
+    "materialOrProduct": "Matière / Produit",
+    "planned": "Prévu",
+    "consumed": "Consommé",
+    "variance": "Écart",
+    "totalLost": "Total perdu",
+    "newLoss": "Nouvelle perte",
+    "alreadyConsumed": "Déjà consommé",
+    "toConsume": "À consommer",
+    "qtyToProduce": "Qté à produire :",
+    "plannedLabel": "Planifié :",
+    "units": "unités",
+    "orderLabel": "Ordre :",
+    "noMovement": "Aucun mouvement enregistré.",
+    "noNomenclature": "Aucune nomenclature. Créez votre première BOM pour définir la recette d'un produit fini.",
+    "noOrder": "Aucun ordre de production. Créez un ordre à partir d'une nomenclature existante.",
+    "nothingToLog": "Aucune quantité à enregistrer",
+    "cancelWarning": "Les réservations de stock seront libérées. Cette action est irréversible.",
+    "varianceWarning": "Écart entre prévu et consommé",
+    "codePlaceholder": "NOM-001",
+    "namePlaceholder": "Nom de la nomenclature",
+    "reasonPlaceholder": "Ex : Défaut qualité, évaporation…",
+    "selectOption": "— Sélectionner —",
+    "materialRequired": "Matière première requise",
+    "quantityPositive": "Quantité > 0",
+    "unitRequired": "Unité requise",
+    "finishedProductRequired": "Produit fini requis",
+    "producedPositive": "Quantité produite > 0"
   },
   "creditNotes": {
     "title": "Avoirs",
@@ -912,7 +987,10 @@
     "originInvoice": "Facture d'origine",
     "seeInvoice": "Voir la facture",
     "noOrigin": "Non rattaché à une facture",
-    "cancelledNote": "Cet avoir est annulé : il ne s'impute sur aucune facture."
+    "cancelledNote": "Cet avoir est annulé : il ne s'impute sur aucune facture.",
+    "date": "Date de l'avoir",
+    "linkedInvoice": "Facture liée (optionnel)",
+    "reasonPlaceholder": "Motif de l'avoir…"
   },
   "exportButton": {
     "label": "Exporter",
@@ -1020,7 +1098,13 @@
     "emetteur": "Émetteur",
     "destinataire": "Destinataire",
     "date": "Date",
-    "note": "Vérification effectuée auprès de l'émetteur au moment de l'affichage. Ce service confirme l'existence et le statut du document, il ne vaut pas attestation de paiement."
+    "note": "Vérification effectuée auprès de l'émetteur au moment de l'affichage. Ce service confirme l'existence et le statut du document, il ne vaut pas attestation de paiement.",
+    "types": {
+      "facture": "Facture",
+      "devis": "Devis",
+      "bl": "Bon de livraison",
+      "avoir": "Avoir"
+    }
   },
   "recurring": {
     "title": "Abonnements de facturation",
@@ -1054,6 +1138,7 @@
       "quarterly": "Trimestrielle",
       "yearly": "Annuelle"
     },
-    "generatedToast": "{{count}} facture(s) engendrée(s)"
+    "generatedToast": "{{count}} facture(s) engendrée(s)",
+    "labelPlaceholder": "Abonnement mensuel — Épicerie Centrale"
   }
 }

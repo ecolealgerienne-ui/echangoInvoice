@@ -305,7 +305,7 @@ export function InvoicesPage() {
               { key: 'credited', label: t('invoices.credited') },
               { key: 'due', label: t('invoices.due') },
               { key: 'status', label: t('common.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -345,7 +345,7 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
+                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
@@ -550,7 +550,7 @@ export function InvoicesPage() {
                 <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
                   <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
                   <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(totalTVA)}</span></span>
-                  <span className="font-semibold">Total TTC : {formatCurrency(subtotalHT + totalTVA)}</span>
+                  <span className="font-semibold">{t('common.totalTtc')} : {formatCurrency(subtotalHT + totalTVA)}</span>
                 </div>
               );
             })()}
@@ -604,7 +604,7 @@ export function InvoicesPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">{t('invoices.paymentReference')}</label>
-                <Input placeholder="N° chèque, virement..." {...paymentForm.register('reference')} />
+                <Input placeholder={t('invoices.referencePlaceholder')} {...paymentForm.register('reference')} />
               </div>
             </div>
 
