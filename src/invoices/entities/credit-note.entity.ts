@@ -1,12 +1,20 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Index, OneToMany,
+  CreateDateColumn, UpdateDateColumn, DeleteDateColumn, Index, Unique, OneToMany,
 } from 'typeorm';
 import { CreditNoteItem } from './credit-note-item.entity';
 
 @Index('IDX_credit_notes_tenant_id', ['tenantId'])
 @Index('IDX_credit_notes_customer_id', ['customerId'])
 @Index('IDX_credit_notes_status', ['status'])
+// R024 — la contrainte réelle en base est composite
+// (UQ_credit_notes_number_tenant, migration 1709981000000). L'entité déclarait
+// `unique: true` sur la seule colonne : sans effet aujourd'hui puisque
+// synchronize est à false, mais un `migration:generate` la matérialisait en
+// unicité GLOBALE — et la deuxième société à émettre AV-26-001 aurait pris un
+// 409. C'était vérifiable : la sonde du 2026-08-08 émettait bien
+// `ADD CONSTRAINT UQ_… UNIQUE ("creditNoteNumber")`.
+@Unique('UQ_credit_notes_number_tenant', ['creditNoteNumber', 'tenantId'])
 @Entity('credit_notes')
 export class CreditNote {
   @PrimaryGeneratedColumn('uuid')
@@ -15,7 +23,7 @@ export class CreditNote {
   @Column({ type: 'uuid' })
   tenantId: string;
 
-  @Column({ type: 'varchar', length: 50, unique: true })
+  @Column({ type: 'varchar', length: 50 })
   creditNoteNumber: string;
 
   @Column({ type: 'uuid' })

@@ -175,6 +175,29 @@ scénario que décrit R024, et il est déjà signalé dans `docs/REPRISE.md`.
 **En attendant : ne jamais lancer `migration:generate` sans lire sa sortie
 entière.** Les migrations de cette session ont toutes été écrites à la main.
 
+### Réduction partielle (2026-08-08, fin de session)
+
+Deux causes traitées, les plus dangereuses :
+
+- **`credit_notes.creditNoteNumber` portait `unique: true`** alors que la
+  contrainte réelle est composite avec le locataire. La sonde émettait bien
+  `ADD CONSTRAINT UQ_… UNIQUE ("creditNoteNumber")` : appliquée, la deuxième
+  société à émettre `AV-26-001` aurait pris un 409. Entité corrigée.
+- **`sales_invoices.invoiceDate`** : l'entité disait `date`, la base portait
+  `timestamptz`, et la sonde résolvait l'écart par un `DROP COLUMN` suivi d'un
+  `ADD` — la date de chaque facture émise. La colonne a été convertie en `date`
+  avec `USING` (migration `1750030000000`), ce qui corrige au passage un défaut
+  fonctionnel : le tableau de bord filtre par `BETWEEN`, et **1000 factures sur
+  1007 portaient une heure non nulle**, donc échappaient au chiffre d'affaires
+  dès qu'elles tombaient le dernier jour d'une période.
+
+Mesure après correction : **354 opérations, 13 `DROP COLUMN`** — contre 364 et
+15. Le gros du reste est mécanique (61 `DROP`/`ADD CONSTRAINT` de clés
+étrangères, 51 index, 52 `ALTER COLUMN`) et tient à des types déclarés
+approximativement : `varchar(255)` côté entité contre `varchar` sans longueur en
+base, `numeric(10,2)` contre `numeric`. Aucun n'est urgent, tous sont à traiter
+avant de refaire confiance à `migration:generate`.
+
 À traiter comme un chantier propre : déclarer les relations manquantes dans les
 entités, ou nommer les contraintes existantes, jusqu'à ce que la sonde rende le
 vide.

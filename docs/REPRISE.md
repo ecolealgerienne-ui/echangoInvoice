@@ -185,8 +185,10 @@ garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
 
 ## Dette et pièges connus
 
-- **Dérive de schéma (R024)** — **re-mesurée le 2026-08-08 (session 2) : 356
-  opérations**, dont 57 `DROP CONSTRAINT` / 57 `ADD CONSTRAINT`, 52
+- **Dérive de schéma (R024)** — **ramenée à 354 opérations, dont 13 DROP
+  COLUMN** (fin de session 2, après correction des deux causes les plus
+  dangereuses : l'unicité globale sur `creditNoteNumber` et le type de
+  `invoiceDate`). Mesurée auparavant à 356 puis 364 opérations**, dont 57 `DROP CONSTRAINT` / 57 `ADD CONSTRAINT`, 52
   `ALTER COLUMN` et **15 `DROP COLUMN`** — parmi lesquelles `"invoiceDate"`,
   `"status"`, `"createdBy"` et `"approvedBy"`. Jamais appliquée. La migration
   générée détruirait la date de chaque facture émise.
