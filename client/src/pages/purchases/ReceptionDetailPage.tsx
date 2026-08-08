@@ -5,6 +5,10 @@ import { purchasesApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Button } from '@/components/ui/Button';
+import { FileDown } from 'lucide-react';
+import { enregistrerBlob } from '@/lib/download';
+import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, ChampLien, DocumentEnTete } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
@@ -17,6 +21,7 @@ const STATUT_LOT: Record<string, string> = {
 
 export function ReceptionDetailPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
@@ -45,6 +50,12 @@ export function ReceptionDetailPage() {
   // les lots, qui portent le coût réellement entré en stock.
   const valeur = lots.reduce((s: number, l: any) => s + Number(l.totalCost ?? 0), 0);
 
+  function telechargerPdf() {
+    purchasesApi.pdfReception(id!)
+      .then((blob: Blob) => enregistrerBlob(blob, `${reception.blNumber}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   return (
     <div className="space-y-5">
       <DocumentEnTete
@@ -55,6 +66,11 @@ export function ReceptionDetailPage() {
           libelle: t(`purchases.receptionStatus.${reception.status}`),
           variant: STATUT[reception.status] ?? 'muted',
         }}
+        actions={
+          <Button variant="outline" size="sm" onClick={telechargerPdf}>
+            <FileDown className="h-4 w-4" /> {t('purchases.pdfReception')}
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-2">

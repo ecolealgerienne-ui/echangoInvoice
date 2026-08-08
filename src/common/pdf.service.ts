@@ -7,7 +7,8 @@ export interface PdfDocumentData {
   // « DEVIS » manquait : le service des devis passait `'DEVIS' as any` pour
   // contourner le type, et l'archivage n'aurait rien signalé si le dossier
   // avait été mal orthographié.
-  type: 'FACTURES' | 'BL' | 'DEVIS' | 'AVOIRS' | 'RAPPORTS';
+  type: 'FACTURES' | 'BL' | 'DEVIS' | 'AVOIRS' | 'RAPPORTS'
+    | 'COMMANDES' | 'RECEPTIONS' | 'FACTURES_FOURNISSEURS';
   /** Locataire propriétaire — segment de chemin obligatoire, voir plus bas. */
   tenantId: string;
   /** Identifiant du document — désambiguïse deux archivages du même numéro. */

@@ -808,7 +808,12 @@
       "received": "Reçue",
       "invoiced": "Facturée",
       "cancelled": "Annulée"
-    }
+    },
+    "pdf": "PDF",
+    "pdfOrder": "Bon de commande (PDF)",
+    "pdfReception": "Bon de réception (PDF)",
+    "pdfBill": "Copie interne (PDF)",
+    "pdfBillHint": "L'original remis par le fournisseur reste la seule pièce comptable."
   },
   "production": {
     "title": "Production",

@@ -228,6 +228,8 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     listOrders: (params?: Params) =>
       api.get('/purchases/purchase-orders', { params }).then((r) => r.data),
     getOrder: (id: string) => api.get(`/purchases/purchase-orders/${id}`).then((r) => r.data),
+    pdfOrder: (id: string) =>
+      api.get(`/purchases/purchase-orders/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
     createOrder: (body: unknown) => api.post('/purchases/purchase-orders', body).then((r) => r.data),
     updateOrder: (id: string, body: unknown) =>
       api.patch(`/purchases/purchase-orders/${id}`, body).then((r) => r.data),
@@ -237,11 +239,15 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
     listReceptions: (params?: Params) =>
       api.get('/purchases/reception-bls', { params }).then((r) => r.data),
     getReception: (id: string) => api.get(`/purchases/reception-bls/${id}`).then((r) => r.data),
+    pdfReception: (id: string) =>
+      api.get(`/purchases/reception-bls/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
     createReception: (body: unknown) =>
       api.post('/purchases/reception-bls', body).then((r) => r.data),
     listBills: (params?: Params) =>
       api.get('/purchases/vendor-bills', { params }).then((r) => r.data),
     getBill: (id: string) => api.get(`/purchases/vendor-bills/${id}`).then((r) => r.data),
+    pdfBill: (id: string) =>
+      api.get(`/purchases/vendor-bills/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
     createBill: (body: unknown) => api.post('/purchases/vendor-bills', body).then((r) => r.data),
     updateBill: (id: string, body: unknown) =>
       api.put(`/purchases/vendor-bills/${id}`, body).then((r) => r.data),

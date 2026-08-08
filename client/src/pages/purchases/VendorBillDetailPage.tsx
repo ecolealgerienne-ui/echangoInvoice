@@ -4,6 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { purchasesApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Button } from '@/components/ui/Button';
+import { FileDown } from 'lucide-react';
+import { enregistrerBlob } from '@/lib/download';
+import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, DocumentEnTete, Totaux } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
@@ -16,6 +20,7 @@ const MODE: Record<string, string> = {
 
 export function VendorBillDetailPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
@@ -38,6 +43,12 @@ export function VendorBillDetailPage() {
 
   const facture = data.data;
 
+  function telechargerPdf() {
+    purchasesApi.pdfBill(id!)
+      .then((blob: Blob) => enregistrerBlob(blob, `${facture.billNumber}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   return (
     <div className="space-y-5">
       <DocumentEnTete
@@ -48,6 +59,12 @@ export function VendorBillDetailPage() {
           libelle: t(`purchases.billStatus.${facture.status}`),
           variant: STATUT[facture.status] ?? 'muted',
         }}
+        actions={
+          <Button variant="outline" size="sm" onClick={telechargerPdf}
+            title={t('purchases.pdfBillHint')}>
+            <FileDown className="h-4 w-4" /> {t('purchases.pdfBill')}
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-2">

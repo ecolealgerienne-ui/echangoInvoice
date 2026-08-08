@@ -1,9 +1,11 @@
 import {
-  Controller, Get, Post, Patch, Delete, Put,
+  Controller, Get, Post, Patch, Delete, Put, Res,
   Body, Param, Query, HttpCode, HttpStatus, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PurchasesService } from './purchases.service';
+import { PurchasePdfService } from './purchase-pdf.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
 import { PatchPoStatusDto } from './dto/patch-po-status.dto';
@@ -26,7 +28,10 @@ import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 @UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('purchases')
 export class PurchasesController {
-  constructor(private readonly service: PurchasesService) {}
+  constructor(
+    private readonly service: PurchasesService,
+    private readonly pdfService: PurchasePdfService,
+  ) {}
 
   // ── Purchase Orders ─────────────────────────────────────────────────────────
 
@@ -178,5 +183,58 @@ export class PurchasesController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.service.recordVendorPayment(id, dto, user.tenantId!, user.sub);
+  }
+
+  /**
+   * PDF du bon de commande — le document que le fournisseur recoit.
+   *
+   * En lecture seule pour le comptable comme pour l'agent : sortir un PDF ne
+   * modifie rien, et refuser l'impression a qui peut deja lire le bon a
+   * l'ecran n'aurait protege aucune donnee.
+   */
+  @Get('purchase-orders/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Purchase order PDF' })
+  async purchaseOrderPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generatePurchaseOrderPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
+  }
+
+  @Get('reception-bls/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Goods receipt PDF' })
+  async receptionBlPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateReceptionBlPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
+  }
+
+  /** Copie interne : l'original du fournisseur reste la piece comptable. */
+  @Get('vendor-bills/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Vendor bill internal copy PDF' })
+  async vendorBillPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateVendorBillPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
   }
 }

@@ -32,7 +32,8 @@
     "verify:codes-barres": "node scripts/verifier-codes-barres.js",
     "verify:signature": "node scripts/verifier-signature.js",
     "verify:echeances": "node scripts/verifier-echeances.js",
-    "verify:gabarit-pdf": "node scripts/verifier-gabarit-pdf.js"
+    "verify:gabarit-pdf": "node scripts/verifier-gabarit-pdf.js",
+    "verify:pdf-achats": "node scripts/verifier-pdf-achats.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",

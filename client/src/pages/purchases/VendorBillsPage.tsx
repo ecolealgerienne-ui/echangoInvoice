@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -14,7 +15,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw, FileDown } from 'lucide-react';
 
 const BILL_STATUS_VARIANT: Record<string, any> = {
   draft: 'muted', validated: 'info', partial: 'warning', paid: 'success', cancelled: 'destructive',
@@ -301,6 +302,14 @@ export function VendorBillsPage() {
                           setViewTarget(res.data);
                         }} title={t('common.actions')}>
                           <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" title={t('purchases.pdfBill')}
+                          onClick={() => {
+                            purchasesApi.pdfBill(bill.id)
+                              .then((blob: Blob) => enregistrerBlob(blob, `${bill.billNumber}.pdf`))
+                              .catch(() => toast(t('errors.generic'), 'error'));
+                          }}>
+                          <FileDown className="h-4 w-4" />
                         </Button>
                         {bill.status === 'draft' && (
                           <>

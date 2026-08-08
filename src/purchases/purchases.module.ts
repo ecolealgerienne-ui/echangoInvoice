@@ -10,6 +10,8 @@ import { StockEntry } from '../stock/stock-entry.entity';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { PurchasesController } from './purchases.controller';
 import { PurchasesService } from './purchases.service';
+import { PurchasePdfService } from './purchase-pdf.service';
+import { PdfService } from '../common/pdf.service';
 
 @Module({
   imports: [
@@ -25,7 +27,7 @@ import { PurchasesService } from './purchases.service';
     ]),
   ],
   controllers: [PurchasesController],
-  providers: [PurchasesService],
+  providers: [PurchasesService, PurchasePdfService, PdfService],
   exports: [TypeOrmModule],
 })
 export class PurchasesModule {}

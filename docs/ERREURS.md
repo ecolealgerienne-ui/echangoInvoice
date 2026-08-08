@@ -350,3 +350,24 @@ le précéder.
 
 Vérifié en retirant le rendu du QR du fichier compilé : le contrôle refuse.
 Vérifié aussi sur un PDF réel — 4 objets image, contre 0 auparavant.
+
+
+### Suite — le contrôle a repris le même défaut deux heures plus tard
+
+En posant les PDF d'achat, le bon de réception a reçu son mode de colonnes
+`quantitatif` dans le gabarit, ses lignes portant le lot, son total en
+quantité — et **pas l'option qui active le mode**. Exactement E010 : tout était
+écrit, transmis, déclaré, sauf la ligne qui s'en sert. La compilation passait,
+le PDF sortait, et il imprimait « 0,00 DA » sur chaque ligne d'une livraison.
+
+Cette fois `verify:pdf-achats` l'a refusé sur-le-champ — trois assertions
+rouges avant même le premier coup d'œil au document.
+
+> Un contrôle qui lit la sortie rattrape la classe entière de défauts, pas
+> l'occurrence qu'on avait en tête en l'écrivant.
+
+Ce contrôle a aussi révélé, en échouant à capturer quoi que ce soit, que
+`PdfService` est déclaré dans plusieurs modules : le conteneur en tient
+plusieurs exemplaires. Sans état — un navigateur est lancé et fermé à chaque
+appel — cela ne gêne pas la production, mais un test qui substitue le mauvais
+exemplaire ne voit rien passer.

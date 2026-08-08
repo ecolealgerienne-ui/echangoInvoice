@@ -204,7 +204,12 @@
     "title": "المشتريات",
     "blNumber": "رقم السند",
     "receptionDate": "تاريخ الاستلام",
-    "unitPrice": "سعر الوحدة"
+    "unitPrice": "سعر الوحدة",
+    "pdf": "PDF",
+    "pdfOrder": "سند الطلب (PDF)",
+    "pdfReception": "سند الاستلام (PDF)",
+    "pdfBill": "نسخة داخلية (PDF)",
+    "pdfBillHint": "الأصل المسلَّم من المورّد يبقى الوثيقة المحاسبية الوحيدة."
   },
   "reports": {
     "title": "التقارير",

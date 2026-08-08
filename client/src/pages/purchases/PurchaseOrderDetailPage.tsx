@@ -5,6 +5,10 @@ import { purchasesApi } from '@/lib/api';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Button } from '@/components/ui/Button';
+import { FileDown } from 'lucide-react';
+import { enregistrerBlob } from '@/lib/download';
+import { useToast } from '@/components/ui/Toast';
 import { Bloc, Champ, DocumentEnTete, Totaux } from '@/components/shared/DocumentView';
 import { Historique } from '@/components/shared/Historique';
 
@@ -20,6 +24,7 @@ const STATUT_FACTURE: Record<string, string> = {
 
 export function PurchaseOrderDetailPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
@@ -42,6 +47,12 @@ export function PurchaseOrderDetailPage() {
 
   const commande = data.data;
 
+  function telechargerPdf() {
+    purchasesApi.pdfOrder(id!)
+      .then((blob: Blob) => enregistrerBlob(blob, `${commande.poNumber}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   return (
     <div className="space-y-5">
       <DocumentEnTete
@@ -52,6 +63,11 @@ export function PurchaseOrderDetailPage() {
           libelle: t(`status.${commande.status}`),
           variant: STATUT[commande.status] ?? 'muted',
         }}
+        actions={
+          <Button variant="outline" size="sm" onClick={telechargerPdf}>
+            <FileDown className="h-4 w-4" /> {t('purchases.pdfOrder')}
+          </Button>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-2">

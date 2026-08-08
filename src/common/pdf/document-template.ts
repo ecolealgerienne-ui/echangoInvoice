@@ -40,15 +40,28 @@ export interface LignePdf {
   libelle: string;
   quantite: number | string;
   unite: string | null;
-  prixUnitaire: number | string;
+  /** Ignorés en mode `quantitatif`, qui ne comporte pas de colonne monétaire. */
+  prixUnitaire: number | string | null;
   tauxTva: number | string | null;
-  total: number | string;
+  total: number | string | null;
+  /**
+   * Précision propre à la ligne, affichée en seconde colonne du mode
+   * `quantitatif` : numéro de lot sur une réception. Une réception sans son
+   * lot ne prouve rien — c'est le lot qu'on rappelle, pas la livraison.
+   */
+  complement?: string | null;
 }
 
 export interface TotalPdf {
   libelle: string;
   montant: number | string;
   fort?: boolean;
+  /**
+   * Rend la valeur telle quelle, sans « DA ». Un cumul de quantités reçues
+   * n'est pas une somme d'argent : le suffixe monétaire en ferait un montant
+   * aux yeux du magasinier comme du comptable.
+   */
+  brut?: boolean;
 }
 
 export interface OptionsDocument {
@@ -61,6 +74,18 @@ export interface OptionsDocument {
   emetteur: Emetteur;
   destinataire: Destinataire;
   lignes: LignePdf[];
+  /**
+   * Jeu de colonnes du tableau.
+   *
+   * `commercial` (défaut) : désignation, quantité, P.U., TVA, total — ce que
+   * porte tout document qui chiffre.
+   *
+   * `quantitatif` : désignation, lot, quantité. Un bon de réception constate
+   * ce qui est entré en stock, pas ce qu'il a coûté ; lui laisser les colonnes
+   * monétaires imprimait « 0,00 DA » sur chaque ligne, ce qu'un lecteur pressé
+   * lit comme une livraison gratuite.
+   */
+  colonnes?: 'commercial' | 'quantitatif';
   totaux: TotalPdf[];
   notes: string | null;
   /** Deux cartouches de signature en bas de page. */
@@ -242,6 +267,7 @@ export function rendreDocument(o: OptionsDocument): string {
   const qr = o.qrVerification ? sourceImageSure(o.qrVerification.image) : null;
   const codeNumero = sourceImageSure(o.codeBarresNumero);
   const cachet = sourceImageSure(e.stampImage);
+  const quantitatif = o.colonnes === 'quantitatif';
 
   const idsEmetteur = [
     { libelle: 'NIF', valeur: e.nif },
@@ -282,20 +308,26 @@ export function rendreDocument(o: OptionsDocument): string {
     <table>
       <thead>
         <tr>
+          ${quantitatif ? `
+          <th style="width:55%">Désignation</th>
+          <th style="width:25%">Lot</th>
+          <th class="text-right" style="width:20%">Qté reçue</th>` : `
           <th style="width:45%">Désignation</th>
           <th class="text-right" style="width:12%">Qté</th>
           <th class="text-right" style="width:15%">P.U. HT</th>
           <th class="text-right" style="width:8%">TVA</th>
-          <th class="text-right" style="width:20%">Total TTC</th>
+          <th class="text-right" style="width:20%">Total TTC</th>`}
         </tr>
       </thead>
       <tbody>
         ${o.lignes.map((l) => `<tr>
           <td>${echapper(l.libelle)}</td>
+          ${quantitatif ? `<td>${echapper(l.complement ?? '—')}</td>
+          <td class="text-right">${Number(l.quantite)} ${echapper(l.unite ?? '')}</td>` : `
           <td class="text-right">${Number(l.quantite)} ${echapper(l.unite ?? '')}</td>
           <td class="text-right">${montant(l.prixUnitaire)}</td>
           <td class="text-right">${l.tauxTva != null ? `${Number(l.tauxTva)} %` : '—'}</td>
-          <td class="text-right">${montant(l.total)}</td>
+          <td class="text-right">${montant(l.total)}</td>`}
         </tr>`).join('')}
       </tbody>
     </table>
@@ -303,7 +335,7 @@ export function rendreDocument(o: OptionsDocument): string {
     <div class="totals">
       <div class="totals-box">
         ${o.totaux.map((t) => `<div class="total-row${t.fort ? ' fort' : ''}">
-          <span>${echapper(t.libelle)}</span><span>${montant(t.montant)}</span>
+          <span>${echapper(t.libelle)}</span><span>${t.brut ? echapper(String(t.montant)) : montant(t.montant)}</span>
         </div>`).join('')}
       </div>
     </div>

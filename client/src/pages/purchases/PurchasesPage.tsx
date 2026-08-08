@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,7 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye, FileDown } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { useScanLignes } from '@/hooks/useScanLignes';
 import { BandeauScan } from '@/components/shared/BandeauScan';
@@ -80,6 +81,18 @@ export function PurchasesPage() {
   const [editingPo, setEditingPo] = useState<any>(null); // null = create, object = edit
 
   // PO view modal
+  function telechargerPdfCommande(id: string, numero: string) {
+    purchasesApi.pdfOrder(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
+  function telechargerPdfReception(id: string, numero: string) {
+    purchasesApi.pdfReception(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   const [viewPoId, setViewPoId] = useState<string>('');
   const [viewPoOpen, setViewPoOpen] = useState(false);
 
@@ -412,6 +425,10 @@ export function PurchasesPage() {
                         onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <Button size="sm" variant="ghost" title={t('purchases.pdfOrder')}
+                        onClick={() => telechargerPdfCommande(o.id, o.poNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
                       {['draft', 'sent'].includes(o.status) && (
                         <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
@@ -488,10 +505,16 @@ export function PurchasesPage() {
                   {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
                   {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
                   <td className="px-4 py-3">
-                    <Button size="sm" variant="ghost" title="Voir détail"
+<div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" title="Voir détail"
                       onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
                       <Eye className="h-4 w-4" />
                     </Button>
+                      <Button size="sm" variant="ghost" title={t('purchases.pdfReception')}
+                        onClick={() => telechargerPdfReception(r.id, r.blNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

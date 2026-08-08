@@ -8,17 +8,11 @@ import { montantEnLettres } from '../common/montant-en-lettres';
 import { TypeDocumentVerifiable, urlVerification } from '../common/verification';
 import { MENTION_TIMBRE, calculerNetAPayer } from '../common/droit-de-timbre';
 import {
-  Emetteur, LignePdf, jour, montant, rendreDocument,
+  LignePdf, jour, montant, rendreDocument,
 } from '../common/pdf/document-template';
-
-/** Colonnes de l'émetteur, identiques pour les trois documents. */
-const CHAMPS_EMETTEUR = `
-  s."companyName" AS company_name, s.address AS company_address,
-  s.phone AS company_phone, s.email AS company_email,
-  s.nif AS company_nif, s.rc AS company_rc, s.ai AS company_ai, s.nis AS company_nis,
-  s.rib AS company_rib, s.logo AS company_logo,
-  s."footerText" AS company_footer, s."pdfAccentColor" AS company_accent,
-  s."stampImage" AS company_stamp`;
+import {
+  CHAMPS_EMETTEUR, codeBarresNumero, lireEmetteur,
+} from '../common/pdf/emetteur';
 
 @Injectable()
 export class InvoicePdfService {
@@ -29,29 +23,6 @@ export class InvoicePdfService {
     private readonly pdfService: PdfService,
     private readonly emailService: EmailService,
   ) {}
-
-  /**
-   * L'émetteur venait de `settings`, sauf ses identifiants légaux : la requête
-   * sélectionnait `NULL AS company_nif`. Chaque facture sortait donc avec
-   * « NIF : | RC : » vides — inexploitable en Algérie.
-   */
-  private emetteur(row: Record<string, unknown>): Emetteur {
-    return {
-      stampImage: row.company_stamp as string | null,
-      companyName: (row.company_name as string) ?? null,
-      address: (row.company_address as string) ?? null,
-      phone: (row.company_phone as string) ?? null,
-      email: (row.company_email as string) ?? null,
-      nif: (row.company_nif as string) ?? null,
-      rc: (row.company_rc as string) ?? null,
-      ai: (row.company_ai as string) ?? null,
-      nis: (row.company_nis as string) ?? null,
-      rib: (row.company_rib as string) ?? null,
-      logo: (row.company_logo as string) ?? null,
-      footerText: (row.company_footer as string) ?? null,
-      accentColor: (row.company_accent as string) ?? null,
-    };
-  }
 
   /**
    * QR de vérification du document.
@@ -77,30 +48,6 @@ export class InvoicePdfService {
       return { image: `data:image/png;base64,${Buffer.from(png).toString('base64')}`, url };
     } catch (e) {
       this.logger.warn(`QR de vérification non généré pour ${type} ${documentId}: ${String(e)}`);
-      return null;
-    }
-  }
-
-  /**
-   * Code-barres du numero de document, en Code 128.
-   *
-   * Il ne sert pas a identifier un article mais a **classer** : on retrouve un
-   * dossier papier en passant la douchette sur le numero, sans le retaper.
-   * Code 128 parce qu'il accepte les lettres et les tirets — « FAC-26-0355 »
-   * n'entre dans aucun format numerique.
-   *
-   * Comme le QR, un echec de generation ne doit pas empecher le document de
-   * sortir : il reste valable sans son code-barres.
-   */
-  private async codeBarresNumero(numero: string): Promise<string | null> {
-    try {
-      const png = await bwipjs.toBuffer({
-        bcid: 'code128', text: numero, scale: 3, height: 8,
-        includetext: false, paddingwidth: 0, paddingheight: 0,
-      } as Parameters<typeof bwipjs.toBuffer>[0]);
-      return `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
-    } catch (e) {
-      this.logger.warn(`Code-barres non genere pour ${numero}: ${String(e)}`);
       return null;
     }
   }
@@ -157,7 +104,7 @@ export class InvoicePdfService {
       ],
       labelEmetteur: 'Émetteur',
       labelDestinataire: 'Client',
-      emetteur: this.emetteur(inv),
+      emetteur: lireEmetteur(inv),
       destinataire: {
         name: inv.customer_name, address: inv.customer_address,
         nif: inv.customer_nif, rc: inv.customer_rc, ai: inv.customer_ai,
@@ -188,7 +135,7 @@ export class InvoicePdfService {
       // suffit pas, c'est le papier qui circule.
       filigrane: inv.status === 'cancelled' ? 'FACTURE ANNULÉE' : null,
       qrVerification: await this.qrVerification('facture', inv.id),
-      codeBarresNumero: await this.codeBarresNumero(inv.invoiceNumber),
+      codeBarresNumero: await codeBarresNumero(inv.invoiceNumber, this.logger),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -225,7 +172,7 @@ export class InvoicePdfService {
       entetes: [{ libelle: 'Date', valeur: jour(dn.deliveryDate) }],
       labelEmetteur: 'Expéditeur',
       labelDestinataire: 'Livrer à',
-      emetteur: this.emetteur(dn),
+      emetteur: lireEmetteur(dn),
       destinataire: {
         name: dn.customer_name, address: dn.customer_address,
         nif: dn.customer_nif, rc: dn.customer_rc, ai: dn.customer_ai,
@@ -238,7 +185,7 @@ export class InvoicePdfService {
       ],
       notes: dn.notes,
       qrVerification: await this.qrVerification('bl', dn.id),
-      codeBarresNumero: await this.codeBarresNumero(dn.blNumber),
+      codeBarresNumero: await codeBarresNumero(dn.blNumber, this.logger),
       signatures: ['Signature expéditeur', 'Signature destinataire'],
     });
 
@@ -284,7 +231,7 @@ export class InvoicePdfService {
       entetes: [{ libelle: 'Date', valeur: jour(a.creditNoteDate) }],
       labelEmetteur: 'Émetteur',
       labelDestinataire: 'Client',
-      emetteur: this.emetteur(a),
+      emetteur: lireEmetteur(a),
       destinataire: {
         name: a.customer_name, address: a.customer_address,
         nif: a.customer_nif, rc: a.customer_rc, ai: a.customer_ai,
@@ -304,7 +251,7 @@ export class InvoicePdfService {
         : (a.reason ? `Motif : ${a.reason}` : null),
       filigrane: a.status === 'cancelled' ? 'AVOIR ANNULÉ' : null,
       qrVerification: await this.qrVerification('avoir', a.id),
-      codeBarresNumero: await this.codeBarresNumero(a.creditNoteNumber),
+      codeBarresNumero: await codeBarresNumero(a.creditNoteNumber, this.logger),
     });
 
     const { buffer } = await this.pdfService.generateAndArchive({
@@ -352,7 +299,7 @@ export class InvoicePdfService {
       ],
       labelEmetteur: 'Émetteur',
       labelDestinataire: 'Client',
-      emetteur: this.emetteur(q),
+      emetteur: lireEmetteur(q),
       destinataire: {
         name: q.customer_name, address: q.customer_address,
         nif: q.customer_nif, rc: q.customer_rc, ai: q.customer_ai,
@@ -365,7 +312,7 @@ export class InvoicePdfService {
       ],
       notes: q.notes,
       qrVerification: await this.qrVerification('devis', q.id),
-      codeBarresNumero: await this.codeBarresNumero(q.quoteNumber),
+      codeBarresNumero: await codeBarresNumero(q.quoteNumber, this.logger),
       montantEnLettres: proforma
         ? `Arrêtée la présente proforma à la somme de : ${montantEnLettres(q.totalAmount)}`
         : null,

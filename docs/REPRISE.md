@@ -2,7 +2,7 @@
 
 > Arrêt de session : **2026-08-08** (seconde session)
 > Branche : `feat/mobile-v1-cache`
-> Dernier commit : *fix(pdf): QR et code-barres du numéro réellement dessinés*
+> Dernier commit : *feat(achats): PDF des bons de commande, réceptions et factures fournisseur*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -135,6 +135,30 @@ Une journée.
 Deux réserves à tenir : ne **jamais** conditionner à l'abonnement les mentions
 *légales* — NIF, RC, montant en lettres, timbre —, et rester sobre. Formulation
 retenue : « Facture émise avec Echango Invoice — echango.dz ».
+
+#### Décisions prises sur les PDF d'achat (pour mémoire)
+
+**Pas de QR de vérification sur les documents d'achat.** La page de
+vérification est publique et non authentifiée : elle existe pour qu'un tiers
+détenant *notre* document confirme qu'il est authentique. L'ouvrir aux achats
+publierait nos prix d'achat fournisseur sur une URL devinable. Le code-barres
+du numéro, lui, y figure : il ne sert qu'au classement et ne divulgue rien.
+
+**La facture fournisseur sort en copie interne.** L'original remis par le
+fournisseur est la pièce comptable ; notre rendu ne reproduit que notre saisie.
+Il porte donc un filigrane « COPIE INTERNE », la mention correspondante, et
+sort sans notre logo ni notre cachet — sans quoi ce PDF circulerait comme un
+original. Ces trois éléments ne doivent pas être retirés.
+
+**Le bon de réception ne porte aucun prix.** Il constate ce qui est entré en
+stock, lot par lot. Le gabarit a reçu pour cela un mode `quantitatif`
+(désignation, lot, quantité) : lui laisser les colonnes monétaires imprimait
+« 0,00 DA » sur chaque ligne, ce qu'un lecteur pressé lit comme une livraison
+gratuite.
+
+**`verify:pdf-achats` n'est pas dans `npm run verify`.** Il démarre le
+conteneur Nest et interroge la base ; le reste de la série s'exécute sans
+dépendance. Le lancer à la main après toute retouche des PDF d'achat.
 
 #### 2. Journal d'activité visible
 
