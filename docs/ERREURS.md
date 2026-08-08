@@ -201,3 +201,41 @@ avant de refaire confiance à `migration:generate`.
 À traiter comme un chantier propre : déclarer les relations manquantes dans les
 entités, ou nommer les contraintes existantes, jusqu'à ce que la sonde rende le
 vide.
+
+
+---
+
+## E007 — Une colonne `date` lue comme un `Date` recule d'un jour
+
+**Date :** 2026-08-08 · **Gravité :** moyenne · **Statut :** corrigé
+
+La facturation récurrente ancrée au 31 mai produisait des factures au 30, et son
+échéance suivante tombait au 29 août au lieu du 31.
+
+`node-postgres` rend une colonne `date` sous forme de `Date` JavaScript à
+**minuit local**. En UTC+1, `toISOString().slice(0, 10)` en retire donc la
+veille : `2026-05-31` devient `2026-05-30`. Le jour d'ancrage passait de 31 à
+30, puis dérivait à chaque échéance.
+
+### La forme du défaut
+
+> Une colonne `date` n'a pas d'heure ni de fuseau. La convertir en `Date` lui en
+> invente un, et toute reconversion en texte le fait payer d'un jour. Le
+> décalage est invisible à Greenwich et systématique ailleurs.
+
+### Ce que ça apprend sur les contrôles
+
+`npm run verify:echeances` couvrait pourtant les mois courts, les années
+bissextiles et la non-dérive sur douze mois — et il passait au vert. Il
+manipule des **chaînes** : le défaut n'était pas dans le calcul mais dans la
+lecture, en amont de ce que le contrôle voit.
+
+> Un contrôle unitaire vert ne dit rien du chemin par lequel ses entrées
+> arrivent. C'est le premier essai contre la vraie base qui a montré le
+> décalage.
+
+### Correctif
+
+Les colonnes de date sont sélectionnées en texte (`"nextRunDate"::text`), ce qui
+supprime le fuseau du chemin. À reprendre partout où une colonne `date` est lue
+puis reformatée.

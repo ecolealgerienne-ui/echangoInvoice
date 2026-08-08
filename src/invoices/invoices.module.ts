@@ -10,6 +10,8 @@ import { SalesInvoicesService } from './sales-invoices.service';
 import { PaymentsService } from './payments.service';
 import { CreditNotesService } from './credit-notes/credit-notes.service';
 import { InvoicePdfService } from './invoice-pdf.service';
+import { RecurringInvoicesService } from './recurring/recurring-invoices.service';
+import { RecurringInvoicesController } from './recurring/recurring-invoices.controller';
 import { PdfService } from '../common/pdf.service';
 import { EmailService } from '../common/email.service';
 import { InvoicesController } from './invoices.controller';
@@ -23,8 +25,8 @@ import { CreditNotesController } from './credit-notes/credit-notes.controller';
       CreditNote, CreditNoteItem, Subscription,
     ]),
   ],
-  controllers: [InvoicesController, PaymentsController, CreditNotesController],
-  providers: [SalesInvoicesService, PaymentsService, CreditNotesService, InvoicePdfService, PdfService, EmailService],
+  controllers: [InvoicesController, PaymentsController, CreditNotesController, RecurringInvoicesController],
+  providers: [SalesInvoicesService, PaymentsService, CreditNotesService, InvoicePdfService, PdfService, EmailService, RecurringInvoicesService],
   exports: [SalesInvoicesService, InvoicePdfService, PdfService, EmailService],
 })
 export class InvoicesModule {}

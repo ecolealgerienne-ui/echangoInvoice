@@ -586,7 +586,8 @@
     "barcode_not_found": "Code-barres introuvable.",
     "barcode_unknown": "Aucun article ne correspond à ce code.",
     "product_supplier_exists": "Ce fournisseur est déjà associé à cet article.",
-    "product_supplier_not_found": "Association introuvable."
+    "product_supplier_not_found": "Association introuvable.",
+    "recurring_invoice_not_found": "Abonnement de facturation introuvable."
   },
   "status": {
     "active": "Actif",

@@ -96,8 +96,9 @@ sur aucun contrôleur (E003).
 la recherche, PDF d'avoir, mention « facture annulée » en diagonale, facture
 proforma, fournisseurs multiples par article, balance âgée, rôle « comptable »
 en lecture seule, désamorçage des deux dérives de schéma destructrices, TVA
-déductible et aide au G50, QR de vérification signé avec sa page publique, et
-cachet de l'émetteur sur les documents.
+déductible et aide au G50, QR de vérification signé avec sa page publique,
+cachet de l'émetteur, interface arabe avec écriture de droite à gauche, et
+facturation récurrente.
 
 **Conformité au décret 05-468 : il ne reste que la facture récapitulative.**
 Identifiants légaux, montant en toutes lettres, droit de timbre, mention
@@ -112,8 +113,8 @@ d'annulation, cachet et proforma sont livrés.
 | **Scan par caméra** | La douchette couvre le poste fixe ; la caméra vise le mobile (`BarcodeDetector`, repli `@zxing/browser`, plugin MLKit côté Capacitor) |
 | **Multi-dépôts** | Chantier de structure, non réclamé à ce jour |
 | **Traçabilité par lot** | Les lots et péremptions sont saisis ; le rappel sanitaire n'est pas outillé |
-| **Interface arabe (RTL)** | L'i18n est en place, le RTL non |
-| **Facturation récurrente** | Abonnements, locations |
+| **Traduction arabe à relire** | 249 clés sur 865 traduites, le reste retombe sur le français. **Une relecture par un arabophone est nécessaire** avant mise en production : le vocabulaire comptable algérien a ses usages |
+| **Écran des abonnements** | Le backend de la facturation récurrente est complet et éprouvé ; il n'a pas encore d'écran — l'API se pilote pour l'instant à la main |
 | **Portail client** | Reporté de longue date ; le QR de vérification en couvre déjà l'usage principal |
 | **Facture récapitulative** | Regrouper les BL d'une période en une facture |
 | **Dérive de schéma résiduelle** | 354 opérations, 13 `DROP COLUMN` — mécanique, à traiter avant de refaire confiance à `migration:generate` |
