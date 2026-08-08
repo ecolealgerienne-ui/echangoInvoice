@@ -27,6 +27,7 @@ import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 
 const itemSchema = z.object({
@@ -386,7 +387,7 @@ export function QuotesPage() {
                 </tr>
               ))}
               {quotes.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>

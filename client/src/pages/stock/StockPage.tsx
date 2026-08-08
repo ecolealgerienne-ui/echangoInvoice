@@ -19,6 +19,7 @@ import { ExportButton } from '@/components/shared/ExportButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
 
@@ -190,7 +191,7 @@ export function StockPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {invData?.data?.length === 0 && (
-                    <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                    <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
                     <Fragment key={item.rawMaterialId}>
@@ -211,10 +212,16 @@ export function StockPage() {
                       </td>}
                       {col('physical') && <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatNumber(item.physicalQuantity)}</td>}
                       {/* Le réservé n'est pas neutre : c'est de la marchandise
-                          présente mais déjà promise. */}
+                          présente mais déjà promise.
+
+                          Il portait `-foreground`, qui est la couleur du texte
+                          posé **sur** l'aplat d'alerte — pas sur une carte. En
+                          thème sombre, cela donnait un brun presque noir sur
+                          fond sombre : la colonne était illisible. `-text` est
+                          la couleur d'alerte prévue pour une surface. */}
                       {col('reserved') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         {item.reservedQuantity > 0
-                          ? <span className="text-warning-foreground font-medium">{formatNumber(item.reservedQuantity)}</span>
+                          ? <span className="font-medium text-warning-text">{formatNumber(item.reservedQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
                       {col('quantity') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatNumber(item.availableQuantity)}</td>}

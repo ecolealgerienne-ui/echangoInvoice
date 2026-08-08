@@ -23,6 +23,7 @@ import { FournisseursArticle } from '@/components/shared/FournisseursArticle';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -231,7 +232,7 @@ export function ProductsPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={visibleColumns.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visibleColumns.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((p: any) => (
                 <tr key={p.id} className="hover:bg-muted/30 transition-colors">

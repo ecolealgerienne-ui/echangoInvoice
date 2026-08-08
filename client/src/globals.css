@@ -36,199 +36,274 @@
 
 @layer base {
   /* ═════════════════════════════════════════════════════════════════════════
-   * Thème clair
+   * DIRECTION VISUELLE — « Azur & Ambre »
    *
-   * Les couleurs sont en OKLCH et non en HSL. La raison est concrète : en HSL,
-   * deux teintes de même « lightness » ne paraissent pas de la même clarté —
-   * un jaune à 50 % éblouit là où un bleu à 50 % reste sombre. Une palette
-   * bâtie ainsi paraît déséquilibrée sans qu'on sache pourquoi. OKLCH est
-   * perceptuellement uniforme : la même lightness donne la même clarté
-   * ressentie, quelle que soit la teinte. C'est ce qui permet d'écrire un
-   * thème sombre en décalant les valeurs plutôt qu'en les redevinant.
+   * Le verdict était : « pas de couleur, aucune animation, trop simpliste,
+   * c'est du noir et blanc ». Il était juste. Les neutres portaient une chroma
+   * de 0.003 — trois millièmes — et la seule couleur de l'écran était un bleu
+   * nuit désaturé posé sur deux blancs indiscernables. Un outil sans couleur
+   * n'est pas sobre, il est illisible autrement : rien ne dit où l'on est.
    *
-   * La couleur primaire n'est plus le bleu par défaut de shadcn. Elle descend
-   * du bleu nuit `#1e3a5f` déjà imprimé sur chaque facture, devis et bon de
-   * livraison depuis le premier jour : l'écran et le document que le client
-   * reçoit parlaient deux langues différentes.
+   * Trois décisions structurent la reprise.
+   *
+   * 1. **L'azur remplace le bleu nuit.** La primaire garde la teinte imprimée
+   *    sur les factures (254°) mais passe de C 0.098 à C 0.155 : c'est la même
+   *    famille, vue en pleine lumière. Le bleu nuit d'origine n'est pas perdu —
+   *    il devient `--ci-panneau`, l'aplat de marque des écrans d'entrée, là où
+   *    il n'a rien à éclairer.
+   *
+   * 2. **Six familles, un seul alphabet.** Azur, vert, violet, sarcelle, ambre,
+   *    magenta. Ces six couleurs servent deux fois : ce sont les séries des
+   *    graphiques (ordre figé, validé sous protanopie et deutéranopie — le pire
+   *    couple adjacent est à ΔE 15.7 en clair, 13.6 en sombre) **et** les
+   *    teintes de filière qui colorent la navigation. Ventes = azur,
+   *    Catalogue = sarcelle, Achats = violet, Production = ambre,
+   *    Finance = magenta. L'utilisateur apprend une couleur, pas deux.
+   *
+   * 3. **Les neutres cessent d'être gris.** Chroma portée de 0.003–0.024 à
+   *    0.012–0.040, biaisée vers l'azur. Un gris parfaitement neutre à côté
+   *    d'un bleu paraît sale ; à faible chroma il paraît surtout mort. Et le
+   *    fond de page s'écarte enfin de la carte : 0.972 contre 0.999 en clair,
+   *    là où les deux valaient pratiquement blanc.
+   *
+   * Les rôles sémantiques — succès, alerte, danger, information — gardent leur
+   * territoire et ne sont **jamais** empruntés par une série ni par une
+   * filière : une couleur qui veut dire « en retard » ne peut pas vouloir dire
+   * « achats » le même jour.
+   *
+   * Les couleurs sont en OKLCH, en composantes nues : Tailwind reforme
+   * `oklch(…)` autour et y injecte l'alpha, ce qui laisse vivre les `bg-x/50`
+   * déjà écrits partout.
    * ═════════════════════════════════════════════════════════════════════════ */
   :root {
-    /* Fonds, du plus profond au plus élevé. En clair, l'élévation monte vers
-       le blanc ; en sombre, elle montera vers le gris — voir plus bas. */
-    --ci-background: 0.985 0.003 250;
-    --ci-surface: 1     0     0;
+    /* ── Fonds ─────────────────────────────────────────────────────────────
+       Quatre plans, réellement distincts : la page est teintée, la carte est
+       presque blanche, la surface flottante est blanche. L'élévation se voit
+       avant même que l'ombre s'en mêle. */
+    --ci-background: 0.972 0.014 252;
+    --ci-surface: 0.999 0.002 250;
     --ci-surface-elevated: 1     0     0;
-    --ci-foreground: 0.21  0.024 253;
+    --ci-foreground: 0.22  0.038 258;
 
-    --ci-card: 1     0     0;
-    --ci-card-foreground: 0.21  0.024 253;
+    --ci-card: 0.999 0.002 250;
+    --ci-card-foreground: 0.22  0.038 258;
 
-    /* Bleu nuit de la marque, remonté en clarté pour rester cliquable sur
-       blanc : `#1e3a5f` tel quel ferait un bouton presque noir. */
-    --ci-primary: 0.45 0.098 254;
-    --ci-primary-foreground: 0.99 0.002 250;
-    --ci-primary-hover: 0.39 0.095 254;
-    /* Fond ténu de la primaire : sélections, lignes actives, puces. */
-    --ci-primary-subtle: 0.955 0.021 254;
+    /* ── Azur de marque ────────────────────────────────────────────────────
+       Même teinte que le `#1e3a5f` imprimé, chroma multipliée par 1,6. */
+    --ci-primary: 0.50 0.155 254;
+    --ci-primary-foreground: 0.99 0.004 250;
+    --ci-primary-hover: 0.44 0.150 254;
+    --ci-primary-subtle: 0.945 0.042 254;
 
-    --ci-secondary: 0.965 0.006 253;
-    --ci-secondary-foreground: 0.28  0.022 253;
+    --ci-secondary: 0.955 0.016 252;
+    --ci-secondary-foreground: 0.29  0.038 256;
 
-    /* Neutres légèrement biaisés vers la teinte de la marque plutôt que gris
-       purs : un gris neutre à côté d'un bleu paraît sale. */
-    --ci-muted: 0.965 0.006 253;
-    --ci-muted-foreground: 0.53  0.019 253;
-    --ci-accent: 0.945 0.010 253;
-    --ci-accent-foreground: 0.24  0.024 253;
+    --ci-muted: 0.955 0.016 252;
+    --ci-muted-foreground: 0.525 0.036 256;
+    --ci-accent: 0.935 0.028 254;
+    --ci-accent-foreground: 0.26  0.055 256;
 
-    --ci-border: 0.915 0.008 253;
-    --ci-border-strong: 0.86 0.011 253;
-    --ci-input: 0.915 0.008 253;
-    --ci-ring: 0.55  0.115 254;
+    --ci-border: 0.900 0.018 252;
+    --ci-border-strong: 0.83 0.028 252;
+    --ci-input: 0.900 0.018 252;
+    --ci-ring: 0.56  0.160 254;
 
     /* ── Couleurs sémantiques ──────────────────────────────────────────────
-     * Elles manquaient : les badges de statut codaient `bg-green-100
-     * text-green-800` en dur, quatre-vingt-cinq fois dans l'application. Une
-     * couleur écrite en dur ne connaît qu'un seul thème — en sombre, ces
-     * badges seraient restés des pastilles claires posées sur du gris foncé.
-     *
-     * Chaque rôle a deux valeurs : la couleur pleine (texte, icône, bordure)
-     * et sa version ténue (fond de pastille). */
-    --ci-success: 0.52 0.115 155;
-    --ci-success-foreground: 0.99 0.002 250;
-    --ci-success-subtle: 0.955 0.033 155;
-    --ci-success-text: 0.42 0.100 155;
+       Chaque rôle a quatre valeurs : la couleur pleine, sa lisière ténue, le
+       texte posé dessus, et le texte posé sur la couleur pleine. */
+    --ci-success: 0.56 0.145 152;
+    --ci-success-foreground: 0.99 0.004 250;
+    --ci-success-subtle: 0.940 0.055 152;
+    --ci-success-text: 0.42 0.125 152;
 
-    --ci-warning: 0.70 0.150 72;
-    --ci-warning-foreground: 0.20 0.030 72;
-    --ci-warning-subtle: 0.965 0.045 82;
-    --ci-warning-text: 0.47 0.105 62;
+    --ci-warning: 0.74 0.165 68;
+    --ci-warning-foreground: 0.22 0.045 68;
+    --ci-warning-subtle: 0.950 0.070 76;
+    --ci-warning-text: 0.47 0.125 58;
 
-    --ci-destructive: 0.55 0.185 25;
-    --ci-destructive-foreground: 0.99 0.002 250;
-    --ci-destructive-subtle: 0.955 0.030 25;
-    --ci-destructive-text: 0.46 0.155 25;
+    --ci-destructive: 0.56 0.205 22;
+    --ci-destructive-foreground: 0.99 0.004 250;
+    --ci-destructive-subtle: 0.940 0.048 22;
+    --ci-destructive-text: 0.47 0.180 22;
 
-    --ci-info: 0.55 0.115 240;
-    --ci-info-foreground: 0.99 0.002 250;
-    --ci-info-subtle: 0.955 0.028 240;
-    --ci-info-text: 0.44 0.105 240;
+    --ci-info: 0.60 0.140 232;
+    --ci-info-foreground: 0.99 0.004 250;
+    --ci-info-subtle: 0.940 0.050 232;
+    --ci-info-text: 0.44 0.125 234;
+
+    /* ── Séries de graphique ───────────────────────────────────────────────
+       Ordre figé — c'est lui qui porte la sécurité daltonienne, pas les
+       teintes prises une à une. Une série n'est jamais attribuée au rang
+       (« la plus grande barre en azur ») mais à l'entité : un filtre qui
+       retire une série ne doit pas repeindre les survivantes. */
+    --ci-serie-1: 0.46 0.160 252;
+    --ci-serie-2: 0.50 0.140 148;
+    --ci-serie-3: 0.45 0.170 300;
+    --ci-serie-4: 0.60 0.120 192;
+    --ci-serie-5: 0.60 0.150 62;
+    --ci-serie-6: 0.52 0.180 350;
+
+    /* ── Filières ──────────────────────────────────────────────────────────
+       Cinq métiers cohabitent dans la même barre latérale : vendre, tenir un
+       catalogue, acheter, produire, compter. Sans couleur, on lit vingt lignes
+       de texte gris pour retrouver « Avoirs ». Chaque filière emprunte une
+       famille de séries — l'alphabet reste le même d'un bout à l'autre. */
+    --ci-filiere-ventes: 0.50 0.155 254;
+    --ci-filiere-ventes-subtle: 0.945 0.045 254;
+    --ci-filiere-catalogue: 0.55 0.115 192;
+    --ci-filiere-catalogue-subtle: 0.945 0.040 192;
+    --ci-filiere-achats: 0.47 0.165 300;
+    --ci-filiere-achats-subtle: 0.947 0.040 300;
+    --ci-filiere-production: 0.58 0.145 62;
+    --ci-filiere-production-subtle: 0.950 0.055 68;
+    --ci-filiere-finance: 0.52 0.175 350;
+    --ci-filiere-finance-subtle: 0.947 0.042 350;
+
+    /* ── Halo ──────────────────────────────────────────────────────────────
+       Teinte des lueurs : aurores du panneau d'entrée, ombres colorées des
+       boutons, voile derrière les graphiques. Séparée de la primaire pour
+       pouvoir être calmée en sombre sans calmer les boutons avec. */
+    --ci-halo: 0.62 0.180 262;
+    --ci-halo-chaud: 0.72 0.160 42;
 
     /* ── Barre latérale ────────────────────────────────────────────────────
-     * Elle était une dalle sombre fixe, quel que soit le reste. Ce contraste
-     * permanent était une mode de 2020 ; en 2026 la navigation appartient au
-     * thème comme le reste, sinon le mode sombre donne une page à deux
-     * ambiances. */
-    --ci-sidebar: 0.975 0.005 253;
-    --ci-sidebar-foreground: 0.34  0.021 253;
-    --ci-sidebar-accent: 0.935 0.020 254;
-    --ci-sidebar-accent-foreground: 0.34  0.075 254;
-    --ci-sidebar-border: 0.915 0.008 253;
+       Elle n'est plus la dalle sombre fixe de 2020, mais elle n'est plus non
+       plus la même surface que la page : elle porte sa propre teinte, un cran
+       plus soutenue que le fond, et un dégradé vertical très lent qui l'ancre
+       en bas. */
+    --ci-sidebar: 0.962 0.020 252;
+    --ci-sidebar-foreground: 0.34  0.038 256;
+    --ci-sidebar-accent: 0.925 0.045 254;
+    --ci-sidebar-accent-foreground: 0.33  0.130 256;
+    --ci-sidebar-border: 0.898 0.022 252;
 
-    /* ── Panneau de présentation des écrans d'entrée ───────────────────────
-     * Il ne peut pas prendre `--ci-primary` : en sombre, la primaire s'éclaircit
-     * pour rester lisible sur fond noir, et le panneau devenait une dalle bleu
-     * clair au milieu d'une page sombre — l'inverse de ce qu'on veut d'un
-     * aplat de marque. Il garde donc son propre bleu nuit dans les deux
-     * thèmes, simplement assombri en sombre pour ne pas éblouir.
-     */
-    --ci-panneau: 0.34 0.078 254;
-    --ci-panneau-foreground: 0.97 0.006 250;
+    /* ── Panneau des écrans d'entrée ───────────────────────────────────────
+       Le bleu nuit imprimé sur les factures finit ici : c'est le seul endroit
+       où un aplat profond ne gêne aucune lecture, et il fait le lien entre
+       l'écran et le document que le client reçoit. */
+    --ci-panneau: 0.30 0.098 258;
+    --ci-panneau-foreground: 0.97 0.010 250;
 
     --radius: 0.625rem;
 
-    /* Ombres portées : très basses en opacité, deux couches — une pour le
-       contact, une pour la diffusion. Une seule couche donne toujours l'ombre
-       « boîte flottante » qu'on reconnaît immédiatement comme un défaut. */
-    --shadow-sm: 0 1px 2px 0 oklch(0.21 0.024 253 / 0.05);
-    --shadow:    0 1px 3px 0 oklch(0.21 0.024 253 / 0.07), 0 1px 2px -1px oklch(0.21 0.024 253 / 0.05);
-    --shadow-md: 0 4px 12px -2px oklch(0.21 0.024 253 / 0.08), 0 2px 4px -2px oklch(0.21 0.024 253 / 0.05);
-    --shadow-lg: 0 12px 32px -8px oklch(0.21 0.024 253 / 0.14), 0 4px 8px -4px oklch(0.21 0.024 253 / 0.06);
+    /* Ombres portées : deux couches, très basses en opacité. `--shadow-halo`
+       est la seule colorée — réservée aux boutons primaires et aux cartes
+       actives, là où l'ombre est un signal et non un décor. */
+    --shadow-sm: 0 1px 2px 0 oklch(0.30 0.055 258 / 0.06);
+    --shadow:    0 1px 3px 0 oklch(0.30 0.055 258 / 0.09), 0 1px 2px -1px oklch(0.30 0.055 258 / 0.06);
+    --shadow-md: 0 4px 12px -2px oklch(0.30 0.055 258 / 0.10), 0 2px 4px -2px oklch(0.30 0.055 258 / 0.06);
+    --shadow-lg: 0 12px 32px -8px oklch(0.30 0.055 258 / 0.16), 0 4px 8px -4px oklch(0.30 0.055 258 / 0.08);
+    --shadow-halo: 0 6px 20px -6px oklch(var(--ci-primary) / 0.42), 0 2px 6px -3px oklch(var(--ci-primary) / 0.30);
   }
 
   /* ═════════════════════════════════════════════════════════════════════════
    * Thème sombre
    *
-   * Trois règles le gouvernent, et elles ne sont pas décoratives :
+   * Il n'est pas le thème clair inversé : chaque valeur est choisie contre son
+   * propre fond. Quatre règles le gouvernent.
    *
    * 1. **Pas de noir pur.** Du blanc sur du noir provoque un halo qui fatigue
-   *    l'œil en quelques minutes — et sur du vrai noir, aucune élévation ne
-   *    peut plus se voir, faute de place sous le fond.
+   *    en quelques minutes, et ne laisse plus de place sous le fond pour
+   *    signaler l'élévation. Le fond est un bleu de nuit à L 0.175.
    *
-   * 2. **L'élévation se lit en clarté, pas en ombre.** Une ombre noire sur un
-   *    fond sombre n'existe pas. Chaque surface posée sur une autre est donc
-   *    d'environ 3 à 5 % plus claire que celle qui la porte : fond → carte →
-   *    surface flottante.
+   * 2. **L'élévation se lit en clarté.** Fond 0.175, carte 0.245, surface
+   *    flottante 0.30 : une ombre noire sur un fond sombre n'existe pas.
    *
-   * 3. **Les accents se désaturent.** Une couleur vive garde sa force sur du
-   *    blanc et vibre désagréablement sur du sombre. Chroma réduite, lightness
-   *    remontée pour garder le contraste du texte.
+   * 3. **Les accents remontent en clarté et descendent en chroma.** Une
+   *    couleur vive sur du sombre vibre ; les six séries sont re-marchées
+   *    contre la carte sombre, pas simplement éclaircies.
    *
-   * Le texte n'est pas blanc pur non plus, pour la même raison que le fond
-   * n'est pas noir.
+   * 4. **Le sombre reste sombre.** Aucune surface ne dépasse L 0.32 : pas de
+   *    dalle claire au milieu de la page.
    * ═════════════════════════════════════════════════════════════════════════ */
   .dark {
-    --ci-background: 0.185 0.014 254;
-    --ci-surface: 0.225 0.016 254;
-    --ci-surface-elevated: 0.265 0.017 254;
-    --ci-foreground: 0.93  0.008 250;
+    --ci-background: 0.175 0.022 258;
+    --ci-surface: 0.245 0.022 258;
+    --ci-surface-elevated: 0.295 0.024 258;
+    --ci-foreground: 0.945 0.012 250;
 
-    --ci-card: 0.225 0.016 254;
-    --ci-card-foreground: 0.93  0.008 250;
+    --ci-card: 0.245 0.022 258;
+    --ci-card-foreground: 0.945 0.012 250;
 
-    --ci-primary: 0.70 0.115 250;
-    --ci-primary-foreground: 0.17 0.020 254;
-    --ci-primary-hover: 0.76 0.110 250;
-    --ci-primary-subtle: 0.29 0.045 252;
+    --ci-primary: 0.72 0.135 250;
+    --ci-primary-foreground: 0.17 0.030 258;
+    --ci-primary-hover: 0.79 0.125 250;
+    --ci-primary-subtle: 0.315 0.070 254;
 
-    --ci-secondary: 0.275 0.016 254;
-    --ci-secondary-foreground: 0.90  0.010 250;
+    --ci-secondary: 0.295 0.024 258;
+    --ci-secondary-foreground: 0.91  0.016 250;
 
-    --ci-muted: 0.265 0.015 254;
-    --ci-muted-foreground: 0.685 0.017 252;
-    --ci-accent: 0.295 0.018 254;
-    --ci-accent-foreground: 0.94  0.008 250;
+    --ci-muted: 0.285 0.022 258;
+    --ci-muted-foreground: 0.715 0.028 254;
+    --ci-accent: 0.325 0.032 256;
+    --ci-accent-foreground: 0.955 0.014 250;
 
-    --ci-border: 0.315 0.017 254;
-    --ci-border-strong: 0.40  0.020 254;
-    --ci-input: 0.315 0.017 254;
-    --ci-ring: 0.66  0.110 250;
+    --ci-border: 0.335 0.026 258;
+    --ci-border-strong: 0.44  0.032 258;
+    --ci-input: 0.335 0.026 258;
+    --ci-ring: 0.70  0.140 250;
 
-    --ci-success: 0.66 0.115 158;
-    --ci-success-foreground: 0.16 0.020 158;
-    --ci-success-subtle: 0.30 0.048 158;
-    --ci-success-text: 0.79 0.110 158;
+    --ci-success: 0.72 0.145 152;
+    --ci-success-foreground: 0.16 0.030 152;
+    --ci-success-subtle: 0.325 0.070 152;
+    --ci-success-text: 0.84 0.135 152;
 
-    --ci-warning: 0.76 0.130 78;
-    --ci-warning-foreground: 0.18 0.028 78;
-    --ci-warning-subtle: 0.32 0.055 72;
-    --ci-warning-text: 0.84 0.115 82;
+    --ci-warning: 0.80 0.150 76;
+    --ci-warning-foreground: 0.18 0.035 76;
+    --ci-warning-subtle: 0.340 0.075 68;
+    --ci-warning-text: 0.87 0.135 82;
 
-    --ci-destructive: 0.63 0.165 25;
-    --ci-destructive-foreground: 0.16 0.020 25;
-    --ci-destructive-subtle: 0.31 0.062 25;
-    --ci-destructive-text: 0.78 0.120 25;
+    --ci-destructive: 0.68 0.190 22;
+    --ci-destructive-foreground: 0.16 0.030 22;
+    --ci-destructive-subtle: 0.335 0.085 22;
+    --ci-destructive-text: 0.81 0.140 22;
 
-    --ci-info: 0.68 0.105 242;
-    --ci-info-foreground: 0.16 0.020 242;
-    --ci-info-subtle: 0.30 0.050 242;
-    --ci-info-text: 0.80 0.090 242;
+    --ci-info: 0.74 0.125 235;
+    --ci-info-foreground: 0.16 0.030 235;
+    --ci-info-subtle: 0.325 0.070 235;
+    --ci-info-text: 0.85 0.105 235;
 
-    --ci-panneau: 0.245 0.048 254;
-    --ci-panneau-foreground: 0.90 0.012 250;
+    /* Séries re-marchées contre la carte sombre (L 0.245), pas éclaircies au
+       jugé : toutes tiennent 3:1 sur elle, et le pire couple adjacent reste à
+       ΔE 13.6 sous deutéranopie. */
+    --ci-serie-1: 0.60 0.150 252;
+    --ci-serie-2: 0.60 0.130 148;
+    --ci-serie-3: 0.58 0.150 300;
+    --ci-serie-4: 0.67 0.110 192;
+    --ci-serie-5: 0.62 0.140 62;
+    --ci-serie-6: 0.58 0.160 350;
 
-    --ci-sidebar: 0.205 0.015 254;
-    --ci-sidebar-foreground: 0.80  0.013 252;
-    --ci-sidebar-accent: 0.30  0.043 252;
-    --ci-sidebar-accent-foreground: 0.93  0.030 250;
-    --ci-sidebar-border: 0.29  0.016 254;
+    --ci-filiere-ventes: 0.72 0.135 250;
+    --ci-filiere-ventes-subtle: 0.320 0.070 252;
+    --ci-filiere-catalogue: 0.75 0.105 192;
+    --ci-filiere-catalogue-subtle: 0.320 0.058 192;
+    --ci-filiere-achats: 0.72 0.135 300;
+    --ci-filiere-achats-subtle: 0.325 0.070 300;
+    --ci-filiere-production: 0.78 0.135 68;
+    --ci-filiere-production-subtle: 0.330 0.065 68;
+    --ci-filiere-finance: 0.72 0.150 350;
+    --ci-filiere-finance-subtle: 0.325 0.075 350;
 
-    /* En sombre les ombres ne portent plus l'élévation — c'est la clarté des
-       surfaces qui s'en charge. Elles restent, très discrètes, seulement pour
-       détacher les couches flottantes du fond. */
-    --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.30);
-    --shadow:    0 1px 3px 0 oklch(0 0 0 / 0.40), 0 1px 2px -1px oklch(0 0 0 / 0.30);
-    --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.45), 0 2px 4px -2px oklch(0 0 0 / 0.30);
-    --shadow-lg: 0 12px 32px -8px oklch(0 0 0 / 0.55), 0 4px 8px -4px oklch(0 0 0 / 0.35);
+    --ci-halo: 0.60 0.170 262;
+    --ci-halo-chaud: 0.66 0.150 42;
+
+    --ci-sidebar: 0.205 0.026 258;
+    --ci-sidebar-foreground: 0.815 0.022 254;
+    --ci-sidebar-accent: 0.325 0.065 254;
+    --ci-sidebar-accent-foreground: 0.955 0.030 250;
+    --ci-sidebar-border: 0.300 0.026 258;
+
+    --ci-panneau: 0.225 0.062 258;
+    --ci-panneau-foreground: 0.93 0.016 250;
+
+    /* En sombre, l'élévation est portée par la clarté des surfaces. Les ombres
+       ne restent que pour détacher les couches flottantes du fond — et le halo
+       coloré, lui, garde tout son sens : c'est la seule lumière de la page. */
+    --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.32);
+    --shadow:    0 1px 3px 0 oklch(0 0 0 / 0.42), 0 1px 2px -1px oklch(0 0 0 / 0.32);
+    --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.48), 0 2px 4px -2px oklch(0 0 0 / 0.32);
+    --shadow-lg: 0 12px 32px -8px oklch(0 0 0 / 0.58), 0 4px 8px -4px oklch(0 0 0 / 0.38);
+    --shadow-halo: 0 6px 22px -6px oklch(var(--ci-primary) / 0.40), 0 0 0 1px oklch(var(--ci-primary) / 0.16);
   }
 }
 
@@ -260,8 +335,7 @@
   h1, h2, h3 { letter-spacing: -0.011em; }
 
   /* Le focus doit se voir. Il était rendu par un anneau sans décalage, qui se
-     confondait avec la bordure du champ dès que les deux se touchaient. Le
-     décalage l'en détache, et l'anneau suit le thème. */
+     confondait avec la bordure du champ dès que les deux se touchaient. */
   :focus-visible {
     outline: 2px solid oklch(var(--ci-ring));
     outline-offset: 2px;
@@ -288,7 +362,260 @@
       transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
     }
   }
+
+  /* La sélection prend la couleur de la marque plutôt que le bleu du système,
+     qui jurait avec tout le reste dès qu'on copiait un montant. */
+  ::selection {
+    background: oklch(var(--ci-primary) / 0.22);
+    color: oklch(var(--ci-foreground));
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MOUVEMENT
+ *
+ * Le reproche « aucune animation » ne se corrige pas en animant tout : une
+ * interface où chaque élément bouge devient une interface où l'on ne peut plus
+ * travailler. Le mouvement obéit ici à trois règles.
+ *
+ * **Une seule courbe.** `cubic-bezier(0.16, 1, 0.3, 1)` — un départ franc, une
+ * arrivée qui se pose. Deux courbes différentes sur un même écran se voient
+ * immédiatement, sans qu'on sache dire pourquoi c'est laid.
+ *
+ * **Trois durées, pas davantage.** 150 ms pour un retour (survol, pression),
+ * 420 ms pour une entrée, 900 à 1200 ms pour un tracé ou un compteur. Rien
+ * entre les deux, rien au-delà : au-dessus de 1,2 s, l'utilisateur qui connaît
+ * son écran attend la fin de l'animation au lieu de lire.
+ *
+ * **L'échelonnement raconte l'ordre de lecture.** 45 ms par rang, plafonné à
+ * douze : au-delà, la dernière carte arriverait une demi-seconde après la
+ * première, et l'attente deviendrait perceptible.
+ *
+ * Tout est enfermé dans `prefers-reduced-motion: no-preference`. Le réglage
+ * système n'est pas une préférence esthétique : pour une partie des gens, une
+ * animation de trop provoque un vrai malaise. Sans mouvement, tout doit rester
+ * exactement à sa place et parfaitement lisible — c'est le cas ici, les
+ * animations ne portent aucune information à elles seules.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes ci-entree {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ci-surgir {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ci-miroitement {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes ci-tracer {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes ci-devoiler {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes ci-grandir {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@keyframes ci-pulsation {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.35); }
+}
+
+@keyframes ci-aurore {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(6%, -8%, 0) scale(1.12); }
+  66%  { transform: translate3d(-5%, 6%, 0) scale(0.94); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@layer utilities {
+  /* ── Entrées ────────────────────────────────────────────────────────────
+     `.echelonner` applique l'entrée à ses enfants directs et décale chacun de
+     45 ms. Le décalage est écrit en CSS et non en style inline : une grille de
+     douze cartes n'a pas à porter douze attributs `style`. */
+  .echelonner > * {
+    animation: ci-entree 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .echelonner > *:nth-child(1)  { animation-delay: 0ms; }
+  .echelonner > *:nth-child(2)  { animation-delay: 45ms; }
+  .echelonner > *:nth-child(3)  { animation-delay: 90ms; }
+  .echelonner > *:nth-child(4)  { animation-delay: 135ms; }
+  .echelonner > *:nth-child(5)  { animation-delay: 180ms; }
+  .echelonner > *:nth-child(6)  { animation-delay: 225ms; }
+  .echelonner > *:nth-child(7)  { animation-delay: 270ms; }
+  .echelonner > *:nth-child(8)  { animation-delay: 315ms; }
+  .echelonner > *:nth-child(9)  { animation-delay: 360ms; }
+  .echelonner > *:nth-child(10) { animation-delay: 405ms; }
+  .echelonner > *:nth-child(11) { animation-delay: 450ms; }
+  .echelonner > *:nth-child(n+12) { animation-delay: 495ms; }
+
+  /* Lignes de tableau : le même principe, mais plus serré (24 ms) et sans
+     déplacement vertical — trente lignes qui montent ensemble donnent le mal
+     de mer. Seule l'opacité bouge. */
+  .echelonner-lignes > * {
+    animation: ci-entree 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .echelonner-lignes > *:nth-child(1) { animation-delay: 0ms; }
+  .echelonner-lignes > *:nth-child(2) { animation-delay: 24ms; }
+  .echelonner-lignes > *:nth-child(3) { animation-delay: 48ms; }
+  .echelonner-lignes > *:nth-child(4) { animation-delay: 72ms; }
+  .echelonner-lignes > *:nth-child(5) { animation-delay: 96ms; }
+  .echelonner-lignes > *:nth-child(6) { animation-delay: 120ms; }
+  .echelonner-lignes > *:nth-child(7) { animation-delay: 144ms; }
+  .echelonner-lignes > *:nth-child(n+8) { animation-delay: 168ms; }
+
+  /* ── Squelettes ─────────────────────────────────────────────────────────
+     Un reflet qui traverse la barre, plutôt qu'un clignotement d'opacité : le
+     reflet indique un sens — ça charge, ça vient — là où le clignotement ne
+     dit rien et fatigue. */
+  .miroitement { position: relative; overflow: hidden; }
+  .miroitement::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      oklch(var(--ci-foreground) / 0.07) 45%,
+      oklch(var(--ci-foreground) / 0.12) 50%,
+      oklch(var(--ci-foreground) / 0.07) 55%,
+      transparent 100%
+    );
+    animation: ci-miroitement 1500ms ease-in-out infinite;
+  }
+  [dir="rtl"] .miroitement::after { animation-direction: reverse; }
+
+  /* ── Graphiques ─────────────────────────────────────────────────────────
+     La courbe se trace, l'aire se dévoile derrière elle, les barres poussent
+     depuis leur origine. `pathLength="1"` normalise la longueur du chemin : le
+     même `stroke-dasharray: 1` fonctionne quelle que soit la courbe. */
+  .tracer {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: ci-tracer 1100ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .devoiler { animation: ci-devoiler 1100ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .grandir  { transform-origin: left center; animation: ci-grandir 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  [dir="rtl"] .grandir { transform-origin: right center; }
+
+  .pulsation { animation: ci-pulsation 2200ms cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  .surgir    { animation: ci-surgir 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* ── Aurores ────────────────────────────────────────────────────────────
+     Deux taches radiales très floues qui dérivent lentement derrière le
+     panneau d'entrée. Trente secondes par cycle : à ce rythme, on ne voit pas
+     l'écran bouger, on voit une lumière vivante. Aucun texte ne repose
+     dessus — la lisibilité ne dépend jamais de leur position. */
+  .aurore { animation: ci-aurore 30s ease-in-out infinite; }
+  .aurore-lente { animation: ci-aurore 42s ease-in-out infinite reverse; }
+
+  /* ── Retours au survol ──────────────────────────────────────────────────
+     La carte se soulève de deux pixels et son ombre s'ouvre. Deux pixels, pas
+     six : sur une grille de douze cartes, un soulèvement franc donne
+     l'impression que la page respire mal. */
+  .carte-vivante {
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 180ms ease;
+  }
+  .carte-vivante:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: oklch(var(--ci-border-strong));
+  }
+
+  /* Voile coloré posé au dos d'une carte : un dégradé qui part du coin haut,
+     à peine perceptible, et qui donne à la surface une direction. */
+  .voile-marque {
+    background-image: linear-gradient(135deg, oklch(var(--ci-primary) / 0.055) 0%, transparent 42%);
+  }
+}
+
+/* Le réglage système coupe tout. Il n'y a pas d'exception « mais celle-ci est
+   utile » : l'information est toujours portée par autre chose que le
+   mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .tracer { stroke-dashoffset: 0; }
+  .devoiler { clip-path: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TITRES D'ÉCRAN
+ *
+ * Chacune des quarante pages ouvre sur un `h1` gris posé en haut à gauche.
+ * Leur donner à toutes une marque de marque aurait voulu dire retoucher
+ * quarante fichiers pour ajouter le même `<span>` — et en oublier trois.
+ * Une règle portée par le cadre de l'application les prend d'un coup.
+ *
+ * La barre est un dégradé azur → sarcelle, le même que la marque : elle dit
+ * « ici commence une page », et elle bascule toute seule à droite en arabe,
+ * puisque c'est l'ordre de la ligne qui s'inverse, pas la règle.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.ci-page h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.ci-page h1::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  align-self: stretch;
+  min-height: 1.1em;
+  border-radius: 9999px;
+  background-image: linear-gradient(180deg, oklch(var(--ci-serie-1)), oklch(var(--ci-serie-4)));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TABLEAUX
+ *
+ * Les listes sont l'écran le plus regardé du produit — un magasinier y passe
+ * sa journée — et c'était le plus gris. Ces règles s'appliquent à tous les
+ * tableaux d'un coup, sans retoucher les vingt pages qui les écrivent.
+ *
+ * L'en-tête prend un dégradé très bas et une règle nette en dessous ; les
+ * lignes paires reçoivent un voile de 40 % de la teinte muette — assez pour
+ * guider l'œil sur une ligne de douze colonnes, trop peu pour se lire comme
+ * une sélection ; le survol pose une barre de deux pixels du côté de la
+ * lecture, qui dit « cette ligne-ci » mieux qu'un fond entier.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+thead {
+  background-image: linear-gradient(
+    180deg,
+    oklch(var(--ci-muted) / 0.85) 0%,
+    oklch(var(--ci-muted) / 0.45) 100%
+  );
+}
+thead th { border-bottom: 1px solid oklch(var(--ci-border-strong) / 0.7); }
+
+tbody tr { position: relative; }
+tbody tr:nth-child(even) { background-color: oklch(var(--ci-muted) / 0.34); }
+tbody tr td:first-child {
+  box-shadow: inset 2px 0 0 -2px transparent;
+  transition: box-shadow 150ms ease;
+}
+tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 0 oklch(var(--ci-primary)); }
+[dir="rtl"] tbody tr:hover td:first-child { box-shadow: inset -2px 0 0 0 oklch(var(--ci-primary)); }
 
 /* ─── Écriture de droite à gauche ────────────────────────────────────────
  *

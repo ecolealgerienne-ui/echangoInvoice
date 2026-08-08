@@ -50,12 +50,59 @@ const PAGES = ['/dashboard', '/invoices', '/quotes', '/deliveries', '/credit-not
       const f = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
       return 0.2126 * f(r / 255) + 0.7152 * f(g / 255) + 0.0722 * f(bl / 255);
     };
-    // Le navigateur rend toute couleur calculée en rgb() une fois peinte.
+    /**
+     * Lecture d'une couleur calculée.
+     *
+     * Ce contrôle a été **muet pendant tout le temps où il a servi**, et
+     * personne ne pouvait le voir : il ne savait lire que `rgb()`, en partant
+     * du principe — vrai en 2020 — que le navigateur ramène toute couleur à
+     * cette forme une fois peinte. Chrome conserve désormais `oklch()` tel
+     * quel dans le style calculé. Le motif ne correspondait donc plus à rien,
+     * la fonction rendait `null`, et la boucle passait au suivant : « aucun
+     * texte sous 3:1 » voulait dire « aucun texte mesuré ».
+     *
+     * Un contrôle vert parce qu'il ne regarde rien est pire qu'un contrôle
+     * absent — on cesse de vérifier à la main ce qu'on croit couvert. Les deux
+     * formes sont désormais lues, et `oklch()` est converti en sRGB ici même,
+     * puisque la page n'a rien d'autre à offrir.
+     */
+    const oklchVersRvb = (L, C, H) => {
+      const h = (H * Math.PI) / 180;
+      const a = C * Math.cos(h);
+      const b = C * Math.sin(h);
+      const l3 = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+      const m3 = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+      const s3 = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+      const lin = [
+        4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+        -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+        -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3,
+      ];
+      return lin.map((v) => {
+        const e = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.max(v, 0) ** (1 / 2.4) - 0.055;
+        return Math.min(255, Math.max(0, Math.round(e * 255)));
+      });
+    };
     const rgb = (s) => {
-      const m = String(s).match(/rgba?\(([^)]+)\)/);
-      if (!m) return null;
-      const p = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
-      return { c: p.slice(0, 3), a: p.length > 3 ? p[3] : 1 };
+      const texte = String(s);
+      const mRgb = texte.match(/rgba?\(([^)]+)\)/);
+      if (mRgb) {
+        const p = mRgb[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+        return { c: p.slice(0, 3), a: p.length > 3 ? p[3] : 1 };
+      }
+      const mOk = texte.match(/oklch\(([^)]+)\)/);
+      if (mOk) {
+        // « oklch(0.87 0.135 82 / 0.5) » — l'alpha suit une barre oblique, et
+        // la clarté peut être écrite en pourcentage.
+        const [avant, apres] = mOk[1].split('/');
+        const p = avant.trim().split(/\s+/).map((v) => (v.endsWith('%') ? Number(v.slice(0, -1)) / 100 : Number(v)));
+        if (p.some((v) => !Number.isFinite(v))) return null;
+        const alpha = apres === undefined ? 1
+          : (apres.trim().endsWith('%') ? Number(apres.trim().slice(0, -1)) / 100 : Number(apres));
+        return { c: oklchVersRvb(p[0], p[1] || 0, p[2] || 0), a: Number.isFinite(alpha) ? alpha : 1 };
+      }
+      if (/^transparent$/i.test(texte.trim())) return { c: [0, 0, 0], a: 0 };
+      return null;
     };
     const fondEffectif = (el) => {
       let n = el;

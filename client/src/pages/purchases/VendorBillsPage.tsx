@@ -17,6 +17,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw, FileDown } from 'lucide-react';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 
 const PAYMENT_METHODS = ['bank_transfer', 'cheque', 'cash', 'other'] as const;
@@ -274,7 +275,7 @@ export function VendorBillsPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {data?.data?.length === 0 && (
-                  <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                  <tr><td colSpan={8} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                 )}
                 {data?.data?.map((bill: any) => (
                   <tr key={bill.id} className="hover:bg-muted/30 transition-colors">

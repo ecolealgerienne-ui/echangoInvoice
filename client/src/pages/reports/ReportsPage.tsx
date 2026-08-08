@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Card, CardContent } from '@/components/ui/Card';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 type ReportType = 'sales' | 'purchases' | 'expenses' | 'stock' | 'tax' | 'agedBalance';
 
@@ -177,7 +178,7 @@ export function ReportsPage() {
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
                 )}
                 {data.data.details?.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30">
@@ -250,7 +251,7 @@ export function ReportsPage() {
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
                 )}
                 {data.data.details?.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30">
@@ -335,7 +336,7 @@ export function ReportsPage() {
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.byRate?.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                  <tr><td colSpan={5} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                 )}
                 {data.data.byRate?.map((r: any) => (
                   <tr key={r.taxRate} className="hover:bg-muted/30">

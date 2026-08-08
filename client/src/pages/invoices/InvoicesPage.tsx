@@ -27,6 +27,7 @@ import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 
 const itemSchema = z.object({
@@ -349,7 +350,7 @@ export function InvoicesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((inv: any) => (
                 <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
@@ -652,7 +653,7 @@ export function InvoicesPage() {
                   </tr></thead>
                   <tbody className="divide-y divide-border">
                     {paymentsData?.data?.length === 0 && (
-                      <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                      <tr><td colSpan={5} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                     )}
                     {paymentsData?.data?.map((p: any) => (
                       <tr key={p.id} className="hover:bg-muted/30">

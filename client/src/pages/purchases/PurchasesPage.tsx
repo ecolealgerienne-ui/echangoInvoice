@@ -23,6 +23,7 @@ import { BandeauScan } from '@/components/shared/BandeauScan';
 import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 
 // ── Purchase Order form ──────────────────────────────────────────────────────
@@ -451,7 +452,7 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={poVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={poVisible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
@@ -514,7 +515,7 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {receptions.length === 0 && (
-                <tr><td colSpan={recVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={recVisible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>

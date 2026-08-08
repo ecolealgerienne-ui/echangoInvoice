@@ -13,7 +13,19 @@
  * Un mode inconnu retombe sur sa valeur brute : mieux vaut afficher `ccp` que
  * rien du tout si le serveur introduit un mode que le client ignore encore.
  */
-const MODES_CONNUS = ['cash', 'bank_transfer', 'cheque', 'other'] as const;
+/**
+ * L'ordre compte : c'est lui qui donne à chaque mode son créneau de couleur
+ * dans les graphiques. Les espèces sont la première série en janvier comme en
+ * juin, et un mois sans chèques ne repeint pas les autres. Un mode ajouté se
+ * met **à la fin**, jamais au milieu.
+ */
+export const MODES_CONNUS = ['cash', 'bank_transfer', 'cheque', 'other'] as const;
+
+/** Créneau de série d'un mode : sa position de référence, jamais son rang. */
+export function creneauMode(mode: string): number {
+  const i = (MODES_CONNUS as readonly string[]).indexOf(mode);
+  return i < 0 ? MODES_CONNUS.length : i;
+}
 
 export function libelleMode(t: (cle: string) => string, mode: string | null | undefined): string {
   if (!mode) return '—';

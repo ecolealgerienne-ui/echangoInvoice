@@ -22,6 +22,7 @@ import { Plus, Trash2, CheckCircle, XCircle, FileDown } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
+import { EtatVide } from '@/components/shared/EtatVide';
 
 
 const itemSchema = z.object({
@@ -219,7 +220,7 @@ export function CreditNotesPage() {
                 </tr>
               ))}
               {creditNotes.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
