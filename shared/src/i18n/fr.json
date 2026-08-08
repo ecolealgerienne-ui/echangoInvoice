@@ -39,7 +39,8 @@
     "inactive": "Inactif",
     "history": "Historique",
     "createdAt": "Créé le",
-    "updatedAt": "Modifié le"
+    "updatedAt": "Modifié le",
+    "auto": "Auto"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -559,7 +560,16 @@
     "invalid_sort_column": "Cette colonne ne peut pas servir au tri.",
     "invalid_date_format": "La date doit être au format AAAA-MM-JJ.",
     "periode_incomplete": "Une période demande une date de début et une date de fin.",
-    "periode_inversee": "La date de fin doit suivre la date de début."
+    "periode_inversee": "La date de fin doit suivre la date de début.",
+    "barcode_empty": "Le code-barres est vide.",
+    "barcode_too_long": "Le code-barres dépasse 64 caractères.",
+    "barcode_digits_only": "Ce type de code-barres n'accepte que des chiffres.",
+    "barcode_wrong_length": "Le code-barres n'a pas la longueur attendue pour ce type.",
+    "barcode_check_digit": "Clé de contrôle incorrecte : le code a probablement été mal saisi.",
+    "barcode_invalid_characters": "Le code-barres contient des caractères non imprimables.",
+    "barcode_already_used": "Ce code-barres est déjà associé à un autre article.",
+    "barcode_not_found": "Code-barres introuvable.",
+    "barcode_unknown": "Aucun article ne correspond à ce code."
   },
   "status": {
     "active": "Actif",
@@ -654,7 +664,16 @@
     "salesHistory": "Dernières ventes",
     "noSale": "Aucune vente",
     "purchaseHistory": "Derniers achats",
-    "noPurchase": "Aucun achat"
+    "noPurchase": "Aucun achat",
+    "barcodes": "Codes-barres",
+    "barcode": "Code-barres",
+    "barcodeType": "Type",
+    "barcodePack": "Unités par code",
+    "barcodePrimary": "Principal",
+    "barcodeLabel": "Libellé",
+    "barcodeAdd": "Ajouter un code-barres",
+    "barcodeNone": "Aucun code-barres. Scannez-en un ou saisissez-le.",
+    "barcodeHint": "Le carton de douze porte son propre code : indiquez 12 unités pour qu'un scan ajoute la bonne quantité."
   },
   "quotes": {
     "title": "Devis",

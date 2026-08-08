@@ -172,7 +172,8 @@ await this.stockService.decrement(items); // si ça plante → stock incohérent
 {
   "statusCode": 409,
   "message": "errors.duplicate_entry",
-  "field": "blNumber"   // optionnel
+  "field": "blNumber",                    // optionnel
+  "details": { "product": "Beurre 250g" } // optionnel — contexte du message
 }
 
 // ✅ CORRECT — les services throw une clé, jamais une phrase

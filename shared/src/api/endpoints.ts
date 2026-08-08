@@ -132,6 +132,14 @@ export function createEndpoints(api: AxiosInstance, storage: TokenStorage) {
   const productsApi = {
     list: (params?: Params) => api.get('/products', { params }).then((r) => r.data),
     get: (id: string) => api.get(`/products/${id}`).then((r) => r.data),
+    listerCodesBarres: (id: string) =>
+      api.get(`/products/${id}/barcodes`).then((r) => r.data),
+    ajouterCodeBarres: (id: string, body: unknown) =>
+      api.post(`/products/${id}/barcodes`, body).then((r) => r.data),
+    retirerCodeBarres: (barcodeId: string) =>
+      api.delete(`/products/barcodes/${barcodeId}`).then((r) => r.data),
+    parCodeBarres: (code: string) =>
+      api.get(`/products/by-barcode/${encodeURIComponent(code)}`).then((r) => r.data),
     create: (body: unknown) => api.post('/products', body).then((r) => r.data),
     update: (id: string, body: unknown) => api.put(`/products/${id}`, body).then((r) => r.data),
     remove: (id: string) => api.delete(`/products/${id}`).then((r) => r.data),

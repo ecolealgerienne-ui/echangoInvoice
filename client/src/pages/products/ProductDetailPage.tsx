@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Bloc, Champ, DocumentEnTete } from '@/components/shared/DocumentView';
 import { Chiffres, Historique } from '@/components/shared/Historique';
+import { CodesBarres } from '@/components/shared/CodesBarres';
 
 const STATUT_FACTURE: Record<string, string> = {
   draft: 'muted', sent: 'info', partial: 'warning',
@@ -119,6 +120,8 @@ export function ProductDetailPage() {
           />
         </Bloc>
       </div>
+
+      <CodesBarres productId={p.id} />
 
       <Historique
         titre={t('products.batches')}

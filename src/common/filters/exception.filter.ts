@@ -20,6 +20,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'errors.internal_server_error';
     let field: string | undefined;
+    // `details` transporte le contexte qui rend un message utile — le nom de
+    // l'article qui détient déjà un code-barres, par exemple. Sans lui, un
+    // service qui joint ce contexte le voit disparaître en silence : le filtre
+    // ne recopiait que `message` et `field`.
+    let details: Record<string, unknown> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -28,6 +33,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         const r = exceptionResponse as Record<string, unknown>;
         message = (r.message as string) ?? message;
         field = r.field as string | undefined;
+        details = r.details as Record<string, unknown> | undefined;
       } else {
         message = exceptionResponse as string;
       }
@@ -52,6 +58,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body: Record<string, unknown> = { statusCode: status, message };
     if (field) body.field = field;
+    if (details) body.details = details;
 
     void response.status(status).send(body);
   }
