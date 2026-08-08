@@ -41,8 +41,15 @@ interface ComputedItem {
   lineTotal: number;
 }
 
-/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
-const COLONNES_TRIABLES = ['invoiceNumber', 'invoiceDate', 'dueDate', 'totalAmount', 'amountDue', 'status', 'createdAt'] as const;
+/**
+ * Colonnes que le client peut demander en tri (R029).
+ *
+ * `customerName` porte sur la table jointe : sa traduction en SQL est donnée à
+ * `appliquerTri`, la clé publique restant soumise à cette même liste. Sans cette
+ * table de correspondance, trier sur une jointure obligerait à laisser passer
+ * une expression venue du client.
+ */
+const COLONNES_TRIABLES = ['invoiceNumber', 'invoiceDate', 'dueDate', 'totalAmount', 'amountDue', 'status', 'createdAt', 'customerName'] as const;
 
 @Injectable()
 export class SalesInvoicesService {
@@ -263,6 +270,9 @@ export class SalesInvoicesService {
     if (dto.customerId) qb.andWhere('inv.customerId = :customerId', { customerId: dto.customerId });
     if (dto.dateFrom) qb.andWhere('inv.invoiceDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('inv.invoiceDate <= :dateTo', { dateTo: dto.dateTo });
+
+    appliquerTri(qb, 'inv', COLONNES_TRIABLES, { colonne: 'createdAt', sens: 'DESC' }, dto,
+      { customerName: 'customer.name' });
 
     const [rows, total] = await qb
             .skip((page - 1) * limit)

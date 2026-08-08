@@ -267,3 +267,44 @@ attendait un objet.
 Le contrôle `!a` passait puisque le tableau était non vide — l'erreur ne levait
 pas, elle changeait la forme de la réponse. Repéré en exerçant le bouton depuis
 l'écran, pas en lisant le code.
+
+
+---
+
+## E009 — Un contrôle neutralisé par un caractère invisible
+
+**Date :** 2026-08-08 · **Gravité :** élevée · **Statut :** corrigé
+
+Deux services — factures et bons de livraison — avaient **perdu leur appel de
+tri**. Un script de réécriture avait supprimé leur `.orderBy(...)` sans poser le
+remplacement : son ancre attendait `const [data, total]` là où ces fichiers
+écrivent `const [rows, total]`. Leurs listes n'avaient donc plus **aucun**
+`ORDER BY` — un ordre non déterministe, et une pagination qui peut rendre deux
+fois la même ligne.
+
+`npm run verify:tri` passait au vert. Son assertion cherchait
+`resoudreTri|appliquerTri` n'importe où dans le fichier : **la ligne d'import
+suffisait à la satisfaire.**
+
+### Deux formes de défaut, l'une dans l'autre
+
+> Une assertion qui cherche un identifiant dans un fichier ne vérifie pas qu'il
+> est *appelé*. « Le nom apparaît » et « la fonction est utilisée » sont deux
+> propriétés différentes, et c'est toujours la seconde qu'on veut.
+
+Renforcée pour exiger un appel — `(resoudreTri|appliquerTri)\s*\(` — puis la
+présence de la liste blanche dans cet appel, la version renforcée a d'abord
+échoué sur **tous** les services alors qu'ils étaient corrects. Cause : la
+regex écrite contenait un caractère **backspace** (0x08) au lieu des deux
+caractères `\b`, glissé par un échappement Python mal protégé. Invisible à la
+relecture, invisible dans un `grep`, visible seulement en `od -c`.
+
+> Un contrôle peut être neutralisé par un caractère qu'aucune relecture ne
+> montre. Quand une assertion refuse un code qu'on croit correct, vérifier
+> l'assertion elle-même **avant** le code — E004 disait déjà cela, ici c'est
+> l'outil d'écriture qui a menti, pas le raisonnement.
+
+### Correctif
+
+Appels rétablis dans les deux services, contrôle renforcé sur deux propriétés,
+et vérifié en retirant réellement un appel.

@@ -376,7 +376,7 @@ export class ReportsService {
   async getTaxSummary(tenantId: string, dto: ReportQueryDto) {
     const { dateFrom, dateTo } = dto;
 
-    const [byRateRows, totalRow, byMonthRows, deductibleRows, timbreRows] = await Promise.all([
+    const [byRateRows, totalRow, byMonthRows, deductibleRows, depensesTvaRows, timbreRows] = await Promise.all([
       this.ds.query(`
         SELECT tax_name, tax_rate,
                COALESCE(SUM(tax_collected),0) AS tax_collected,
@@ -450,6 +450,16 @@ export class ReportsService {
         ORDER BY vbi."taxRate" DESC`,
         [tenantId, dateFrom, dateTo]),
 
+      // TVA récupérable portée par les dépenses. Elle manquait : nous ne
+      // comptions que les factures fournisseurs, alors qu'une dépense sur
+      // facture ouvre le même droit à déduction.
+      this.ds.query(`
+        SELECT COALESCE(SUM("vatAmount"),0) AS tva
+        FROM expenses
+        WHERE "tenantId"=$1 AND "expenseDate" BETWEEN $2 AND $3
+          AND "isApproved" = true AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+
       // Le timbre encaissé se reverse au Trésor via le G50, à part de la TVA.
       this.ds.query(`
         SELECT COALESCE(SUM("stampDuty"),0) AS timbre
@@ -464,7 +474,8 @@ export class ReportsService {
 
     const collectee = arrondi(tot.total_tax);
     const deductible = deductibleRows.reduce(
-      (s: number, r: any) => s + parseFloat(r.tax_deductible), 0);
+      (s: number, r: any) => s + parseFloat(r.tax_deductible), 0)
+      + parseFloat(String(depensesTvaRows[0]?.tva ?? 0));
     const timbre = arrondi(timbreRows[0]?.timbre);
     const solde = Math.round((collectee - deductible) * 100) / 100;
 
@@ -482,6 +493,10 @@ export class ReportsService {
           // payer : le nommer évite qu'on le lise comme un dû.
           soldeAPayer: solde > 0 ? solde : 0,
           creditReportable: solde < 0 ? Math.abs(solde) : 0,
+          // Détaillé : le comptable doit pouvoir retrouver d'où vient chaque moitié.
+          tvaDeductibleAchats: Math.round(
+            deductibleRows.reduce((s: number, r: any) => s + parseFloat(r.tax_deductible), 0) * 100) / 100,
+          tvaDeductibleDepenses: arrondi(depensesTvaRows[0]?.tva),
           timbreEncaisse: timbre,
           totalAReverser: Math.round(((solde > 0 ? solde : 0) + timbre) * 100) / 100,
         },

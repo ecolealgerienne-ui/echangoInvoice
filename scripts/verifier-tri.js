@@ -105,7 +105,18 @@ for (const rel of SERVICES) {
     // existe » n'est pas la propriété qu'on veut tenir.
     const colonnes = m[1].split(',').map((c) => c.trim()).filter(Boolean);
     assert.ok(colonnes.length >= 2, `liste blanche vide ou quasi vide (${colonnes.length})`);
-    assert.ok(/resoudreTri|appliquerTri/.test(s), 'liste blanche déclarée mais jamais utilisée');
+
+    // L'assertion précédente cherchait « resoudreTri|appliquerTri » n'importe
+    // où : la ligne d'import suffisait à la satisfaire. Deux services ont ainsi
+    // perdu leur appel de tri sans que rien ne le signale — leurs listes n'ont
+    // plus eu d'ORDER BY du tout. On exige donc un APPEL, pas une mention.
+    const appels = (s.match(/(resoudreTri|appliquerTri)\s*\(/g) || []).length;
+    assert.ok(appels >= 1, 'liste blanche déclarée mais aucun appel de tri');
+
+    // Et que la liste blanche y soit passée : appeler avec autre chose la
+    // contournerait tout en satisfaisant le compte ci-dessus.
+    assert.ok(/(resoudreTri|appliquerTri)\([^)]*COLONNES_TRIABLES/.test(s),
+      'le tri est appelé sans la liste blanche du module');
   });
 }
 

@@ -52,15 +52,28 @@ export function fragmentOrderBy<T extends string>(
   return `ORDER BY ${prefixe}"${colonne}" ${sens}`;
 }
 
-/** Variante QueryBuilder : `alias.colonne`, une seule clause de tri. */
+/**
+ * Variante QueryBuilder.
+ *
+ * `jointures` associe une clé publique à l'expression SQL correspondante, pour
+ * trier sur une table jointe — le nom du client sur une facture, par exemple.
+ * Ces clés restent soumises à la liste blanche : elles y figurent comme les
+ * autres, seule leur traduction en SQL diffère. Sans cette table, la seule
+ * façon de trier sur une jointure serait de laisser passer une expression
+ * venue du client, c'est-à-dire d'ouvrir une injection.
+ *
+ * La jointure doit exister dans la requête. Trier sur un alias absent produit
+ * une erreur SQL au premier appel, pas un résultat faux — c'est le bon échec.
+ */
 export function appliquerTri<T extends string>(
   qb: { orderBy(sort: string, order: SensTri): unknown },
   alias: string,
   colonnesAutorisees: readonly T[],
   defaut: { colonne: T; sens: SensTri },
   demande?: { sortBy?: string; sortOrder?: string },
+  jointures: Record<string, string> = {},
 ): void {
   const ordre = resoudreTri(colonnesAutorisees, defaut, demande);
   const [colonne, sens] = Object.entries(ordre)[0];
-  qb.orderBy(`${alias}.${colonne}`, sens);
+  qb.orderBy(jointures[colonne] ?? `${alias}.${colonne}`, sens);
 }

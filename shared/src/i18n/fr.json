@@ -394,7 +394,12 @@
       "rh": "RH",
       "maintenance": "Maintenance",
       "other": "Autre"
-    }
+    },
+    "supplier": "Fournisseur",
+    "paymentMethod": "Mode de paiement",
+    "vatRate": "Taux de TVA récupérable",
+    "vatHint": "Le montant se déduit du taux et du TTC saisi. Il alimente la déclaration G50.",
+    "recurring": "Dépense récurrente"
   },
   "reports": {
     "title": "Rapports",
@@ -701,7 +706,16 @@
     "preferred": "Préféré",
     "addSupplier": "Ajouter un fournisseur",
     "noSupplier": "Aucun fournisseur associé.",
-    "suppliersCompare": "offres comparées — la moins chère apparaît en premier après le préféré."
+    "suppliersCompare": "offres comparées — la moins chère apparaît en premier après le préféré.",
+    "taxRate": "Taux de TVA",
+    "taxRateHint": "19 ou 9 % selon l'article. Vide = taux par défaut des réglages.",
+    "category": "Famille",
+    "minStock": "Stock minimum",
+    "maxStock": "Stock maximum",
+    "packQuantity": "Unités par conditionnement",
+    "packHint": "12 pour un carton de douze : permet de facturer au carton et de tenir le stock à la pièce.",
+    "packUnit": "Conditionnement",
+    "photo": "Photo"
   },
   "quotes": {
     "title": "Devis",
@@ -884,7 +898,12 @@
       "draft": "Brouillon",
       "applied": "Appliqué",
       "cancelled": "Annulé"
-    }
+    },
+    "one": "Avoir",
+    "originInvoice": "Facture d'origine",
+    "seeInvoice": "Voir la facture",
+    "noOrigin": "Non rattaché à une facture",
+    "cancelledNote": "Cet avoir est annulé : il ne s'impute sur aucune facture."
   },
   "exportButton": {
     "label": "Exporter",

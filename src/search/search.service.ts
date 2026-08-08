@@ -122,8 +122,7 @@ export class SearchService {
       ...bl.map((r: any) => this.ligne('deliveryNote', r.id, r.blNumber, r.client, `/deliveries/${r.id}`, r.total)),
       ...commandes.map((r: any) => this.ligne('purchaseOrder', r.id, r.poNumber, r.fournisseur, `/purchases/orders/${r.id}`, r.total)),
       ...facturesF.map((r: any) => this.ligne('vendorBill', r.id, r.billNumber, r.fournisseur, `/purchases/vendor-bills/${r.id}`, r.totalAmount)),
-      // Les avoirs n'ont pas de fiche : on renvoie vers leur liste.
-      ...avoirs.map((r: any) => this.ligne('creditNote', r.id, r.creditNoteNumber, r.client, '/credit-notes', r.totalAmount)),
+      ...avoirs.map((r: any) => this.ligne('creditNote', r.id, r.creditNoteNumber, r.client, `/credit-notes/${r.id}`, r.totalAmount)),
     ];
 
     return { data };

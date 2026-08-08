@@ -30,6 +30,12 @@ const schema = z.object({
   defaultSalesPrice: z.coerce.number().min(0).optional(),
   lastCostPerUnit: z.coerce.number().min(0).optional(),
   alertThreshold: z.coerce.number().min(0).optional(),
+  taxRate: z.coerce.number().min(0).max(100).optional(),
+  category: z.string().max(80).optional(),
+  minStock: z.coerce.number().min(0).optional(),
+  maxStock: z.coerce.number().min(0).optional(),
+  packQuantity: z.coerce.number().min(0.01).optional(),
+  packUnit: z.string().max(50).optional(),
   supplierId: z.string().optional(),
   description: z.string().optional(),
 });
@@ -329,6 +335,49 @@ export function ProductsPage() {
             <label className="text-sm font-medium text-foreground">{t('stock.thresholdLabel')}</label>
             <Input type="number" step="0.01" min="0" {...register('alertThreshold')} placeholder="0" />
             <p className="text-xs text-muted-foreground">{t('stock.thresholdHint')}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.taxRate')}</label>
+              {/* En Algerie c'est 19 ou 9 selon le produit : le porter sur
+                  l'article evite de le ressaisir a chaque ligne. */}
+              <Input type="number" step="0.01" min="0" max="100" {...register('taxRate')} placeholder="19" />
+              <p className="text-xs text-muted-foreground">{t('products.taxRateHint')}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.category')}</label>
+              {/* Auto-completion sur les familles deja saisies : une liste
+                  fermee demanderait un ecran de gestion pour peu de valeur. */}
+              <Input list="familles-articles" {...register('category')} placeholder="Produits laitiers" />
+              <datalist id="familles-articles">
+                {[...new Set((data?.data ?? []).map((p: any) => p.category).filter(Boolean))]
+                  .map((c) => <option key={String(c)} value={String(c)} />)}
+              </datalist>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.minStock')}</label>
+              <Input type="number" step="0.01" min="0" {...register('minStock')} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.maxStock')}</label>
+              <Input type="number" step="0.01" min="0" {...register('maxStock')} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.packQuantity')}</label>
+              <Input type="number" step="0.01" min="0.01" {...register('packQuantity')} placeholder="12" />
+              <p className="text-xs text-muted-foreground">{t('products.packHint')}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.packUnit')}</label>
+              <Input {...register('packUnit')} placeholder="carton" />
+            </div>
           </div>
 
           <div className="space-y-1">

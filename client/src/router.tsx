@@ -31,6 +31,7 @@ import { ReceptionDetailPage } from '@/pages/purchases/ReceptionDetailPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
 import { VendorBillDetailPage } from '@/pages/purchases/VendorBillDetailPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
+import { CreditNoteDetailPage } from '@/pages/credit-notes/CreditNoteDetailPage';
 import { RecurringInvoicesPage } from '@/pages/recurring/RecurringInvoicesPage';
 import { ProductionPage } from '@/pages/production/ProductionPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
@@ -114,6 +115,7 @@ export function AppRouter() {
       <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
       <Route path="/purchases/vendor-bills/:id" element={<PrivateRoute><VendorBillDetailPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />
+      <Route path="/credit-notes/:id" element={<PrivateRoute><CreditNoteDetailPage /></PrivateRoute>} />
       <Route path="/production" element={<PrivateRoute><ProductionPage /></PrivateRoute>} />
     </Routes>
   );

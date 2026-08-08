@@ -37,6 +37,28 @@ export class Expense {
   @Column({ type: 'boolean', default: false })
   isApproved: boolean;
 
+  /** Fournisseur, quand la dépense vient d'une facture. Détaché, pas effacé,
+   *  si le fournisseur disparaît. */
+  @Column({ type: 'uuid', nullable: true })
+  supplierId: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  paymentMethod: string | null;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  vatRate: number | null;
+
+  /**
+   * TVA récupérable. Elle manquait au G50 : nous n'y comptions que les factures
+   * fournisseurs, alors qu'une dépense sur facture ouvre le même droit.
+   */
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  vatAmount: number;
+
+  /** Loyer, salaires : signalé pour être repéré, pas engendré automatiquement. */
+  @Column({ type: 'boolean', default: false })
+  isRecurring: boolean;
+
   @Column({ type: 'varchar', nullable: true })
   approvedBy: string | null;
 

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { expensesApi , resolveApiError } from '@/lib/api';
+import { expensesApi, suppliersApi, resolveApiError } from '@/lib/api';
 import { formatCurrency, formatDate, currentMonth } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -45,6 +45,10 @@ const schema = z.object({
   category: z.enum(['loyer', 'utilities', 'transport', 'rh', 'maintenance', 'other']),
   amount: z.coerce.number().positive(),
   notes: z.string().optional(),
+  supplierId: z.string().uuid().optional().or(z.literal('')),
+  paymentMethod: z.enum(['cash', 'bank_transfer', 'cheque', 'other']).optional().or(z.literal('')),
+  vatRate: z.coerce.number().min(0).max(100).optional(),
+  isRecurring: z.boolean().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -69,6 +73,11 @@ export function ExpensesPage() {
     'expenses_visible_columns',
     ['date', 'description', 'category', 'amount', 'status'],
   );
+
+  const { data: fournisseurs } = useQuery({
+    queryKey: ['suppliers-all'],
+    queryFn: () => suppliersApi.list({ page: 1, limit: 200 }),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ['expenses', page, category, tri],
@@ -267,6 +276,41 @@ export function ExpensesPage() {
               {CATEGORIES.map(c => <option key={c} value={c}>{t(`expenses.categories.${c}`)}</option>)}
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('expenses.supplier')}</label>
+              <Select {...register('supplierId')}>
+                <option value="">{t('common.select')}</option>
+                {(fournisseurs?.data ?? []).map((f: any) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('expenses.paymentMethod')}</label>
+              <Select {...register('paymentMethod')}>
+                <option value="">{t('common.select')}</option>
+                {['cash', 'bank_transfer', 'cheque', 'other'].map((m) => (
+                  <option key={m} value={m}>{t('invoices.methods.' + m)}</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('expenses.vatRate')}</label>
+              {/* Le montant se deduit du taux et du TTC : sur un justificatif
+                  algerien, c'est le taux qu'on lit et le TTC qu'on saisit. */}
+              <Input type="number" step="0.01" min="0" max="100" {...register('vatRate')} placeholder="19" />
+              <p className="text-xs text-muted-foreground">{t('expenses.vatHint')}</p>
+            </div>
+            <label className="flex items-center gap-2 pb-2 text-sm text-foreground">
+              <input type="checkbox" className="h-4 w-4 accent-primary" {...register('isRecurring')} />
+              {t('expenses.recurring')}
+            </label>
+          </div>
+
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">Notes</label>
             <Input {...register('notes')} />
