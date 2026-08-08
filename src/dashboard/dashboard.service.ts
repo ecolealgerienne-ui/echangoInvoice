@@ -89,8 +89,9 @@ export class DashboardService {
       this.chiffresPeriode(tenantId, periode.comparaison.dateFrom, periode.comparaison.dateTo),
     ]);
 
-    const [salesRows, byStatusRows, topCustomersRows, purchaseRows, stockSummaryRows,
-      stockStatusRows, expenseRows, alertInvoiceRows, alertStockRows, alertLowStockRows,
+    const [salesRows, byStatusRows, topCustomersRows, topCustomersPrevRows, purchaseRows,
+      stockSummaryRows, stockStatusRows, expenseRows, alertInvoiceRows, alertStockRows,
+      alertLowStockRows,
     ] = await Promise.all([
       // Revenus factures (hors cancelled)
       this.ds.query(`
@@ -119,6 +120,22 @@ export class DashboardService {
         GROUP BY inv."customerId", c.name
         ORDER BY total DESC LIMIT 5`,
         [tenantId, dateFrom, dateTo]),
+
+      // Les mêmes clients sur la période de comparaison.
+      //
+      // Le classement seul ne dit pas ce qui bouge : cinq noms dans le même
+      // ordre depuis six mois se lisent comme une photo, alors qu'un client à
+      // −40 % est exactement ce qu'on ouvre le tableau de bord pour voir. Le
+      // groupement porte sur **tous** les clients de la période précédente et
+      // non sur les cinq du haut : un client qui vient d'entrer dans le top
+      // avait un chiffre le mois d'avant, il n'était simplement pas cinquième.
+      this.ds.query(`
+        SELECT inv."customerId", SUM(inv."totalAmount") AS total
+        FROM sales_invoices inv
+        WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
+          AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
+        GROUP BY inv."customerId"`,
+        [tenantId, periode.comparaison.dateFrom, periode.comparaison.dateTo]),
 
       // Achats (réceptions BL) — coût calculé depuis les items de PO
       this.ds.query(`
@@ -187,10 +204,22 @@ export class DashboardService {
     const byStatus: Record<string, number> = { draft: 0, sent: 0, partial: 0, paid: 0, overdue: 0, cancelled: 0 };
     for (const r of byStatusRows) byStatus[r.status] = parseInt(r.count);
 
-    const topCustomers = topCustomersRows.map((r: any) => ({
-      customerId: r.customerId, name: r.name,
-      total: Math.round(parseFloat(r.total) * 100) / 100,
-    }));
+    const precedentParClient = new Map<string, number>();
+    for (const r of topCustomersPrevRows) {
+      precedentParClient.set(r.customerId, parseFloat(r.total));
+    }
+    const topCustomers = topCustomersRows.map((r: any) => {
+      const total = Math.round(parseFloat(r.total) * 100) / 100;
+      const precedentClient = precedentParClient.get(r.customerId) ?? 0;
+      return {
+        customerId: r.customerId, name: r.name, total,
+        previousTotal: Math.round(precedentClient * 100) / 100,
+        // `null` quand le client n'avait rien la période d'avant : ce n'est pas
+        // une progression infinie, c'est un client nouveau, et l'écran le
+        // laisse muet plutôt que d'inventer un pourcentage.
+        evolution: evolution(total, precedentClient),
+      };
+    });
 
     // Purchases
     const totalPurchaseCost = courant.purchases;
@@ -278,6 +307,17 @@ export class DashboardService {
           lowStockCount: parseInt(alertLowStockRows[0]?.count ?? 0),
           overdueInvoicesCount: alertByStatus['overdue']?.count ?? 0,
           overdueInvoicesTotal: Math.round((alertByStatus['overdue']?.total ?? 0) * 100) / 100,
+          // Le détail par statut, et non la seule somme des impayées.
+          //
+          // Le bloc « À traiter » mène chaque ligne vers la liste filtrée, et
+          // le filtre du serveur ne connaît qu'un statut à la fois : un
+          // compteur qui additionne « envoyée » et « partielle » enverrait donc
+          // sur une liste plus courte que le nombre annoncé. Compter comme on
+          // filtre est la seule façon que le clic tienne sa promesse.
+          sentInvoicesCount: alertByStatus['sent']?.count ?? 0,
+          sentInvoicesTotal: Math.round((alertByStatus['sent']?.total ?? 0) * 100) / 100,
+          partialInvoicesCount: alertByStatus['partial']?.count ?? 0,
+          partialInvoicesTotal: Math.round((alertByStatus['partial']?.total ?? 0) * 100) / 100,
         },
       },
     };

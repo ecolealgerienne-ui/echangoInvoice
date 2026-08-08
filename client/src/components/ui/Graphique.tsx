@@ -1,6 +1,10 @@
 import { useId, useMemo, useState } from 'react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { creneauSerie, VARIABLES_SERIE } from '@/lib/filieres';
+import { couleurSerie, creneauSerie } from '@/lib/filieres';
+import { abrege, ecartPourcent } from '@/lib/montants';
+
+export { couleurSerie };
 
 /**
  * Graphiques.
@@ -71,20 +75,11 @@ function borneHaute(max: number): number {
  * Un axe n'est pas un total : il donne l'ordre de grandeur, et le montant exact
  * se lit sur le point survolé. Écrit en entier, il occupait quatre centimètres
  * de gouttière, se coupait en deux lignes, et poussait la courbe hors du cadre.
+ *
+ * La fonction est passée dans `lib/montants` : les cartes d'indicateur du
+ * tableau de bord posent exactement la même question, et deux copies auraient
+ * divergé.
  */
-function abrege(v: number): string {
-  const abs = Math.abs(v);
-  if (abs >= 1e9) return `${(v / 1e9).toFixed(1).replace('.', ',')} Md`;
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(1).replace('.', ',')} M`;
-  if (abs >= 1e3) return `${Math.round(v / 1e3)} k`;
-  return String(Math.round(v));
-}
-
-/** Couleur d'un créneau de série, prête à poser dans un attribut SVG. */
-export function couleurSerie(creneau: number, alpha?: number): string {
-  const variable = VARIABLES_SERIE[creneauSerie(creneau)];
-  return alpha === undefined ? `oklch(var(${variable}))` : `oklch(var(${variable}) / ${alpha})`;
-}
 
 /**
  * Courbe d'aire.
@@ -333,15 +328,29 @@ export function Sparkline({
  * position du mode dans sa liste de référence et non de son rang du mois. Sans
  * lui, toutes les barres prennent la teinte de la série demandée : un
  * classement n'a pas d'identités à distinguer.
+ *
+ * ── Le rang, et sa variation ─────────────────────────────────────────────
+ *
+ * `rangs` numérote les lignes `01 02 03`. Ce n'est pas de la décoration : sans
+ * numéro, cinq barres décroissantes se lisent comme cinq mesures, pas comme un
+ * classement — et l'on ne sait plus dire « le troisième client » sans compter
+ * du doigt. Le zéro de tête aligne les chiffres et évite qu'un « 1 » maigre
+ * flotte à côté d'un « 10 ».
+ *
+ * `variations` porte l'écart avec la période précédente, en pourcentage, ou
+ * `null` quand il n'y en a pas de calculable — un client qui n'existait pas le
+ * mois d'avant n'a pas progressé de l'infini, il est nouveau, et la case reste
+ * vide plutôt que de mentir.
  */
 export function BarresClassement({
-  lignes, format, className, serie = 0, teintes,
+  lignes, format, className, serie = 0, teintes, rangs,
 }: {
-  lignes: { libelle: string; valeur: number }[];
+  lignes: { libelle: string; valeur: number; variation?: number | null }[];
   format: (v: number) => string;
   className?: string;
   serie?: number;
   teintes?: number[];
+  rangs?: boolean;
 }) {
   const max = Math.max(...lignes.map((l) => l.valeur), 0) || 1;
 
@@ -350,10 +359,19 @@ export function BarresClassement({
       {lignes.map((l, i) => {
         const creneau = creneauSerie(teintes ? teintes[i] : serie);
         const part = Math.max(1.5, (l.valeur / max) * 100);
+        const Fleche = l.variation != null && l.variation < 0 ? TrendingDown : TrendingUp;
         return (
           <div key={l.libelle} className="group/barre space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 text-xs">
               <span className="flex min-w-0 items-center gap-2">
+                {rangs && (
+                  <span
+                    aria-hidden
+                    className="shrink-0 text-2xs font-semibold tabular-nums text-muted-foreground/70"
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                )}
                 {teintes && (
                   <span
                     aria-hidden
@@ -363,8 +381,21 @@ export function BarresClassement({
                 )}
                 <span className="truncate text-muted-foreground">{l.libelle}</span>
               </span>
-              <span className="shrink-0 font-medium tabular-nums text-foreground">
-                {format(l.valeur)}
+              <span className="flex shrink-0 items-baseline gap-1.5">
+                {l.variation != null && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-0.5 whitespace-nowrap text-2xs font-semibold tabular-nums',
+                      l.variation >= 0 ? 'text-success-text' : 'text-destructive-text',
+                    )}
+                  >
+                    <Fleche className="h-2.5 w-2.5" aria-hidden />
+                    {ecartPourcent(l.variation)}
+                  </span>
+                )}
+                <span className="font-medium tabular-nums text-foreground">
+                  {format(l.valeur)}
+                </span>
               </span>
             </div>
             {/* La rainure porte une teinte, pas un gris : une gouttière grise
@@ -389,72 +420,6 @@ export function BarresClassement({
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/**
- * Composition : une seule barre, découpée en parts, plus sa légende chiffrée.
- *
- * Elle remplace une liste de six lignes « intitulé … montant » qui obligeait à
- * faire la division de tête pour savoir si le loyer pesait un dixième ou un
- * tiers des dépenses. Une part ne se lit pas au chiffre près — c'est le rôle
- * de la légende, qui donne le montant exact **et** le pourcentage — mais on
- * voit d'un coup laquelle domine.
- *
- * Deux détails de fabrication : un écart de deux pixels de la couleur de la
- * carte entre les segments, sans quoi deux teintes voisines se soudent en une
- * seule masse ; et un ordre de segments qui suit la liste fournie, pas les
- * valeurs — la couleur suit l'entité.
- */
-export function Composition({
-  parts, format, total, className,
-}: {
-  parts: { libelle: string; valeur: number }[];
-  format: (v: number) => string;
-  /** Total affiché en légende. Calculé si absent. */
-  total?: number;
-  className?: string;
-}) {
-  const somme = total ?? parts.reduce((s, p) => s + p.valeur, 0);
-  const visibles = parts.filter((p) => p.valeur > 0);
-  if (!visibles.length || somme <= 0) return null;
-
-  return (
-    <div className={cn('space-y-3.5', className)}>
-      <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full">
-        {visibles.map((p, i) => (
-          <div
-            key={p.libelle}
-            className="grandir h-full first:rounded-l-full last:rounded-r-full"
-            style={{
-              width: `${(p.valeur / somme) * 100}%`,
-              backgroundColor: couleurSerie(i),
-              animationDelay: `${Math.min(i, 8) * 55}ms`,
-            }}
-            title={`${p.libelle} — ${format(p.valeur)}`}
-          />
-        ))}
-      </div>
-
-      <div className="space-y-1.5">
-        {visibles.map((p, i) => (
-          <div key={p.libelle} className="flex items-baseline gap-2 text-sm">
-            <span
-              aria-hidden
-              className="h-2 w-2 shrink-0 translate-y-[-1px] rounded-full"
-              style={{ backgroundColor: couleurSerie(i) }}
-            />
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">{p.libelle}</span>
-            <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
-              {Math.round((p.valeur / somme) * 100)}%
-            </span>
-            <span className="shrink-0 font-medium tabular-nums text-foreground">
-              {format(p.valeur)}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

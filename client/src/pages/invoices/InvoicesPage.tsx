@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -28,6 +28,8 @@ import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 
 const itemSchema = z.object({
@@ -74,7 +76,27 @@ export function InvoicesPage() {
   );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  /**
+   * Le filtre de statut vit dans l'URL, pas dans un état local.
+   *
+   * C'est ce qui rend `/invoices?status=overdue` adressable : le bloc « À
+   * traiter » du tableau de bord y envoie, et la liste s'ouvre déjà filtrée
+   * sur ce qu'on est venu voir. Un état local aurait ignoré le paramètre et
+   * affiché toutes les factures — le clic aurait tenu une demi-promesse.
+   *
+   * L'URL devient au passage partageable : « regarde les impayées » se colle
+   * dans un message.
+   */
+  const [parametres, setParametres] = useSearchParams();
+  const status = parametres.get('status') ?? '';
+  function changerStatut(valeur: string) {
+    const suivants = new URLSearchParams(parametres);
+    if (valeur) suivants.set('status', valeur); else suivants.delete('status');
+    // `replace` : filtrer n'est pas naviguer, et le retour du navigateur doit
+    // ramener à l'écran précédent, pas défaire un filtre à la fois.
+    setParametres(suivants, { replace: true });
+    setPage(1);
+  }
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null);
@@ -266,19 +288,18 @@ export function InvoicesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('invoices.title')}</h1>
+      <EnTetePage titre={t('invoices.title')} total={data?.pagination?.total} cleTotal="invoices.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('invoices.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder={t('common.search')} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
-        <Select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className="w-40">
+        <Select value={status} onChange={e => changerStatut(e.target.value)} className="w-40">
           <option value="">{t('common.allStatuses')}</option>
           {['draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled'].map(s => (
             <option key={s} value={s}>{t(`invoices.status.${s}`)}</option>
@@ -377,60 +398,61 @@ export function InvoicesPage() {
                   {col('due') && <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.amountDue)}</td>}
                   {col('status') && <td className="px-3 py-2.5 text-center"><Badge variant={varianteStatut(inv.status)}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{inv.notes || '—'}</td>}
+                  {/* Le PDF reste dehors : c'est le seul geste qu'on refait
+                      dix fois dans la journée, et l'enfouir aurait ajouté deux
+                      clics à la tâche la plus fréquente de l'écran. Tout le
+                      reste — envoyer, encaisser, annuler, supprimer — attend
+                      d'être demandé, et se présente avec son libellé écrit
+                      plutôt qu'en icône à deviner. */}
                   <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                      {/* Envoi par e-mail : pas sur un brouillon (pas encore
-                          émis) ni sur une facture annulée. */}
-                      {!['draft', 'cancelled'].includes(inv.status) && (
-                        <Button variant="ghost" size="icon" title={t('invoices.sendEmail')}
-                          disabled={sendEmailMutation.isPending}
-                          onClick={() => sendEmailMutation.mutate(inv.id)}>
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
-                      {Number(inv.amountPaid) > 0 && (
-                        <Button variant="ghost" size="icon" title={t('invoices.paymentHistory')}
-                          onClick={() => setHistoryInvoice(inv)}>
-                          <History className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
-                      {inv.status === 'draft' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(inv)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('invoices.send')} onClick={() => sendMutation.mutate(inv.id)}>
-                            <Send className="h-4 w-4 text-primary" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(inv.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.amountDue) > 0 && (
-                        <Button variant="ghost" size="icon" title={t('invoices.addPayment')}
-                          onClick={() => { setPaymentInvoice(inv); paymentForm.setValue('amount', Number(inv.amountDue)); }}>
-                          <CreditCard className="h-4 w-4 text-primary" />
-                        </Button>
-                      )}
-                      {inv.status === 'sent' && (
-                        <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(inv.id)}>
-                          <XCircle className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                      {inv.status === 'cancelled' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('common.reopen')} onClick={() => reopenMutation.mutate(inv.id)}>
-                            <RotateCcw className="h-4 w-4 text-primary" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.delete')} onClick={() => deleteMutation.mutate(inv.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
+                      <MenuActions
+                        actions={[
+                          // Le règlement d'abord : c'est l'action qui fait
+                          // avancer la facture, et la seule qu'on cherche sur
+                          // une ligne en retard.
+                          ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.amountDue) > 0 && {
+                            cle: 'payment',
+                            libelle: t('invoices.addPayment'),
+                            icone: CreditCard,
+                            onSelect: () => { setPaymentInvoice(inv); paymentForm.setValue('amount', Number(inv.amountDue)); },
+                          },
+                          inv.status === 'draft' && {
+                            cle: 'send', libelle: t('invoices.send'), icone: Send,
+                            onSelect: () => sendMutation.mutate(inv.id),
+                          },
+                          // Envoi par e-mail : pas sur un brouillon (pas encore
+                          // émis) ni sur une facture annulée.
+                          !['draft', 'cancelled'].includes(inv.status) && {
+                            cle: 'email', libelle: t('invoices.sendEmail'), icone: Mail,
+                            desactivee: sendEmailMutation.isPending,
+                            onSelect: () => sendEmailMutation.mutate(inv.id),
+                          },
+                          inv.status === 'draft' && {
+                            cle: 'edit', libelle: t('common.edit'), icone: Pencil,
+                            onSelect: () => openEdit(inv),
+                          },
+                          Number(inv.amountPaid) > 0 && {
+                            cle: 'history', libelle: t('invoices.paymentHistory'), icone: History,
+                            onSelect: () => setHistoryInvoice(inv),
+                          },
+                          inv.status === 'cancelled' && {
+                            cle: 'reopen', libelle: t('common.reopen'), icone: RotateCcw,
+                            onSelect: () => reopenMutation.mutate(inv.id),
+                          },
+                          ['draft', 'sent'].includes(inv.status) && {
+                            cle: 'cancel', libelle: t('common.cancel'), icone: XCircle, danger: true,
+                            onSelect: () => cancelMutation.mutate(inv.id),
+                          },
+                          inv.status === 'cancelled' && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => deleteMutation.mutate(inv.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

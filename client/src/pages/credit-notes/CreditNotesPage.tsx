@@ -23,6 +23,8 @@ import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 
 const itemSchema = z.object({
@@ -141,12 +143,11 @@ export function CreditNotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('creditNotes.title')}</h1>
+      <EnTetePage titre={t('creditNotes.title')} total={pagination?.total} cleTotal="creditNotes.totalCount">
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />{t('creditNotes.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex justify-end items-center gap-2">
         <ExportButton dataset="avoirs" />
@@ -194,27 +195,31 @@ export function CreditNotesPage() {
                   {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(cn.totalAmount)}</td>}
                   {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(cn.status)}>{t(`status.${cn.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
+                  {/* Les trois actions du bas n'avaient même pas d'infobulle :
+                      une coche verte, une croix rouge et une corbeille, à
+                      deviner. Elles portent désormais leur nom. */}
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2 justify-end">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button size="sm" variant="ghost" title={t('common.pdf')}
                         onClick={() => telechargerPdf(cn.id, cn.creditNoteNumber)}>
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {cn.status === 'draft' && (
-                        <>
-                          <Button size="sm" variant="ghost" onClick={() => issueMutation.mutate(cn.id)}>
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => removeMutation.mutate(cn.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {cn.status === 'issued' && (
-                        <Button size="sm" variant="ghost" onClick={() => cancelMutation.mutate(cn.id)}>
-                          <XCircle className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                      <MenuActions
+                        actions={[
+                          cn.status === 'draft' && {
+                            cle: 'issue', libelle: t('creditNotes.issue'), icone: CheckCircle,
+                            onSelect: () => issueMutation.mutate(cn.id),
+                          },
+                          cn.status === 'issued' && {
+                            cle: 'cancel', libelle: t('creditNotes.cancel'), icone: XCircle, danger: true,
+                            onSelect: () => cancelMutation.mutate(cn.id),
+                          },
+                          cn.status === 'draft' && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => removeMutation.mutate(cn.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

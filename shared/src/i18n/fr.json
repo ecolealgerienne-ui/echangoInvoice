@@ -45,7 +45,8 @@
     "auto": "Auto",
     "totalTtc": "Total TTC",
     "none": "— Aucune —",
-    "invalidQuantity": "Quantité invalide"
+    "invalidQuantity": "Quantité invalide",
+    "reopen": "Rouvrir"
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -151,7 +152,13 @@
       "personnalisee": "Personnalisée"
     },
     "vsPeriodePrecedente": "vs période précédente",
-    "pasDeComparaison": "Pas de comparaison possible"
+    "pasDeComparaison": "Pas de comparaison possible",
+    "toDo": "À traiter",
+    "nothingToDo": "Rien à traiter pour le moment",
+    "overdueInvoices": "Factures en retard",
+    "sentInvoices": "Factures à encaisser",
+    "partialInvoices": "Règlements partiels",
+    "partDuCa": "{{part}} du CA"
   },
   "customers": {
     "title": "Clients",
@@ -173,7 +180,8 @@
     "addContact": "Ajouter un contact",
     "contactRole": "Fonction",
     "contactPerson": "Interlocuteur",
-    "primary": "Contact principal"
+    "primary": "Contact principal",
+    "totalCount": "{{nombre}} clients au total"
   },
   "partners": {
     "isCustomer": "Client",
@@ -222,7 +230,8 @@
     "contactName": "Contact principal",
     "addContact": "Ajouter un contact",
     "contactRole": "Fonction",
-    "primary": "Contact principal"
+    "primary": "Contact principal",
+    "totalCount": "{{nombre}} fournisseurs au total"
   },
   "rawMaterials": {
     "title": "Matières premières",
@@ -276,7 +285,9 @@
       "other": "Autre"
     },
     "belowThreshold": "sous le seuil",
-    "soon": "Bientôt"
+    "soon": "Bientôt",
+    "urgent": "Urgent",
+    "low": "Bas"
   },
   "invoices": {
     "title": "Factures",
@@ -334,7 +345,8 @@
     },
     "paymentMode": "Mode de règlement prévu",
     "paymentModeHint": "En espèces, le droit de timbre est ajouté automatiquement.",
-    "referencePlaceholder": "N° chèque, virement…"
+    "referencePlaceholder": "N° chèque, virement…",
+    "totalCount": "{{nombre}} factures au total"
   },
   "priceLists": {
     "title": "Grilles tarifaires",
@@ -688,7 +700,8 @@
       "signed": "Signé",
       "delivered": "Livré",
       "cancelled": "Annulé"
-    }
+    },
+    "totalCount": "{{nombre}} bons de livraison au total"
   },
   "products": {
     "title": "Catalogue",
@@ -762,7 +775,8 @@
     "openSheet": "ouvrir la fiche complète",
     "createdNext": "Article créé. Vous pouvez maintenant lui ajouter ses fournisseurs et ses codes-barres.",
     "saveFirst": "Fournisseurs et codes-barres se rattachent à l'article : ils apparaîtront dès que vous l'aurez enregistré, sans quitter cette fenêtre.",
-    "barcodeLabelPlaceholder": "Carton de 12"
+    "barcodeLabelPlaceholder": "Carton de 12",
+    "totalCount": "{{nombre}} articles au total"
   },
   "quotes": {
     "title": "Devis",
@@ -785,7 +799,8 @@
     "reject": "Rejeter le devis",
     "accepted": "Devis accepté",
     "rejected": "Devis rejeté",
-    "proforma": "Facture proforma"
+    "proforma": "Facture proforma",
+    "totalCount": "{{nombre}} devis au total"
   },
   "purchases": {
     "title": "Achats",
@@ -1003,7 +1018,8 @@
     "cancelledNote": "Cet avoir est annulé : il ne s'impute sur aucune facture.",
     "date": "Date de l'avoir",
     "linkedInvoice": "Facture liée (optionnel)",
-    "reasonPlaceholder": "Motif de l'avoir…"
+    "reasonPlaceholder": "Motif de l'avoir…",
+    "totalCount": "{{nombre}} avoirs au total"
   },
   "exportButton": {
     "label": "Exporter",

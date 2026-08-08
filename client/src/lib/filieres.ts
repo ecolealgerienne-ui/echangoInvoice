@@ -115,3 +115,34 @@ export const VARIABLES_SERIE = [
 export function creneauSerie(index: number): number {
   return ((index % 6) + 6) % 6;
 }
+
+/**
+ * Couleur d'un créneau de série, prête à poser dans un attribut SVG ou un
+ * style en ligne. Elle vit ici et non dans `Graphique.tsx` parce que la
+ * pastille d'initiales d'un client s'en sert sans rien tracer.
+ */
+export function couleurSerie(creneau: number, alpha?: number): string {
+  const variable = VARIABLES_SERIE[creneauSerie(creneau)];
+  return alpha === undefined ? `oklch(var(${variable}))` : `oklch(var(${variable}) / ${alpha})`;
+}
+
+/**
+ * Créneau tiré d'un nom.
+ *
+ * Une pastille d'initiales n'a de valeur que si elle est **stable** : « EURL
+ * Hoggar Grossiste » doit garder sa teinte d'une page à l'autre, d'un tri à
+ * l'autre, d'une session à l'autre. Un index de ligne ne le garantit pas — il
+ * repeindrait toute la liste au moindre changement d'ordre.
+ *
+ * Le calcul est un FNV-1a sur trente-deux bits : suffisant pour disperser des
+ * noms qui partagent souvent leurs premières lettres (« ETS … », « SARL … »),
+ * et assez court pour tenir en cinq lignes sans dépendance.
+ */
+export function creneauNom(nom: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < nom.length; i += 1) {
+    h ^= nom.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return creneauSerie(h >>> 0);
+}

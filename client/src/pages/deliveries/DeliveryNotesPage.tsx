@@ -28,6 +28,8 @@ import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 
 const itemSchema = z.object({
@@ -233,12 +235,11 @@ export function DeliveryNotesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('deliveries.title')}</h1>
+      <EnTetePage titre={t('deliveries.title')} total={data?.pagination?.total} cleTotal="deliveries.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('deliveries.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative w-64">
@@ -315,91 +316,56 @@ export function DeliveryNotesPage() {
                   {col('amount') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bl.total)}</td>}
                   {col('status') && <td className="px-3 py-2.5 text-center"><Badge variant={varianteStatut(bl.status)}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
+                  {/* Le PDF reste dehors : le bon part avec le chauffeur, on
+                      l'imprime à chaque ligne. Le reste suit le cycle de vie du
+                      BL et se lit mieux écrit qu'en icônes — six statuts
+                      produisaient six jeux d'icônes différents dans la même
+                      colonne. */}
                   <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
-                    <div className="flex justify-end gap-1">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(bl.id, bl.blNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                      {!['draft', 'cancelled'].includes(bl.status) && (
-                        <Button variant="ghost" size="icon" title={t('deliveries.sendEmail')}
-                          disabled={sendEmailMutation.isPending}
-                          onClick={() => sendEmailMutation.mutate(bl.id)}>
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
-                      {/* Signature : le backend n'accepte que draft et sent
-                          (deliveries.service.ts ALLOWED sign). */}
-                      {['draft', 'sent'].includes(bl.status) && (
-                        <Button variant="ghost" size="icon" title={t('deliveries.sign')}
-                          onClick={() => { setSigningBl(bl); setSignName(''); setSignDate(today); }}>
-                          <PenLine className="h-4 w-4 text-primary" />
-                        </Button>
-                      )}
-                      {/* brouillon : modifier, envoyer, annuler, supprimer */}
-                      {bl.status === 'draft' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(bl)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('deliveries.send')} onClick={() => sendMutation.mutate(bl.id)}>
-                            <Send className="h-4 w-4 text-primary" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.delete')} onClick={() => deleteMutation.mutate(bl.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {/* envoyé : livrer, facturer, annuler */}
-                      {bl.status === 'sent' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </Button>
-                          {!bl.convertedToInvoiceId && (
-                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-info" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {/* signé : livrer, facturer, annuler — ALLOWED_TRANSITIONS
-                          autorise signed → delivered|cancelled, et createInvoice
-                          accepte signed. Sans ce bloc, signer menait à une
-                          ligne sans aucune action possible. */}
-                      {bl.status === 'signed' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </Button>
-                          {!bl.convertedToInvoiceId && (
-                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-info" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {/* livré : facturer, annuler */}
-                      {bl.status === 'delivered' && (
-                        <>
-                          {!bl.convertedToInvoiceId && (
-                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-info" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
+                      <MenuActions
+                        actions={[
+                          bl.status === 'draft' && {
+                            cle: 'send', libelle: t('deliveries.send'), icone: Send,
+                            onSelect: () => sendMutation.mutate(bl.id),
+                          },
+                          // Signature : le backend n'accepte que draft et sent
+                          // (deliveries.service.ts ALLOWED sign).
+                          ['draft', 'sent'].includes(bl.status) && {
+                            cle: 'sign', libelle: t('deliveries.sign'), icone: PenLine,
+                            onSelect: () => { setSigningBl(bl); setSignName(''); setSignDate(today); },
+                          },
+                          // ALLOWED_TRANSITIONS autorise signed → delivered.
+                          ['sent', 'signed'].includes(bl.status) && {
+                            cle: 'deliver', libelle: t('deliveries.markDelivered'), icone: CheckCircle,
+                            onSelect: () => deliverMutation.mutate(bl.id),
+                          },
+                          ['sent', 'signed', 'delivered'].includes(bl.status) && !bl.convertedToInvoiceId && {
+                            cle: 'invoice', libelle: t('deliveries.createInvoice'), icone: Receipt,
+                            onSelect: () => createInvoiceMutation.mutate(bl.id),
+                          },
+                          !['draft', 'cancelled'].includes(bl.status) && {
+                            cle: 'email', libelle: t('deliveries.sendEmail'), icone: Mail,
+                            desactivee: sendEmailMutation.isPending,
+                            onSelect: () => sendEmailMutation.mutate(bl.id),
+                          },
+                          bl.status === 'draft' && {
+                            cle: 'edit', libelle: t('common.edit'), icone: Pencil,
+                            onSelect: () => openEdit(bl),
+                          },
+                          bl.status !== 'cancelled' && {
+                            cle: 'cancel', libelle: t('common.cancel'), icone: XCircle, danger: true,
+                            onSelect: () => cancelMutation.mutate(bl.id),
+                          },
+                          bl.status === 'draft' && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => deleteMutation.mutate(bl.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

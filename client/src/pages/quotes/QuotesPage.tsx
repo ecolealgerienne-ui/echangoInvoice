@@ -28,6 +28,8 @@ import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { enregistrerBlob } from '@/lib/download';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 
 const itemSchema = z.object({
@@ -246,12 +248,11 @@ export function QuotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('quotes.title')}</h1>
+      <EnTetePage titre={t('quotes.title')} total={pagination?.total} cleTotal="quotes.totalCount">
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />{t('quotes.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 max-w-sm">
@@ -259,7 +260,11 @@ export function QuotesPage() {
           <Input className="pl-9" placeholder={t('common.search')} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <Select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
+        {/* `Select` est `w-full` par défaut : sans largeur imposée, il prenait
+            toute la ligne et rejetait la barre d'outils sur un deuxième rang.
+            La liste des factures portait déjà `w-40` ; les deux écrans se
+            ressemblent enfin. */}
+        <Select className="w-40" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
           <option value="">{t('common.allStatuses')}</option>
           <option value="draft">{t('status.draft')}</option>
           <option value="sent">{t('status.sent')}</option>
@@ -332,56 +337,50 @@ export function QuotesPage() {
                   {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(q.totalAmount)}</td>}
                   {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(q.status)}>{t(`status.${q.status}`)}</Badge></td>}
                   {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{q.notes || '—'}</td>}
+                  {/* Le PDF reste dehors — c'est ce qu'on envoie au client, et
+                      donc le geste dominant d'un devis. La proforma rejoint le
+                      menu : elle est demandée par exception. */}
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button size="sm" variant="ghost" title={t('quotes.proforma')}
-                        onClick={() => downloadProforma(q.id, q.quoteNumber)}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button size="sm" variant="ghost" title={t('common.pdf')} onClick={() => downloadPdf(q.id, q.quoteNumber)}>
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {q.status === 'draft' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.send')} onClick={() => sendMutation.mutate(q.id)}>
-                            <Send className="h-4 w-4 text-info" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'sent' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.accept')} onClick={() => acceptMutation.mutate(q.id)}>
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.reject')} onClick={() => rejectMutation.mutate(q.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'accepted' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('quotes.createBl')} onClick={() => createBlMutation.mutate(q.id)}>
-                            <Truck className="h-4 w-4 text-info" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
-                            <RefreshCw className="h-4 w-4 text-success" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'rejected' && (
-                        <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                      <MenuActions
+                        actions={[
+                          q.status === 'sent' && {
+                            cle: 'accept', libelle: t('quotes.accept'), icone: CheckCircle,
+                            onSelect: () => acceptMutation.mutate(q.id),
+                          },
+                          q.status === 'accepted' && {
+                            cle: 'convert', libelle: t('quotes.convert'), icone: RefreshCw,
+                            onSelect: () => convertMutation.mutate(q.id),
+                          },
+                          q.status === 'accepted' && {
+                            cle: 'bl', libelle: t('quotes.createBl'), icone: Truck,
+                            onSelect: () => createBlMutation.mutate(q.id),
+                          },
+                          q.status === 'draft' && {
+                            cle: 'send', libelle: t('quotes.send'), icone: Send,
+                            onSelect: () => sendMutation.mutate(q.id),
+                          },
+                          ['draft', 'sent'].includes(q.status) && {
+                            cle: 'edit', libelle: t('common.edit'), icone: Pencil,
+                            onSelect: () => openEdit(q),
+                          },
+                          {
+                            cle: 'proforma', libelle: t('quotes.proforma'), icone: FileText,
+                            onSelect: () => downloadProforma(q.id, q.quoteNumber),
+                          },
+                          q.status === 'sent' && {
+                            cle: 'reject', libelle: t('quotes.reject'), icone: XCircle, danger: true,
+                            onSelect: () => rejectMutation.mutate(q.id),
+                          },
+                          ['draft', 'rejected'].includes(q.status) && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => removeMutation.mutate(q.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

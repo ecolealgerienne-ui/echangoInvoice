@@ -19,6 +19,9 @@ import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { Avatar } from '@/components/shared/Avatar';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -155,12 +158,11 @@ export function SuppliersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('suppliers.title')}</h1>
+      <EnTetePage titre={t('suppliers.title')} total={data?.pagination?.total} cleTotal="suppliers.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('suppliers.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex items-center gap-3">
         <div className="relative w-64">
@@ -219,9 +221,12 @@ export function SuppliersPage() {
                 <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                   {col('name') && (
                     <td className="px-3 py-2.5 font-medium">
-                      <Link to={`/suppliers/${s.id}`} className="text-primary hover:underline">
-                        {s.name}
-                      </Link>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar nom={s.name} />
+                        <Link to={`/suppliers/${s.id}`} className="min-w-0 truncate text-primary hover:underline">
+                          {s.name}
+                        </Link>
+                      </div>
                     </td>
                   )}
                   {col('nif') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{s.nif || '—'}</td>}
@@ -230,16 +235,14 @@ export function SuppliersPage() {
                   {col('email') && <td className="px-3 py-2.5 text-muted-foreground">{s.email || '—'}</td>}
                   {col('city') && <td className="px-3 py-2.5 text-muted-foreground">{s.city || '—'}</td>}
                   <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title={t('suppliers.contacts')} onClick={() => openContacts(s)}>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(s.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                    <div className="flex justify-end">
+                      <MenuActions
+                        actions={[
+                          { cle: 'contacts', libelle: t('suppliers.contacts'), icone: Users, onSelect: () => openContacts(s) },
+                          { cle: 'edit', libelle: t('common.edit'), icone: Pencil, onSelect: () => openEdit(s) },
+                          { cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true, onSelect: () => deleteMutation.mutate(s.id) },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

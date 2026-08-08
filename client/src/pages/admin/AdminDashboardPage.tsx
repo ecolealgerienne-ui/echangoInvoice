@@ -1,6 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
+import { montantAbrege } from '@/lib/montants';
+
+/**
+ * Les trois montants d'abonnement suivent la même règle que les indicateurs du
+ * tableau de bord locataire : ordre de grandeur affiché, montant exact au
+ * survol. Ils étaient rendus par `toLocaleString` suivi d'un « DA » écrit à la
+ * main — ce qui donnait un « DA » solitaire tant que la requête n'avait pas
+ * répondu.
+ */
 
 export function AdminDashboardPage() {
   const { t } = useTranslation();
@@ -16,15 +26,21 @@ export function AdminDashboardPage() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{t('admin.stats.mrrActual')}</p>
-          <p className="text-2xl font-bold text-foreground">{stats?.mrr?.actual?.toLocaleString('fr-DZ')} DA</p>
+          <p className="cursor-help text-2xl font-bold tabular-nums text-foreground" title={formatCurrency(stats?.mrr?.actual)}>
+            {montantAbrege(stats?.mrr?.actual)}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{t('admin.stats.mrrContractual')}</p>
-          <p className="text-2xl font-bold text-foreground">{stats?.mrr?.contractual?.toLocaleString('fr-DZ')} DA</p>
+          <p className="cursor-help text-2xl font-bold tabular-nums text-foreground" title={formatCurrency(stats?.mrr?.contractual)}>
+            {montantAbrege(stats?.mrr?.contractual)}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{t('admin.stats.arr')}</p>
-          <p className="text-2xl font-bold text-foreground">{stats?.arr?.actual?.toLocaleString('fr-DZ')} DA</p>
+          <p className="cursor-help text-2xl font-bold tabular-nums text-foreground" title={formatCurrency(stats?.arr?.actual)}>
+            {montantAbrege(stats?.arr?.actual)}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">{t('admin.stats.activeTenants')}</p>

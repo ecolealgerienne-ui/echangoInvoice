@@ -86,7 +86,7 @@ else accepter('les variables d’interpolation concordent');
 
 // ── 2. Chaînes françaises écrites en dur ─────────────────────────────────
 const ACCENTS = /[àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]/;
-const MOTS_FR = /\b(Voir|Nouveau|Nouvelle|Ajouter|Modifier|Supprimer|Enregistrer|Annuler|Rechercher|Valider|Envoyer|Total|Montant|Client|Fournisseur|Facture|Article|Produit|Statut|Prix|Commande|Livraison|Paiement|Stock|Utilisateur|Aucun|Aucune|Toutes|Brouillon)\b/;
+const MOTS_FR = /\b(Voir|Nouveau|Nouvelle|Ajouter|Modifier|Supprimer|Enregistrer|Annuler|Rechercher|Valider|Envoyer|Total|Montant|Client|Fournisseur|Facture|Article|Produit|Statut|Prix|Commande|Livraison|Paiement|Stock|Utilisateur|Aucun|Aucune|Toutes|Brouillon|Urgent|Actif|Payer|Ajouter|Retour|Colonnes|Filtrer|Exporter)\b/;
 
 // Ces valeurs sont enregistrees en base, pas affichees comme libelles : les
 // traduire ecrirait de l'arabe dans une colonne que le PDF et l'export
@@ -160,7 +160,13 @@ for (const complet of fichiers) {
     for (const forme of FORMES_NUES) {
       for (const m of ligne.matchAll(forme)) {
         const cle = m[1];
-        if (cle in fr) nues.push(`${rel}:${i + 1}  ${cle}`);
+        if (!(cle in fr)) continue;
+        // `t(cond ? 'a' : 'b')` est correct : la clé est bien traduite, elle
+        // est simplement choisie à l'intérieur de l'appel. Le défaut, c'est
+        // `{cond ? 'a' : 'b'}` — un ternaire dont AUCUNE branche n'est traduite.
+        // La présence de `t(` dans le groupe d'accolades sépare les deux.
+        if (m[0].includes('t(')) continue;
+        nues.push(`${rel}:${i + 1}  ${cle}`);
       }
     }
   }

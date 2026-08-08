@@ -1,18 +1,20 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   TrendingUp, TrendingDown, FileText, Package, DollarSign,
-  AlertTriangle, Clock, Percent, Minus,
+  AlertTriangle, Percent, Minus, ChevronRight, Hourglass, Wallet,
 } from 'lucide-react';
 import { dashboardApi } from '@/lib/api';
 import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { ecartPourcent, montantAbrege, pourcentage } from '@/lib/montants';
 import { SelecteurPeriode, periodeParDefaut } from '@/components/shared/SelecteurPeriode';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EtatVide } from '@/components/shared/EtatVide';
 import { SqueletteCarte, SqueletteGraphique, SqueletteIndicateur } from '@/components/ui/Squelette';
-import { BarresClassement, Composition, CourbeAire, Sparkline } from '@/components/ui/Graphique';
+import { BarresClassement, CourbeAire, Sparkline } from '@/components/ui/Graphique';
 import { useCompteurAnime } from '@/hooks/useCompteurAnime';
 import { teinteFiliere, type Filiere } from '@/lib/filieres';
 import { creneauMode } from '@/lib/modesReglement';
@@ -75,7 +77,7 @@ function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boole
         )}
       >
         <Fleche className="h-3 w-3" aria-hidden />
-        {valeur > 0 ? '+' : ''}{valeur}&nbsp;%
+        {ecartPourcent(valeur)}
       </span>
       <span className="min-w-0 truncate text-2xs text-muted-foreground">
         {t('dashboard.vsPeriodePrecedente')}
@@ -92,13 +94,25 @@ function Evolution({ valeur, inverse }: { valeur: number | null; inverse?: boole
  * Le chiffre, lui, garde l'encre du texte — jamais la couleur de la filière.
  * Un montant coloré se lit comme un état (« c'est vert, donc c'est bon »), et
  * un chiffre d'affaires n'est ni bon ni mauvais tant qu'on ne l'a pas comparé.
+ *
+ * ── Le montant est abrégé ────────────────────────────────────────────────
+ *
+ * `20,4 M DA`, et non `20 409 086,29 DA`. Écrit en entier, il tenait sur deux
+ * lignes, poussait la carte plus haut que ses trois voisines et cassait la
+ * ligne de base de la rangée ; surtout, il se lisait chiffre par chiffre alors
+ * qu'on ne vient y chercher qu'un ordre de grandeur. Le montant exact reste à
+ * un survol, dans l'infobulle du navigateur — c'est le geste attendu quand on
+ * veut le détail, et il ne coûte rien à ceux qui ne le veulent pas.
+ *
+ * L'infobulle porte la **valeur d'arrivée**, jamais le compteur en cours
+ * d'animation : survoler une carte pendant sa montée doit donner le montant,
+ * pas une étape.
  */
 function CarteIndicateur({
-  titre, valeur, format, sub, icon: Icone, filiere, evolution, evolutionInverse, tendance,
+  titre, valeur, sub, icon: Icone, filiere, evolution, evolutionInverse, tendance,
 }: {
   titre: string;
   valeur: number;
-  format: (v: number) => string;
   sub?: string;
   icon: React.ElementType;
   filiere: Filiere;
@@ -127,8 +141,11 @@ function CarteIndicateur({
             <p className="truncate text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               {titre}
             </p>
-            <p className="mt-1.5 text-2xl font-bold tabular-nums text-foreground">
-              {format(anime)}
+            <p
+              className="mt-1.5 cursor-help text-2xl font-bold tabular-nums text-foreground"
+              title={formatCurrency(valeur)}
+            >
+              {montantAbrege(anime)}
             </p>
             {evolution !== undefined && <Evolution valeur={evolution} inverse={evolutionInverse} />}
             {sub && <p className="mt-1 truncate text-2xs text-muted-foreground">{sub}</p>}
@@ -148,46 +165,85 @@ function CarteIndicateur({
   );
 }
 
-/** Une ligne d'alerte : un bloc teinté de sa gravité, un nombre qui pèse. */
-function LigneAlerte({
-  libelle, nombre, icon: Icone, gravite, muet,
+/**
+ * Une ligne de « À traiter » : un travail, et le lien qui l'ouvre.
+ *
+ * Le bloc s'appelait « Alertes » et affichait trois compteurs muets. On y
+ * lisait « Factures impayées — 276 », et il fallait ensuite aller aux factures,
+ * dérouler le filtre de statut, choisir le bon, et espérer retomber sur le même
+ * nombre. Le tableau de bord disait *voici l'état* ; il dit désormais *voici
+ * quoi faire*, et chaque ligne emmène sur la liste exactement filtrée.
+ *
+ * « Exactement » est la contrainte qui a fait bouger le serveur : le filtre des
+ * factures ne prend qu'un statut à la fois, alors que le compteur additionnait
+ * les envoyées et les partielles. Le clic aurait mené sur une liste plus courte
+ * que le nombre annoncé — la pire façon de perdre la confiance d'un écran. Les
+ * compteurs sont donc découpés comme le filtre les découpe.
+ *
+ * Le montant en jeu accompagne le nombre quand il existe : neuf factures en
+ * retard n'appellent pas la même journée selon qu'elles pèsent trente mille ou
+ * trois millions.
+ *
+ * Les lignes à zéro ne sont pas affichées. C'est un renversement assumé par
+ * rapport au bloc d'alertes, qui les gardait en gris — savoir qu'il n'y a rien
+ * était alors l'information. Une liste de travaux, elle, ne liste pas les
+ * travaux qu'on n'a pas à faire ; quand il n'en reste aucun, le bloc le dit
+ * d'une phrase.
+ */
+function LigneATraiter({
+  libelle, nombre, montant, vers, icon: Icone, gravite,
 }: {
   libelle: string;
   nombre: number;
+  /** Montant en jeu, s'il y en a un. */
+  montant?: number;
+  vers: string;
   icon: React.ElementType;
   gravite: 'warning' | 'destructive';
-  muet: boolean;
 }) {
   return (
-    <div
+    <Link
+      to={vers}
       className={cn(
-        'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-150',
-        muet && 'border-border bg-muted/40',
-        !muet && gravite === 'warning' && 'border-warning/35 bg-warning-subtle',
-        !muet && gravite === 'destructive' && 'border-destructive/35 bg-destructive-subtle',
+        'group flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5',
+        'transition-[background-color,border-color,transform] duration-150 ease-ci',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        gravite === 'warning'
+          ? 'border-warning/35 bg-warning-subtle hover:border-warning/60'
+          : 'border-destructive/35 bg-destructive-subtle hover:border-destructive/60',
       )}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <span className="flex min-w-0 items-center gap-2">
         <Icone
-          className={cn(
-            'h-4 w-4 shrink-0',
-            muet ? 'text-muted-foreground' : gravite === 'warning' ? 'text-warning' : 'text-destructive',
-          )}
+          className={cn('h-4 w-4 shrink-0', gravite === 'warning' ? 'text-warning' : 'text-destructive')}
           aria-hidden
         />
-        <span className={cn('truncate text-sm', muet ? 'text-muted-foreground' : 'text-foreground')}>
-          {libelle}
+        <span className="min-w-0">
+          <span className="block truncate text-sm text-foreground">{libelle}</span>
+          {montant !== undefined && montant > 0 && (
+            <span className="block truncate text-2xs tabular-nums text-muted-foreground">
+              {montantAbrege(montant)}
+            </span>
+          )}
         </span>
-      </div>
-      <span
-        className={cn(
-          'shrink-0 text-lg font-bold tabular-nums',
-          muet ? 'text-muted-foreground' : gravite === 'warning' ? 'text-warning-text' : 'text-destructive-text',
-        )}
-      >
-        {nombre}
       </span>
-    </div>
+      <span className="flex shrink-0 items-center gap-1">
+        <span
+          className={cn(
+            'text-lg font-bold tabular-nums',
+            gravite === 'warning' ? 'text-warning-text' : 'text-destructive-text',
+          )}
+        >
+          {nombre}
+        </span>
+        {/* La chevron se retourne en arabe : elle montre la direction de la
+            lecture, pas un côté de l'écran. */}
+        <ChevronRight
+          aria-hidden
+          className="h-4 w-4 text-muted-foreground transition-transform duration-150 ease-ci group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
+        />
+      </span>
+    </Link>
   );
 }
 
@@ -242,10 +298,65 @@ export function DashboardPage() {
 
   const byMethod: [string, number][] = Object.entries(salesChart?.byPaymentMethod ?? {});
   const maxMethod = byMethod.reduce((m, [, v]) => Math.max(m, v as number), 0);
+  // La part se calcule sur les encaissements de la période, pas sur le chiffre
+  // d'affaires : une facture émise en juin et réglée en juillet fausserait les
+  // deux bouts du rapport.
+  const totalEncaisse = byMethod.reduce((s, [, v]) => s + Number(v), 0);
   const topStock: any[] = (stockChart?.byRawMaterial ?? []).slice(0, 8);
   const expiring: any[] = stockChart?.expiringWithin30Days ?? [];
-  const categories = Object.entries(expenses.byCategory) as [string, number][];
+  // Une catégorie à zéro n'a pas de barre à montrer : elle allongeait le bloc
+  // sans rien y mettre.
+  const categories = (Object.entries(expenses.byCategory) as [string, number][])
+    .filter(([, montant]) => Number(montant) > 0);
   const tendanceCa = byDate.map((d: any) => Number(d.revenue));
+
+  // Le travail en attente, dans l'ordre où il presse. Chaque entrée porte le
+  // filtre qui rendra exactement le nombre annoncé.
+  const aTraiter = [
+    {
+      cle: 'overdue',
+      libelle: t('dashboard.overdueInvoices'),
+      nombre: Number(alerts.overdueInvoicesCount ?? 0),
+      montant: Number(alerts.overdueInvoicesTotal ?? 0),
+      vers: '/invoices?status=overdue',
+      icon: AlertTriangle,
+      gravite: 'destructive' as const,
+    },
+    {
+      cle: 'sent',
+      libelle: t('dashboard.sentInvoices'),
+      nombre: Number(alerts.sentInvoicesCount ?? 0),
+      montant: Number(alerts.sentInvoicesTotal ?? 0),
+      vers: '/invoices?status=sent',
+      icon: FileText,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'partial',
+      libelle: t('dashboard.partialInvoices'),
+      nombre: Number(alerts.partialInvoicesCount ?? 0),
+      montant: Number(alerts.partialInvoicesTotal ?? 0),
+      vers: '/invoices?status=partial',
+      icon: Wallet,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'expiring',
+      libelle: t('dashboard.expiringSoon'),
+      nombre: Number(alerts.expiringStockCount ?? 0),
+      vers: '/stock?tab=alerts',
+      icon: Hourglass,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'lowStock',
+      libelle: t('dashboard.lowStock'),
+      nombre: Number(alerts.lowStockCount ?? 0),
+      vers: '/stock?tab=alerts',
+      icon: TrendingDown,
+      gravite: 'warning' as const,
+    },
+  ].filter((l) => l.nombre > 0);
 
   return (
     <div className="space-y-6">
@@ -259,7 +370,6 @@ export function DashboardPage() {
         <CarteIndicateur
           titre={t('dashboard.revenue')}
           valeur={Number(sales.totalRevenue)}
-          format={(v) => formatCurrency(v)}
           evolution={stats.evolution?.revenue}
           sub={`${sales.invoiceCount} ${t('dashboard.invoiceCount').toLowerCase()}`}
           icon={DollarSign}
@@ -269,56 +379,75 @@ export function DashboardPage() {
         <CarteIndicateur
           titre={t('dashboard.grossMargin')}
           valeur={Number(profit.grossMargin)}
-          format={(v) => formatCurrency(v)}
-          sub={`${profit.grossMarginPercent}%`}
+          sub={t('dashboard.partDuCa', {
+            part: pourcentage(Number(profit.grossMargin), Number(sales.totalRevenue)),
+          })}
           icon={Percent}
           filiere="finance"
         />
         <CarteIndicateur
           titre={t('dashboard.netProfit')}
           valeur={Number(profit.netProfit)}
-          format={(v) => formatCurrency(v)}
           evolution={stats.evolution?.netProfit}
-          sub={`${profit.netProfitPercent}%`}
+          sub={t('dashboard.partDuCa', {
+            part: pourcentage(Number(profit.netProfit), Number(sales.totalRevenue)),
+          })}
           icon={TrendingUp}
           filiere="achats"
         />
         <CarteIndicateur
           titre={t('dashboard.stockValue')}
           valeur={Number(stock.totalStockValue)}
-          format={(v) => formatCurrency(v)}
           icon={Package}
           filiere="catalogue"
         />
       </div>
 
       <div className="echelonner grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Dépenses, en composition */}
+        {/* Dépenses.
+            Le total est passé **en tête** et non plus en pied : c'est le
+            chiffre qu'on vient chercher, et il se lisait après six lignes de
+            détail. Les catégories sont ensuite des barres — la longueur dit la
+            part, ce que faisait auparavant un pourcentage imprimé à côté du
+            montant. Les deux ensemble étaient une redite, et une ligne de
+            trois nombres se lit trois fois plus lentement qu'une barre. */}
         <Card vivante>
           <CardHeader><CardTitle>{t('dashboard.expenses')}</CardTitle></CardHeader>
           <CardContent>
             {categories.length === 0 ? (
               <EtatVide compact texte={t('common.videTexte')} />
             ) : (
-              <>
-                <Composition
-                  parts={categories.map(([cat, montant]) => ({
+              <div className="space-y-4">
+                <div>
+                  <p className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t('common.total')}
+                  </p>
+                  <p
+                    className="mt-0.5 cursor-help text-xl font-bold tabular-nums text-foreground"
+                    title={formatCurrency(expenses.totalExpenses)}
+                  >
+                    {montantAbrege(expenses.totalExpenses)}
+                  </p>
+                </div>
+                {/* Les catégories de dépense sont des entités fixes : chacune
+                    garde son créneau de couleur d'un mois à l'autre, comme les
+                    modes de règlement. */}
+                <BarresClassement
+                  teintes={categories.map(([, ], i) => i)}
+                  lignes={categories.map(([cat, montant]) => ({
                     libelle: t(`expenses.categories.${cat}`),
                     valeur: Number(montant),
                   }))}
-                  total={Number(expenses.totalExpenses)}
-                  format={(v) => formatCurrency(v)}
+                  format={(v) => montantAbrege(v)}
                 />
-                <div className="mt-3 flex justify-between border-t border-border pt-2.5 text-sm font-semibold">
-                  <span>{t('common.total')}</span>
-                  <span className="tabular-nums">{formatCurrency(expenses.totalExpenses)}</span>
-                </div>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Top clients : un classement — teinte unique, rangs numérotés. */}
+        {/* Top clients : un classement — teinte unique, rangs numérotés, et
+            l'écart avec la période précédente quand le serveur sait le
+            calculer. */}
         <Card vivante>
           <CardHeader><CardTitle>{t('dashboard.topCustomers')}</CardTitle></CardHeader>
           <CardContent>
@@ -327,49 +456,35 @@ export function DashboardPage() {
             ) : (
               <BarresClassement
                 serie={0}
+                rangs
                 lignes={sales.topCustomers.map((c: any) => ({
                   libelle: c.name,
                   valeur: Number(c.total),
+                  variation: c.evolution ?? null,
                 }))}
-                format={(v) => formatCurrency(v)}
+                format={(v) => montantAbrege(v)}
               />
             )}
           </CardContent>
         </Card>
 
-        {/* Alertes */}
+        {/* À traiter */}
         <Card vivante>
-          <CardHeader><CardTitle>{t('dashboard.alerts')}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t('dashboard.toDo')}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <LigneAlerte
-              libelle={t('dashboard.expiringSoon')}
-              nombre={alerts.expiringStockCount}
-              icon={Clock}
-              gravite="warning"
-              muet={alerts.expiringStockCount === 0}
-            />
-            <LigneAlerte
-              libelle={t('dashboard.unpaidInvoices')}
-              nombre={alerts.unpaidInvoicesCount}
-              icon={FileText}
-              gravite="destructive"
-              muet={alerts.unpaidInvoicesCount === 0}
-            />
-            <LigneAlerte
-              libelle={t('dashboard.lowStock')}
-              nombre={alerts.lowStockCount}
-              icon={AlertTriangle}
-              gravite="warning"
-              muet={alerts.lowStockCount === 0}
-            />
-            {alerts.unpaidInvoicesTotal > 0 && (
-              <div className="flex items-baseline justify-between gap-2 border-t border-border pt-2.5 text-xs text-muted-foreground">
-                <span>{t('dashboard.unpaidTotal')}</span>
-                <span className="font-semibold tabular-nums text-destructive-text">
-                  {formatCurrency(alerts.unpaidInvoicesTotal)}
-                </span>
-              </div>
-            )}
+            {aTraiter.length === 0 ? (
+              <EtatVide compact texte={t('dashboard.nothingToDo')} />
+            ) : aTraiter.map((l) => (
+              <LigneATraiter
+                key={l.cle}
+                libelle={l.libelle}
+                nombre={l.nombre}
+                montant={l.montant}
+                vers={l.vers}
+                icon={l.icon}
+                gravite={l.gravite}
+              />
+            ))}
           </CardContent>
         </Card>
       </div>
@@ -409,7 +524,12 @@ export function DashboardPage() {
                     libelle: t(`invoices.methods.${method}`),
                     valeur: Number(amount),
                   }))}
-                  format={(v) => formatCurrency(v)}
+                  /* Deux décimales ici, une seule sur les cartes : c'est le
+                     seul bloc où l'on met les valeurs en regard les unes des
+                     autres, et « 5,4 M » contre « 5,4 M » ne dirait plus
+                     laquelle domine. Le pourcentage répond à la question
+                     réellement posée — quelle part de ce qui est rentré. */
+                  format={(v) => `${montantAbrege(v, 2)} (${pourcentage(v, totalEncaisse)})`}
                 />
               )}
           </CardContent>
@@ -423,11 +543,12 @@ export function DashboardPage() {
               : (
                 <BarresClassement
                   serie={3}
+                  rangs
                   lignes={topStock.map((r: any) => ({
                     libelle: r.name,
                     valeur: Number(r.stockValue),
                   }))}
-                  format={(v) => formatCurrency(v)}
+                  format={(v) => montantAbrege(v)}
                 />
               )}
           </CardContent>

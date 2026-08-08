@@ -24,6 +24,7 @@ import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -158,12 +159,14 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('products.title')}</h1>
+      {/* Deux actions par ligne seulement, et les deux se lisent d'une icône :
+          la liste des articles garde ses boutons directs. Replier deux gestes
+          derrière un menu coûterait un clic sans rien dégager. */}
+      <EnTetePage titre={t('products.title')} total={data?.pagination?.total} cleTotal="products.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('products.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative w-64">

@@ -100,14 +100,31 @@ export class CreditNotesService {
   }
 
   async findAll(tenantId: string, page = 1, limit = 20) {
-    const [data, total] = await this.cnRepo
+    // Le nom du client manquait : la colonne « Client » de la liste affichait
+    // un tiret sur chaque ligne. L'avoir porte `customerId`, jamais le nom —
+    // il fallait la jointure.
+    const qb = this.cnRepo
       .createQueryBuilder('cn')
+      .leftJoin('partners', 'c', 'c.id = cn."customerId"')
+      .addSelect('c.name', 'customerName')
       .where('cn.tenantId = :tenantId', { tenantId })
       .andWhere('cn.deletedAt IS NULL')
       .orderBy('cn.createdAt', 'DESC')
       .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+      .take(limit);
+
+    const [{ entities, raw }, total] = await Promise.all([
+      qb.getRawAndEntities(),
+      qb.getCount(),
+    ]);
+
+    // `getRawAndEntities` rend les deux dans le même ordre : on rattache le
+    // nom à son avoir par la position, pas par une seconde requête.
+    const data = entities.map((cn, i) => ({
+      ...cn,
+      customerName: raw[i]?.customerName ?? null,
+    }));
+
     return { data, pagination: { total, page, limit } };
   }
 

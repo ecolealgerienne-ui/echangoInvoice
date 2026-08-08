@@ -833,8 +833,8 @@ export function ProductionPage() {
                 name="priority"
                 render={({ field }) => (
                   <Select value={field.value} onChange={field.onChange} className="mt-1">
-                    <option value="normal">Normal</option>
-                    <option value="urgent">Urgent</option>
+                    <option value="normal">{t('production.priority.normal')}</option>
+                    <option value="urgent">{t('production.priority.urgent')}</option>
                   </Select>
                 )}
               />

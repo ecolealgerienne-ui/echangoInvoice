@@ -232,13 +232,13 @@ export function StockPage() {
                       </td>}
                       {col('value') && <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(item.totalValue)}</td>}
                       {col('expiryAlert') && <td className="px-3 py-2.5 text-center">
-                        {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
+                        {item.expiryAlert === 'red' && <Badge variant="destructive">{t('stock.urgent')}</Badge>}
                         {item.expiryAlert === 'orange' && <Badge variant="warning">{t('stock.soon')}</Badge>}
                         {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
                       </td>}
                       {col('lowStockAlert') && <td className="px-3 py-2.5 text-center">
                         {item.lowStockAlert
-                          ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />Bas</Badge>
+                          ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />{t('stock.low')}</Badge>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
                       {col('expiry') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
@@ -324,7 +324,9 @@ export function StockPage() {
                         <p className="text-xs text-muted-foreground">{formatDate(a.expiresAt)} — {a.daysUntilExpiry}j</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={a.severity === 'red' ? 'destructive' : 'warning'}>{a.severity}</Badge>
+                        <Badge variant={a.severity === 'red' ? 'destructive' : 'warning'}>
+                          {t(a.severity === 'red' ? 'stock.urgent' : 'stock.low')}
+                        </Badge>
                         <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(a.quantityAtRisk)}</p>
                       </div>
                     </div>

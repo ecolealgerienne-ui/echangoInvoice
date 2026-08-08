@@ -45,7 +45,8 @@
     "auto": "تلقائي",
     "totalTtc": "المجموع بكل الرسوم",
     "none": "— بلا —",
-    "invalidQuantity": "كمية غير صالحة"
+    "invalidQuantity": "كمية غير صالحة",
+    "reopen": "إعادة الفتح"
   },
   "nav": {
     "dashboard": "لوحة القيادة",
@@ -151,7 +152,13 @@
       "personnalisee": "مخصّصة"
     },
     "vsPeriodePrecedente": "مقارنة بالفترة السابقة",
-    "pasDeComparaison": "لا يمكن المقارنة"
+    "pasDeComparaison": "لا يمكن المقارنة",
+    "toDo": "للمعالجة",
+    "nothingToDo": "لا شيء للمعالجة حاليًا",
+    "overdueInvoices": "فواتير متأخرة",
+    "sentInvoices": "فواتير للتحصيل",
+    "partialInvoices": "تسديدات جزئية",
+    "partDuCa": "{{part}} من رقم الأعمال"
   },
   "customers": {
     "title": "الزبائن",
@@ -173,7 +180,8 @@
     "addContact": "إضافة جهة اتصال",
     "contactRole": "الوظيفة",
     "contactPerson": "المحاور",
-    "primary": "جهة الاتصال الرئيسية"
+    "primary": "جهة الاتصال الرئيسية",
+    "totalCount": "{{nombre}} عميلًا إجمالًا"
   },
   "partners": {
     "isCustomer": "زبون",
@@ -222,7 +230,8 @@
     "contactName": "جهة الاتصال الرئيسية",
     "addContact": "إضافة جهة اتصال",
     "contactRole": "الوظيفة",
-    "primary": "جهة الاتصال الرئيسية"
+    "primary": "جهة الاتصال الرئيسية",
+    "totalCount": "{{nombre}} مورّدًا إجمالًا"
   },
   "rawMaterials": {
     "title": "المواد الأولية",
@@ -276,7 +285,9 @@
       "other": "أخرى"
     },
     "belowThreshold": "تحت العتبة",
-    "soon": "قريبًا"
+    "soon": "قريبًا",
+    "urgent": "عاجل",
+    "low": "منخفض"
   },
   "invoices": {
     "title": "الفواتير",
@@ -334,7 +345,8 @@
     },
     "paymentMode": "طريقة الدفع المتوقعة",
     "paymentModeHint": "عند الدفع نقدًا، يُضاف حق الطابع تلقائيًا.",
-    "referencePlaceholder": "رقم الشيك، التحويل…"
+    "referencePlaceholder": "رقم الشيك، التحويل…",
+    "totalCount": "{{nombre}} فاتورة إجمالًا"
   },
   "priceLists": {
     "title": "شبكات الأسعار",
@@ -688,7 +700,8 @@
       "signed": "موقَّع",
       "delivered": "مُسلَّم",
       "cancelled": "ملغى"
-    }
+    },
+    "totalCount": "{{nombre}} سند تسليم إجمالًا"
   },
   "products": {
     "title": "المنتجات",
@@ -762,7 +775,8 @@
     "openSheet": "فتح البطاقة الكاملة",
     "createdNext": "أُنشئ المنتج. يمكنك الآن إضافة مورديه ورموزه الشريطية.",
     "saveFirst": "يرتبط الموردون والرموز الشريطية بالمنتج: يظهران بمجرد حفظه، دون مغادرة هذه النافذة.",
-    "barcodeLabelPlaceholder": "علبة من 12"
+    "barcodeLabelPlaceholder": "علبة من 12",
+    "totalCount": "{{nombre}} مادة إجمالًا"
   },
   "quotes": {
     "title": "عروض الأسعار",
@@ -785,7 +799,8 @@
     "reject": "رفض عرض السعر",
     "accepted": "قُبل عرض السعر",
     "rejected": "رُفض عرض السعر",
-    "proforma": "فاتورة أولية"
+    "proforma": "فاتورة أولية",
+    "totalCount": "{{nombre}} عرض سعر إجمالًا"
   },
   "purchases": {
     "title": "المشتريات",
@@ -1003,7 +1018,8 @@
     "cancelledNote": "هذا الإشعار ملغى: لا يُخصم من أي فاتورة.",
     "date": "تاريخ الإشعار",
     "linkedInvoice": "الفاتورة المرتبطة (اختياري)",
-    "reasonPlaceholder": "سبب الإشعار…"
+    "reasonPlaceholder": "سبب الإشعار…",
+    "totalCount": "{{nombre}} إشعارًا دائنًا إجمالًا"
   },
   "exportButton": {
     "label": "تصدير",

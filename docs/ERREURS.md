@@ -681,3 +681,55 @@ forme du code : identité marge = CA − coût des ventes, résultat = marge −
 charges, coût des ventes distinct des achats reçus, bornes de plausibilité, et
 couverture du coût figé sur toutes les lignes. Vu refuser en rétablissant
 l'ancienne formule : deux contrôles passent au rouge.
+
+
+---
+
+## E016 — Un compteur qui ne menait nulle part
+
+**Date :** 2026-08-09 · **Gravité :** moyenne · **Statut :** corrigé
+
+En rendant les alertes du tableau de bord cliquables, un défaut est apparu que
+personne ne pouvait voir tant qu'elles restaient muettes : **`unpaidInvoicesCount`
+additionnait deux statuts** — `sent` + `partial` — alors que le filtre serveur
+n'en accepte **qu'un à la fois**.
+
+Le compteur annonçait 276. Aucun lien ne pouvait mener à une liste de 276
+factures : ni `?status=sent` (101), ni `?status=partial` (69), ni
+`?status=overdue` (381, qui n'était même pas compté).
+
+> Un chiffre qui n'est cliquable nulle part peut rester faux indéfiniment.
+> Le rendre cliquable est ce qui l'oblige à correspondre à quelque chose.
+
+Le bloc est découpé comme le filtre découpe : en retard, à encaisser, règlements
+partiels — chacun avec son montant, son lien, et son compte vérifié contre la
+liste filtrée. Les lignes à zéro disparaissent : une liste de travaux ne liste
+pas ce qu'on n'a pas à faire.
+
+Le filtre de statut des factures ne vivait par ailleurs que dans un `useState`
+local et ignorait l'URL : un lien vers une liste filtrée était impossible.
+Passé dans `useSearchParams`, l'URL devient partageable.
+
+### Trois autres défauts, trouvés en chemin
+
+- **`common.reopen` n'existait dans aucun catalogue** : le bouton « Rouvrir »
+  d'une facture annulée affichait sa clé technique en infobulle.
+- **La liste des avoirs ne joignait pas le client** : la colonne « Client »
+  rendait un tiret sur chaque ligne. L'avoir porte `customerId`, jamais le nom.
+- **`verifier-contraste.js` visitait `/recurring`**, qui n'est pas une route —
+  la vraie est `/invoices/recurring`. Il mesurait une page vide et l'annonçait
+  conforme. Même famille que E013 : un contrôle qui ne mesure rien passe au
+  vert.
+
+### Une leçon sur le contrôle i18n
+
+Élargir son vocabulaire pour y ajouter « Urgent » a immédiatement révélé un
+`<option value="urgent">Urgent</option>` oublié dans la production. Mais la même
+passe a produit un **faux positif** : `t(cond ? 'a' : 'b')` était signalé comme
+clé nue alors qu'il est correct — la clé y est choisie *à l'intérieur* de
+l'appel. La présence de `t(` dans le groupe d'accolades sépare désormais les
+deux formes.
+
+> Un contrôle qu'on resserre doit être revérifié dans les deux sens : qu'il
+> refuse toujours le vrai défaut, et qu'il n'attrape pas la forme correcte.
+> Les deux ont été rejoués.

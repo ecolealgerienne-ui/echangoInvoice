@@ -20,6 +20,9 @@ import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { Avatar } from '@/components/shared/Avatar';
+import { MenuActions } from '@/components/shared/MenuActions';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -162,12 +165,11 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('customers.title')}</h1>
+      <EnTetePage titre={t('customers.title')} total={data?.pagination?.total} cleTotal="customers.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('customers.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex items-center gap-3">
         <div className="relative w-64">
@@ -224,11 +226,17 @@ export function CustomersPage() {
               )}
               {data?.data?.map((c: any) => (
                 <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                  {/* La pastille prend le rôle de repère et rend au nom celui
+                      d'identité : sans elle, vingt lignes qui commencent toutes
+                      par « EURL » se relisent mot à mot. */}
                   {col('name') && (
                     <td className="px-3 py-2.5 font-medium">
-                      <Link to={`/customers/${c.id}`} className="text-primary hover:underline">
-                        {c.name}
-                      </Link>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar nom={c.name} />
+                        <Link to={`/customers/${c.id}`} className="min-w-0 truncate text-primary hover:underline">
+                          {c.name}
+                        </Link>
+                      </div>
                     </td>
                   )}
                   {col('nif') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{c.nif || '—'}</td>}
@@ -236,17 +244,18 @@ export function CustomersPage() {
                   {col('phone') && <td className="px-3 py-2.5 text-muted-foreground">{c.phone || '—'}</td>}
                   {col('email') && <td className="px-3 py-2.5 text-muted-foreground">{c.email || '—'}</td>}
                   {col('city') && <td className="px-3 py-2.5 text-muted-foreground">{c.city || '—'}</td>}
+                  {/* Aucune des trois actions ne domine — on ne consulte pas
+                      les contacts d'un client dix fois par jour — donc aucune
+                      ne reste dehors. */}
                   <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title={t('customers.contacts')} onClick={() => openContacts(c)}>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(c.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                    <div className="flex justify-end">
+                      <MenuActions
+                        actions={[
+                          { cle: 'contacts', libelle: t('customers.contacts'), icone: Users, onSelect: () => openContacts(c) },
+                          { cle: 'edit', libelle: t('common.edit'), icone: Pencil, onSelect: () => openEdit(c) },
+                          { cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true, onSelect: () => deleteMutation.mutate(c.id) },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

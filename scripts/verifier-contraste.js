@@ -26,7 +26,10 @@ const THEME = process.argv[3] || 'dark';
 
 const PAGES = ['/dashboard', '/invoices', '/quotes', '/deliveries', '/credit-notes',
   '/customers', '/suppliers', '/products', '/stock', '/purchases',
-  '/purchases/vendor-bills', '/expenses', '/reports', '/settings', '/recurring'];
+  '/purchases/vendor-bills', '/expenses', '/reports', '/settings',
+  // `/recurring` n'existe pas : la route est `/invoices/recurring`. Le
+  // contrôle mesurait donc une page vide, et l'annonçait conforme.
+  '/invoices/recurring'];
 
 (async () => {
   const b = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
