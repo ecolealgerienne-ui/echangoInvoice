@@ -151,20 +151,29 @@ le web vivent dans le clone **WSL** ; le clone Windows ne sert qu'au mobile.
 **Date :** 2026-08-08 · **Gravité :** à surveiller · **Statut :** ⏳ ouvert
 
 R024 pose que la mesure de l'écart entité ↔ base est un `migration:generate`
-qui ne rend **rien**. Mesuré le 2026-08-08, après la migration du droit de
-timbre : la sonde produit une migration d'une vingtaine d'instructions, toutes
-des `DROP CONSTRAINT` de clés étrangères (`stock_entries`, `production_*`,
-`bom_lines`, `partner_contacts`, `users`, `subscriptions`, `quote_items`…).
+qui ne rend **rien**. Mesuré le 2026-08-08 : la sonde produit **356 opérations**
+— 57 `DROP CONSTRAINT` suivies de 57 `ADD CONSTRAINT`, 52 `ALTER COLUMN`, et
+**15 `DROP COLUMN`**.
 
-Les colonnes du timbre, elles, n'y figurent pas : **l'écart est préexistant**,
-pas introduit par ce lot.
+Les colonnes du timbre n'y figurent pas : **l'écart est préexistant**, pas
+introduit par les lots de cette session.
+
+⚠️ **Première mesure sous-estimée.** J'avais d'abord annoncé « une vingtaine
+d'instructions, toutes des DROP CONSTRAINT » en lisant les vingt premières
+lignes de la sonde. C'est faux : les `DROP COLUMN` arrivent plus bas, et parmi
+elles `DROP COLUMN "invoiceDate"`, `"status"`, `"createdBy"`, `"approvedBy"`.
+Lire le début d'une sortie et en tirer sa nature est le même défaut que E004 —
+une conclusion tirée d'une mesure partielle.
 
 ### Pourquoi c'est dangereux tel quel
 
 Un futur `migration:generate` fait pour une petite évolution embarquera ces
-`DROP CONSTRAINT` dans une migration qu'on relira comme additive — et
-supprimera en production des contraintes d'intégrité que personne n'aura voulu
-retirer. C'est exactement le scénario que décrit R024.
+356 opérations dans une migration qu'on relira comme additive. `DROP COLUMN
+"invoiceDate"` détruirait la date de chaque facture émise. C'est exactement le
+scénario que décrit R024, et il est déjà signalé dans `docs/REPRISE.md`.
+
+**En attendant : ne jamais lancer `migration:generate` sans lire sa sortie
+entière.** Les migrations de cette session ont toutes été écrites à la main.
 
 À traiter comme un chantier propre : déclarer les relations manquantes dans les
 entités, ou nommer les contraintes existantes, jusqu'à ce que la sonde rende le

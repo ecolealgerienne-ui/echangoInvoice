@@ -910,5 +910,23 @@
     "offlineWriteTitle": "Connexion requise",
     "offlineWriteBody": "La création de documents nécessite une connexion internet. Vos données consultables restent disponibles hors ligne.",
     "understood": "Compris"
+  },
+  "recherche": {
+    "titre": "Recherche",
+    "placeholder": "Rechercher…",
+    "invite": "Client, article, n° de facture, de devis, de BL…",
+    "aideSaisie": "Tapez au moins deux caractères.",
+    "aucunResultat": "Aucun résultat.",
+    "types": {
+      "customer": "Client",
+      "supplier": "Fournisseur",
+      "product": "Article",
+      "invoice": "Facture",
+      "quote": "Devis",
+      "deliveryNote": "BL",
+      "purchaseOrder": "Commande",
+      "vendorBill": "Facture fourn.",
+      "creditNote": "Avoir"
+    }
   }
 }

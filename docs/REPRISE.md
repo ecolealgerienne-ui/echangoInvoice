@@ -1,8 +1,8 @@
 # REPRISE — où on en est, et par quoi continuer
 
-> Arrêt de session : **2026-08-08**
-> Branche : `feat/mobile-v1-cache` — poussée, à jour avec `origin`
-> Dernier commit : `f19e513` *feat(pricing): grilles tarifaires par client*
+> Arrêt de session : **2026-08-08** (seconde session)
+> Branche : `feat/mobile-v1-cache`
+> Dernier commit : `23aef3b` *feat(tableau de bord): périodes libres et comparaison*
 
 Ce fichier sert à reprendre le travail sans relire l'historique.
 `docs/STATUS.md` date du 2026-06-22 et **n'est plus fiable** : plusieurs de ses
@@ -72,6 +72,34 @@ NIS, RIB, couleur des documents). Toutes appliquées en local.
 
 ---
 
+## Session 2 — sécurité, conformité, listes
+
+| Commit | Objet |
+|---|---|
+| `20fba9c` | Archives PDF isolées par société, `TenantGuard` monté, rendu PDF durci, montant en toutes lettres, droit de timbre |
+| `91e937f` | Fiches article et dépense, écran « Matières premières » mort supprimé, `?month=` validé |
+| `9b343d9` | Tri par colonne sur les sept listes principales |
+| `23aef3b` | Périodes libres au tableau de bord, comparaison à la période précédente |
+
+Migration ajoutée : `1750026000000` (droit de timbre — `paymentMode` et
+`stampDuty` sur les factures, `stampDutyEnabled` dans les réglages). Appliquée
+en local.
+
+**Trois défauts de sécurité corrigés**, tous consignés dans le nouveau
+`docs/ERREURS.md` : l'archivage PDF écrasait les factures entre sociétés (E001),
+le schéma du logo n'était pas contraint (E002), et `TenantGuard` n'était monté
+sur aucun contrôleur (E003).
+
+**Contrôles exécutables** : `npm run verify` — 111 assertions sur quatre suites
+(sécurité, conformité, tri, périodes). Chacune a été vue **refuser** avant
+d'être déclarée bonne (R030).
+
+⚠️ **`docs/CONFORMITE-FISCALE.md` reste la référence du barème du timbre**, qui
+est **à faire confirmer par un comptable** avant qu'un client réel l'active. Il
+est désactivé par défaut.
+
+---
+
 ## Par quoi continuer
 
 Ordre recommandé, issu de `docs/BENCHMARK.md`.
@@ -102,19 +130,46 @@ que si le besoin se manifeste.
 réintroduire de colonne compteur). Restent hors périmètre : la réception
 partielle et le multi-dépôt, deux chantiers de structure que rien n'a réclamés.
 
-### 1. Conformité fiscale algérienne — *le prochain à prendre*
+### 1. Conformité fiscale algérienne — *les deux premiers écarts sont livrés*
 
-Étude complète dans **`docs/CONFORMITE-FISCALE.md`** (2026-08-08). Par ordre de
-valeur : le **droit de timbre** sur les ventes au comptant — le seul écart qui
-empêche d'émettre une facture correcte —, le **total TTC en toutes lettres**,
-la **TVA déductible** pour compléter le G50, le cachet, la facture
-récapitulative et la mention « facture annulée ».
+Étude complète dans **`docs/CONFORMITE-FISCALE.md`** (2026-08-08).
+
+Livrés : le **droit de timbre** et le **total TTC en toutes lettres**.
+
+Restent, par ordre de valeur : la **TVA déductible** pour compléter le G50 —
+nous en fournissons la moitié, ce qui oblige le comptable à reprendre l'autre à
+la main —, le **cachet**, la **facture récapitulative**, la mention « facture
+annulée », et la **facture proforma**.
 
 ⚠️ **La facturation électronique n'est PAS obligatoire en Algérie à ce jour.**
 Plusieurs éditeurs l'affirment en citant des textes introuvables au JO, ou en
 recopiant le calendrier marocain. Ne pas la vendre, ne pas bâtir dessus.
 
-### 2. Portail client — **reporté, décision du 2026-08-08**
+### 2. Pièces jointes — **reporté, décision du 2026-08-08 (session 2)**
+
+Demandé par le client, écarté pour l'instant. **Rien n'existe** : ni
+`@fastify/multipart`, ni intercepteur de fichier, ni table. `STORAGE_PATH` ne
+sert qu'à l'archivage des PDF générés.
+
+Par ordre de valeur métier : justificatif de **dépense** — c'est la raison
+d'être du module —, **facture fournisseur** reçue, **BL de réception** signé,
+registre de commerce des **tiers**, fiche technique **produit**.
+
+Quatre règles à poser dès la première ligne, toutes tirées de E001 :
+
+- chemin de stockage **préfixé par le tenantId**, nom de fichier remplacé par un
+  identifiant — jamais le nom d'origine sur disque ;
+- type réel vérifié par les **octets d'en-tête**, pas par l'extension ni par le
+  `Content-Type` annoncé par le client ;
+- téléchargement **servi par l'API** après contrôle du locataire, jamais un
+  dossier statique exposé par le serveur web ;
+- `Content-Disposition: attachment` systématique, pour qu'un HTML ou un SVG
+  piégé ne s'exécute pas dans le domaine de l'application.
+
+Prévoir aussi un plafond par fichier et un quota par offre — sans quoi le
+stockage devient un coût non borné.
+
+### 3. Portail client — **reporté, décision du 2026-08-08**
 
 Chantier lourd, valeur incertaine pour une PME algérienne. **Arbitré : on le
 garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
@@ -123,10 +178,15 @@ garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
 
 ## Dette et pièges connus
 
-- **Dérive de schéma (R024)** — mesurée à 344 opérations avant les migrations de
-  cette session. Jamais appliquée : la migration générée ferait
-  `DROP COLUMN "invoiceDate"` et détruirait les dates de 1000 factures.
-  À re-mesurer, puis à traiter à la main.
+- **Dérive de schéma (R024)** — **re-mesurée le 2026-08-08 (session 2) : 356
+  opérations**, dont 57 `DROP CONSTRAINT` / 57 `ADD CONSTRAINT`, 52
+  `ALTER COLUMN` et **15 `DROP COLUMN`** — parmi lesquelles `"invoiceDate"`,
+  `"status"`, `"createdBy"` et `"approvedBy"`. Jamais appliquée. La migration
+  générée détruirait la date de chaque facture émise.
+  **Ne jamais lancer `migration:generate` sans lire sa sortie entière** : les
+  vingt premières lignes ne contiennent que des `DROP CONSTRAINT` et donnent une
+  fausse impression d'innocuité (voir `docs/ERREURS.md` E006). Les migrations de
+  la session 2 ont toutes été écrites à la main.
 - **SMTP est un placeholder** — `EMAIL_SMTP_HOST=smtp.example.com` dans `.env`.
   Relances, envoi de factures et de BL, invitations : rien ne part. Le code gère
   l'échec proprement (503 `email_send_failed`, et le lien d'invitation est

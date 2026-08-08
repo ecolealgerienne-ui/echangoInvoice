@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { RechercheGlobale } from './RechercheGlobale';
 import { stockApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,7 +26,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-end px-6 py-3 border-b border-border bg-background shrink-0">
+        <header className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border bg-background shrink-0">
+          <RechercheGlobale />
           <button
             onClick={() => navigate('/stock?tab=alerts')}
             className="relative p-2 rounded-md hover:bg-muted transition-colors"

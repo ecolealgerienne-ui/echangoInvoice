@@ -36,7 +36,7 @@ export const {
   authApi, customersApi, suppliersApi, stockApi, invoicesApi,
   productsApi, deliveriesApi, expensesApi, dashboardApi, reportsApi, settingsApi,
   quotesApi, purchasesApi, productionApi, adminApi, creditNotesApi, usersApi,
-  priceListsApi, exportApi,
+  priceListsApi, exportApi, searchApi,
 } = createEndpoints(api, storage);
 
 export { resolveApiError, isNetworkError } from '@echango/shared';

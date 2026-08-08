@@ -17,6 +17,7 @@ import { QuotesModule } from './quotes/quotes.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { SearchModule } from './search/search.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { StockModule } from './stock/stock.module';
 import { ReportsModule } from './reports/reports.module';
@@ -53,6 +54,7 @@ import { NumberingModule } from './common/numbering/numbering.module';
     InvoicesModule,
     ExpensesModule,
     DashboardModule,
+    SearchModule,
     StockModule,
     ReportsModule,
     SettingsModule,
