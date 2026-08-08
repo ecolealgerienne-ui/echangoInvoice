@@ -16,6 +16,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 
@@ -371,7 +372,13 @@ export function PurchasesPage() {
             <tbody>
               {orders.map((o: any) => (
                 <tr key={o.id} className="border-t border-border hover:bg-muted/30">
-                  {poCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>}
+                  {poCol('poNumber') && (
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link to={`/purchases/orders/${o.id}`} className="text-primary hover:underline">
+                        {o.poNumber}
+                      </Link>
+                    </td>
+                  )}
                   {poCol('supplier') && <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
                   {poCol('orderDate') && <td className="px-4 py-3">{formatDate(o.orderDate)}</td>}
                   {poCol('expectedDelivery') && <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
@@ -448,7 +455,13 @@ export function PurchasesPage() {
             <tbody>
               {receptions.map((r: any) => (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  {recCol('blNumber') && <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>}
+                  {recCol('blNumber') && (
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <Link to={`/purchases/receptions/${r.id}`} className="text-primary hover:underline">
+                        {r.blNumber}
+                      </Link>
+                    </td>
+                  )}
                   {recCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
                   {recCol('receptionDate') && <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>}
                   {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}

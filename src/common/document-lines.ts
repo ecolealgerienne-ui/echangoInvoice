@@ -17,12 +17,19 @@ import { DataSource } from 'typeorm';
  * article renommé change rétroactivement le libellé des anciens documents.
  * Le PDF déjà envoyé au client, lui, ne bouge pas — c'est lui qui fait foi.
  */
-export async function ajouterArticles<T extends { finishedProductId?: string | null }>(
+// `object` et non `Record<string, unknown>` : les lignes arrivent sous forme
+// d'instances d'entités TypeORM, qu'un index signature n'accepte pas.
+export async function ajouterArticles<T extends object>(
   dataSource: DataSource,
   lignes: T[],
   tenantId: string,
+  // Les lignes d'achat désignent l'article par `rawMaterialId`, celles de
+  // vente par `finishedProductId` — deux noms hérités pour la même clé
+  // étrangère vers `finished_products`.
+  cle: string = 'finishedProductId',
 ): Promise<(T & { productCode: string | null; productName: string | null })[]> {
-  const ids = [...new Set(lignes.map((l) => l.finishedProductId).filter(Boolean))];
+  const idDe = (l: T) => (l as Record<string, unknown>)[cle] as string | null | undefined;
+  const ids = [...new Set(lignes.map(idDe).filter(Boolean))];
   if (ids.length === 0) {
     return lignes.map((l) => ({ ...l, productCode: null, productName: null }));
   }
@@ -34,7 +41,8 @@ export async function ajouterArticles<T extends { finishedProductId?: string | n
   const parId = new Map(articles.map((a) => [a.id, a]));
 
   return lignes.map((l) => {
-    const article = l.finishedProductId ? parId.get(l.finishedProductId) : undefined;
+    const id = idDe(l);
+    const article = id ? parId.get(id) : undefined;
     return { ...l, productCode: article?.code ?? null, productName: article?.name ?? null };
   });
 }

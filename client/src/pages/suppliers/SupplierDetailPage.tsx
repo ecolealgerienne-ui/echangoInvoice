@@ -90,7 +90,14 @@ export function SupplierDetailPage() {
         lignes={fournisseur.history.bills}
         vide={t('partners.detail.noVendorBill')}
         colonnes={[
-          { entete: t('invoices.number'), rendu: (f: any) => <span className="font-mono">{f.billNumber}</span> },
+          {
+            entete: t('invoices.number'),
+            rendu: (f: any) => (
+              <Link to={`/purchases/vendor-bills/${f.id}`} className="font-mono text-primary hover:underline">
+                {f.billNumber}
+              </Link>
+            ),
+          },
           { entete: t('common.date'), rendu: (f: any) => formatDate(f.billDate) },
           { entete: t('invoices.dueDate'), rendu: (f: any) => formatDate(f.dueDate) },
           { entete: t('common.amount'), rendu: (f: any) => formatCurrency(f.totalAmount), droite: true },
@@ -133,7 +140,14 @@ export function SupplierDetailPage() {
           lignes={fournisseur.history.orders}
           vide={t('partners.detail.noOrder')}
           colonnes={[
-            { entete: t('purchases.poNumber'), rendu: (o: any) => <span className="font-mono">{o.poNumber}</span> },
+            {
+              entete: t('purchases.poNumber'),
+              rendu: (o: any) => (
+                <Link to={`/purchases/orders/${o.id}`} className="font-mono text-primary hover:underline">
+                  {o.poNumber}
+                </Link>
+              ),
+            },
             { entete: t('common.date'), rendu: (o: any) => formatDate(o.orderDate) },
             { entete: t('common.amount'), rendu: (o: any) => formatCurrency(o.totalAmount), droite: true },
             {
@@ -150,7 +164,14 @@ export function SupplierDetailPage() {
           lignes={fournisseur.history.receptions}
           vide={t('partners.detail.noReception')}
           colonnes={[
-            { entete: t('purchases.blNumber'), rendu: (r: any) => <span className="font-mono">{r.blNumber}</span> },
+            {
+              entete: t('purchases.blNumber'),
+              rendu: (r: any) => (
+                <Link to={`/purchases/receptions/${r.id}`} className="font-mono text-primary hover:underline">
+                  {r.blNumber}
+                </Link>
+              ),
+            },
             { entete: t('common.date'), rendu: (r: any) => formatDate(r.receptionDate) },
             {
               entete: t('purchases.totalReceived'),

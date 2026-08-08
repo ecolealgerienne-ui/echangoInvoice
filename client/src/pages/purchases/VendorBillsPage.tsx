@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -278,7 +279,11 @@ export function VendorBillsPage() {
                 )}
                 {data?.data?.map((bill: any) => (
                   <tr key={bill.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-mono text-sm text-foreground">{bill.billNumber}</td>
+                    <td className="px-4 py-3 font-mono text-sm">
+                      <Link to={`/purchases/vendor-bills/${bill.id}`} className="text-primary hover:underline">
+                        {bill.billNumber}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-foreground">{bill.supplierName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(bill.billDate)}</td>
                     <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(bill.totalAmount)}</td>

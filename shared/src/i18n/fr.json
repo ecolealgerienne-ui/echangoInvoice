@@ -448,6 +448,7 @@
     "internal_server_error": "Erreur interne du serveur",
     "email_send_failed": "L'envoi de l'e-mail a échoué. Vérifiez la configuration SMTP et l'adresse du destinataire.",
     "duplicate_entry": "Cet élément existe déjà (doublon)",
+    "reception_bl_not_found": "Bon de réception introuvable",
     "export_dataset_not_found": "Ce jeu de données n'existe pas",
     "export_invalid_status": "Ce statut n'existe pas pour ce jeu de données",
     "export_invalid_category": "Cette catégorie de dépense n'existe pas",
@@ -648,6 +649,9 @@
       "pending": "En attente",
       "partial": "Partielle",
       "completed": "Complète"
+    },
+    "detail": {
+      "lots": "Lots entrés en stock"
     },
     "orderCreated": "Commande créée",
     "receptionCreated": "Réception créée",

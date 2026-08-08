@@ -18,6 +18,7 @@ import { CreateVendorBillDto } from './dto/create-vendor-bill.dto';
 import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 import { recomputeProductStock } from '../stock/recompute-product-stock';
+import { ajouterArticles } from '../common/document-lines';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -128,7 +129,26 @@ export class PurchasesService {
       order: { receptionDate: 'DESC' },
     });
 
-    return { data: { ...po, items, receptions } };
+    // Nom du fournisseur, libellés des articles et facture d'achat liée : sans
+    // eux la page détail n'affiche que des identifiants et des montants.
+    const [lignes, fournisseur, factures] = await Promise.all([
+      ajouterArticles(this.dataSource, items, tenantId, 'rawMaterialId'),
+      this.dataSource.query(
+        `SELECT name, nif, phone, email FROM partners WHERE id = $1 AND "tenantId" = $2`,
+        [po.supplierId, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT id, "billNumber", "billDate", "totalAmount", "amountDue", status
+         FROM vendor_bills
+         WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+         ORDER BY "billDate"`,
+        [id, tenantId],
+      ),
+    ]);
+
+    return {
+      data: { ...po, items: lignes, receptions, supplier: fournisseur[0] ?? null, bills: factures },
+    };
   }
 
   async patchPoStatus(id: string, dto: PatchPoStatusDto, tenantId: string, userId: string) {
@@ -343,7 +363,21 @@ export class PurchasesService {
       order: { enteredAt: 'ASC' },
     });
 
-    return { data: { ...bl, stockEntries } };
+    // Une réception ne se lit pas seule : ce qui compte, c'est quels lots elle
+    // a créés, sous quel article, et pour quelle commande.
+    const [lots, commande] = await Promise.all([
+      ajouterArticles(this.dataSource, stockEntries, tenantId),
+      this.dataSource.query(
+        `SELECT bc.id, bc."poNumber", bc.status, bc.total, f.name AS "supplierName",
+                f.id AS "supplierId"
+         FROM purchase_orders bc
+         LEFT JOIN partners f ON f.id = bc."supplierId"
+         WHERE bc.id = $1 AND bc."tenantId" = $2`,
+        [bl.purchaseOrderId, tenantId],
+      ),
+    ]);
+
+    return { data: { ...bl, stockEntries: lots, purchaseOrder: commande[0] ?? null } };
   }
 
   // ─── Vendor Bills ──────────────────────────────────────────────────────────
@@ -462,9 +496,9 @@ export class PurchasesService {
     if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
     const bill = rows[0];
 
-    const [items, payments] = await Promise.all([
+    const [items, payments, origine] = await Promise.all([
       this.dataSource.query(
-        `SELECT vbi.*, fp.name AS "productName"
+        `SELECT vbi.*, fp.name AS "productName", fp.code AS "productCode"
          FROM vendor_bill_items vbi
          LEFT JOIN finished_products fp ON fp.id = vbi."finishedProductId"
          WHERE vbi."vendorBillId" = $1 ORDER BY vbi."createdAt" ASC`,
@@ -474,9 +508,27 @@ export class PurchasesService {
         `SELECT * FROM vendor_payments WHERE "vendorBillId" = $1 ORDER BY "paymentDate" ASC`,
         [id],
       ),
+      // La commande et la réception d'origine : c'est ce qui permet de
+      // rapprocher la facture de ce qui a été commandé puis réellement reçu.
+      this.dataSource.query(
+        `SELECT bc."poNumber", r."blNumber" AS "receptionNumber"
+         FROM vendor_bills vb
+         LEFT JOIN purchase_orders bc ON bc.id = vb."purchaseOrderId"
+         LEFT JOIN reception_bls r ON r.id = vb."receptionBlId"
+         WHERE vb.id = $1 AND vb."tenantId" = $2`,
+        [id, tenantId],
+      ),
     ]);
 
-    return { data: { ...bill, items, payments } };
+    return {
+      data: {
+        ...bill,
+        items,
+        payments,
+        poNumber: origine[0]?.poNumber ?? null,
+        receptionNumber: origine[0]?.receptionNumber ?? null,
+      },
+    };
   }
 
   async updateVendorBill(id: string, dto: CreateVendorBillDto, tenantId: string, userId: string) {

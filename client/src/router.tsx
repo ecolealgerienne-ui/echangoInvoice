@@ -24,7 +24,10 @@ import { SettingsPage } from '@/pages/settings/SettingsPage';
 import { QuotesPage } from '@/pages/quotes/QuotesPage';
 import { QuoteDetailPage } from '@/pages/quotes/QuoteDetailPage';
 import { PurchasesPage } from '@/pages/purchases/PurchasesPage';
+import { PurchaseOrderDetailPage } from '@/pages/purchases/PurchaseOrderDetailPage';
+import { ReceptionDetailPage } from '@/pages/purchases/ReceptionDetailPage';
 import { VendorBillsPage } from '@/pages/purchases/VendorBillsPage';
+import { VendorBillDetailPage } from '@/pages/purchases/VendorBillDetailPage';
 import { CreditNotesPage } from '@/pages/credit-notes/CreditNotesPage';
 import { ProductionPage } from '@/pages/production/ProductionPage';
 import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage';
@@ -90,7 +93,14 @@ export function AppRouter() {
       <Route path="/quotes" element={<PrivateRoute><QuotesPage /></PrivateRoute>} />
       <Route path="/quotes/:id" element={<PrivateRoute><QuoteDetailPage /></PrivateRoute>} />
       <Route path="/purchases" element={<PrivateRoute><PurchasesPage /></PrivateRoute>} />
+      {/* « vendor-bills » est déclaré avant « orders/:id » et « receptions/:id »,
+          mais aucun conflit n'est possible : les trois segments sont distincts.
+          On évite justement /purchases/:id, qui aurait avalé la liste des
+          factures fournisseurs. */}
+      <Route path="/purchases/orders/:id" element={<PrivateRoute><PurchaseOrderDetailPage /></PrivateRoute>} />
+      <Route path="/purchases/receptions/:id" element={<PrivateRoute><ReceptionDetailPage /></PrivateRoute>} />
       <Route path="/purchases/vendor-bills" element={<PrivateRoute><VendorBillsPage /></PrivateRoute>} />
+      <Route path="/purchases/vendor-bills/:id" element={<PrivateRoute><VendorBillDetailPage /></PrivateRoute>} />
       <Route path="/credit-notes" element={<PrivateRoute><CreditNotesPage /></PrivateRoute>} />
       <Route path="/production" element={<PrivateRoute><ProductionPage /></PrivateRoute>} />
     </Routes>

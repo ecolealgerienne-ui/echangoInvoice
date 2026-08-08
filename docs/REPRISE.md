@@ -60,6 +60,7 @@ et client 0 erreur, e2e **67/67**, seed **39/39** contrôles verts.
 | *(2026-08-08, suite)* | Pages détail facture / devis / BL, liens entre documents |
 | *(2026-08-08, suite)* | Seed : la chaîne devis → BL → facture n'existait pas |
 | *(2026-08-08, suite)* | Fiches client et fournisseur : encours, dette, historiques |
+| *(2026-08-08, suite)* | Détail commande, réception et facture fournisseur |
 
 Trois migrations ajoutées : `1750022000000` (creditedAmount),
 `1750023000000` (price_lists). Toutes appliquées en local.
@@ -70,35 +71,30 @@ Trois migrations ajoutées : `1750022000000` (creditedAmount),
 
 Ordre recommandé, issu de `docs/BENCHMARK.md`.
 
-### 1. Pages détail des documents d'achat — *le prochain à prendre*
+**La consultation est terminée** : vente (facture, devis, BL), achat (commande,
+réception, facture fournisseur) et tiers (client, fournisseur) ont chacun leur
+page, reliées par des liens dans les deux sens. Restent sans page détail les
+avoirs, les dépenses et les matières premières — moins urgents, ces documents
+n'ont ni lignes ni rapprochement à consulter.
 
-Vente et tiers sont couverts : export CSV, pages détail des factures, devis et
-BL, fiches client et fournisseur reliées entre elles. **Reste le côté achat** :
-commande fournisseur et bon de réception n'ont pas de page détail (la facture
-fournisseur a une modale de consultation, les deux autres rien). Les lignes
-d'une commande réceptionnée ne sont donc pas consultables.
-
-Restent aussi sans écran de consultation les avoirs (`creditNotesApi.get`), les
-dépenses et les matières premières.
-
-### 2. Formats de numérotation
+### 1. Formats de numérotation — *le prochain à prendre*
 
 Les huit compteurs sont codés en dur. Les formats des Paramètres
 (`invoiceNumberFormat`, `blNumberFormat`, …) sont stockés, validés, éditables —
 et lus par personne. **Vérifié le 2026-08-08** : ils n'apparaissent que dans les
 valeurs par défaut de `settings.service.ts`. Le réglage ment à l'utilisateur.
 
-### 3. Modèles PDF personnalisables
+### 2. Modèles PDF personnalisables
 
 Trois documents figés, sans logo positionnable ni mentions paramétrables.
 
-### 4. La barre Erplain sur le stock
+### 3. La barre Erplain sur le stock
 
 Pas de distinction réservé / disponible / entrant — donc **on peut survendre**.
 `reservedQuantity` existe mais seule la production s'en sert : une commande
 client ne réserve rien. Ni réception partielle, ni multi-dépôt.
 
-### 5. Portail client
+### 4. Portail client
 
 Chantier lourd, valeur incertaine pour une PME algérienne. À ne pas prendre
 avant le reste.
