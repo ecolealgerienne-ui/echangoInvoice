@@ -4,6 +4,12 @@
 > elle donnait comme gaps prioritaires le NIF/RC/AI, l'adresse de livraison et
 > les contacts multiples, tous implémentés depuis. L'ancienne version reste dans
 > l'historique git.
+>
+> **Mise à jour du soir du 2026-08-08.** Les six écarts de la section 4 ont été
+> traités dans la journée. Les colonnes de la section 2 et le classement de la
+> section 4 ont été révisés en conséquence — laisser un état périmé dans ce
+> document reproduirait exactement le défaut qu'on reproche à `STATUS.md`.
+> Le paysage, les prix et la méthode n'ont pas changé.
 
 ---
 
@@ -66,9 +72,9 @@ seul à l'assumer pleinement.
 |---|---|---|---|---|
 | Devis → facture | ● | ● | ● | ● |
 | **Bon de livraison comme document** | ● série propre, statuts, signature | **○** simple PDF d'une facture sans les prix | ● | ◐ décoratif, sans effet stock |
-| Avoirs | ◐ sans effet comptable | ● | ● | ● |
+| Avoirs | ● effet comptable réel | ● | ● | ● |
 | **Stock par lots** | ● FIFO, coût, péremption | **○** un entier par article | ◐ CUMP, pas de FIFO | **○** |
-| Réservé / entrant distincts | ○ | ○ | ● | ○ |
+| Réservé / entrant distincts | ● physique / réservé / dispo / entrant | ○ | ● | ○ |
 | Multi-dépôt | ○ | ○ | ● + emplacements | ○ |
 | Inventaire physique | ◐ quantité absolue | ○ | ◐ mise à jour en masse | ○ |
 | Quantités décimales | ● | **○** colonne entière | ● | ● |
@@ -76,13 +82,15 @@ seul à l'assumer pleinement.
 | Réception partielle | ◐ statut prévu, pas de reprise | ○ tout ou rien | ● | ○ |
 | **Factures fournisseurs + dette** | ● avec règlements | **○** la dépense est un fait de caisse binaire | **○** délégué à QuickBooks | ◐ archivage seul |
 | **Production / nomenclatures** | ● BOM, ordres, mouvements | ○ | ○ kits simples | ○ |
-| Tarifs par client | **○** | **○** | ● niveaux + règles | ○ |
+| Tarifs par client | ● grilles par client | **○** | ● niveaux + règles | ○ |
 | Catégories produits | ◐ via `type` | **○** | ● | ◐ |
 | Unités de mesure | ● paramétrables | **○** | ● | ◐ |
 | Relances impayés | ● cron J+7/14/21 | ● 3 niveaux + pénalités | ◐ | ◐ auto en payant |
+| Fiches client / fournisseur | ● encours, dette, historiques | ● | ● | ◐ |
 | Portail client | ○ | ● très complet | ● B2B Store | ○ |
-| Modèles PDF personnalisables | ○ 3 documents figés | ● le meilleur de sa catégorie | ● | ◐ |
-| Export CSV / Excel | **○** | ● | ● | ● |
+| Numérotation paramétrable | ● 8 formats, compteurs dédiés | ● | ◐ | ◐ |
+| Modèles PDF personnalisables | ◐ identité, RIB, couleur, pied de page | ● le meilleur de sa catégorie | ● | ◐ |
+| Export CSV / Excel | ● 15 jeux, 2 dialectes | ● | ● | ● |
 | Rapports | ● 5 + TVA | ● + planification | ● + marges | ◐ |
 | Multi-société | ● multi-tenant SaaS | ● jusqu'à 10 | ○ | ○ |
 
@@ -118,44 +126,53 @@ datés, avec coût, numéro de lot et péremption, et une consommation FIFO.
 
 ---
 
-## 4. Où nous sommes derrière — par ordre d'importance
+## 4. Où nous étions derrière — et ce qu'il en reste
 
-**1. Pas de tarifs par client.** Erplain a des niveaux de prix affectés à la
-fiche client, plus des règles conditionnelles par période, par catégorie, par
-lieu. C'est **la réalité du B2B**, pas un raffinement : un grossiste ne vend pas
-au même prix à un détaillant et à une centrale. Nous n'avons qu'un
-`defaultSalesPrice` par article, ressaisi à la main sur chaque ligne. Invoice
-Ninja a la même lacune — mais Erplain montre où est la barre.
+Les six écarts identifiés le matin du 2026-08-08 ont été traités le jour même.
+Ce qui suit est l'état à la fin de cette journée.
 
-**2. Pas de distinction réservé / disponible / entrant.** Erplain expose quatre
-niveaux ; sans eux, **on survend**. Nous avons bien une colonne
-`reservedQuantity`, mais seule la production s'en sert : une commande client ne
-réserve rien.
+**Traité — 1. Tarifs par client.** Grilles tarifaires affectées à la fiche
+client, prix proposé et non imposé, repli sur le tarif de base pour les articles
+absents d'une grille. Reste sous la barre d'Erplain, qui ajoute des règles
+conditionnelles par période, catégorie et lieu — mais l'écart qui coûtait des
+ventes en B2B est comblé.
 
-**3. Pas d'export CSV, nulle part.** Nos trois concurrents l'ont. C'est la
-première chose que demande un comptable, et l'absence est totale — aucun écran,
-aucun endpoint.
+**Traité — 2. Réservé / disponible / entrant.** Quatre nombres, calculés depuis
+les lots et les documents plutôt que stockés dans une colonne. L'alerte de stock
+bas se juge désormais sur le disponible.
 
-**4. Pas de page détail, pour aucune entité.** Tout passe par des modales, et
-plusieurs sont réservées aux brouillons : les lignes d'une facture envoyée ou
-payée sont tout simplement **inconsultables**. C'est un manque d'usage quotidien,
-pas de fonctionnalité.
+**Traité — 3. Export CSV.** Quinze jeux de données, deux dialectes (Excel
+francophone et CSV standard), filtres de l'écran repris dans le fichier.
 
-**5. Pas de modèles PDF personnalisables.** Trois documents figés (facture, BL,
-devis), sans logo positionnable, sans mentions paramétrables. Ninja en fait le
-domaine le plus abouti de son produit, avec onze modèles et un moteur de
-templates. Sur un marché où la facture est la vitrine de l'entreprise, ça compte.
+**Traité — 4. Pages détail.** Facture, devis, BL, commande, réception, facture
+fournisseur, client et fournisseur, reliés par des liens dans les deux sens.
 
-**6. Pas de portail client.** Ninja et Erplain en ont un. C'est un chantier
-lourd, à mettre en regard de la valeur réelle pour une PME algérienne — sans doute
-pas prioritaire, mais l'écart doit être connu.
+**Partiellement traité — 5. Modèles PDF.** L'identité de l'émetteur (NIF, RC, AI,
+NIS, RIB), le pied de page et la couleur sont paramétrables ; le gabarit est
+unique et testable. Restent hors périmètre le logo positionnable, le choix des
+colonnes et un gabarit par type de document — Ninja garde l'avantage ici, avec
+onze modèles et un moteur de templates.
+
+**Reporté — 6. Portail client.** Ninja et Erplain en ont un. **Arbitré le
+2026-08-08 : reporté à la fin.** Chantier lourd, valeur incertaine pour une PME
+algérienne. L'écart reste connu et assumé.
+
+**Écarts restants, par ordre d'importance :** le portail client, la réception
+partielle, le multi-dépôt, et l'inventaire physique par saisie de masse. Aucun
+n'a été réclamé par un utilisateur.
 
 ---
 
-## 5. Notre faiblesse la plus coûteuse n'est pas fonctionnelle
+## 5. Notre faiblesse la plus coûteuse n'était pas fonctionnelle
 
-**Une trentaine d'endpoints n'ont aucun écran.** Nous avons développé, testé et
-déployé des capacités que personne ne peut atteindre :
+> **Résolu le 2026-08-08.** Les onze capacités listées ci-dessous ont reçu leur
+> écran, les deux pages hors menu y sont entrées, et les formats de numérotation
+> gouvernent réellement les huit compteurs. Le constat est conservé parce qu'il
+> décrit le mode de défaillance le plus coûteux du produit — livrer ce que
+> personne ne peut atteindre — et qu'il resservira.
+
+**Une trentaine d'endpoints n'avaient aucun écran.** Nous avions développé, testé
+et déployé des capacités que personne ne pouvait atteindre :
 
 | Existe côté API | État côté interface |
 |---|---|
@@ -213,20 +230,32 @@ ce n'est pas un concurrent commercial ici, seulement un étalon fonctionnel.
 outils dérivent soit vers la facturation seule, soit vers l'ERP. Peu de monde
 tient sérieusement le milieu.
 
-**Trois chantiers, dans cet ordre :**
+**Les trois chantiers identifiés le matin ont été faits le jour même** — rendre
+atteignable l'existant, les tarifs par client, l'export et les pages détail — et
+avec eux les modèles PDF, la numérotation et la décomposition du stock.
 
-1. **Rendre atteignable ce qui existe déjà** — les trente endpoints sans écran,
-   les deux pages hors menu, les formats de numérotation inertes. Effort faible,
-   valeur immédiate, aucun risque produit.
-2. **Les tarifs par client** — c'est le seul écart fonctionnel qui coûte des
-   ventes en B2B, et Erplain montre que la barre est là.
-3. **L'export CSV et les pages détail** — le confort quotidien qui fait qu'un
-   outil est adopté ou contourné.
+**Ce que cela change au positionnement.** Nous ne sommes plus « en avance sur
+quelques points, en retard sur six autres » : sur la case facturation + stock,
+il ne reste face à Erplain que le multi-dépôt, la réception partielle et le
+portail — trois sujets de structure, pas d'usage quotidien. Et nous conservons
+les quatre avantages qui ne se rattrapent pas en un trimestre : le cycle achat
+jusqu'à la dette fournisseur, le BL comme vrai document, le stock par lots FIFO
+et la production.
 
-**Un point à trancher hors de cette étude** : notre tarification est plus chère
-que l'ancrage local et notre modèle SaaS heurte un argument de souveraineté
-activement porté par les concurrents. Ce n'est pas un problème fonctionnel, mais
-c'est probablement le premier obstacle commercial.
+**Deux décisions prises le 2026-08-08 :**
+
+- **Le portail client est reporté à la fin.** Chantier lourd, valeur incertaine
+  pour une PME algérienne.
+- **L'application mobile attend la stabilisation du logiciel**, pour être bâtie
+  sur des briques qui ne bougent plus. Cette seule semaine a modifié la
+  numérotation, les gabarits PDF, le calcul du stock et la forme des réponses de
+  sept endpoints : un client mobile écrit avant aurait été à réécrire deux fois.
+
+**Le point à trancher reste entier, et il n'est pas fonctionnel** : notre
+tarification est plus chère que l'ancrage local, et notre modèle SaaS heurte un
+argument de souveraineté activement porté par les concurrents. Maintenant que
+l'écart fonctionnel est refermé, **c'est le premier obstacle commercial, et le
+seul qui reste vraiment.**
 
 ---
 

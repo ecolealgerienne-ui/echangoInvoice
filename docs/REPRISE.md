@@ -102,10 +102,10 @@ que si le besoin se manifeste.
 réintroduire de colonne compteur). Restent hors périmètre : la réception
 partielle et le multi-dépôt, deux chantiers de structure que rien n'a réclamés.
 
-### 1. Portail client — *le prochain à prendre*
+### 1. Portail client — **reporté, décision du 2026-08-08**
 
-Chantier lourd, valeur incertaine pour une PME algérienne. À ne pas prendre
-avant le reste.
+Chantier lourd, valeur incertaine pour une PME algérienne. **Arbitré : on le
+garde pour la fin.** Ne pas le reprendre tant qu'il reste autre chose à faire.
 
 ---
 
@@ -127,11 +127,22 @@ avant le reste.
 
 ## Hors périmètre web
 
-- **Mobile** — `mobile/src/App.tsx` fait 163 lignes : un écran de connexion, une
-  liste de clients, un bandeau hors-ligne. Rien de ce qui a été construit cette
-  semaine n'y existe. Un portage n'est pas mécanique : les écrans web reposent
-  sur des tableaux et des modales larges. À arbitrer quels usages méritent la
-  mobilité — plutôt consultation du stock, saisie de BL et signature client.
+- **Mobile — attente délibérée, décision du 2026-08-08.** `mobile/src/App.tsx`
+  fait 163 lignes : un écran de connexion, une liste de clients, un bandeau
+  hors-ligne. Rien de ce qui a été construit cette semaine n'y existe.
+
+  **La décision est d'attendre que le logiciel soit stabilisé avant de
+  développer le mobile, pour le bâtir sur des briques qui ne bougent plus.**
+  Ce n'est pas un report par manque de temps : cette semaine seule a modifié
+  la numérotation, les gabarits PDF, le calcul du stock et la forme des
+  réponses de sept endpoints. Un client mobile écrit avant cette stabilisation
+  aurait été à réécrire deux fois, et chaque contrat d'API changé se paie
+  double dès qu'il existe un second consommateur.
+
+  Quand le moment viendra, arbitrer d'abord quels usages méritent la mobilité —
+  plutôt consultation du stock, saisie de BL et signature client — car le
+  portage n'est pas mécanique : les écrans web reposent sur des tableaux et des
+  modales larges.
 - **Le clone Windows est en retard** sur la branche.
 
 ## Deux décisions qui ne sont pas du code
