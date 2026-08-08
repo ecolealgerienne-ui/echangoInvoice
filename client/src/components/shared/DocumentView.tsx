@@ -111,11 +111,11 @@ export function LignesDocument({ lignes, libelles }: {
       <table className="w-full text-sm">
         <thead className="bg-muted">
           <tr>
-            <th className="text-left px-4 py-2.5 font-medium">{libelles.article}</th>
-            <th className="text-right px-4 py-2.5 font-medium">{libelles.quantite}</th>
-            <th className="text-right px-4 py-2.5 font-medium">{libelles.prix}</th>
-            <th className="text-right px-4 py-2.5 font-medium">{libelles.tva}</th>
-            <th className="text-right px-4 py-2.5 font-medium">{libelles.total}</th>
+            <th className="text-left px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.article}</th>
+            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.quantite}</th>
+            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.prix}</th>
+            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.tva}</th>
+            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.total}</th>
           </tr>
         </thead>
         <tbody>

@@ -53,9 +53,9 @@ export function AdminDashboardPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-2 text-muted-foreground">{t('admin.tenants.title')}</th>
-              <th className="text-left py-2 text-muted-foreground">{t('admin.plans.title')}</th>
-              <th className="text-right py-2 text-muted-foreground">{t('admin.stats.invoicesThisMonth')}</th>
+              <th className="text-left py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.tenants.title')}</th>
+              <th className="text-left py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.plans.title')}</th>
+              <th className="text-right py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.stats.invoicesThisMonth')}</th>
             </tr>
           </thead>
           <tbody>

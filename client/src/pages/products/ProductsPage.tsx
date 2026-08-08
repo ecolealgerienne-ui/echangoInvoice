@@ -224,9 +224,9 @@ export function ProductsPage() {
                   <EnteteTriable libelle={t('products.costPerUnit')} colonne="lastCostPerUnit" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('supplier') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.supplier')}</th>}
-                {col('description') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.description')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('supplier') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.supplier')}</th>}
+                {col('description') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.description')}</th>}
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -236,7 +236,7 @@ export function ProductsPage() {
               {data?.data?.map((p: any) => (
                 <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                   {col('type') && (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         p.type === 'material' ? 'bg-warning-subtle text-warning-text' :
                         p.type === 'both' ? 'bg-info-subtle text-info-text' :
@@ -245,29 +245,29 @@ export function ProductsPage() {
                     </td>
                   )}
                   {col('name') && (
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-3 py-2.5 font-medium">
                       <Link to={`/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link>
                     </td>
                   )}
-                  {col('code') && <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>}
-                  {col('unit') && <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>}
+                  {col('code') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{p.code || '—'}</td>}
+                  {col('unit') && <td className="px-3 py-2.5 text-muted-foreground">{p.unit}</td>}
                   {col('salesPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.defaultSalesPrice != null ? formatCurrency(p.defaultSalesPrice) : '—'}
                     </td>
                   )}
                   {col('costPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.lastCostPerUnit != null ? formatCurrency(p.lastCostPerUnit) : '—'}
                     </td>
                   )}
                   {col('supplier') && (
-                    <td className="px-4 py-3 text-muted-foreground">{p.supplierName || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{p.supplierName || '—'}</td>
                   )}
                   {col('description') && (
-                    <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
                   )}
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
                         <Pencil className="h-4 w-4" />

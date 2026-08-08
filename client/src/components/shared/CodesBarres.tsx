@@ -87,11 +87,11 @@ export function CodesBarres({ productId }: { productId: string }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('products.barcode')}</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('products.barcodeType')}</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('products.barcodeLabel')}</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('products.barcodePack')}</th>
-                <th className="px-3 py-2" />
+                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcode')}</th>
+                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodeType')}</th>
+                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodeLabel')}</th>
+                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodePack')}</th>
+                <th className="px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

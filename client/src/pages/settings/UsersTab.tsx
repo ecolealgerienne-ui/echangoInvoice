@@ -158,22 +158,22 @@ export function UsersTab() {
           <CardContent className="p-0">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('auth.email')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('users.role')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('users.expiresAt')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('auth.email')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.role')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.expiresAt')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {invitationsData.data.map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 text-foreground">{inv.email}</td>
-                    <td className="px-4 py-3"><Badge variant={varianteRole(inv.role)}>{t(`users.roles.${inv.role}`)}</Badge></td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5 text-foreground">{inv.email}</td>
+                    <td className="px-3 py-2.5"><Badge variant={varianteRole(inv.role)}>{t(`users.roles.${inv.role}`)}</Badge></td>
+                    <td className="px-3 py-2.5">
                       {inv.expired
                         ? <Badge variant="destructive">{t('users.expired')}</Badge>
                         : <span className="text-muted-foreground">{formatDate(inv.expiresAt)}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                       <div className="flex justify-end gap-1">
                         {!inv.expired && (
                           <Button variant="ghost" size="icon" title={t('users.copyLink')}
@@ -201,22 +201,22 @@ export function UsersTab() {
           {isLoading ? <div className="p-6"><LoadingSpinner /></div> : (
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('users.name')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('auth.email')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('users.role')}</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.name')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('auth.email')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.role')}</th>
+                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {usersData?.data?.map((u: any) => {
                   const soiMeme = u.id === courant?.id;
                   return (
                     <tr key={u.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium text-foreground">
+                      <td className="px-3 py-2.5 font-medium text-foreground">
                         {u.name}
                         {soiMeme && <span className="ml-2 text-xs text-muted-foreground">({t('users.you')})</span>}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5 text-muted-foreground">{u.email}</td>
+                      <td className="px-3 py-2.5">
                         {/* Seul le propriétaire distribue les rôles, et jamais
                             le sien : le backend refuse les deux cas. */}
                         {estProprietaire && !soiMeme ? (
@@ -233,7 +233,7 @@ export function UsersTab() {
                           <Badge variant={varianteRole(u.role)}>{t(`users.roles.${u.role}`)}</Badge>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2.5 text-center">
                         {estProprietaire && !soiMeme ? (
                           <Button
                             variant="ghost"

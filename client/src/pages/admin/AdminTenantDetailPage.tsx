@@ -83,9 +83,9 @@ export function AdminTenantDetailPage() {
         <h2 className="font-semibold text-foreground">{t('admin.tenants.detail.users')}</h2>
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border">
-            <th className="text-left py-1 text-muted-foreground">{t('admin.tenants.detail.userName')}</th>
-            <th className="text-left py-1 text-muted-foreground">{t('admin.tenants.detail.userEmail')}</th>
-            <th className="text-left py-1 text-muted-foreground">{t('admin.tenants.detail.userRole')}</th>
+            <th className="text-left py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.tenants.detail.userName')}</th>
+            <th className="text-left py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.tenants.detail.userEmail')}</th>
+            <th className="text-left py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.tenants.detail.userRole')}</th>
           </tr></thead>
           <tbody>
             {tenant.users?.map((u: any) => (
@@ -108,9 +108,9 @@ export function AdminTenantDetailPage() {
         </div>
         <table className="w-full text-sm">
           <thead><tr className="border-b border-border">
-            <th className="text-left py-1 text-muted-foreground">{t('common.date')}</th>
-            <th className="text-right py-1 text-muted-foreground">{t('common.amount')}</th>
-            <th className="text-left py-1 text-muted-foreground">{t('admin.payment.method.label')}</th>
+            <th className="text-left py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
+            <th className="text-right py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.amount')}</th>
+            <th className="text-left py-1 text-2xs uppercase tracking-wide text-muted-foreground">{t('admin.payment.method.label')}</th>
           </tr></thead>
           <tbody>
             {tenant.paymentsHistory?.map((p: any) => (
@@ -168,8 +168,8 @@ export function AdminTenantDetailPage() {
               />
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowPaymentModal(false)} className="px-4 py-2 text-sm border border-border rounded text-foreground">{t('common.cancel')}</button>
-              <button onClick={() => createPayment.mutate(paymentForm)} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded">{t('common.save')}</button>
+              <button onClick={() => setShowPaymentModal(false)} className="px-3 py-2 text-sm border border-border rounded text-foreground">{t('common.cancel')}</button>
+              <button onClick={() => createPayment.mutate(paymentForm)} className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded">{t('common.save')}</button>
             </div>
           </div>
         </div>

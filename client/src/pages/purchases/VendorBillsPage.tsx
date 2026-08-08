@@ -262,14 +262,14 @@ export function VendorBillsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.billNumber')}</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.name')}</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.billDate')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('purchases.amountPaid')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('purchases.amountDue')}</th>
-                  <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>
-                  <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.actions')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.billNumber')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.name')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.billDate')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.amount')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.amountPaid')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.amountDue')}</th>
+                  <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+                  <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -278,22 +278,22 @@ export function VendorBillsPage() {
                 )}
                 {data?.data?.map((bill: any) => (
                   <tr key={bill.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-mono text-sm">
+                    <td className="px-3 py-2.5 font-mono text-sm">
                       <Link to={`/purchases/vendor-bills/${bill.id}`} className="text-primary hover:underline">
                         {bill.billNumber}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-foreground">{bill.supplierName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(bill.billDate)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bill.totalAmount)}</td>
-                    <td className="px-4 py-3 text-right text-success whitespace-nowrap tabular-nums">{formatCurrency(bill.amountPaid)}</td>
-                    <td className="px-4 py-3 text-right text-destructive whitespace-nowrap tabular-nums">{formatCurrency(bill.amountDue)}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-2.5 text-foreground">{bill.supplierName}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatDate(bill.billDate)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bill.totalAmount)}</td>
+                    <td className="px-3 py-2.5 text-right text-success whitespace-nowrap tabular-nums">{formatCurrency(bill.amountPaid)}</td>
+                    <td className="px-3 py-2.5 text-right text-destructive whitespace-nowrap tabular-nums">{formatCurrency(bill.amountDue)}</td>
+                    <td className="px-3 py-2.5 text-center">
                       <Badge variant={varianteStatut(bill.status)}>
                         {t(`purchases.billStatus.${bill.status}`)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <div className="flex items-center justify-center gap-1">
                         <Button variant="ghost" size="sm" onClick={async () => {
                           const res = await purchasesApi.getBill(bill.id);
@@ -552,11 +552,11 @@ export function VendorBillsPage() {
             <table className="w-full text-xs border border-border rounded">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-2 py-1.5 text-left">{t('common.description')}</th>
-                  <th className="px-2 py-1.5 text-right">{t('common.qty')}</th>
-                  <th className="px-2 py-1.5 text-right">{t('common.price')}</th>
-                  <th className="px-2 py-1.5 text-right">TVA</th>
-                  <th className="px-2 py-1.5 text-right">{t('common.total')}</th>
+                  <th className="px-2 py-1.5 text-left text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
+                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
+                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.price')}</th>
+                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">TVA</th>
+                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

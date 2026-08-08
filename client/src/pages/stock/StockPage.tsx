@@ -176,16 +176,16 @@ export function StockPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('rawMaterials.name')}</th>}
-                    {col('physical') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.physical')}</th>}
-                    {col('reserved') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.reserved')}</th>}
-                    {col('quantity') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.available')}</th>}
-                    {col('incoming') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.incoming')}</th>}
-                    {col('value') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.value')}</th>}
-                    {col('expiryAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>}
-                    {col('lowStockAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>}
-                    {col('expiry') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('stock.expiry')}</th>}
-                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.actions')}</th>
+                    {col('name') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('rawMaterials.name')}</th>}
+                    {col('physical') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.physical')}</th>}
+                    {col('reserved') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.reserved')}</th>}
+                    {col('quantity') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.available')}</th>}
+                    {col('incoming') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.incoming')}</th>}
+                    {col('value') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.value')}</th>}
+                    {col('expiryAlert') && <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiryAlert')}</th>}
+                    {col('lowStockAlert') && <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.lowStockAlert')}</th>}
+                    {col('expiry') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>}
+                    <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -195,7 +195,7 @@ export function StockPage() {
                   {invData?.data?.map((item: any) => (
                     <Fragment key={item.rawMaterialId}>
                     <tr className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
-                      {col('name') && <td className="px-4 py-3 font-medium text-foreground">
+                      {col('name') && <td className="px-3 py-2.5 font-medium text-foreground">
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 hover:text-primary"
@@ -209,33 +209,33 @@ export function StockPage() {
                         </button>
                         <span className="text-muted-foreground ml-1 text-xs">({item.unit})</span>
                       </td>}
-                      {col('physical') && <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatNumber(item.physicalQuantity)}</td>}
+                      {col('physical') && <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatNumber(item.physicalQuantity)}</td>}
                       {/* Le réservé n'est pas neutre : c'est de la marchandise
                           présente mais déjà promise. */}
-                      {col('reserved') && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                      {col('reserved') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         {item.reservedQuantity > 0
                           ? <span className="text-warning-foreground font-medium">{formatNumber(item.reservedQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('quantity') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatNumber(item.availableQuantity)}</td>}
-                      {col('incoming') && <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                      {col('quantity') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatNumber(item.availableQuantity)}</td>}
+                      {col('incoming') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         {item.incomingQuantity > 0
                           ? <span className="text-primary">+{formatNumber(item.incomingQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('value') && <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(item.totalValue)}</td>}
-                      {col('expiryAlert') && <td className="px-4 py-3 text-center">
+                      {col('value') && <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(item.totalValue)}</td>}
+                      {col('expiryAlert') && <td className="px-3 py-2.5 text-center">
                         {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
                         {item.expiryAlert === 'orange' && <Badge variant="warning">{t('stock.soon')}</Badge>}
                         {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('lowStockAlert') && <td className="px-4 py-3 text-center">
+                      {col('lowStockAlert') && <td className="px-3 py-2.5 text-center">
                         {item.lowStockAlert
                           ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />Bas</Badge>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('expiry') && <td className="px-4 py-3 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
-                      <td className="px-4 py-3 text-center">
+                      {col('expiry') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
+                      <td className="px-3 py-2.5 text-center">
                         <div className="flex justify-center gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openAdjust(item)} title={t('stock.adjust')}>
                             <Pencil className="h-4 w-4" />
@@ -248,19 +248,19 @@ export function StockPage() {
                     </tr>
                     {expandedId === item.rawMaterialId && (
                       <tr className="bg-muted/20">
-                        <td colSpan={visible.length + 1} className="px-4 py-3">
+                        <td colSpan={visible.length + 1} className="px-3 py-2.5">
                           {entriesLoading ? <LoadingSpinner size="sm" /> : (
                             entriesData?.data?.length === 0
                               ? <p className="text-sm text-muted-foreground py-2">{t('stock.noLots')}</p>
                               : (
                                 <table className="w-full text-xs">
                                   <thead><tr className="text-muted-foreground">
-                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.lotNumber')}</th>
-                                    <th className="px-2 py-1.5 text-right font-medium">{t('stock.quantity')}</th>
-                                    <th className="px-2 py-1.5 text-right font-medium">{t('stock.unitCost')}</th>
-                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.enteredAt')}</th>
-                                    <th className="px-2 py-1.5 text-left font-medium">{t('stock.expiry')}</th>
-                                    <th className="px-2 py-1.5 text-center font-medium">{t('common.status')}</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.lotNumber')}</th>
+                                    <th className="px-2 py-1.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.quantity')}</th>
+                                    <th className="px-2 py-1.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.unitCost')}</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.enteredAt')}</th>
+                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>
+                                    <th className="px-2 py-1.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
                                   </tr></thead>
                                   <tbody className="divide-y divide-border">
                                     {entriesData?.data?.map((lot: any) => (

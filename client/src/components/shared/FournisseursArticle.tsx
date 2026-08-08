@@ -91,11 +91,11 @@ export function FournisseursArticle({ productId }: { productId: string }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('suppliers.title')}</th>
-                <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('products.supplierRef')}</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('products.purchasePrice')}</th>
-                <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('products.leadTime')}</th>
-                <th className="px-3 py-2" />
+                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.title')}</th>
+                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.supplierRef')}</th>
+                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.purchasePrice')}</th>
+                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.leadTime')}</th>
+                <th className="px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

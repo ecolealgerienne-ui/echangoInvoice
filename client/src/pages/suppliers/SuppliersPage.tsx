@@ -193,8 +193,8 @@ export function SuppliersPage() {
                   <EnteteTriable libelle={t('suppliers.name')} colonne="name" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('nif') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.nif')}</th>}
-                {col('rc') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.rc')}</th>}
+                {col('nif') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.nif')}</th>}
+                {col('rc') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.rc')}</th>}
                 {col('phone') && (
                   <EnteteTriable libelle={t('suppliers.phone')} colonne="phone" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -207,7 +207,7 @@ export function SuppliersPage() {
                   <EnteteTriable libelle={t('suppliers.city')} colonne="city" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -217,18 +217,18 @@ export function SuppliersPage() {
               {data?.data?.map((s: any) => (
                 <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                   {col('name') && (
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-3 py-2.5 font-medium">
                       <Link to={`/suppliers/${s.id}`} className="text-primary hover:underline">
                         {s.name}
                       </Link>
                     </td>
                   )}
-                  {col('nif') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.nif || '—'}</td>}
-                  {col('rc') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.rc || '—'}</td>}
-                  {col('phone') && <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>}
-                  {col('email') && <td className="px-4 py-3 text-muted-foreground">{s.email || '—'}</td>}
-                  {col('city') && <td className="px-4 py-3 text-muted-foreground">{s.city || '—'}</td>}
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {col('nif') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{s.nif || '—'}</td>}
+                  {col('rc') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{s.rc || '—'}</td>}
+                  {col('phone') && <td className="px-3 py-2.5 text-muted-foreground">{s.phone || '—'}</td>}
+                  {col('email') && <td className="px-3 py-2.5 text-muted-foreground">{s.email || '—'}</td>}
+                  {col('city') && <td className="px-3 py-2.5 text-muted-foreground">{s.city || '—'}</td>}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('suppliers.contacts')} onClick={() => openContacts(s)}>
                         <Users className="h-4 w-4 text-muted-foreground" />

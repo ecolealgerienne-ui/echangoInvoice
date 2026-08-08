@@ -79,20 +79,20 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.invoiceNumber')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.amount')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.due')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.invoiceNumber')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.customer')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.amount')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.due')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-mono text-foreground">{r.invoiceNumber}</td>
-                    <td className="px-4 py-3 text-foreground">{r.customerName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.invoiceDate)}</td>
-                    <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
-                    <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.amountDue)}</td>
+                    <td className="px-3 py-2.5 font-mono text-foreground">{r.invoiceNumber}</td>
+                    <td className="px-3 py-2.5 text-foreground">{r.customerName}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatDate(r.invoiceDate)}</td>
+                    <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
+                    <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.amountDue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -124,16 +124,16 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.supplier')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.receptions')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.total')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.supplier')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.receptions')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {data.data.bySupplier.map((r: any) => (
                     <tr key={r.supplierId} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
-                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.orderCount}</td>
-                      <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">{r.name}</td>
+                      <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.orderCount}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -146,18 +146,18 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.product')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('purchases.totalReceived')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.totalCost')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.avgUnitCost')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.product')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.totalReceived')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.totalCost')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.avgUnitCost')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {data.data.byRawMaterial.map((r: any) => (
                     <tr key={r.rawMaterialId} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium text-foreground">{r.name} <span className="text-xs text-muted-foreground">({r.unit})</span></td>
-                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.totalQuantityReceived}</td>
-                      <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalCost)}</td>
-                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.averageCostPerUnit)}</td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">{r.name} <span className="text-xs text-muted-foreground">({r.unit})</span></td>
+                      <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.totalQuantityReceived}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalCost)}</td>
+                      <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.averageCostPerUnit)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -169,11 +169,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">N° BL</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('purchases.supplier')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.status')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">N° BL</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.supplier')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.amount')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
@@ -181,11 +181,11 @@ export function ReportsPage() {
                 )}
                 {data.data.details?.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-mono text-foreground">{r.blNumber}</td>
-                    <td className="px-4 py-3 text-foreground">{r.supplierName}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.receptionDate)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
-                    <td className="px-4 py-3"><Badge variant="success">{r.status}</Badge></td>
+                    <td className="px-3 py-2.5 font-mono text-foreground">{r.blNumber}</td>
+                    <td className="px-3 py-2.5 text-foreground">{r.supplierName}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatDate(r.receptionDate)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.totalAmount)}</td>
+                    <td className="px-3 py-2.5"><Badge variant="success">{r.status}</Badge></td>
                   </tr>
                 ))}
               </tbody>
@@ -218,9 +218,9 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Nb</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.total')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('expenses.category')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">Nb</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {Object.entries(data.data.byCategory)
@@ -228,9 +228,9 @@ export function ReportsPage() {
                     .sort(([, a]: any, [, b]: any) => b.total - a.total)
                     .map(([cat, v]: any) => (
                       <tr key={cat} className="hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium text-foreground capitalize">{cat}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{v.count}</td>
-                        <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(v.total)}</td>
+                        <td className="px-3 py-2.5 font-medium text-foreground capitalize">{cat}</td>
+                        <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{v.count}</td>
+                        <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(v.total)}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -242,11 +242,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.description')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('expenses.category')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('reports.approvedOne')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('expenses.category')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.amount')}</th>
+                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.approvedOne')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.length === 0 && (
@@ -254,11 +254,11 @@ export function ReportsPage() {
                 )}
                 {data.data.details?.map((r: any) => (
                   <tr key={r.id} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.expenseDate)}</td>
-                    <td className="px-4 py-3 text-foreground">{r.description}</td>
-                    <td className="px-4 py-3 text-muted-foreground capitalize">{r.category}</td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.amount)}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-2.5 text-muted-foreground">{formatDate(r.expenseDate)}</td>
+                    <td className="px-3 py-2.5 text-foreground">{r.description}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground capitalize">{r.category}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.amount)}</td>
+                    <td className="px-3 py-2.5 text-center">
                       {r.isApproved
                         ? <Badge variant="success">Oui</Badge>
                         : <Badge variant="warning">Non</Badge>}
@@ -288,20 +288,20 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.material')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Disponible</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.reserved')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Valeur</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('reports.lowStockQ')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.material')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">Disponible</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.reserved')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">Valeur</th>
+                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.lowStockQ')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.details?.map((r: any) => (
                   <tr key={r.rawMaterialId} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium text-foreground">{r.name} <span className="text-xs text-muted-foreground">({r.unit})</span></td>
-                    <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{r.availableQuantity}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.reservedQuantity}</td>
-                    <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.stockValue)}</td>
-                    <td className="px-4 py-3 text-center">{r.isLowStock ? '⚠️' : '—'}</td>
+                    <td className="px-3 py-2.5 font-medium text-foreground">{r.name} <span className="text-xs text-muted-foreground">({r.unit})</span></td>
+                    <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{r.availableQuantity}</td>
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.reservedQuantity}</td>
+                    <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.stockValue)}</td>
+                    <td className="px-3 py-2.5 text-center">{r.isLowStock ? '⚠️' : '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -327,11 +327,11 @@ export function ReportsPage() {
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50"><tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.taxName')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxRate')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxCollected')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.invoiceCount')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.taxName')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.taxRate')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.htBase')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.taxCollected')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.invoiceCount')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {data.data.byRate?.length === 0 && (
@@ -339,11 +339,11 @@ export function ReportsPage() {
                 )}
                 {data.data.byRate?.map((r: any) => (
                   <tr key={r.taxRate} className="hover:bg-muted/30">
-                    <td className="px-4 py-3 font-medium text-foreground">{r.taxName}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.taxRate}%</td>
-                    <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.htBase)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.taxCollected)}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.invoiceCount}</td>
+                    <td className="px-3 py-2.5 font-medium text-foreground">{r.taxName}</td>
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.taxRate}%</td>
+                    <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.htBase)}</td>
+                    <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.taxCollected)}</td>
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{r.invoiceCount}</td>
                   </tr>
                 ))}
               </tbody>
@@ -354,16 +354,16 @@ export function ReportsPage() {
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('reports.month')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('reports.taxCollected')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.month')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.htBase')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.taxCollected')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {data.data.byMonth.map((r: any) => (
                     <tr key={r.month} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium text-foreground">{r.month}</td>
-                      <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.htBase)}</td>
-                      <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.taxCollected)}</td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">{r.month}</td>
+                      <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.htBase)}</td>
+                      <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.taxCollected)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -393,12 +393,12 @@ export function ReportsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('customers.title')}</th>
+                  <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>
                   {data.data.tranches.map((tr: any) => (
                     <th key={tr.cle} className="px-3 py-2 text-right font-medium text-muted-foreground">{tr.libelle}</th>
                   ))}
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('common.total')}</th>
-                  <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.oldest')}</th>
+                  <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
+                  <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.oldest')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -479,10 +479,10 @@ export function ReportsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t('settings.taxRate')}</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.htBase')}</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.vatDeductible')}</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">{t('reports.billCount')}</th>
+                    <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('settings.taxRate')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.htBase')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.vatDeductible')}</th>
+                    <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('reports.billCount')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

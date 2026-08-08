@@ -320,8 +320,8 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('invoices.number')} colonne="invoiceNumber" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.customer')}</th>}
-                {col('origin') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.origin')}</th>}
+                {col('customer') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.customer')}</th>}
+                {col('origin') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.origin')}</th>}
                 {col('invoiceDate') && (
                   <EnteteTriable libelle={t('invoices.invoiceDate')} colonne="invoiceDate" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -334,7 +334,7 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('invoices.amount')} colonne="totalAmount" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('credited') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.credited')}</th>}
+                {col('credited') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.credited')}</th>}
                 {col('due') && (
                   <EnteteTriable libelle={t('invoices.due')} colonne="amountDue" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
@@ -343,8 +343,8 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -357,26 +357,26 @@ export function InvoicesPage() {
                       qu'on cherche du regard, et un lien y mène sans occuper
                       une colonne d'actions déjà chargée. */}
                   {col('number') && (
-                    <td className="px-4 py-3 font-mono font-medium">
+                    <td className="px-3 py-2.5 font-mono font-medium">
                       <Link to={`/invoices/${inv.id}`} className="text-primary hover:underline">
                         {inv.invoiceNumber}
                       </Link>
                     </td>
                   )}
-                  {col('customer') && <td className="px-4 py-3 text-foreground">{inv.customer?.name ?? '—'}</td>}
-                  {col('origin') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{inv.blNumber ?? inv.quoteNumber ?? '—'}</td>}
-                  {col('invoiceDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
-                  {col('dueDate') && <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.totalAmount)}</td>}
+                  {col('customer') && <td className="px-3 py-2.5 text-foreground">{inv.customer?.name ?? '—'}</td>}
+                  {col('origin') && <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{inv.blNumber ?? inv.quoteNumber ?? '—'}</td>}
+                  {col('invoiceDate') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(inv.invoiceDate)}</td>}
+                  {col('dueDate') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(inv.dueDate)}</td>}
+                  {col('amount') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.totalAmount)}</td>}
                   {col('credited') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap tabular-nums">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {Number(inv.creditedAmount) > 0 ? formatCurrency(inv.creditedAmount) : '—'}
                     </td>
                   )}
-                  {col('due') && <td className="px-4 py-3 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.amountDue)}</td>}
-                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={varianteStatut(inv.status)}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{inv.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {col('due') && <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(inv.amountDue)}</td>}
+                  {col('status') && <td className="px-3 py-2.5 text-center"><Badge variant={varianteStatut(inv.status)}>{t(`invoices.status.${inv.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{inv.notes || '—'}</td>}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(inv.id, inv.invoiceNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
@@ -644,11 +644,11 @@ export function InvoicesPage() {
               <div className="rounded-lg border border-border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50"><tr>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentDate')}</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentMethod')}</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('invoices.paymentReference')}</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('invoices.paymentAmount')}</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentDate')}</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentMethod')}</th>
+                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentReference')}</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentAmount')}</th>
+                    <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
                   </tr></thead>
                   <tbody className="divide-y divide-border">
                     {paymentsData?.data?.length === 0 && (
@@ -656,11 +656,11 @@ export function InvoicesPage() {
                     )}
                     {paymentsData?.data?.map((p: any) => (
                       <tr key={p.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-3 text-muted-foreground">{formatDate(p.paymentDate)}</td>
-                        <td className="px-4 py-3 text-foreground">{t(`invoices.methods.${p.paymentMethod}`)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{p.reference || '—'}</td>
-                        <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(p.amount)}</td>
-                        <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                        <td className="px-3 py-2.5 text-muted-foreground">{formatDate(p.paymentDate)}</td>
+                        <td className="px-3 py-2.5 text-foreground">{t(`invoices.methods.${p.paymentMethod}`)}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{p.reference || '—'}</td>
+                        <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(p.amount)}</td>
+                        <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                           <Button variant="ghost" size="icon" title={t('invoices.cancelPayment')}
                             disabled={removePaymentMutation.isPending}
                             onClick={() => removePaymentMutation.mutate(p.id)}>

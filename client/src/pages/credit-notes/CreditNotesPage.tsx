@@ -169,31 +169,31 @@ export function CreditNotesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.creditNoteNumber')}</th>}
-                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
-                {col('date') && <th className="text-left px-4 py-3 font-medium">{t('common.date')}</th>}
-                {col('reason') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.reason')}</th>}
-                {col('total') && <th className="text-right px-4 py-3 font-medium">{t('common.totalTtc')}</th>}
-                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">{t('common.notes')}</th>}
-                <th className="px-4 py-3" />
+                {col('number') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('creditNotes.creditNoteNumber')}</th>}
+                {col('customer') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>}
+                {col('date') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>}
+                {col('reason') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('creditNotes.reason')}</th>}
+                {col('total') && <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.totalTtc')}</th>}
+                {col('status') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.status')}</th>}
+                {col('notes') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {creditNotes.map((cn: any) => (
                 <tr key={cn.id} className="border-t border-border hover:bg-muted/30">
                   {col('number') && (
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-3 py-2.5 font-medium">
                       <Link to={`/credit-notes/${cn.id}`} className="text-primary hover:underline">{cn.creditNoteNumber}</Link>
                     </td>
                   )}
-                  {col('customer') && <td className="px-4 py-3">{cn.customer?.name ?? '—'}</td>}
-                  {col('date') && <td className="px-4 py-3">{formatDate(cn.creditNoteDate)}</td>}
-                  {col('reason') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(cn.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(cn.status)}>{t(`status.${cn.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
-                  <td className="px-4 py-3">
+                  {col('customer') && <td className="px-3 py-2.5">{cn.customer?.name ?? '—'}</td>}
+                  {col('date') && <td className="px-3 py-2.5">{formatDate(cn.creditNoteDate)}</td>}
+                  {col('reason') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
+                  {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(cn.totalAmount)}</td>}
+                  {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(cn.status)}>{t(`status.${cn.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2 justify-end">
                       <Button size="sm" variant="ghost" title={t('common.pdf')}
                         onClick={() => telechargerPdf(cn.id, cn.creditNoteNumber)}>

@@ -294,7 +294,7 @@ export function QuotesPage() {
                   <EnteteTriable libelle={t('quotes.quoteNumber')} colonne="quoteNumber" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
+                {col('customer') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>}
                 {col('quoteDate') && (
                   <EnteteTriable libelle={t('quotes.quoteDate')} colonne="quoteDate" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -311,27 +311,27 @@ export function QuotesPage() {
                   <EnteteTriable libelle={t('quotes.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">{t('common.notes')}</th>}
-                <th className="px-4 py-3" />
+                {col('notes') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {quotes.map((q: any) => (
                 <tr key={q.id} className="border-t border-border hover:bg-muted/30">
                   {col('number') && (
-                    <td className="px-4 py-3 font-mono text-xs">
+                    <td className="px-3 py-2.5 font-mono text-xs">
                       <Link to={`/quotes/${q.id}`} className="text-primary hover:underline">
                         {q.quoteNumber}
                       </Link>
                     </td>
                   )}
-                  {col('customer') && <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>}
-                  {col('quoteDate') && <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>}
-                  {col('expiryDate') && <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(q.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={varianteStatut(q.status)}>{t(`status.${q.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
-                  <td className="px-4 py-3">
+                  {col('customer') && <td className="px-3 py-2.5">{q.customer?.name ?? '—'}</td>}
+                  {col('quoteDate') && <td className="px-3 py-2.5">{formatDate(q.quoteDate)}</td>}
+                  {col('expiryDate') && <td className="px-3 py-2.5">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
+                  {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(q.totalAmount)}</td>}
+                  {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(q.status)}>{t(`status.${q.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{q.notes || '—'}</td>}
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end">
                       <Button size="sm" variant="ghost" title={t('quotes.proforma')}
                         onClick={() => downloadProforma(q.id, q.quoteNumber)}>

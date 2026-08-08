@@ -201,8 +201,8 @@ export function ExpensesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="isApproved" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -211,21 +211,21 @@ export function ExpensesPage() {
               )}
               {data?.data?.map((e: any) => (
                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
-                  {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(e.expenseDate)}</td>}
+                  {col('date') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(e.expenseDate)}</td>}
                   {col('description') && (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <Link to={`/expenses/${e.id}`} className="text-primary hover:underline">{e.description}</Link>
                     </td>
                   )}
-                  {col('category') && <td className="px-4 py-3"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(e.amount)}</td>}
-                  {col('status') && <td className="px-4 py-3 text-center">
+                  {col('category') && <td className="px-3 py-2.5"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
+                  {col('amount') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(e.amount)}</td>}
+                  {col('status') && <td className="px-3 py-2.5 text-center">
                     <Badge variant={e.isApproved ? 'success' : 'warning'}>
                       {e.isApproved ? t('expenses.approved') : t('expenses.pending')}
                     </Badge>
                   </td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{e.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{e.notes || '—'}</td>}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       {!e.isApproved && (
                         <>

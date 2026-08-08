@@ -470,27 +470,27 @@ export function ProductionPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.code')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.costPerUnit')}</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.code')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.name')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.finishedProduct')}</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.costPerUnit')}</th>
+                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {nomenclatures.map((nom: any) => (
                     <tr key={nom.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{nom.code}</td>
-                      <td className="px-4 py-3 font-medium">{nom.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(nom.estimatedCostPerUnit)}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{nom.code}</td>
+                      <td className="px-3 py-2.5 font-medium">{nom.name}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(nom.estimatedCostPerUnit)}</td>
+                      <td className="px-3 py-2.5 text-center">
                         <Badge variant={varianteStatut(nom.status)}>
                           {String(t(`production.nomStatus.${nom.status}`, nom.status))}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => openNomEdit(nom)}>
                             <Pencil className="h-3.5 w-3.5" />
@@ -537,23 +537,23 @@ export function ProductionPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.ref')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.nomenclature')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.quantityToProduce')}</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.estimatedCost')}</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('production.yieldPct')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.plannedStart')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.ref')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.nomenclature')}</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.quantityToProduce')}</th>
+                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.estimatedCost')}</th>
+                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.yieldPct')}</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.plannedStart')}</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {orders.map((order: any) => (
                     <tr key={order.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono font-semibold text-primary">{order.ref}</td>
-                      <td className="px-4 py-3">{order.nomenclatureName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{order.quantityToProduce}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2.5 font-mono font-semibold text-primary">{order.ref}</td>
+                      <td className="px-3 py-2.5">{order.nomenclatureName ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{order.quantityToProduce}</td>
+                      <td className="px-3 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Badge variant={varianteStatut(order.status)}>
                             {String(t(`production.status.${order.status}`, order.status))}
@@ -563,18 +563,18 @@ export function ProductionPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">{formatCurrency(order.estimatedCost)}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{formatCurrency(order.estimatedCost)}</td>
+                      <td className="px-3 py-2.5 text-center">
                         {Number(order.yieldPercentage) > 0 ? (
                           <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-success' : Number(order.yieldPercentage) >= 70 ? 'text-warning' : 'text-destructive'}`}>
                             {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
                         ) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                      <td className="px-3 py-2.5 text-muted-foreground text-xs">
                         {order.plannedStartDate ? formatDate(order.plannedStartDate) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-1">
                           {order.status === 'planned' && (
                             <Button
@@ -1015,11 +1015,11 @@ export function ProductionPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-muted/50">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">{t('production.material')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.planned')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.consumed')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.variance')}</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">{t('common.unit')}</th>
+                              <th className="text-left px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.planned')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.consumed')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.variance')}</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1052,9 +1052,9 @@ export function ProductionPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-warning-subtle/60">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">{t('production.material')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">{t('production.totalLost')}</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">{t('common.unit')}</th>
+                              <th className="text-left px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.totalLost')}</th>
+                              <th className="text-center px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border">
@@ -1098,11 +1098,11 @@ export function ProductionPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movementType')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.materialOrProduct')}</th>
-                        <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t('production.quantity')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.reason')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movedAt')}</th>
+                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.movementType')}</th>
+                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.materialOrProduct')}</th>
+                        <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.quantity')}</th>
+                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.reason')}</th>
+                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.movedAt')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -1249,18 +1249,18 @@ export function ProductionPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
+                    <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">Composant</th>
                     {movType === 'mp_consumption' && (
-                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t('production.planned')}</th>
+                      <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.planned')}</th>
                     )}
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">
+                    <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">
                       {movType === 'mp_loss' ? t('production.totalLost') : t('production.alreadyConsumed')}
                     </th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
+                    <th className="text-right px-3 py-2 font-medium  w-36 text-2xs uppercase tracking-wide text-muted-foreground">
                       {movType === 'mp_loss' ? t('production.newLoss') : t('production.toConsume')}
                     </th>
-                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">{t('common.unit')}</th>
-                    <th className="w-8" />
+                    <th className="text-center px-3 py-2 font-medium  w-20 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                    <th className="w-8 text-2xs uppercase tracking-wide text-muted-foreground" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">

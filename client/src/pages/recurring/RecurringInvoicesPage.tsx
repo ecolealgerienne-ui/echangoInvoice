@@ -155,13 +155,13 @@ export function RecurringInvoicesPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('recurring.label')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('customers.title')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('recurring.frequency')}</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('recurring.nextRun')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('recurring.generated')}</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.label')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.frequency')}</th>
+                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.nextRun')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.generated')}</th>
+                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -170,10 +170,10 @@ export function RecurringInvoicesPage() {
               )}
               {abonnements.map((a: any) => (
                 <tr key={a.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-foreground">{a.label}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{a.customerName}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{t(`recurring.freq.${a.frequency}`)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5 font-medium text-foreground">{a.label}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{a.customerName}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{t(`recurring.freq.${a.frequency}`)}</td>
+                  <td className="px-3 py-2.5">
                     {/* Le retard est l'information qui appelle une action : il se
                         signale, le reste est de la consultation. */}
                     <span className={enRetard(a) ? 'text-destructive font-medium' : 'text-muted-foreground'}>
@@ -181,13 +181,13 @@ export function RecurringInvoicesPage() {
                       {enRetard(a) ? ` — ${t('recurring.due')}` : ''}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground whitespace-nowrap tabular-nums">{a.generatedCount}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground whitespace-nowrap tabular-nums">{a.generatedCount}</td>
+                  <td className="px-3 py-2.5 text-center">
                     <Badge variant={a.isActive ? 'success' : 'secondary'}>
                       {a.isActive ? t('recurring.active') : t('recurring.paused')}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('recurring.generateNow')}
                         disabled={!a.isActive || generation.isPending}

@@ -562,3 +562,50 @@ couleur opaque, puisqu'un fond translucide ne dit rien seul. Seuil : 3:1.
 Résultat sur les deux thèmes, menus ouverts : **aucun texte sous le seuil**.
 
 Hors de `npm run verify` : il demande un serveur et la base.
+
+
+---
+
+## E014 — Ce que le tableau de bord appelait un graphique
+
+**Date :** 2026-08-08 · **Gravité :** moyenne · **Statut :** corrigé
+
+Le client : « les courbes ne sont pas visibles ». Elles n'étaient pas invisibles
+— **elles n'existaient pas**. Ce que l'écran nommait « CA par jour » était une
+rangée de `div` colorés à hauteur variable :
+
+```tsx
+<div className="flex-1 bg-primary/80" style={{ height: `${pct}%` }} />
+```
+
+Ni axe, ni graduation, ni échelle, ni date. On y voyait qu'un jour dépassait un
+autre, jamais de combien ni lequel. Le commentaire du code assumait le choix —
+« en ajouter une pour quatre barres coûterait plus cher que ces quelques div » —
+et ce raisonnement, valable pour quatre barres de répartition, avait été étendu
+à une série temporelle, où il ne tient plus.
+
+> Un graphique qui ne porte ni échelle ni étiquette n'est pas un graphique
+> simplifié : c'est une décoration qui occupe la place d'un graphique.
+
+### Correctif
+
+`components/ui/Graphique.tsx` : courbe d'aire, sparkline, barres de classement.
+En SVG plutôt qu'avec une bibliothèque — les couleurs viennent des jetons et
+suivent donc les deux thèmes sans traduction, le paquet client ne grossit pas,
+et rien ne dépend du réseau.
+
+Partis pris de rendu, tirés de ce que font les tableaux de bord financiers :
+
+- **grille horizontale seulement**, très ténue : les verticales n'aident jamais
+  à comparer des hauteurs ;
+- **graduations abrégées** (« 5,0 M ») : un axe donne l'ordre de grandeur, le
+  montant exact se lit au survol. Écrites en entier, elles occupaient quatre
+  centimètres de gouttière et se coupaient en deux lignes ;
+- **valeur lue au-dessus** du graphique et non dessous, où elle entrait en
+  collision avec la dernière graduation ;
+- **bandes de survol** larges d'un point : on attrape la lecture sans viser le
+  pixel exact de la courbe.
+
+Densité revue dans la foulée — 325 cellules et 220 en-têtes de colonne : lignes
+ramenées de 48 à 40 px, en-têtes en petites capitales grises. La hiérarchie
+vient du poids et de l'espace, la couleur reste réservée à l'état.

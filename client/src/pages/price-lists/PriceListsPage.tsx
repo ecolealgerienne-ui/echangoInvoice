@@ -134,11 +134,11 @@ export function PriceListsPage() {
         <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50"><tr>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('priceLists.name')}</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.description')}</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('priceLists.itemCount')}</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('priceLists.customerCount')}</th>
-              <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+              <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.name')}</th>
+              <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
+              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.itemCount')}</th>
+              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.customerCount')}</th>
+              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
             </tr></thead>
             <tbody className="divide-y divide-border">
               {listsData?.data?.length === 0 && (
@@ -146,7 +146,7 @@ export function PriceListsPage() {
               )}
               {listsData?.data?.map((g: any) => (
                 <tr key={g.id} className={`hover:bg-muted/30 ${gridId === g.id ? 'bg-muted/40' : ''}`}>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <button
                       type="button"
                       className="font-medium text-foreground hover:text-primary"
@@ -155,14 +155,14 @@ export function PriceListsPage() {
                       {g.name}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{g.description || '—'}</td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-muted-foreground">{g.description || '—'}</td>
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <Badge variant={g.itemCount > 0 ? 'info' : 'muted'}>{g.itemCount}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <Badge variant={g.customerCount > 0 ? 'success' : 'muted'}>{g.customerCount}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => ouvrirEdition(g)}>
                         <Pencil className="h-4 w-4" />
@@ -205,10 +205,10 @@ export function PriceListsPage() {
             <div className="max-h-[28rem] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 sticky top-0"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.name')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('priceLists.basePrice')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('priceLists.gridPrice')}</th>
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('priceLists.delta')}</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.name')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.basePrice')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.gridPrice')}</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.delta')}</th>
                 </tr></thead>
                 <tbody className="divide-y divide-border">
                   {produitsFiltres.map((p: any) => {
@@ -220,11 +220,11 @@ export function PriceListsPage() {
                       : null;
                     return (
                       <tr key={p.id} className="hover:bg-muted/30">
-                        <td className="px-4 py-2 text-foreground">
+                        <td className="px-3 py-2 text-foreground">
                           {p.name} <span className="text-xs text-muted-foreground">({p.unit})</span>
                         </td>
-                        <td className="px-4 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatCurrency(base)}</td>
-                        <td className="px-4 py-2 text-right whitespace-nowrap tabular-nums">
+                        <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatCurrency(base)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                           <div className="flex items-center justify-end gap-1">
                             <Input
                               type="number" step="0.01" min="0"

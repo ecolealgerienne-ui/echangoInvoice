@@ -277,8 +277,8 @@ export function DeliveryNotesPage() {
                   <EnteteTriable libelle={t('deliveries.blNumber')} colonne="blNumber" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>}
-                {col('quote') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('quotes.title')}</th>}
+                {col('customer') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.customer')}</th>}
+                {col('quote') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.title')}</th>}
                 {col('date') && (
                   <EnteteTriable libelle={t('common.date')} colonne="deliveryDate" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -291,8 +291,8 @@ export function DeliveryNotesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -302,19 +302,19 @@ export function DeliveryNotesPage() {
               {data?.data?.map((bl: any) => (
                 <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
                   {col('blNumber') && (
-                    <td className="px-4 py-3 font-mono font-medium">
+                    <td className="px-3 py-2.5 font-mono font-medium">
                       <Link to={`/deliveries/${bl.id}`} className="text-primary hover:underline">
                         {bl.blNumber}
                       </Link>
                     </td>
                   )}
-                  {col('customer') && <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>}
-                  {col('quote') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
-                  {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bl.total)}</td>}
-                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={varianteStatut(bl.status)}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
+                  {col('customer') && <td className="px-3 py-2.5 text-foreground">{bl.customer?.name ?? '—'}</td>}
+                  {col('quote') && <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
+                  {col('date') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
+                  {col('amount') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bl.total)}</td>}
+                  {col('status') && <td className="px-3 py-2.5 text-center"><Badge variant={varianteStatut(bl.status)}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(bl.id, bl.blNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />

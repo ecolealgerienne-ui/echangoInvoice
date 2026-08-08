@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { TrendingUp, FileText, Package, DollarSign, AlertTriangle, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { BarresClassement, CourbeAire } from '@/components/ui/Graphique';
 
 /**
  * Écart par rapport à la période précédente.
@@ -231,16 +232,13 @@ export function DashboardPage() {
             {byDate.length === 0
               ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
               : (
-                <div className="flex items-end gap-1 h-40">
-                  {byDate.map((d: any) => (
-                    <div
-                      key={d.date}
-                      className="flex-1 min-w-[3px] rounded-t bg-primary/80 hover:bg-primary transition-colors"
-                      style={{ height: `${maxDayRevenue > 0 ? Math.max(2, (d.revenue / maxDayRevenue) * 100) : 0}%` }}
-                      title={`${formatDate(d.date)} — ${formatCurrency(d.revenue)} (${d.invoiceCount})`}
-                    />
-                  ))}
-                </div>
+                <CourbeAire
+                  points={byDate.map((d: any) => ({
+                    libelle: formatDate(d.date),
+                    valeur: Number(d.revenue),
+                  }))}
+                  format={(v) => formatCurrency(v)}
+                />
               )}
           </CardContent>
         </Card>
@@ -250,15 +248,15 @@ export function DashboardPage() {
           <CardContent className="space-y-3">
             {maxMethod === 0
               ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
-              : byMethod.map(([method, amount]) => (
-                <BarRow
-                  key={method}
-                  label={t(`invoices.methods.${method}`)}
-                  value={amount as number}
-                  max={maxMethod}
-                  display={formatCurrency(amount as number)}
+              : (
+                <BarresClassement
+                  lignes={byMethod.map(([method, amount]: any) => ({
+                    libelle: t(`invoices.methods.${method}`),
+                    valeur: Number(amount),
+                  }))}
+                  format={(v) => formatCurrency(v)}
                 />
-              ))}
+              )}
           </CardContent>
         </Card>
 
@@ -267,15 +265,15 @@ export function DashboardPage() {
           <CardContent className="space-y-3">
             {topStock.length === 0
               ? <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
-              : topStock.map((r: any) => (
-                <BarRow
-                  key={r.rawMaterialId}
-                  label={r.name}
-                  value={r.stockValue}
-                  max={maxStockValue}
-                  display={formatCurrency(r.stockValue)}
+              : (
+                <BarresClassement
+                  lignes={topStock.map((r: any) => ({
+                    libelle: r.name,
+                    valeur: Number(r.stockValue),
+                  }))}
+                  format={(v) => formatCurrency(v)}
                 />
-              ))}
+              )}
           </CardContent>
         </Card>
 

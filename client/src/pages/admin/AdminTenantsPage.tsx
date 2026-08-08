@@ -53,10 +53,10 @@ export function AdminTenantsPage() {
         <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
           <thead className="bg-muted">
             <tr>
-              <th className="text-left p-3 text-muted-foreground">{t('common.customer')}</th>
-              <th className="text-left p-3 text-muted-foreground">{t('common.status')}</th>
-              <th className="text-left p-3 text-muted-foreground">{t('common.date')}</th>
-              <th className="text-left p-3 text-muted-foreground">{t('common.actions')}</th>
+              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.customer')}</th>
+              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
+              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
