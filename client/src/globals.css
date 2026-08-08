@@ -54,36 +54,36 @@
   :root {
     /* Fonds, du plus profond au plus élevé. En clair, l'élévation monte vers
        le blanc ; en sombre, elle montera vers le gris — voir plus bas. */
-    --background: 0.985 0.003 250;
-    --surface: 1     0     0;
-    --surface-elevated: 1     0     0;
-    --foreground: 0.21  0.024 253;
+    --ci-background: 0.985 0.003 250;
+    --ci-surface: 1     0     0;
+    --ci-surface-elevated: 1     0     0;
+    --ci-foreground: 0.21  0.024 253;
 
-    --card: 1     0     0;
-    --card-foreground: 0.21  0.024 253;
+    --ci-card: 1     0     0;
+    --ci-card-foreground: 0.21  0.024 253;
 
     /* Bleu nuit de la marque, remonté en clarté pour rester cliquable sur
        blanc : `#1e3a5f` tel quel ferait un bouton presque noir. */
-    --primary: 0.45 0.098 254;
-    --primary-foreground: 0.99 0.002 250;
-    --primary-hover: 0.39 0.095 254;
+    --ci-primary: 0.45 0.098 254;
+    --ci-primary-foreground: 0.99 0.002 250;
+    --ci-primary-hover: 0.39 0.095 254;
     /* Fond ténu de la primaire : sélections, lignes actives, puces. */
-    --primary-subtle: 0.955 0.021 254;
+    --ci-primary-subtle: 0.955 0.021 254;
 
-    --secondary: 0.965 0.006 253;
-    --secondary-foreground: 0.28  0.022 253;
+    --ci-secondary: 0.965 0.006 253;
+    --ci-secondary-foreground: 0.28  0.022 253;
 
     /* Neutres légèrement biaisés vers la teinte de la marque plutôt que gris
        purs : un gris neutre à côté d'un bleu paraît sale. */
-    --muted: 0.965 0.006 253;
-    --muted-foreground: 0.53  0.019 253;
-    --accent: 0.945 0.010 253;
-    --accent-foreground: 0.24  0.024 253;
+    --ci-muted: 0.965 0.006 253;
+    --ci-muted-foreground: 0.53  0.019 253;
+    --ci-accent: 0.945 0.010 253;
+    --ci-accent-foreground: 0.24  0.024 253;
 
-    --border: 0.915 0.008 253;
-    --border-strong: 0.86 0.011 253;
-    --input: 0.915 0.008 253;
-    --ring: 0.55  0.115 254;
+    --ci-border: 0.915 0.008 253;
+    --ci-border-strong: 0.86 0.011 253;
+    --ci-input: 0.915 0.008 253;
+    --ci-ring: 0.55  0.115 254;
 
     /* ── Couleurs sémantiques ──────────────────────────────────────────────
      * Elles manquaient : les badges de statut codaient `bg-green-100
@@ -93,46 +93,46 @@
      *
      * Chaque rôle a deux valeurs : la couleur pleine (texte, icône, bordure)
      * et sa version ténue (fond de pastille). */
-    --success: 0.52 0.115 155;
-    --success-foreground: 0.99 0.002 250;
-    --success-subtle: 0.955 0.033 155;
-    --success-text: 0.42 0.100 155;
+    --ci-success: 0.52 0.115 155;
+    --ci-success-foreground: 0.99 0.002 250;
+    --ci-success-subtle: 0.955 0.033 155;
+    --ci-success-text: 0.42 0.100 155;
 
-    --warning: 0.70 0.150 72;
-    --warning-foreground: 0.20 0.030 72;
-    --warning-subtle: 0.965 0.045 82;
-    --warning-text: 0.47 0.105 62;
+    --ci-warning: 0.70 0.150 72;
+    --ci-warning-foreground: 0.20 0.030 72;
+    --ci-warning-subtle: 0.965 0.045 82;
+    --ci-warning-text: 0.47 0.105 62;
 
-    --destructive: 0.55 0.185 25;
-    --destructive-foreground: 0.99 0.002 250;
-    --destructive-subtle: 0.955 0.030 25;
-    --destructive-text: 0.46 0.155 25;
+    --ci-destructive: 0.55 0.185 25;
+    --ci-destructive-foreground: 0.99 0.002 250;
+    --ci-destructive-subtle: 0.955 0.030 25;
+    --ci-destructive-text: 0.46 0.155 25;
 
-    --info: 0.55 0.115 240;
-    --info-foreground: 0.99 0.002 250;
-    --info-subtle: 0.955 0.028 240;
-    --info-text: 0.44 0.105 240;
+    --ci-info: 0.55 0.115 240;
+    --ci-info-foreground: 0.99 0.002 250;
+    --ci-info-subtle: 0.955 0.028 240;
+    --ci-info-text: 0.44 0.105 240;
 
     /* ── Barre latérale ────────────────────────────────────────────────────
      * Elle était une dalle sombre fixe, quel que soit le reste. Ce contraste
      * permanent était une mode de 2020 ; en 2026 la navigation appartient au
      * thème comme le reste, sinon le mode sombre donne une page à deux
      * ambiances. */
-    --sidebar: 0.975 0.005 253;
-    --sidebar-foreground: 0.34  0.021 253;
-    --sidebar-accent: 0.935 0.020 254;
-    --sidebar-accent-foreground: 0.34  0.075 254;
-    --sidebar-border: 0.915 0.008 253;
+    --ci-sidebar: 0.975 0.005 253;
+    --ci-sidebar-foreground: 0.34  0.021 253;
+    --ci-sidebar-accent: 0.935 0.020 254;
+    --ci-sidebar-accent-foreground: 0.34  0.075 254;
+    --ci-sidebar-border: 0.915 0.008 253;
 
     /* ── Panneau de présentation des écrans d'entrée ───────────────────────
-     * Il ne peut pas prendre `--primary` : en sombre, la primaire s'éclaircit
+     * Il ne peut pas prendre `--ci-primary` : en sombre, la primaire s'éclaircit
      * pour rester lisible sur fond noir, et le panneau devenait une dalle bleu
      * clair au milieu d'une page sombre — l'inverse de ce qu'on veut d'un
      * aplat de marque. Il garde donc son propre bleu nuit dans les deux
      * thèmes, simplement assombri en sombre pour ne pas éblouir.
      */
-    --panneau: 0.34 0.078 254;
-    --panneau-foreground: 0.97 0.006 250;
+    --ci-panneau: 0.34 0.078 254;
+    --ci-panneau-foreground: 0.97 0.006 250;
 
     --radius: 0.625rem;
 
@@ -167,60 +167,60 @@
    * n'est pas noir.
    * ═════════════════════════════════════════════════════════════════════════ */
   .dark {
-    --background: 0.185 0.014 254;
-    --surface: 0.225 0.016 254;
-    --surface-elevated: 0.265 0.017 254;
-    --foreground: 0.93  0.008 250;
+    --ci-background: 0.185 0.014 254;
+    --ci-surface: 0.225 0.016 254;
+    --ci-surface-elevated: 0.265 0.017 254;
+    --ci-foreground: 0.93  0.008 250;
 
-    --card: 0.225 0.016 254;
-    --card-foreground: 0.93  0.008 250;
+    --ci-card: 0.225 0.016 254;
+    --ci-card-foreground: 0.93  0.008 250;
 
-    --primary: 0.70 0.115 250;
-    --primary-foreground: 0.17 0.020 254;
-    --primary-hover: 0.76 0.110 250;
-    --primary-subtle: 0.29 0.045 252;
+    --ci-primary: 0.70 0.115 250;
+    --ci-primary-foreground: 0.17 0.020 254;
+    --ci-primary-hover: 0.76 0.110 250;
+    --ci-primary-subtle: 0.29 0.045 252;
 
-    --secondary: 0.275 0.016 254;
-    --secondary-foreground: 0.90  0.010 250;
+    --ci-secondary: 0.275 0.016 254;
+    --ci-secondary-foreground: 0.90  0.010 250;
 
-    --muted: 0.265 0.015 254;
-    --muted-foreground: 0.685 0.017 252;
-    --accent: 0.295 0.018 254;
-    --accent-foreground: 0.94  0.008 250;
+    --ci-muted: 0.265 0.015 254;
+    --ci-muted-foreground: 0.685 0.017 252;
+    --ci-accent: 0.295 0.018 254;
+    --ci-accent-foreground: 0.94  0.008 250;
 
-    --border: 0.315 0.017 254;
-    --border-strong: 0.40  0.020 254;
-    --input: 0.315 0.017 254;
-    --ring: 0.66  0.110 250;
+    --ci-border: 0.315 0.017 254;
+    --ci-border-strong: 0.40  0.020 254;
+    --ci-input: 0.315 0.017 254;
+    --ci-ring: 0.66  0.110 250;
 
-    --success: 0.66 0.115 158;
-    --success-foreground: 0.16 0.020 158;
-    --success-subtle: 0.30 0.048 158;
-    --success-text: 0.79 0.110 158;
+    --ci-success: 0.66 0.115 158;
+    --ci-success-foreground: 0.16 0.020 158;
+    --ci-success-subtle: 0.30 0.048 158;
+    --ci-success-text: 0.79 0.110 158;
 
-    --warning: 0.76 0.130 78;
-    --warning-foreground: 0.18 0.028 78;
-    --warning-subtle: 0.32 0.055 72;
-    --warning-text: 0.84 0.115 82;
+    --ci-warning: 0.76 0.130 78;
+    --ci-warning-foreground: 0.18 0.028 78;
+    --ci-warning-subtle: 0.32 0.055 72;
+    --ci-warning-text: 0.84 0.115 82;
 
-    --destructive: 0.63 0.165 25;
-    --destructive-foreground: 0.16 0.020 25;
-    --destructive-subtle: 0.31 0.062 25;
-    --destructive-text: 0.78 0.120 25;
+    --ci-destructive: 0.63 0.165 25;
+    --ci-destructive-foreground: 0.16 0.020 25;
+    --ci-destructive-subtle: 0.31 0.062 25;
+    --ci-destructive-text: 0.78 0.120 25;
 
-    --info: 0.68 0.105 242;
-    --info-foreground: 0.16 0.020 242;
-    --info-subtle: 0.30 0.050 242;
-    --info-text: 0.80 0.090 242;
+    --ci-info: 0.68 0.105 242;
+    --ci-info-foreground: 0.16 0.020 242;
+    --ci-info-subtle: 0.30 0.050 242;
+    --ci-info-text: 0.80 0.090 242;
 
-    --panneau: 0.245 0.048 254;
-    --panneau-foreground: 0.90 0.012 250;
+    --ci-panneau: 0.245 0.048 254;
+    --ci-panneau-foreground: 0.90 0.012 250;
 
-    --sidebar: 0.205 0.015 254;
-    --sidebar-foreground: 0.80  0.013 252;
-    --sidebar-accent: 0.30  0.043 252;
-    --sidebar-accent-foreground: 0.93  0.030 250;
-    --sidebar-border: 0.29  0.016 254;
+    --ci-sidebar: 0.205 0.015 254;
+    --ci-sidebar-foreground: 0.80  0.013 252;
+    --ci-sidebar-accent: 0.30  0.043 252;
+    --ci-sidebar-accent-foreground: 0.93  0.030 250;
+    --ci-sidebar-border: 0.29  0.016 254;
 
     /* En sombre les ombres ne portent plus l'élévation — c'est la clarté des
        surfaces qui s'en charge. Elles restent, très discrètes, seulement pour
@@ -263,22 +263,22 @@
      confondait avec la bordure du champ dès que les deux se touchaient. Le
      décalage l'en détache, et l'anneau suit le thème. */
   :focus-visible {
-    outline: 2px solid oklch(var(--ring));
+    outline: 2px solid oklch(var(--ci-ring));
     outline-offset: 2px;
   }
 
   /* Barres de défilement accordées au thème : une barre système claire au
      milieu d'une page sombre trahit immédiatement un thème posé à moitié. */
-  * { scrollbar-color: oklch(var(--border-strong)) transparent; scrollbar-width: thin; }
+  * { scrollbar-color: oklch(var(--ci-border-strong)) transparent; scrollbar-width: thin; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: oklch(var(--border-strong));
+    background: oklch(var(--ci-border-strong));
     border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(var(--muted-foreground)); background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(var(--ci-muted-foreground)); background-clip: content-box; }
 
   /* Le changement de thème est instantané là où il compte — sur les surfaces —
      et jamais sur autre chose : animer toutes les propriétés ferait ramer les

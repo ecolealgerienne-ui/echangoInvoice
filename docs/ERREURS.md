@@ -506,3 +506,59 @@ ligne, et **`npm run verify:design`** qui refuse les six formes en cause.
 
 Les défauts ont été réintroduits un par un pour voir le contrôle les refuser,
 et le rendu vérifié au navigateur dans les deux thèmes — pas seulement compilé.
+
+
+---
+
+## E013 — Une page blanche parce que le nom n'avait pas changé
+
+**Date :** 2026-08-08 · **Gravité :** élevée · **Statut :** corrigé
+
+Le client : « j'ai les menus invisibles sur un fond blanc ». Le thème sombre
+venait d'être livré et vérifié — mais sur un serveur neuf.
+
+### Le mécanisme
+
+Les jetons ont changé de **format** sans changer de **nom** : triplet HSL
+(`222 47% 11%`) avant, composantes OKLCH (`0.21 0.024 253`) après. Le nom
+`--foreground`, lui, est resté.
+
+Un navigateur qui détenait l'ancienne feuille compilée — `hsl(var(--foreground))` —
+et les nouvelles variables calculait donc :
+
+```
+hsl(0.21 0.024 253)   →   clarté 253 %   →   blanc
+```
+
+Non pas pour un jeton, mais pour **tous**. Texte blanc, fond blanc, bordures
+blanches : l'écran disparaît entièrement. C'est exactement l'état d'un serveur
+de développement qui a rechargé `globals.css` à chaud sans relire
+`tailwind.config.ts` — Vite ne recharge pas la configuration Tailwind à chaud.
+
+### Le vrai défaut n'est pas le serveur périmé
+
+Un serveur périmé arrive. Ce qui n'est pas acceptable, c'est qu'il produise un
+écran **entièrement blanc** plutôt qu'un écran laid.
+
+> Quand une valeur change de format, changer son nom en même temps n'est pas
+> une coquetterie : c'est ce qui transforme une panne muette en panne visible.
+
+Les jetons de couleur portent désormais un préfixe — `--ci-foreground`. Une
+feuille périmée ne trouve plus la variable, la déclaration devient invalide, et
+le navigateur retombe sur ses valeurs par défaut : **noir sur blanc**. Moche,
+et parfaitement lisible. Vérifié en rejouant l'état fautif.
+
+`--radius` et les `--shadow-*` gardent leur nom : ils ne traversent aucune
+fonction de couleur, donc aucun risque de réinterprétation.
+
+### Ce qui manquait aux contrôles
+
+`verify:design` inspecte la forme du code. Aucun contrôle ne regardait le
+**rendu**. `scripts/verifier-contraste.js` parcourt désormais quinze pages,
+ouvre chaque menu, et mesure le contraste de tout texte affiché contre le fond
+réellement composité derrière lui — en remontant les parents jusqu'à une
+couleur opaque, puisqu'un fond translucide ne dit rien seul. Seuil : 3:1.
+
+Résultat sur les deux thèmes, menus ouverts : **aucun texte sous le seuil**.
+
+Hors de `npm run verify` : il demande un serveur et la base.

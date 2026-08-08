@@ -153,7 +153,7 @@ if (!clair.size || !sombre.size) {
 }
 
 // ── 6. Le thème sombre ne doit pas virer au noir pur ──────────────────────
-const fondSombre = (bloc('.dark') || '').match(/--background:\s*([\d.]+)/);
+const fondSombre = (bloc('.dark') || '').match(/--ci-background:\s*([\d.]+)/);
 if (!fondSombre) {
   refuser('le fond du thème sombre est introuvable', []);
 } else if (Number(fondSombre[1]) < 0.12) {
