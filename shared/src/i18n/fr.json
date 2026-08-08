@@ -715,7 +715,9 @@
     "packQuantity": "Unités par conditionnement",
     "packHint": "12 pour un carton de douze : permet de facturer au carton et de tenir le stock à la pièce.",
     "packUnit": "Conditionnement",
-    "photo": "Photo"
+    "photo": "Photo",
+    "moreOnSheet": "Historique des ventes, achats, lots et marge :",
+    "openSheet": "ouvrir la fiche complète"
   },
   "quotes": {
     "title": "Devis",

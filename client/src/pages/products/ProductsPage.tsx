@@ -18,6 +18,8 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { CodesBarres } from '@/components/shared/CodesBarres';
+import { FournisseursArticle } from '@/components/shared/FournisseursArticle';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
@@ -275,7 +277,9 @@ export function ProductsPage() {
         <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('products.new')}>
+      <Modal open={modalOpen} onClose={closeModal}
+        title={editing ? t('common.edit') : t('products.new')}
+        size={editing ? 'xl' : undefined}>
         <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-3">
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('products.type.label')} *</label>
@@ -390,6 +394,23 @@ export function ProductsPage() {
             <Button type="submit" disabled={mutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
+
+        {/* Fournisseurs et codes-barres ne peuvent pas exister avant l'article :
+            ce sont des collections rattachees a un identifiant. Ils n'apparaissent
+            donc qu'en modification, et s'enregistrent seuls — leurs boutons sont
+            hors du formulaire au-dessus, dont ils ne dependent pas. */}
+        {editing && (
+          <div className="mt-6 space-y-6 border-t border-border pt-5">
+            <FournisseursArticle productId={editing.id} />
+            <CodesBarres productId={editing.id} />
+            <p className="text-xs text-muted-foreground">
+              {t('products.moreOnSheet')}{' '}
+              <Link to={`/products/${editing.id}`} className="text-primary hover:underline">
+                {t('products.openSheet')}
+              </Link>
+            </p>
+          </div>
+        )}
       </Modal>
     </div>
   );
