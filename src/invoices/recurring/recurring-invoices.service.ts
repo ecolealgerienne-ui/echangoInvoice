@@ -55,11 +55,29 @@ export class RecurringInvoicesService {
            ("tenantId", "customerId", label, frequency, "startDate", "endDate",
             "nextRunDate", "paymentTermsDays", "paymentMode", notes, "createdBy", "updatedBy")
          VALUES ($1,$2,$3,$4,$5,$6,$5,$7,$8,$9,$10,$10)
-         RETURNING *`,
+         RETURNING *,
+                   "startDate"::text   AS start_txt,
+                   "endDate"::text     AS end_txt,
+                   "nextRunDate"::text AS next_txt`,
         [tenantId, dto.customerId, dto.label, dto.frequency, dto.startDate,
          dto.endDate ?? null, dto.paymentTermsDays ?? 30, dto.paymentMode ?? 'other',
          dto.notes ?? null, userId],
       );
+
+      // E007, **troisième** occurrence dans ce module. La liste (ligne 34) et la
+      // génération lisaient déjà leurs dates en texte ; le `RETURNING *` de la
+      // création, non. Un abonnement ancré au 31 était donc créé au 31, listé au
+      // 31, et **annoncé au 30** par la réponse qui suit immédiatement sa
+      // création — l'écran affichait le mauvais jour jusqu'au rechargement.
+      //
+      // « Corriger une occurrence ne corrige pas la classe. » Trouvé par
+      // scripts/banc-dates.py, qui balaie les dates de tous les documents.
+      abonnement.startDate = abonnement.start_txt;
+      abonnement.endDate = abonnement.end_txt;
+      abonnement.nextRunDate = abonnement.next_txt;
+      delete abonnement.start_txt;
+      delete abonnement.end_txt;
+      delete abonnement.next_txt;
 
       for (const l of dto.items) {
         await qr.query(

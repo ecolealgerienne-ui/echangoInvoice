@@ -238,6 +238,19 @@ export class StockService {
   }
 
   async listEntries(tenantId: string, rawMaterialId: string, page = 1, limit = 20) {
+    // L'appartenance de l'ARTICLE, et pas seulement celle des lots.
+    //
+    // Les lots étaient déjà filtrés par `tenantId` : rien ne sortait. Mais
+    // l'identifiant d'un article d'un autre locataire rendait `200` avec une
+    // liste vide, là où le contrat est « introuvable » — indiscernable, pour
+    // celui qui appelle, d'un article sans aucun lot. Trouvé par
+    // scripts/banc-cloisonnement.py.
+    const article = await this.productRepo.findOne({
+      where: { id: rawMaterialId, tenantId },
+      select: ['id'],
+    });
+    if (!article) throw new NotFoundException('errors.product_not_found');
+
     const [data, total] = await this.entryRepo.findAndCount({
       where: { tenantId, finishedProductId: rawMaterialId },
       order: { enteredAt: 'DESC' },

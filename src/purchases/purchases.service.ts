@@ -490,8 +490,19 @@ export class PurchasesService {
   }
 
   async findOneVendorBill(id: string, tenantId: string) {
+    // E007 — `billDate` et `dueDate` sont des colonnes `date`. `SELECT vb.*` les
+    // rend en `Date` JavaScript à minuit LOCAL ; sérialisées en ISO, elles
+    // reculent d'un jour hors de Greenwich. Une facture au 31/01 s'affichait au
+    // 30/01, et son échéance avec.
+    //
+    // Le défaut avait été corrigé en mai dans la facturation récurrente, et
+    // ces deux-ci n'avaient pas été portées : « corriger une occurrence ne
+    // corrige pas la classe ». Trouvé par scripts/banc-dates.py, qui balaie
+    // les 31 dates de tous les documents.
     const rows = await this.dataSource.query(
-      `SELECT vb.*, s.name AS "supplierName"
+      `SELECT vb.*, s.name AS "supplierName",
+              vb."billDate"::text AS bill_date_txt,
+              vb."dueDate"::text  AS due_date_txt
        FROM vendor_bills vb
        LEFT JOIN partners s ON s.id = vb."supplierId"
        WHERE vb.id = $1 AND vb."tenantId" = $2 AND vb."deletedAt" IS NULL`,
@@ -499,6 +510,10 @@ export class PurchasesService {
     );
     if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
     const bill = rows[0];
+    bill.billDate = bill.bill_date_txt;
+    bill.dueDate = bill.due_date_txt;
+    delete bill.bill_date_txt;
+    delete bill.due_date_txt;
 
     const [items, payments, origine] = await Promise.all([
       this.dataSource.query(

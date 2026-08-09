@@ -513,14 +513,39 @@ export class DeliveriesService {
       );
 
       for (const item of dn.items) {
+        // ⚠️ **Le coût figé — quatrième chemin, celui qui avait été oublié.**
+        //
+        // `SalesInvoicesService` porte ce commentaire depuis la correction
+        // d'E015 : « Trois chemins mènent à une facture — saisie directe, bon
+        // de livraison, devis — et les trois doivent figer le coût. Le faire à
+        // trois endroits garantissait qu'un jour l'un des trois serait
+        // oublié. »
+        //
+        // Il y en avait un **quatrième**, ici, dans un autre service. `unitCost`
+        // ne figurait pas dans la liste des colonnes : les lignes sortaient à
+        // NULL, comptaient pour un coût **nul** dans le coût des marchandises
+        // vendues, et **gonflaient la marge brute**. E015, par une autre porte.
+        //
+        // Trouvé le 2026-08-09 par `verifier-comptabilite.js`, qui a rougi sur
+        // « toutes les lignes portent un coût figé » dès qu'une facture a été
+        // créée par cette route.
+        //
+        // ⚠️ L'expression est **recopiée** de
+        // `SalesInvoicesService.coutsUnitaires` — couple assumé au sens de
+        // R029. Le vrai remède est de n'avoir qu'un seul créateur de facture ;
+        // voir E024.
         await qr.query(
           `INSERT INTO sales_invoice_items
              ("tenantId", "salesInvoiceId", "finishedProductId",
               "quantity", "unit", "unitPrice",
               "taxName1", "taxRate1", "taxAmount1",
               "taxName2", "taxRate2", "taxAmount2",
-              "lineTaxTotal", "lineTotal")
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+              "lineTaxTotal", "lineTotal", "unitCost")
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
+             (SELECT COALESCE(NULLIF("averageCostPerUnit", 0),
+                              NULLIF("lastCostPerUnit", 0), 0)
+                FROM finished_products
+               WHERE id = $3 AND "tenantId" = $1))`,
           [
             tenantId, invoice.id, item.finishedProductId,
             item.quantity, item.unit, item.unitPrice,

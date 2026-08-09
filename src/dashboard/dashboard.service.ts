@@ -261,8 +261,18 @@ export class DashboardService {
     // Alerts
     const alertByStatus: Record<string, any> = {};
     for (const r of alertInvoiceRows) alertByStatus[r.status] = { count: parseInt(r.count), total: parseFloat(r.total) };
-    const unpaidCount = (alertByStatus['sent']?.count ?? 0) + (alertByStatus['partial']?.count ?? 0);
-    const unpaidTotal = (alertByStatus['sent']?.total ?? 0) + (alertByStatus['partial']?.total ?? 0);
+
+    // `unpaidInvoicesCount` / `unpaidInvoicesTotal` retirés le 2026-08-09.
+    //
+    // Ils additionnaient `sent` + `partial`. C'est E016 : le compteur affichait
+    // un nombre qu'aucune liste ne pouvait rendre, le filtre serveur n'acceptant
+    // qu'un statut à la fois. La correction a scindé le chiffre en deux tuiles
+    // cliquables — `sentInvoicesCount` et `partialInvoicesCount` — et l'ancien
+    // champ est resté servi, sans plus aucun appelant nulle part.
+    //
+    // R022 : ce qui n'a plus d'appelant se supprime. La clé de traduction
+    // `dashboard.unpaidInvoices` part avec, dans les deux langues.
+    // Trouvé par scripts/banc-compteurs.py.
 
     return {
       data: {
@@ -302,8 +312,6 @@ export class DashboardService {
         },
         alerts: {
           expiringStockCount: parseInt(alertStockRows[0]?.count ?? 0),
-          unpaidInvoicesCount: unpaidCount,
-          unpaidInvoicesTotal: Math.round(unpaidTotal * 100) / 100,
           lowStockCount: parseInt(alertLowStockRows[0]?.count ?? 0),
           overdueInvoicesCount: alertByStatus['overdue']?.count ?? 0,
           overdueInvoicesTotal: Math.round((alertByStatus['overdue']?.total ?? 0) * 100) / 100,

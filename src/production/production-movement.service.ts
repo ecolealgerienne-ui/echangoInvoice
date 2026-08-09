@@ -20,6 +20,22 @@ export class ProductionMovementService {
   ) {}
 
   async findByOrder(orderId: string, tenantId: string, type?: string, from?: string, to?: string) {
+    // L'appartenance de l'ORDRE, et pas seulement celle des mouvements.
+    //
+    // Les mouvements étaient déjà filtrés par `tenantId` : rien ne sortait. Mais
+    // l'identifiant d'un ordre appartenant à un autre locataire rendait
+    // `200 { data: [] }`, là où le contrat est « introuvable » — et où
+    // `create()`, quelques lignes plus bas, pose la question depuis toujours.
+    // La lecture était la seule des deux à ne pas la poser.
+    //
+    // Ce n'était pas une fuite ; c'est la forme qui en produit une le jour où
+    // le `WHERE` de la requête bouge. Trouvé par scripts/banc-cloisonnement.py.
+    const ordre = await this.orderRepo.findOne({
+      where: { id: orderId, tenantId, deletedAt: IsNull() },
+      select: ['id'],
+    });
+    if (!ordre) throw new NotFoundException('production_order_not_found');
+
     const qb = this.repo
       .createQueryBuilder('m')
       .where('m.productionOrderId = :orderId AND m.tenantId = :tenantId', { orderId, tenantId });
