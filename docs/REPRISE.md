@@ -136,6 +136,25 @@ Deux réserves à tenir : ne **jamais** conditionner à l'abonnement les mention
 *légales* — NIF, RC, montant en lettres, timbre —, et rester sobre. Formulation
 retenue : « Facture émise avec Echango Invoice — echango.dz ».
 
+#### Chantier en cours : tests fonctionnels exhaustifs
+
+Ouvert le 2026-08-09. Deux documents le portent, et ils survivent à tout :
+
+- **`docs/METHODE_TEST.md`** — la doctrine. Treize modes de défaillance, dont
+  onze repris de `echangopromo` et deux propres à ce dépôt (M12 la formule
+  juste sur la mauvaise grandeur, M13 le même geste écrit ailleurs). À lire
+  avant d'écrire la première ligne de test.
+- **`docs/CHANTIER_TESTS.md`** — l'état réel, la surface chiffrée (169 routes,
+  91 à identifiant, 5 rôles, 37 écrans), l'ordre de travail en huit étapes.
+
+Squelettes repris de `echangopromo` dans `docs/methode-test/` — à copier dans
+`scripts/` avant de les modifier.
+
+**Première trouvaille du chantier, avant même d'avoir commencé** : un sondage de
+deux fichiers Playwright a donné 8 passés / 1 échoué, et l'échec était réel —
+`<form> cannot contain a nested <form>` sur la modale de création de facture,
+introduit par la refonte visuelle. Non corrigé.
+
 #### Les contrôles : lesquels tournent seuls, lesquels demandent la base
 
 `npm run verify` enchaîne **dix** contrôles qui ne dépendent de rien —
