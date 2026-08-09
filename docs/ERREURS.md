@@ -733,3 +733,84 @@ deux formes.
 > Un contrôle qu'on resserre doit être revérifié dans les deux sens : qu'il
 > refuse toujours le vrai défaut, et qu'il n'attrape pas la forme correcte.
 > Les deux ont été rejoués.
+
+
+---
+
+## E017 — La production ne parlait pas la même langue que le stock
+
+**Date :** 2026-08-09 · **Gravité :** élevée · **Statut :** corrigé
+
+Le stock est tenu **par lots** — date d'entrée, péremption, coût, FIFO (R015).
+Les ventes le respectent. La production, écrite avant la refonte des lots,
+écrivait directement sur l'agrégat :
+
+```sql
+UPDATE finished_products SET "stockQuantity" = "stockQuantity" - 30
+```
+
+Or `recomputeProductStock()` recalcule cet agrégat **depuis les seuls lots** et
+l'écrase donc au premier mouvement suivant :
+
+| | Lots | `stockQuantity` |
+|---|---|---|
+| Réception de 100 kg | 100 | 100 |
+| Production consomme 30 kg | **100** (intacts) | 70 |
+| Livraison de 10 kg → `recompute` | 90 | **90** |
+
+**Les 30 kg consommés ressuscitent.**
+
+### Ce qui rend ce défaut instructif
+
+C'est **exactement** le défaut déjà rencontré et corrigé côté ventes le
+2026-08-08. Le commentaire de `deliveries.service.ts` le décrit mot pour mot,
+avec les mêmes chiffres. La correction n'avait simplement pas été portée à la
+production.
+
+> Corriger un défaut à l'endroit où on l'a vu ne suffit pas quand la cause est
+> un motif partagé. La question à poser après chaque correction n'est pas
+> « est-ce réparé ? » mais « **où ailleurs ce même geste est-il écrit ?** »
+
+Versant sortie, c'était pire : le produit fabriqué ne créait **aucun lot**. Il
+n'avait donc ni numéro de lot ni date de péremption — rédhibitoire en chambre
+froide — et le premier `recompute` effaçait la quantité produite, qui
+n'existait dans aucun lot.
+
+### Le second défaut : une recette qui bougeait sous les ordres
+
+L'ordre de fabrication ne stockait que `nomenclatureId`. Modifier une recette
+réécrivait rétroactivement ce sur quoi les ordres passés s'étaient appuyés :
+le coût estimé d'un ordre de janvier changeait en mars, et l'écart estimé/réel
+finissait par mesurer l'ancienneté de la fiche plutôt que l'atelier. Le champ
+`version` de la nomenclature existait — et ne servait à rien.
+
+### Correctif
+
+- consommation par `consumeStockFifo()` avec le statut `consumed`, distinct de
+  `adjusted` qui désigne une régularisation d'inventaire ;
+- lot créé pour le produit fabriqué, numéroté par la référence de l'ordre ;
+- **traçabilité amont/aval** : `consumedByProductionOrderId` et
+  `producedByProductionOrderId` sur le lot. Depuis un lot de matière on retrouve
+  les produits qui en sont issus, ce qu'un rappel sanitaire exige ;
+- **coût réel lu sur les lots réellement sortis**, au lieu d'un coût moyen
+  relevé avant la sortie. C'est le lien de traçabilité qui le rend possible ;
+- **péremption héritée de la plus courte des matières** : un plat cuisiné ne se
+  conserve pas plus longtemps que son ingrédient le plus fragile ;
+- recette **copiée sur l'ordre** au démarrage (`production_order_lines`), comme
+  `unitCost` l'est sur les lignes de facture. `cancel()` libère sur cette copie,
+  pas sur la nomenclature courante.
+
+### Le contrôle, et ce qu'il a fallu pour qu'il refuse
+
+`verify:production` rejoue la séquence complète sur la base réelle, dans une
+transaction annulée : consommation, puis **recalcul**, et vérifie que la
+quantité ne remonte pas.
+
+Sa première version cherchait le motif `stockQuantity − n` dans le service. En
+rejouant l'ancien geste avec un `+` au lieu d'un `−`, **le contrôle est resté
+vert sur du code fautif**. La règle est désormais absolue : hors commentaires,
+le service de production ne nomme jamais `stockQuantity`. Vu refuser les deux
+formes.
+
+> Un motif qui décrit *une* écriture fautive laisse passer toutes les autres.
+> Quand la règle est absolue, l'assertion doit l'être aussi.

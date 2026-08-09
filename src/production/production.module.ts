@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Nomenclature } from './nomenclature.entity';
 import { BomLine } from './bom-line.entity';
 import { ProductionOrder } from './production-order.entity';
+import { ProductionOrderLine } from './production-order-line.entity';
+import { StockEntry } from '../stock/stock-entry.entity';
 import { ProductionMovement } from './production-movement.entity';
 import { NomenclatureService } from './nomenclature.service';
 import { ProductionOrderService } from './production-order.service';
@@ -21,7 +23,9 @@ import { Setting } from '../settings/setting.entity';
       Nomenclature,
       BomLine,
       ProductionOrder,
+      ProductionOrderLine,
       ProductionMovement,
+      StockEntry,
       FinishedProduct,
       Setting,
     ]),

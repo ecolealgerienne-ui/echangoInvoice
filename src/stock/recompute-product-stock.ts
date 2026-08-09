@@ -76,9 +76,15 @@ export async function consumeStockFifo(
   /** Statut donné à la part sortie : `sold` pour une vente, `adjusted` pour une
    *  régularisation d'inventaire — la distinction est ce qui permet de ne pas
    *  confondre une perte avec une livraison dans les états. */
-  statut: 'sold' | 'adjusted' = 'sold',
+  statut: 'sold' | 'adjusted' | 'consumed' = 'sold',
   /** Renseigné pour une vente : c'est le lien qui rend l'annulation possible. */
   deliveryNoteId: string | null = null,
+  /**
+   * Renseigné pour une consommation d'atelier. C'est ce lien qui permet, depuis
+   * un lot de matière, de retrouver les ordres qui l'ont employé — et donc les
+   * produits à rappeler si la matière est mise en cause.
+   */
+  productionOrderId: string | null = null,
 ): Promise<string | null> {
   const lots: { id: string; quantity: string; costPerUnit: string }[] =
     await qr.query(
@@ -101,9 +107,10 @@ export async function consumeStockFifo(
       // Lot consommé en entier
       await qr.query(
         `UPDATE stock_entries
-         SET status = $1, "reservedByDeliveryNoteId" = $2, "updatedAt" = NOW()
-         WHERE id = $3`,
-        [statut, deliveryNoteId, lot.id],
+         SET status = $1, "reservedByDeliveryNoteId" = $2,
+             "consumedByProductionOrderId" = $3, "updatedAt" = NOW()
+         WHERE id = $4`,
+        [statut, deliveryNoteId, productionOrderId, lot.id],
       );
       reste = Math.round((reste - dispo) * 100) / 100;
     } else {
@@ -118,11 +125,13 @@ export async function consumeStockFifo(
       await qr.query(
         `INSERT INTO stock_entries
            ("tenantId", "finishedProductId", "rawMaterialId", quantity, "costPerUnit",
-            "totalCost", status, "reservedByDeliveryNoteId", "enteredAt", "batchNumber", "expiresAt")
+            "totalCost", status, "reservedByDeliveryNoteId", "consumedByProductionOrderId",
+            "enteredAt", "batchNumber", "expiresAt")
          SELECT "tenantId", "finishedProductId", "rawMaterialId", $1, "costPerUnit",
-                $2, $3, $4, "enteredAt", "batchNumber", "expiresAt"
-         FROM stock_entries WHERE id = $5`,
-        [reste, Math.round(reste * cout * 100) / 100, statut, deliveryNoteId, lot.id],
+                $2, $3, $4, $5, "enteredAt", "batchNumber", "expiresAt"
+         FROM stock_entries WHERE id = $6`,
+        [reste, Math.round(reste * cout * 100) / 100, statut, deliveryNoteId,
+         productionOrderId, lot.id],
       );
       reste = 0;
     }

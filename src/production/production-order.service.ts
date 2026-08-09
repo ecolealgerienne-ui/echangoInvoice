@@ -5,6 +5,9 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { ProductionOrder } from './production-order.entity';
 import { Nomenclature } from './nomenclature.entity';
+import { ProductionOrderLine } from './production-order-line.entity';
+import { StockEntry } from '../stock/stock-entry.entity';
+import { consumeStockFifo, recomputeProductStock } from '../stock/recompute-product-stock';
 import { FinishedProduct } from '../products/finished-product.entity';
 import { CreateProductionOrderDto } from './dto/create-production-order.dto';
 import { CompleteProductionOrderDto } from './dto/complete-production-order.dto';
@@ -163,6 +166,24 @@ export class ProductionOrderService {
           .execute();
       }
 
+      // La recette est **copiée** sur l'ordre, pas référencée. Sans cela,
+      // modifier la nomenclature réécrit rétroactivement ce sur quoi cet ordre
+      // s'appuie : son coût estimé change après coup, et l'écart estimé/réel
+      // finit par mesurer l'ancienneté de la fiche plutôt que l'atelier.
+      await qr.manager.save(
+        ProductionOrderLine,
+        nom.bomLines.map((line) => qr.manager.create(ProductionOrderLine, {
+          tenantId,
+          productionOrderId: id,
+          rawMaterialId: line.rawMaterialId,
+          order: line.order,
+          quantityPerUnit: line.quantityPerUnit,
+          unit: line.unit,
+          unitCost: line.unitCost,
+          lineCost: line.lineCost,
+        })),
+      );
+
       await qr.manager
         .createQueryBuilder()
         .update(ProductionOrder)
@@ -200,90 +221,133 @@ export class ProductionOrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      // 1. Aggregate mp_consumption + mp_loss movements per material
-      const movementRows: { rawMaterialId: string; type: string; totalQty: string }[] = await qr.query(
-        `SELECT "rawMaterialId", type, SUM("quantity") as "totalQty"
-         FROM "production_movements"
-         WHERE "productionOrderId" = $1 AND type IN ('mp_consumption', 'mp_loss')
-         GROUP BY "rawMaterialId", type`,
-        [id],
-      );
-
-      // Group by material: total to deduct from stock = consumption + loss
-      const materialTotals: Record<string, { consumption: number; loss: number }> = {};
-      for (const row of movementRows) {
-        if (!materialTotals[row.rawMaterialId]) materialTotals[row.rawMaterialId] = { consumption: 0, loss: 0 };
-        if (row.type === 'mp_consumption') materialTotals[row.rawMaterialId].consumption += Number(row.totalQty);
-        if (row.type === 'mp_loss') materialTotals[row.rawMaterialId].loss += Number(row.totalQty);
+      // ── 1. Ce qui a réellement été consommé ────────────────────────────
+      //
+      // Les mouvements saisis à l'atelier priment sur la recette. S'il n'y en a
+      // aucun, on retombe sur la recette **figée au démarrage** — jamais sur la
+      // nomenclature courante, qui a pu changer entre-temps.
+      const lignesFigees = await qr.manager.find(ProductionOrderLine, {
+        where: { productionOrderId: id, tenantId },
+      });
+      if (lignesFigees.length === 0) {
+        throw new BadRequestException('production_order_lines_missing');
       }
 
-      let actualCost = 0;
-      const hasMovements = Object.keys(materialTotals).length > 0;
+      const mouvements: { rawMaterialId: string; type: string; totalQty: string }[] =
+        await qr.query(
+          `SELECT "rawMaterialId", type, SUM("quantity") AS "totalQty"
+           FROM "production_movements"
+           WHERE "productionOrderId" = $1 AND type IN ('mp_consumption', 'mp_loss')
+           GROUP BY "rawMaterialId", type`,
+          [id],
+        );
 
-      for (const [materialId, totals] of Object.entries(materialTotals)) {
-        const totalDeducted = totals.consumption + totals.loss;
-        const material = await qr.manager.findOne(FinishedProduct, {
-          where: { id: materialId, tenantId, deletedAt: IsNull() },
-        });
-        if (!material) continue;
+      const parMatiere: Record<string, { consommation: number; perte: number }> = {};
+      for (const m of mouvements) {
+        parMatiere[m.rawMaterialId] ??= { consommation: 0, perte: 0 };
+        if (m.type === 'mp_consumption') parMatiere[m.rawMaterialId].consommation += Number(m.totalQty);
+        if (m.type === 'mp_loss') parMatiere[m.rawMaterialId].perte += Number(m.totalQty);
+      }
 
-        // Cost = (consumption + loss) × average cost — losses are absorbed into actual cost
-        actualCost += totalDeducted * Number(material.averageCostPerUnit);
+      if (Object.keys(parMatiere).length === 0) {
+        for (const ligne of lignesFigees) {
+          const besoin = Number(ligne.quantityPerUnit) * Number(order.quantityToProduce);
+          parMatiere[ligne.rawMaterialId] = { consommation: besoin, perte: 0 };
+        }
+      }
 
-        // Decrement stock (consumption + loss both exit inventory)
+      // ── 2. Sortie du stock, par les lots ───────────────────────────────
+      //
+      // C'est le cœur du correctif. La version précédente faisait un
+      // `UPDATE finished_products SET "stockQuantity" = "stockQuantity" - n`
+      // sans toucher aux lots — et `recomputeProductStock()` recalculant cet
+      // agrégat depuis les seuls lots, la première réception ou livraison
+      // suivante **ressuscitait** les quantités consommées. Le même défaut
+      // avait déjà été corrigé côté ventes ; il n'avait pas été porté ici.
+      const avertissements: string[] = [];
+      for (const [matiereId, totaux] of Object.entries(parMatiere)) {
+        const sortie = Math.round((totaux.consommation + totaux.perte) * 100) / 100;
+        if (sortie <= 0) continue;
+
+        // Perte comprise : ce qui est perdu quitte le stock aussi.
+        const avertissement = await consumeStockFifo(
+          qr, tenantId, matiereId, sortie, 'consumed', null, id,
+        );
+        if (avertissement) {
+          avertissements.push(avertissement);
+          this.logger.warn(`MO ${order.ref} — ${avertissement}`);
+        }
+
+        // La réservation est un compteur d'article, distinct des lots : elle se
+        // relâche à hauteur de ce qui était réservé, soit la consommation.
         await qr.manager
           .createQueryBuilder()
           .update(FinishedProduct)
           .set({
-            stockQuantity: () => `GREATEST(0, "stockQuantity" - ${totalDeducted})`,
-            reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${totals.consumption})`,
+            reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${totaux.consommation})`,
           })
-          .where('id = :id', { id: material.id })
+          .where('id = :id AND "tenantId" = :tenantId', { id: matiereId, tenantId })
           .execute();
+
+        await recomputeProductStock(qr, tenantId, matiereId);
       }
 
-      // If no movements logged, fall back to BOM × quantityToProduce
-      if (!hasMovements) {
-        for (const line of nom.bomLines) {
-          const needed = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
-          await qr.manager
-            .createQueryBuilder()
-            .update(FinishedProduct)
-            .set({
-              stockQuantity: () => `GREATEST(0, "stockQuantity" - ${needed})`,
-              reservedQuantity: () => `GREATEST(0, "reservedQuantity" - ${needed})`,
-            })
-            .where('id = :id AND "tenantId" = :tenantId', { id: line.rawMaterialId, tenantId })
-            .execute();
-        }
-        actualCost = Number(nom.estimatedCostPerUnit) * Number(order.quantityToProduce);
-      }
+      // Le coût réel se lit sur les lots réellement sortis, pas sur un coût
+      // moyen relevé avant la sortie : c'est le lien de traçabilité qui le rend
+      // possible, et c'est la valeur exacte de ce qui a quitté le magasin.
+      const [{ cout }] = await qr.query(
+        `SELECT COALESCE(SUM("totalCost"), 0) AS cout
+         FROM stock_entries
+         WHERE "consumedByProductionOrderId" = $1 AND "tenantId" = $2`,
+        [id, tenantId],
+      );
+      const actualCost = Math.round(Number(cout) * 100) / 100;
 
-      // 2. Update finished product stock + average cost
-      // qtyNet = good units only (rejections don't go to stock)
-      // unit cost = actualCost / qtyNet → rejections increase unit cost of good units
+      // ── 3. Entrée du produit fini, en lot ──────────────────────────────
       const qtyProduced = Number(dto.quantityProduced);
       const qtyRejected = Number(dto.quantityRejected ?? 0);
-      const qtyNet = Math.max(0, qtyProduced - qtyRejected);
+      // Les rebuts n'entrent pas en stock : le coût total se répartit donc sur
+      // les seules unités bonnes, ce qui renchérit leur coût unitaire — c'est
+      // la conséquence comptable normale d'un rebut.
+      const qtyNet = Math.max(0, Math.round((qtyProduced - qtyRejected) * 100) / 100);
 
-      const prevQty = Number(fp.stockQuantity);
-      const prevAvg = Number(fp.averageCostPerUnit);
-      const newTotalQty = prevQty + qtyNet;
-      const newAvgCost = newTotalQty > 0
-        ? (prevQty * prevAvg + actualCost) / newTotalQty
-        : 0;
+      if (qtyNet > 0) {
+        // La péremption du lot produit hérite de la **plus courte** de ses
+        // matières. Un plat cuisiné ne se conserve pas plus longtemps que son
+        // ingrédient le plus fragile ; à défaut de durée de conservation dans
+        // la fiche article, c'est la règle du métier, et elle ne surestime
+        // jamais. Sans elle, le produit fabriqué n'aurait aucune date — ce qui
+        // est inacceptable en chambre froide.
+        const [peremption] = await qr.query(
+          `SELECT MIN("expiresAt") AS date
+           FROM stock_entries
+           WHERE "consumedByProductionOrderId" = $1 AND "tenantId" = $2
+             AND "expiresAt" IS NOT NULL`,
+          [id, tenantId],
+        );
 
-      await qr.manager
-        .createQueryBuilder()
-        .update(FinishedProduct)
-        .set({
-          stockQuantity: newTotalQty,
-          averageCostPerUnit: newAvgCost,
-          totalStockValue: newTotalQty * newAvgCost,
-          updatedBy: userId,
-        })
-        .where('id = :id', { id: fp.id })
-        .execute();
+        await qr.manager.save(qr.manager.create(StockEntry, {
+          tenantId,
+          rawMaterialId: fp.id,
+          finishedProductId: fp.id,
+          producedByProductionOrderId: id,
+          quantity: qtyNet,
+          costPerUnit: Math.round((actualCost / qtyNet) * 100) / 100,
+          totalCost: actualCost,
+          // Le numéro de lot est la référence de l'ordre : c'est par elle qu'on
+          // remonte aux matières employées.
+          batchNumber: order.ref,
+          expiresAt: peremption?.date ?? null,
+          status: 'available',
+          enteredAt: new Date(),
+          createdBy: userId,
+        }));
+      }
+
+      // L'agrégat se recalcule depuis les lots, comme partout ailleurs. Le
+      // coût moyen pondéré en découle : il n'est plus calculé à la main ici,
+      // et ne peut donc plus diverger de celui des ventes.
+      await recomputeProductStock(qr, tenantId, fp.id);
 
       // 3. Update order
       const yieldPct =
@@ -331,9 +395,15 @@ export class ProductionOrderService {
     await qr.startTransaction();
     try {
       if (order.status === 'in_progress') {
-        const nom = await this.nomRepo.findOne({ where: { id: order.nomenclatureId, tenantId } });
-        if (nom) {
-          for (const line of nom.bomLines) {
+        // La libération se fait sur la recette **figée au démarrage** : c'est
+        // elle qui a servi à réserver. Repasser par la nomenclature courante
+        // libérerait des quantités qui n'ont jamais été réservées si la recette
+        // a changé entre-temps, et laisserait l'écart sur les autres matières.
+        const lignes = await qr.manager.find(ProductionOrderLine, {
+          where: { productionOrderId: id, tenantId },
+        });
+        {
+          for (const line of lignes) {
             const reserved = Number(line.quantityPerUnit) * Number(order.quantityToProduce);
             await qr.manager
               .createQueryBuilder()
