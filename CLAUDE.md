@@ -705,7 +705,10 @@ enregistré, les `@Throttle` décoraient bien les routes d'auth, et **rien ne le
 appliquait** — 20 tentatives de login consécutives, aucun 429. Cette section
 elle-même affirmait le contraire, ce qui en faisait un état périmé au sens de
 R031.* Limites effectives, vérifiées : `register` 5/min, `login` 10/min,
-`refresh` 20/min, tout le reste 100/min.
+`refresh` 20/min, `admin/auth/*` 5 / 15 min, tout le reste **600/min**
+(`ThrottlerModule.forRoot([{ ttl: 60000, limit: 600 }])`, app.module.ts — cette
+section annonçait 100, relevé le 2026-08-09 en calibrant le rythme du banc de
+refus, qui envoie 481 sondes).
 
 **Conséquence directe : toute route publique est épinglée nommément ici, avec sa
 justification.** Une route publique non listée est un défaut, pas un choix.
@@ -714,6 +717,7 @@ justification.** Une route publique non listée est un défaut, pas un choix.
 |---|---|
 | `GET /api/v1/health` | sonde de connectivité mobile (spec 17 §3.2) — un token expiré ne doit pas passer pour une panne réseau |
 | `POST /api/v1/auth/login` · `register` · `refresh` | délivrent le jeton ; rate-limités par `@Throttle` (R017) |
+| `POST /api/v1/auth/accept-invite` | l'invité n'a pas encore de compte — c'est cet appel qui le crée. Protégé par un jeton de 48 octets aléatoires, à usage unique, expirant en 7 jours. **Manquait à ce tableau jusqu'au 2026-08-09** : trouvée par le banc de refus, qui exige que toute route ouverte soit épinglée |
 | `POST /api/v1/admin/auth/login` · `refresh` | idem pour le superadmin |
 | `GET /api/v1/verify/:type/:id/:signature` | vérification d'un document depuis son QR — celui qui scanne est le destinataire, il n'a pas de compte. Protégée par une signature HMAC, pas par un jeton ; rend 404 (et non 403) sur signature invalide, pour ne pas révéler qu'un document existe à cet identifiant |
 
@@ -722,10 +726,13 @@ contrôlé rétrécirait avec ce qu'il contrôle.
 
 **Vérification :**
 ```bash
-for f in $(grep -rl '@Controller' src/ --include=*.controller.ts); do
-  grep -q 'UseGuards' "$f" || echo "PUBLIC: $f"
-done
+python3 scripts/banc-refus-http.py --list     # les 169 routes, les ouvertes signalées
+python3 scripts/banc-refus-http.py            # refuse si une ouverte n'est pas épinglée ci-dessus
 ```
+
+*La boucle `grep -L UseGuards` qui tenait lieu de contrôle jusqu'au 2026-08-09
+ne regardait que le **fichier** : un contrôleur gardé sur neuf routes et oublié
+sur la dixième la satisfaisait. Elle n'aurait jamais rien dit.*
 
 ---
 
@@ -871,14 +878,25 @@ un `eslint.config.js` (flat config) qui n'existe pas — aucun lint n'a donc jam
 
 Ces effets doivent toujours se produire dans une transaction (R005) :
 
-| Trigger | Side effects obligatoires |
-|---------|--------------------------|
-| `POST /purchases/reception-bls` | Crée `StockEntry` + met à jour `InventorySummary` |
-| `POST /deliveries/delivery-notes` | Décrémente stock FIFO + status entries → `reserved` |
-| `POST /invoices/sales-invoices` | Auto-calcule TVA 19% |
-| `POST /invoices/sales-invoices/:id/send-email` | Génère PDF + attache + status → `sent` |
-| `POST /invoices/payments` | `amountPaid +=`, `amountDue -=`, si `amountDue = 0` → status `paid` + entries → `sold` |
-| `POST /quotes/:id/convert-to-invoice` | Crée `SalesInvoice` + `SalesInvoiceItems` + met à jour `Quote.status → invoiced` + vérifie quota freemium |
+| Trigger | Side effects obligatoires | Mesuré |
+|---------|--------------------------|--------|
+| `POST /purchases/reception-bls` | Crée `StockEntry` + met à jour `InventorySummary` | ✅ tenu |
+| `POST /deliveries/delivery-notes` | Décrémente stock FIFO + status entries → `reserved` | ⚠️ le stock baisse ; **`reserved` n'est écrit nulle part** — E022 |
+| `POST /invoices/sales-invoices` | Auto-calcule TVA 19% | ❌ **non tenu** : sans taux fourni, la TVA vaut 0 — E022 |
+| `POST /invoices/sales-invoices/:id/send-email` | Génère PDF + attache + status → `sent` | ⚠️ PDF ✅ ; l'envoi n'est pas mesurable sans SMTP local |
+| `POST /invoices/payments` | `amountPaid +=`, `amountDue -=`, si `amountDue = 0` → status `paid` + entries → `sold` | ✅ tenu |
+| `POST /quotes/:id/convert` | Crée `SalesInvoice` + `SalesInvoiceItems` + met à jour `Quote.status → converted` + vérifie quota freemium | ✅ tenu |
+
+⚠️ **Ce tableau est exécuté** : `python3 scripts/banc-effets-de-bord.py` joue les
+six enchaînements et mesure ce qui se produit *ailleurs* dans la base. C'est le
+seul étage qui puisse voir E017 — un effet qui ne se produit pas ne lève rien.
+
+*Deux corrections de rédaction le 2026-08-09, relevées par ce banc : la route
+était nommée `/quotes/:id/convert-to-invoice`, qui n'existe pas, et le statut
+résultant `invoiced`, qui n'est pas dans l'énumération — c'est `converted`.
+Les deux lignes marquées ⚠️/❌ ne sont **pas** corrigées : elles décrivent un
+écart réel entre le contrat et le produit, que seul le métier peut trancher
+(E022).*
 
 ---
 
@@ -907,13 +925,27 @@ className="text-gray-700 bg-white border-gray-200"
 ```typescript
 // Décorateurs obligatoires sur toute route protégée
 @Roles('owner', 'manager')
-@UseGuards(JwtGuard, RolesGuard)
-
-// Matrice des permissions
-OWNER   → tout
-MANAGER → view, create, edit sur tout ; pas de delete ; approve expenses
-AGENT   → create/view DeliveryNote, SalesInvoice uniquement
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 ```
+
+**Cinq rôles, pas trois.** Forme courte ; la version qui fait foi, avec ses
+listes nommées, est dans `docs/specs/02-auth.md` §Roles & Permissions Matrix.
+
+| Rôle | Portée |
+|---|---|
+| `owner` | tout, sauf `/admin/*` |
+| `manager` | tout, **sauf** 10 suppressions d'entités principales, `PATCH /users/:id` et `PUT /settings` |
+| `agent` | lit tout **sauf les agrégats** (`/dashboard`, `/reports`, `/export`, `/expenses/summary`, `/production/dashboard`) et `/users` ; écrit sur **10 routes** — BL, factures de vente, devis, dépenses, mouvements de production. Ne convertit ni n'expédie |
+| `accountant` | **toute lecture, aucune écriture** |
+| `superadmin` | `/admin/*` et rien d'autre — il n'a pas de locataire |
+
+⚠️ **Ce tableau est exécuté.** `scripts/banc-matrice-roles.py` transcrit la
+politique de `02-auth.md` et compare les 795 cases à chaque passage. Un `@Roles`
+modifié sans report dans la spec fait rougir le banc — c'est son objet.
+
+*La version précédente de ce bloc décrivait trois rôles et divergeait du code
+sur 68 cases (E020). Elle a été corrigée le 2026-08-09 en documentant le
+comportement réel ; aucun droit d'accès n'a été élargi.*
 
 ---
 

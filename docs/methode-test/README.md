@@ -11,7 +11,7 @@ d'un fichier déjà tordu pour celui-ci.
 | Fichier | Étage | Ce qu'il donne | Adaptation attendue |
 |---|---|---|---|
 | `banc-refus-http.py` | 3 | énumère les routes depuis la source NestJS, trois sondes de refus par route, `--self-test`, `--list` | `SRC_DIR=src`, les routes publiques de **R023**, les cinq rôles du projet, les clés d'erreur de `shared/src/i18n/fr.json` |
-| `provision-decor.sh` | — | décor idempotent à identifiants stables, imprime la commande de test | les comptes de `CLAUDE.md` §10, un second locataire pour le banc de cloisonnement |
+| `provision-decor.sh` | — | décor idempotent à identifiants stables, imprime la commande de test | **fait** → `scripts/provision-decor.sh` (2026-08-09) |
 | `run-all-scenarios.sh` | 3 | orchestrateur sans `set -e`, temporisation, détection du throttle, tableau final | la liste des bancs, et **l'ordre justifié en commentaire** à côté de chaque entrée |
 
 ## Ce qui n'est pas repris, et pourquoi

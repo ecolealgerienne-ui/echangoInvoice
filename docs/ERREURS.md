@@ -247,6 +247,37 @@ septembre. Corriger une occurrence ne corrige pas la classe. Le repérage se
 fait sur la forme — toute colonne `date` lue puis rendue au client — pas sur le
 symptôme.
 
+### ⚠️ Et deux fois encore, trois mois plus tard — 2026-08-09
+
+`scripts/banc-dates.py`, écrit pour balayer **la classe** plutôt que le
+symptôme, envoie 31 dates à travers neuf familles de documents et les relit.
+Vingt-huit revenaient intactes. **Trois étaient décalées d'un jour**, à deux
+endroits qui n'avaient jamais été portés :
+
+| Où | Forme |
+|---|---|
+| `PurchasesService.findOneVendorBill` | `SELECT vb.*` — `billDate` **et** `dueDate` d'une facture fournisseur au 31/01 s'affichaient au 30/01, échéance comprise |
+| `RecurringInvoicesService.creer` | `RETURNING *` — un abonnement ancré au 31 était **créé** au 31, **listé** au 31, et **annoncé au 30** par la réponse qui suit sa création |
+
+La seconde est la plus instructive : **c'est le module même où le défaut avait
+déjà été corrigé deux fois.** La liste lisait `"startDate"::text`, la génération
+aussi — le `RETURNING` de la création, non. L'écran affichait donc le mauvais
+jour jusqu'au premier rechargement, ce qui le rendait invisible à qui recharge.
+
+> Une classe de défauts ne se referme pas en corrigeant ses occurrences une à
+> une : elle se referme quand un contrôle **énumère la classe**. Trois
+> corrections successives n'y avaient pas suffi ; un banc qui essaie les
+> 31 dates a trouvé les deux restantes du premier coup.
+
+**Correctif :** les deux requêtes sélectionnent désormais leurs colonnes `date`
+en texte, comme le reste du module. Le banc passe de 28/31 à **31/31**.
+
+**Contrôle :** `python3 scripts/banc-dates.py`. Il éprouve quatre bords — le 31
+d'un mois de 31, le 1er mars, le 1er janvier (qui change d'**année**, donc
+d'exercice comptable) et le 31 décembre. ⚠️ Il annonce le fuseau du poste et
+**prévient qu'à UTC+0 son vert ne prouve rien** : le décalage y est nul par
+construction, et un contrôle qui ne peut pas échouer n'a rien montré (R030).
+
 ---
 
 ## E008 — `UPDATE … RETURNING` ne rend pas ce qu'on croit
@@ -814,3 +845,696 @@ formes.
 
 > Un motif qui décrit *une* écriture fautive laisse passer toutes les autres.
 > Quand la règle est absolue, l'assertion doit l'être aussi.
+
+---
+
+## E018 — Un refus poli dans une langue que personne n'a écrite
+
+**Date :** 2026-08-09 · **Gravité :** moyenne · **Statut :** corrigé
+
+Le banc de refus de la frontière, écrit ce jour-là, appelle les 161 routes
+protégées avec le jeton valide d'un rôle qui n'a rien à y faire. Les 161 ont
+refusé — la frontière tient, et c'est le résultat principal.
+
+Mais **159 de ces refus étaient affichés « une erreur est survenue »**.
+
+Les quatre gardes du projet lèvent une clé de traduction :
+
+| Garde | Clé levée |
+|---|---|
+| `RolesGuard` | `errors.forbidden` |
+| `TenantGuard` | `errors.superadmin_cannot_access_tenant_routes` |
+| `AdminGuard` | `errors.admin_only` |
+| `PlanFeaturesGuard` | `errors.plan_feature_disabled` |
+| `ProductionModuleGuard` | `production_module_disabled` |
+
+**Aucune des cinq n'existait dans `shared/src/i18n/fr.json`.** `resolveApiError`
+tente `t(clé)`, puis `t('errors.' + clé)`, puis retombe sur `errors.generic`.
+Les trois étages étaient muets, donc le message générique sortait — à chaque
+refus d'accès de l'application, depuis toujours.
+
+### La forme du défaut
+
+> Une clé d'erreur est un **couple** entre deux dépôts de vérité : le service
+> qui la lève et le catalogue qui la traduit. Rien ne tient ce couple quand la
+> clé n'est levée que sur un chemin d'erreur — le chemin qu'aucun écran ne
+> parcourt pendant qu'on développe.
+
+C'est M5 (deux copies d'accord entre elles) aggravé par M3 (le repli qui
+rassure) : le repli sur `errors.generic` **détruit l'information d'absence**.
+Une clé manquante n'échoue nulle part ; elle produit une phrase plausible.
+
+### Pourquoi rien ne l'avait vu
+
+- **`verify:i18n` ne pouvait pas le voir.** Il contrôle la parité fr ↔ ar, les
+  chaînes en dur dans le JSX, les clés nues. Ses deux extrémités sont le client
+  et les deux catalogues. **Les clés levées par le serveur ne sont d'aucun des
+  trois** : elles étaient absentes des deux langues à la fois, donc parfaitement
+  paritaires. Un contrôle de parité est aveugle à ce qui manque des deux côtés.
+- **Aucun écran ne provoque un 403** en usage normal : chaque rôle ne voit que
+  ce qu'il a le droit d'ouvrir. Le chemin n'existe qu'en le forçant.
+- **Le 401, lui, n'est pas concerné** — et c'est ce qui rendait l'ensemble
+  crédible. Passport rend `"Unauthorized"`, qui n'est pas davantage une clé ;
+  mais l'intercepteur du client traite tout 401 par un rafraîchissement de
+  jeton puis `onSessionExpired()`. Le message n'atteint jamais l'utilisateur.
+  Vérifié **avant** de conclure : sans cette vérification, le banc aurait rougi
+  322 fois de plus sur un non-défaut.
+
+### Correctif
+
+Les cinq clés ajoutées à `fr.json` et `ar.json`. Le banc passe de 0/159 à
+159/159.
+
+**Contrôle :** `python3 scripts/banc-refus-http.py` — le compte des 403
+traduisibles est publié à chaque passage, avec son dénominateur.
+
+### Reste à faire — cinq clés encore absentes, et ce n'est pas le même défaut
+
+`errors.document_not_found`, `errors.email_already_used`,
+`errors.image_invalid_format`, `errors.logo_invalid_format`,
+`errors.logo_too_large`.
+
+Les trois dernières sont des messages de `class-validator` : elles arrivent
+dans un **tableau**, et `resolveApiError` retombe sur `errors.generic` pour tout
+tableau, quelle que soit la clé. Les traduire ne changerait rien tant que la
+résolution des tableaux n'est pas traitée. Les deux premières sont des chaînes
+et se corrigent comme les cinq ci-dessus.
+
+### Et une seconde famille, plus nombreuse : les clés **nues**
+
+Mesurée le 2026-08-09 en écrivant le banc de cloisonnement. Le serveur lève ses
+clés d'exception sous deux formes — `'errors.xxx'` (32 distinctes) et `'xxx'`
+tout court (64 distinctes). Le client sait résoudre les deux, puisqu'il tente
+`t(brut)` **puis** `t('errors.' + brut)`. Mais **15 des 64 nues n'existent nulle
+part** :
+
+```
+delivery_note_already_invoiced      invoice_limit_reached
+finished_product_not_found          nomenclature_has_active_orders
+invoice_already_paid                nomenclature_not_found              (×6)
+invoice_cancelled            (×2)   production_module_no_tenant
+invoice_items_required              production_order_already_cancelled
+production_order_already_completed  production_order_lines_missing
+production_order_not_found   (×6)   production_order_not_in_progress    (×3)
+production_order_not_planned
+```
+
+Ce sont des **refus métier** — « facture déjà réglée », « ordre déjà terminé »,
+« nomenclature encore utilisée ». Exactement les messages qui devraient
+expliquer à l'utilisateur pourquoi son geste n'a pas abouti. Tous s'affichent
+« une erreur est survenue ».
+
+`production_order_not_found` a été ajoutée, parce que le correctif d'**E019** la
+fait remonter sur une route de lecture. **Les quatorze autres restent à
+traduire** : leur formulation engage le métier, pas la technique, et c'est au
+propriétaire du produit de la trancher.
+
+> Écrit ici pour que l'absence soit une décision, pas un oubli.
+
+---
+
+## E019 — Une lecture qui filtrait l'enfant sans jamais regarder le parent
+
+**Date :** 2026-08-09 · **Gravité :** faible (aucune fuite) · **Statut :** corrigé
+
+Le banc de cloisonnement appelle les 91 routes à paramètre avec le jeton
+**valide** de l'owner du locataire A, sur des identifiants du locataire B.
+Quatre-vingt-neuf ont répondu « introuvable ». Deux ont répondu **200**.
+
+```
+GET /production/orders/:id/movements   → 200 { data: [] }
+GET /stock/entries/:rawMaterialId      → 200 { data: [] }
+```
+
+**Rien n'était sorti.** Les deux requêtes filtraient bien la collection
+d'enfants par `tenantId` :
+
+```ts
+.where('m.productionOrderId = :orderId AND m.tenantId = :tenantId', …)
+where: { tenantId, finishedProductId: rawMaterialId }
+```
+
+Aucune donnée de B n'a jamais pu remonter par là. Ce n'était pas une fuite ;
+c'était **la forme qui en produit une**.
+
+### La forme du défaut
+
+> Une route qui liste les **enfants** d'un parent désigné par identifiant
+> vérifie l'appartenance des enfants, et jamais celle du parent. Tant que le
+> filtre de la collection tient, rien ne sort. Le jour où ce filtre bouge — une
+> jointure ajoutée, un `WHERE` réécrit, un `getMany` remplacé par une requête
+> brute — il n'y a plus **rien** derrière lui.
+
+L'isolation reposait sur une seule ligne, à un seul endroit, sans second verrou.
+Et la dissymétrie était visible dans le même fichier : `create()`, quelques
+lignes sous `findByOrder()`, chargeait l'ordre et le refusait s'il n'était pas
+au locataire. **L'écriture posait la question ; la lecture ne la posait pas.**
+
+### Pourquoi rien ne l'avait vu
+
+Une lecture qui rend `200 { data: [] }` est indiscernable, pour tout ce qui la
+regarde, d'un parent réel sans enfants. Aucune exception, aucun journal, aucun
+écran anormal. C'est le principe fondateur de `METHODE_TEST.md` — *une donnée
+mal câblée ne casse pas, elle disparaît* — appliqué au cas où c'est la
+**vérification** qui a disparu.
+
+Et aucun contrôle statique ne pouvait le voir : le `tenantId` **est** dans la
+requête. R020 est respectée à la lettre. Ce qui manque n'est pas dans la ligne
+qu'on lit, c'est la ligne qu'on ne lit pas.
+
+### À reconnaître ailleurs
+
+Partout où un chemin porte un identifiant de parent et rend une collection :
+`/x/:id/enfants`. La question n'est pas « les enfants sont-ils filtrés ? » mais
+**« a-t-on vérifié que le parent est à nous, avant de répondre ? »**
+
+### Correctif
+
+Les deux services chargent le parent avec son `tenantId` et lèvent
+`NotFoundException` s'il n'est pas là — comme leurs voisines d'écriture le
+faisaient déjà.
+
+**Contrôle :** `python3 scripts/banc-cloisonnement.py` — 91/91 refusés, publié
+avec son dénominateur à chaque passage.
+
+### Ce qui prouve que ce banc sait dire non
+
+`tenantId` retiré du `where` de `CustomersService.findOne()`, sur le vrai
+fichier :
+
+```
+❌ 2 FUITE(S) — des données du locataire B sont sorties :
+   GET  /customers/:id          → 200 : 24d3cbd8…, 364e6f07…, DECOR-B
+   POST /customers/:id/contacts → 201 : 364e6f07…
+```
+
+La seconde ligne est la plus instructive : la mutation d'une **lecture** a
+suffi à ouvrir une **écriture** chez le voisin, parce que `createContact()`
+s'appuie sur `findOne()` pour vérifier l'appartenance. Une vérification
+partagée propage sa défaillance à tout ce qui s'y adosse.
+
+*Le contact créé chez B pendant cette mutation a été supprimé ; le décor a été
+rejoué et n'a rien eu à recréer.*
+
+---
+
+## E020 — Une politique de permissions à trois rôles pour un produit qui en a cinq
+
+**Date :** 2026-08-09 · **Gravité :** moyenne · **Statut :** **arbitré et corrigé**
+
+> **Arbitrage du 2026-08-09**, pris sous consigne d'autonomie et consigné dans
+> `docs/methode-test/JOURNAL.md` §0 : **la politique écrite a été mise au niveau
+> du code ; aucun `@Roles` n'a été touché, aucun droit d'accès n'a été élargi.**
+> Un document qu'on corrige se recorrige ; un droit qu'on ouvre ne se referme
+> qu'après incident.
+>
+> `docs/specs/02-auth.md` décrit désormais les cinq rôles avec leurs listes
+> nommées, `CLAUDE.md` §4 en donne la forme courte, et le banc transcrit la
+> spec : **795/795**.
+>
+> ⚠️ La politique ayant été **dérivée** du comportement observé, le banc
+> risquait de devenir tautologique. Il a donc été revu refuser après
+> l'arbitrage : `@Roles('owner')` élargi sur `DELETE /customers/:id` ⇒ manager
+> 158/159, **un seul** écart, la route nommée. Il détecte bien une régression,
+> et pas seulement lui-même.
+>
+> **Ce qui reste à relire par le produit** — trois décisions prises faute de
+> pouvoir demander : ① l'agent ne convertit ni n'expédie (le code a été suivi
+> contre la promesse de l'ancien tableau) ; ② l'agent crée un devis mais ne
+> l'édite pas — asymétrie consignée telle quelle, ni corrigée ni justifiée ;
+> ③ le manager supprime ce qui se reprend, dont les règlements.
+
+Le banc de la matrice des rôles appelle les 159 routes soumises à un rôle avec
+chacun des cinq personas — 795 sondes — et compare le résultat à la **politique
+écrite** de `docs/specs/02-auth.md` §« Roles & Permissions Matrix ».
+
+```
+owner        159 / 159 conformes
+superadmin   159 / 159 conformes
+manager      147 / 159      12 écarts
+agent        103 / 159      56 écarts
+accountant     — / —        aucune politique écrite ne le mentionne
+```
+
+**68 écarts.** Le code n'est pas fautif dans la plupart des cas : c'est le
+document qui ne dit plus ce que le produit fait.
+
+### La forme du défaut
+
+> Une politique d'autorisation écrite comme un **tableau binaire de rôles ×
+> capacités** ne peut pas décrire une implémentation qui décide **route par
+> route**. Les deux divergent dès la première nuance, et rien ne le signale :
+> le tableau n'est exécuté par personne.
+
+C'est M5 (deux copies d'accord entre elles) dans sa variante la plus coûteuse —
+la seconde copie est en français, dans un document que rien ne relie au code.
+Et R031 : un document périmé et un code fautif se ressemblent exactement.
+
+### Les trois écarts qui gênent un utilisateur
+
+Sur 68, **65 vont dans le sens « le code accorde plus que le tableau »**. Trois
+vont dans l'autre sens — et ce sont les seuls qu'un utilisateur rencontre, parce
+qu'ils **bloquent** quelqu'un dans un geste que la politique lui promet :
+
+```
+POST /deliveries/delivery-notes/:id/create-invoice   politique : agent oui — code : non
+POST /deliveries/delivery-notes/:id/send-email       politique : agent oui — code : non
+POST /invoices/sales-invoices/:id/send-email         politique : agent oui — code : non
+```
+
+La politique dit « Create invoices / BL : agent Yes ». Un agent crée bien un BL
+et une facture, mais ne peut ni convertir l'un en l'autre, ni les expédier.
+C'est peut-être délibéré — expédier au client est un acte commercial. Ce n'est
+écrit nulle part.
+
+### Ce que le code accorde en plus, et qui mérite arbitrage
+
+**`agent`** — le tableau dit « Agent scope: can only create and view
+DeliveryNote and SalesInvoice. All other module routes return 403. » Le code lui
+ouvre **45 routes de lecture** dans tous les modules (clients, articles, stock,
+achats, production, devis, avoirs…), et lui accorde `POST /quotes`,
+`POST /expenses`, les mouvements de production, et l'édition des BL, factures et
+dépenses. L'édition reste bornée en aval au statut `draft` — un agent ne peut
+pas retoucher une facture émise —, ce que le tableau n'a aucun moyen de dire.
+
+**`manager`** — le tableau dit « Delete resources : No ». Le code le lui refuse
+sur les entités principales (client, article, devis, facture, fournisseur : tous
+`@Roles('owner')`) mais le lui accorde sur neuf objets secondaires — contacts,
+liens article-fournisseur, codes-barres, grilles, nomenclatures, dépenses,
+invitations, et **règlements**. Ce dernier a été vérifié : `cancel()` fait une
+suppression **douce** et reprend le solde de la facture ; ce n'est pas une
+destruction, c'est une annulation traçable. Le tableau dit « No » là où le code
+dit « oui, sur ce qui se reprend ».
+
+Il dit aussi « Manage users : No », et le code laisse le manager **lire**
+`/users`, `/users/quota`, `/users/invitations` sans rien pouvoir y modifier.
+Lire n'est pas gérer.
+
+### `accountant` — un rôle entier, hors de toute politique
+
+Il existe en base, dans l'énumération TypeScript, dans une soixantaine de
+décorateurs. Il n'est ni dans ce tableau, ni dans `CLAUDE.md` §4, ni dans une
+spec.
+
+Le banc a relevé ce que le code lui accorde : **67 routes, toutes en lecture,
+aucune écriture.** C'est une politique cohérente et probablement voulue. Elle
+n'est simplement écrite nulle part — donc rien ne la protège d'être élargie par
+inadvertance.
+
+### Ce qui prouve que ce banc sait dire non
+
+`@Roles('owner')` élargi à `@Roles('owner', 'manager')` sur
+`DELETE /customers/:id`, sur le vrai fichier :
+
+```
+manager      146 / 159        (147 avant)
+❌ 69 écart(s)                (68 avant)
+   DELETE /customers/:id   politique : refusé   observé : autorisé
+```
+
+### Correctif — à arbitrer, pas à décider ici
+
+`docs/methode-test/matrice-roles-observee.md` publie la grille complète,
+159 routes × 5 personas, groupée par module. Pour chaque écart la question est
+la même : **le code déborde-t-il, ou la politique n'a-t-elle jamais été mise à
+jour ?**
+
+Une fois tranchée, la grille arbitrée devient la politique — et le banc cesse
+d'être un révélateur pour devenir un détecteur de régression.
+
+> Le banc ne tranche pas : ce serait décider d'un droit d'accès à la place de
+> ceux qui répondent du produit. Il rend la question posable, ce qu'elle
+> n'était pas.
+
+---
+
+## E021 — Une facture émise, rouverte en trois appels, réécrite sous le même numéro
+
+**Date :** 2026-08-09 · **Gravité :** **élevée** (traçabilité fiscale) · **Statut :** ⏳ **ouvert — décision délibérément non prise**
+
+Le banc des cycles de vie relève le graphe de transitions **réel** de chaque
+document et le compare aux tableaux des specs. Sur la facture, une seule
+transition n'était pas documentée :
+
+```
+cancelled → draft
+```
+
+Elle est dans `ALLOWED_TRANSITIONS` (`sales-invoices.service.ts:26`). Elle n'est
+ni dans `docs/specs/09-invoices.md`, ni ailleurs.
+
+### Ce qu'elle permet, mesuré et non déduit
+
+```
+1. facture créée              FAC-26-013     2 380,00 DA     draft
+2. PATCH status → sent        200
+3. PUT (édition)              422 invoice_cannot_update   ← la garde fait son travail
+4. PATCH status → cancelled   200
+5. PATCH status → draft       200
+6. PUT (édition)              200            ← la même garde, contournée
+7. PATCH status → sent        200
+8. état final                 FAC-26-013   117 810,00 DA   sent
+```
+
+**Même numéro. Contenu multiplié par cinquante.** Aucune trace de l'ancienne
+version : `updateStatus` est une simple écriture de champ, et `update()` remplace
+les lignes.
+
+### La forme du défaut
+
+> Une garde qui protège un état (`invoice_cannot_update` hors `draft`) ne
+> protège rien si une **transition ramène vers cet état**. Le verrou n'est pas
+> sur le document, il est sur une valeur de champ — et cette valeur est
+> remise à zéro par une route qui n'a pas été écrite pour ça.
+
+C'est un mode qui ne figurait pas encore dans `METHODE_TEST.md` : **le verrou
+réversible**. Ni M1 (le contrôle existe et refuse bien), ni M4 (rien n'est
+absent). Les deux moitiés sont correctes ; c'est leur composition qui ouvre.
+
+Et il fallait un banc qui essaie **toutes** les cases pour le voir. Un banc qui
+n'aurait éprouvé que les transitions documentées ne l'aurait jamais tentée —
+`cancelled → draft` n'est écrite nulle part, c'est tout le problème.
+
+### Pourquoi c'est grave ici, et pas seulement inélégant
+
+`FAC-26-013` est un numéro séquentiel R013, porté par un document remis au
+client et archivé dix ans (décret 05-468, voir E001). Deux contenus différents
+ont porté ce numéro, et rien dans la base ne permet de savoir lequel a été
+envoyé. Le PDF archivé et la ligne en base peuvent ne plus décrire le même
+document.
+
+### Ce que je n'ai PAS fait, et pourquoi
+
+**Aucun correctif n'a été appliqué.** Trois corrections sont plausibles et
+n'ont pas les mêmes conséquences métier :
+
+1. **retirer `cancelled → draft`** — une facture annulée le reste ; on corrige
+   par un avoir, ce que le produit sait déjà faire. C'est la plus conforme, et
+   celle qui casse le geste de qui annule par erreur ;
+2. **régénérer le numéro** à la résurrection — le document redevient un
+   brouillon neuf, l'ancien numéro est brûlé. Conforme aussi, mais crée des
+   trous dans la séquence, que R013 n'autorise peut-être pas ;
+3. **interdire l'édition dès qu'un numéro a été émis**, quel que soit le
+   statut — la garde porterait alors sur le document, pas sur un champ.
+
+Choisir engage la conformité fiscale du produit et mérite l'avis d'un
+comptable. La consigne d'autonomie du 2026-08-09 ne s'étend pas jusque-là :
+*« ne jamais changer un calcul fiscal ou comptable »* (`JOURNAL.md` §0).
+
+**Le banc reste rouge sur cette ligne, délibérément.** C'est le seul moyen de
+garantir qu'elle ne s'oublie pas.
+
+### Les six autres transitions non documentées, trouvées au même passage
+
+Aucune n'a la même gravité, mais aucune n'est écrite :
+
+| Document | Transition | Conséquence vérifiée |
+|---|---|---|
+| BL | `delivered → cancelled` | **sans danger** : `cancel()` appelle `restoreStock()`, et refuse si le BL est déjà facturé (`delivery_note_has_invoice`) |
+| BL | `sent → delivered` | saute l'étape `signed` que la spec impose |
+| BL | `draft → cancelled`, `sent → cancelled`, `signed → cancelled` | l'état `cancelled` n'est même pas dans l'énumération de `08-deliveries.md` |
+| Commande d'achat | `sent → received` | passer une commande en « reçue » **à la main**, sans réception : aucun lot n'entre en stock, mais la commande se dit servie. La spec dit cette transition « automatique lors de la création d'un ReceptionBL » |
+
+Et une transition documentée que le code **refuse** : `sent → signed` sur le BL.
+Ce n'est pas un défaut — `signed` se pose par `PATCH /:id/signature`. C'est la
+spec qui mélange deux chemins dans un même tableau.
+
+**Contrôle :** `python3 scripts/banc-cycles-de-vie.py` — le graphe observé est
+republié à chaque passage, avec son total décomposé.
+
+---
+
+## E022 — Deux effets « non négociables » qui ne se produisent pas
+
+**Date :** 2026-08-09 · **Gravité :** moyenne · **Statut :** ⏳ **ouvert — décisions non prises**
+
+`CLAUDE.md` §2 énumère six enchaînements déclarés non négociables. Le banc des
+effets de bord les joue et mesure ce qui se produit **ailleurs** dans la base :
+
+```
+effets mesurés  12
+tenus            7
+rompus           5
+```
+
+Sur les cinq, **deux sont des erreurs de rédaction** (corrigées : la route
+`/quotes/:id/convert-to-invoice` n'existe pas — c'est `/convert` ; le statut
+résultant est `converted` et non `invoiced`), **un n'est pas mesurable** ici
+(l'envoi de courriel, sans SMTP local — non réfuté, non couvert). Restent deux
+écarts réels.
+
+### ① `reserved` — un état lu par deux agrégats, écrit par personne
+
+Le contrat dit : à la livraison, `status entries → reserved` ; au règlement,
+`→ sold`. Mesuré : à la livraison, **dix lots passent directement en `sold`**.
+
+Un `grep` sur tout `src/` le confirme — **aucun chemin d'écriture ne pose
+jamais `reserved`**. L'état existe dans l'énumération de `StockEntry`, dans la
+migration, et dans le type TypeScript. Il n'est produit nulle part.
+
+Et il est **lu** à deux endroits :
+
+```
+src/dashboard/dashboard.service.ts:389   SUM(CASE WHEN se.status='reserved' THEN se.quantity ELSE 0 END)
+src/reports/reports.service.ts:300       COUNT(*) FILTER (WHERE status='reserved') AS reserved_entries
+```
+
+**Ces deux chiffres valent zéro, toujours, quoi qu'il arrive dans l'entreprise.**
+C'est exactement la forme d'E016 — un compteur qui ne mène nulle part — et de
+M4 : une capacité servie que rien n'alimente.
+
+⚠️ **Les écrans, eux, vont bien.** La colonne « réservé » de l'inventaire, du
+détail article et du rapport de stock ne vient pas de ce statut : elle est
+**calculée** depuis `reservedByDeliveryNoteId` joint aux BL non encore partis
+(`src/stock/stock-availability.ts`). Ce fichier explique longuement pourquoi —
+*« une colonne de réservation devrait être tenue à jour à chaque création,
+modification, annulation et suppression de BL — exactement le genre de compteur
+qui dérive de sa source »*. Le code a délibérément abandonné le modèle du
+contrat pour un calcul dérivé, et il a eu raison.
+
+**Ce qui reste faux, c'est donc le contrat — et les deux agrégats qui y sont
+restés fidèles.**
+
+### ② La TVA de 19 % n'est pas calculée
+
+Le contrat dit « Auto-calcule TVA 19% ». Mesuré, sur une facture créée **sans
+taux** :
+
+```
+HT 1 000,00    TVA mesurée 0,00    attendue 190,00    total 1 000,00
+```
+
+`sales-invoices.service.ts:114` : `taxAmount1 = dto.taxRate1 != null ? … : 0`.
+Le taux n'est jamais déduit de l'article, ni des réglages du locataire, ni d'un
+défaut de 19 %. **Si l'appelant ne le fournit pas, la facture sort sans TVA.**
+
+En pratique l'interface l'envoie toujours, et aucune facture du jeu de
+démonstration n'est à 0 %. Le risque n'est donc pas dans l'écran : il est dans
+tout autre appelant — l'application mobile, un import, une intégration, une
+facture récurrente — pour qui « auto-calcule » est une promesse écrite.
+
+### La forme du défaut
+
+> Un contrat d'effets de bord n'est tenu par rien. Il décrit ce qui doit se
+> produire **ailleurs** — dans une autre table, après la réponse. Aucun type,
+> aucun compilateur, aucun test de route ne le vérifie ; et un effet qui ne se
+> produit pas **ne lève pas d'erreur**, il laisse simplement une valeur à zéro.
+
+C'est le principe fondateur de `METHODE_TEST.md` appliqué à une clause de
+contrat : *une donnée mal câblée ne casse pas, elle disparaît.*
+
+### Ce que je n'ai PAS fait, et pourquoi
+
+**Aucun correctif de comportement.** Les deux écarts touchent au fiscal et au
+comptable :
+
+- pour ①, corriger peut vouloir dire *écrire* `reserved` à la livraison puis
+  `sold` au règlement — ce qui déplace la reconnaissance du coût des ventes du
+  moment de la livraison à celui de l'encaissement, un changement de méthode
+  comptable — ou bien *retirer* les deux agrégats morts et rectifier le
+  contrat. Les deux se défendent ;
+- pour ②, poser un défaut de 19 % change le montant de factures créées par
+  toute autre voie que l'écran. On ne modifie pas un calcul de TVA sans avis.
+
+La consigne d'autonomie du 2026-08-09 exclut explicitement ce terrain
+(`JOURNAL.md` §0). **Le banc reste rouge sur ces deux lignes, délibérément**, et
+`CLAUDE.md` §2 les porte désormais en marge.
+
+**Contrôle :** `python3 scripts/banc-effets-de-bord.py`.
+
+---
+
+## E023 — Un `<form>` dans un `<form>`, et huit tests qui le disaient depuis le début
+
+**Date :** 2026-08-09 · **Gravité :** moyenne · **Statut :** corrigé
+
+`docs/CHANTIER_TESTS.md` s'ouvre sur ce défaut. Il servait d'argument au
+chantier tout entier :
+
+> *« une erreur console React `<form> cannot contain a nested <form>` sur la
+> modale de création de facture. Introduite par la refonte visuelle, invisible
+> à l'œil, invisible à la compilation. C'est l'argument de ce chantier en une
+> phrase. »*
+
+Trois mois plus tard, il était toujours là — et il faisait échouer **huit
+tests** de la suite, sur les quatre modales de création de document : facture,
+devis, bon de livraison, commande d'achat.
+
+### Ce que c'était
+
+`BandeauScan`, le bandeau de saisie à la douchette, était un `<form>`. Il est
+rendu **à l'intérieur** du formulaire du document (`InvoicesPage.tsx:524`, dans
+le `<form>` ouvert ligne 488).
+
+```
+body > div > form > div > form
+```
+
+### La forme du défaut
+
+> Un composant qui porte son propre `<form>` est **inutilisable à l'intérieur
+> d'un formulaire**, et rien dans son interface ne le dit. Il s'importe et se
+> pose comme n'importe quel autre ; l'incompatibilité n'apparaît qu'à
+> l'exécution, dans la console, sur un écran que personne ne regarde.
+
+C'est M4 retourné : non pas une capacité servie et jamais appelée, mais une
+**contrainte portée et jamais déclarée**.
+
+### Ce qu'il fallait pour le nommer
+
+Trois pas, et aucun n'était évitable :
+
+1. **La suite disait « erreurs console : 2 »**, sans plus. Utile pour savoir
+   qu'il se passe quelque chose, inutile pour savoir quoi.
+2. `msg.text()` de Playwright rend le **gabarit** du message React — « In HTML,
+   %s cannot be a descendant of <%s>. » — sans ses arguments. Il a fallu lire
+   `msg.args()` pour obtenir `<form> | form`.
+3. ⚠️ **Et surtout : vérifier que l'imbrication était RÉELLE.** Le `Modal`
+   s'appuie sur `Dialog.Portal` de Radix, qui rend dans `document.body` : on
+   pouvait raisonnablement conclure que React se plaignait de son propre arbre
+   et que le DOM, lui, allait bien. Un `document.querySelectorAll('form')` a
+   tranché — `form > div > form`, l'imbrication existait bel et bien.
+
+   Sans ce troisième pas, la conclusion « faux positif du portail » était
+   plausible, confortable, et fausse. C'est E004 : *établir d'abord quelle
+   propriété on mesure.*
+
+### Ce que ça cassait, concrètement
+
+Un `<form>` imbriqué n'a pas de propriétaire de soumission défini. La touche
+Entrée dans le champ de scan pouvait **enregistrer le document** au lieu
+d'ajouter une ligne — au milieu d'une saisie, sur une facture incomplète.
+
+### Correctif
+
+`BandeauScan` est un `<div>`. Entrée est traitée par `onKeyDown` avec
+`stopPropagation()`, le bouton porte `type="button"` — dans un formulaire, un
+bouton sans type vaut `submit`. Le comportement visible est identique.
+
+**Effet mesuré sur la suite :**
+
+```
+avant   78 passés / 17 échoués
+après   85 passés / 10 échoués
+```
+
+**Contrôle :** `cd e2e && npx playwright test` — les huit tests portent
+`errors.assert(...)`, qui refuse toute erreur console.
+
+### Ce qui reste, et pourquoi ce n'est pas le même sujet
+
+Dix échecs subsistent, tous **antérieurs** à ce chantier, en trois familles :
+
+| Famille | Tests | Forme |
+|---|---|---|
+| `locator('select')` introuvable | 4 | l'écran n'a plus de `<select>` natif — test périmé par la refonte |
+| dépendance à l'état | 1 | `19-detail:88` passe seul, échoue après les autres (R030 / M8) |
+| divers | 5 | 400 sur `POST /expenses`, `<dialog>` absent, `/Ajouter/i` ambigu, `input[type=email]` introuvable |
+
+Aucun n'a été trié plus avant. **C'est écrit ici pour que l'absence soit une
+décision, pas un oubli.**
+
+---
+
+## E024 — Le quatrième chemin vers une facture, celui que le commentaire annonçait
+
+**Date :** 2026-08-09 · **Gravité :** élevée (marge brute faussée) · **Statut :** corrigé
+
+`SalesInvoicesService` porte, depuis la correction d'**E015**, ce commentaire :
+
+> *« Trois chemins mènent à une facture — saisie directe, bon de livraison,
+> devis — et les trois doivent figer le coût. Le faire à trois endroits
+> garantissait qu'un jour l'un des trois serait oublié, et la marge d'une
+> facture issue d'un BL serait devenue fausse sans que rien ne le dise. »*
+
+Il y en avait un **quatrième**. `DeliveriesService.createInvoice` — la route
+`POST /deliveries/delivery-notes/:id/create-invoice` — écrit ses propres lignes
+de facture, dans un autre service, et `unitCost` **ne figurait pas dans la
+liste des colonnes**.
+
+### La conséquence
+
+Une facture créée depuis un bon de livraison sortait avec `unitCost = NULL` sur
+toutes ses lignes. Le coût des marchandises vendues sommant `unitCost ×
+quantité`, ces lignes comptaient pour **zéro**.
+
+> **La marge brute de ces factures valait 100 %.** C'est E015, mot pour mot,
+> par une autre porte — et trois mois après sa correction.
+
+### La forme du défaut
+
+C'est **M13** dans sa version la plus ironique : *« le même geste écrit
+ailleurs »*. Le commentaire du service principal **annonce le risque**, compte
+les chemins — et se trompe de compte, parce que le quatrième n'est pas dans le
+même fichier.
+
+> Compter les endroits où une règle doit s'appliquer ne sert à rien si on les
+> compte **dans le fichier qu'on est en train de lire**. La question n'est pas
+> « combien de chemins ai-je ici », c'est **« qui d'autre insère dans cette
+> table ? »** — et la réponse s'obtient par un `grep`, pas par la mémoire.
+
+### Comment il a été trouvé
+
+Pas par une relecture. `scripts/provision-decor.sh` a été étendu pour poser une
+paire BL → facture (le parcours écran en avait besoin), et
+`verifier-comptabilite.js` est passé au rouge **au passage suivant** :
+
+```
+ECHEC toutes les lignes portent un coût figé
+      3 ligne(s) sur 3558 sans coût
+```
+
+Trois lignes sur trois mille cinq cent cinquante-huit. Le contrôle a mordu sur
+un millième de la table — c'est exactement pour ça qu'il exige **zéro** et non
+« presque toutes ».
+
+### Correctif
+
+L'`INSERT` porte désormais `unitCost`, calculé par la même expression que
+`SalesInvoicesService.coutsUnitaires`. Vérifié : une facture créée depuis un BL
+porte un coût de 900,00 pour un article reçu à 900,00.
+
+⚠️ **L'expression est recopiée** — couple assumé au sens de R029, faute de
+pouvoir importer le service sans dépendance circulaire. **Le vrai remède est
+qu'il n'y ait qu'un seul créateur de facture.** Tant qu'il y en a deux, un
+cinquième chemin reste possible. À trancher par le produit.
+
+**Contrôle :** `node scripts/verifier-comptabilite.js` — « toutes les lignes
+portent un coût figé ».
+
+### ⚠️ Et une maladresse de ma part, consignée pour ce qu'elle apprend
+
+En diagnostiquant, j'ai lancé un `DELETE FROM sales_invoice_items WHERE
+"unitCost" IS NULL …` pour « nettoyer » avant de mesurer le nouveau
+comportement. C'était **supprimer la preuve plutôt que la corriger** : quatre
+factures se sont retrouvées avec un total de 1 428,00 DA et **aucune ligne**.
+
+Elles ont été reconstruites depuis leur BL d'origine — ce que la route fait
+elle-même —, et aucune donnée du jeu de démonstration n'était concernée : les
+quatre avaient été créées le jour même par le décor. Vérifié avant réparation,
+et vérifié après : plus aucune facture sans ligne.
+
+> Devant une donnée qui gêne une mesure, le réflexe correct est de **la
+> corriger** (`UPDATE`) ou de **restreindre la mesure**, jamais de la
+> supprimer. Un `DELETE` sur des lignes de facture est irréversible, et il
+> l'était ici sans sauvegarde.
