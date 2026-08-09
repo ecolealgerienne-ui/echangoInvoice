@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -9,7 +9,7 @@ import { collectErrors, waitForLoaded } from './helpers';
  */
 
 const ongletNumerotation = (page: import('@playwright/test').Page) =>
-  page.getByRole('button', { name: 'Numérotation', exact: true });
+  page.getByRole('button', { name: t('settings.tabFormats'), exact: true });
 
 test.describe('Formats de numérotation', () => {
   test('les huit documents numérotés sont réglables', async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe('Formats de numérotation', () => {
       (r) => r.url().includes('/settings') && r.request().method() === 'PUT',
       { timeout: 10_000 },
     );
-    await page.getByRole('button', { name: 'Enregistrer' }).click();
+    await page.getByRole('button', { name: t('common.save') }).click();
     expect((await reponse).status()).toBe(400);
 
     // On rétablit le format d'origine : les autres tests créent des documents.
@@ -68,7 +68,7 @@ test.describe('Formats de numérotation', () => {
       (r) => r.url().includes('/settings') && r.request().method() === 'PUT',
       { timeout: 10_000 },
     );
-    await page.getByRole('button', { name: 'Enregistrer' }).click();
+    await page.getByRole('button', { name: t('common.save') }).click();
     expect((await ok).status()).toBe(200);
   });
 });

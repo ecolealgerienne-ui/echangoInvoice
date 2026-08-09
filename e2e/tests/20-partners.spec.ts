@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -10,7 +10,7 @@ import { collectErrors, waitForLoaded } from './helpers';
 async function ouvrirFiche(page: import('@playwright/test').Page, liste: string, recherche: string) {
   await page.goto(liste);
   await waitForLoaded(page);
-  await page.getByPlaceholder('Rechercher').fill(recherche);
+  await page.getByPlaceholder(t('common.search')).fill(recherche);
   await page.waitForTimeout(800);
   await page.locator('tbody tr a').first().click();
   await waitForLoaded(page);
@@ -22,9 +22,9 @@ test.describe('Fiches tiers', () => {
     await ouvrirFiche(page, '/customers', 'Aurès');
 
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}$/);
-    await expect(page.getByText('CA facturé')).toBeVisible();
-    await expect(page.getByText('Encours', { exact: true })).toBeVisible();
-    await expect(page.getByText('Dont échu')).toBeVisible();
+    await expect(page.getByText(t('partners.detail.turnover'))).toBeVisible();
+    await expect(page.getByText(t('partners.detail.outstanding'), { exact: true })).toBeVisible();
+    await expect(page.getByText(t('partners.detail.overdue'))).toBeVisible();
 
     // Un historique de factures, dont les numéros mènent au document.
     const factures = page.locator('table').first().locator('tbody tr');
@@ -40,7 +40,7 @@ test.describe('Fiches tiers', () => {
     await page.locator('table').first().locator('tbody tr a').first().click();
     await expect(page).toHaveURL(/\/invoices\/[0-9a-f-]{36}$/);
     await waitForLoaded(page);
-    await expect(page.getByText('Total HT', { exact: true })).toBeVisible();
+    await expect(page.getByText(t('invoices.detail.subtotal'), { exact: true })).toBeVisible();
 
     errors.assert('Fiche client → facture');
   });
@@ -55,7 +55,7 @@ test.describe('Fiches tiers', () => {
     // Le nom du client, dans le bloc Client, est un lien vers la fiche.
     await page.locator('a[href^="/customers/"]').first().click();
     await expect(page).toHaveURL(/\/customers\/[0-9a-f-]{36}$/);
-    await expect(page.getByText('CA facturé')).toBeVisible();
+    await expect(page.getByText(t('partners.detail.turnover'))).toBeVisible();
 
     errors.assert('Facture → fiche client');
   });
@@ -68,8 +68,8 @@ test.describe('Fiches tiers', () => {
     await expect(page).toHaveURL(/\/suppliers\/[0-9a-f-]{36}$/);
     await waitForLoaded(page);
 
-    await expect(page.getByText('Total acheté')).toBeVisible();
-    await expect(page.getByText('Dette', { exact: true })).toBeVisible();
+    await expect(page.getByText(t('partners.detail.purchased'))).toBeVisible();
+    await expect(page.getByText(t('partners.detail.debt'), { exact: true })).toBeVisible();
 
     errors.assert('Fiche fournisseur');
   });
@@ -77,6 +77,6 @@ test.describe('Fiches tiers', () => {
   test('un identifiant inexistant affiche un message', async ({ page }) => {
     await page.goto('/customers/00000000-0000-4000-8000-000000000000');
     await waitForLoaded(page);
-    await expect(page.getByText('Client introuvable')).toBeVisible();
+    await expect(page.getByText(t('errors.customer_not_found'))).toBeVisible();
   });
 });

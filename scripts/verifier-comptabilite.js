@@ -39,15 +39,28 @@ async function principal() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
   const ds = app.get(require('typeorm').DataSource);
 
-  const tenant = (await ds.query(
-    `SELECT "tenantId" FROM sales_invoices WHERE "deletedAt" IS NULL LIMIT 1`,
-  ))[0];
-  if (!tenant) {
+  // Quel locataire ? La question ne se posait pas tant qu'il n'y en avait
+  // qu'un : `LIMIT 1` sans `ORDER BY` rendait toujours le même.
+  //
+  // Depuis que `provision-decor.sh` en pose un second, c'est un tirage au sort
+  // — et tomber sur le locataire de test ferait juger les bornes de
+  // plausibilité sur une trentaine de factures fabriquées par les bancs. Le
+  // contrôle deviendrait vert ou rouge selon l'ordre physique des lignes, ce
+  // qui est la pire façon d'échouer : sans raison lisible.
+  //
+  // On prend donc, à défaut d'indication, **celui qui porte le plus de
+  // factures** — les bornes de plausibilité n'ont de sens que sur une activité
+  // réelle. `TENANT_ID` permet de désigner l'autre explicitement.
+  const t = process.env.TENANT_ID || (await ds.query(
+    `SELECT "tenantId", count(*) AS n
+       FROM sales_invoices WHERE "deletedAt" IS NULL
+      GROUP BY "tenantId" ORDER BY n DESC, "tenantId" ASC LIMIT 1`,
+  ))[0]?.tenantId;
+  if (!t) {
     console.log('\n  Aucune facture en base : contrôle ignoré.\n');
     await app.close();
     return 0;
   }
-  const t = tenant.tenantId;
 
   console.log('\nAgrégats financiers\n');
   const stats = await app.get(DashboardService).getStats(t, {});

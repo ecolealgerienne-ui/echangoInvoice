@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -14,9 +14,9 @@ test.describe('Disponibilité du stock', () => {
     await page.goto('/stock');
     await waitForLoaded(page);
 
-    await expect(page.getByRole('columnheader', { name: 'Réservé' })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Disponible' })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Entrant' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: t('stock.reserved') })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: t('stock.available') })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: t('stock.incoming') })).toBeVisible();
 
     errors.assert('Inventaire');
   });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -14,17 +14,17 @@ test.describe('Détail des documents d\'achat', () => {
     await waitForLoaded(page);
 
     // Une commande facturée : elle a forcément une réception et une facture.
-    const ligne = page.locator('tbody tr').filter({ hasText: 'Facturé' }).first();
+    const ligne = page.locator('tbody tr').filter({ hasText: t('status.invoiced') }).first();
     const numero = (await ligne.locator('a').first().textContent())?.trim();
     await ligne.locator('a').first().click();
     await expect(page).toHaveURL(/\/purchases\/orders\/[0-9a-f-]{36}$/);
     await waitForLoaded(page);
 
     await expect(page.getByRole('heading', { name: numero! })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Articles' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Réceptions BL' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Factures fournisseurs' })).toBeVisible();
-    await expect(page.getByText('Total HT', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('common.items') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('purchases.receptionsTitle') })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('nav.vendorBills') })).toBeVisible();
+    await expect(page.getByText(t('invoices.detail.subtotal'), { exact: true })).toBeVisible();
 
     errors.assert('Détail commande');
   });
@@ -34,7 +34,7 @@ test.describe('Détail des documents d\'achat', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    const ligne = page.locator('tbody tr').filter({ hasText: 'Facturé' }).first();
+    const ligne = page.locator('tbody tr').filter({ hasText: t('status.invoiced') }).first();
     await ligne.locator('a').first().click();
     await waitForLoaded(page);
 
@@ -43,7 +43,7 @@ test.describe('Détail des documents d\'achat', () => {
     await expect(page).toHaveURL(/\/purchases\/receptions\/[0-9a-f-]{36}$/);
     await waitForLoaded(page);
 
-    await expect(page.getByRole('heading', { name: 'Lots entrés en stock' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('purchases.detail.lots') })).toBeVisible();
     const lots = page.locator('table tbody tr');
     await expect(lots.first()).toBeVisible();
     // Un lot porte un numéro et un coût unitaire : sans eux la page ne sert à rien.
@@ -63,9 +63,9 @@ test.describe('Détail des documents d\'achat', () => {
     await waitForLoaded(page);
 
     await expect(page.getByRole('heading', { name: numero! })).toBeVisible();
-    await expect(page.getByText('N° Commande')).toBeVisible();
-    await expect(page.getByText('N° BL Réception')).toBeVisible();
-    await expect(page.getByText('Reste dû')).toBeVisible();
+    await expect(page.getByText(t('purchases.poNumber'))).toBeVisible();
+    await expect(page.getByText(t('purchases.blNumber'))).toBeVisible();
+    await expect(page.getByText(t('partners.detail.remaining'))).toBeVisible();
 
     errors.assert('Détail facture fournisseur');
   });

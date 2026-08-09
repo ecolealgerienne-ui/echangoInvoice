@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
+import { nomClientDecor } from './decor';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -51,11 +52,11 @@ test.describe('Pages détail', () => {
     expect(premiere).toContain('DA');
 
     // Les totaux, dont le solde dû.
-    await expect(page.getByText('Total HT', { exact: true })).toBeVisible();
-    await expect(page.getByText('Solde dû', { exact: true })).toBeVisible();
+    await expect(page.getByText(t('invoices.detail.subtotal'), { exact: true })).toBeVisible();
+    await expect(page.getByText(t('invoices.due'), { exact: true })).toBeVisible();
 
     // Le client, avec au moins son nom.
-    await expect(page.getByRole('heading', { name: 'Client', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: t('invoices.customer'), exact: true })).toBeVisible();
 
     errors.assert('Détail facture');
   });
@@ -73,7 +74,7 @@ test.describe('Pages détail', () => {
     const numero = await ouvrirPremierNonBrouillon(page, '/quotes', /\/quotes\/[0-9a-f-]{36}$/);
     await expect(page.getByRole('heading', { name: numero! })).toBeVisible();
     await expect(page.locator('table tbody tr').first()).toBeVisible();
-    await expect(page.getByText('Total HT', { exact: true })).toBeVisible();
+    await expect(page.getByText(t('invoices.detail.subtotal'), { exact: true })).toBeVisible();
     errors.assert('Détail devis');
   });
 
@@ -90,8 +91,23 @@ test.describe('Pages détail', () => {
     await page.goto('/invoices');
     await waitForLoaded(page);
 
+    // ⚠️ On FILTRE, on ne défile pas.
+    //
+    // Ce test cherchait sa facture sur la première page de la liste — vingt
+    // lignes sur mille. Les tests qui tournent avant lui en créent assez pour
+    // l'en chasser : il passait seul et échouait après les autres (M7 aggravé
+    // par M8). La recherche interroge le serveur, et la pagination disparaît
+    // du problème.
+    //
+    // Le nom cherché vient du décor, qui a posé la paire BL → facture. Il
+    // n'est pas deviné, et `decor.ts` arrête le test si le décor n'a pas
+    // tourné — plutôt que de le laisser chercher au hasard.
+    await page.getByPlaceholder(t('common.search')).fill(nomClientDecor());
+    await waitForLoaded(page);
+
     // La colonne « Origine » porte le numéro du BL quand il y en a un.
     const ligne = page.locator('tbody tr').filter({ hasText: /BL-\d{2}-\d{3}/ }).first();
+    await expect(ligne).toBeVisible({ timeout: 10_000 });
     await ligne.locator('a').first().click();
     await waitForLoaded(page);
     const numeroFacture = await page.locator('h1').textContent();
@@ -109,6 +125,6 @@ test.describe('Pages détail', () => {
   test('un identifiant inexistant affiche un message, pas une page vide', async ({ page }) => {
     await page.goto('/invoices/00000000-0000-4000-8000-000000000000');
     await waitForLoaded(page);
-    await expect(page.getByText('Facture introuvable')).toBeVisible();
+    await expect(page.getByText(t('errors.invoice_not_found'))).toBeVisible();
   });
 });

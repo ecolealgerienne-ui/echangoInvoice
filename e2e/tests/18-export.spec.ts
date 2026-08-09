@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { readFileSync } from 'fs';
 import { collectErrors, waitForLoaded } from './helpers';
 
@@ -28,7 +28,7 @@ test.describe('Export CSV', () => {
     await page.goto('/invoices');
     await waitForLoaded(page);
 
-    const { nom, octets } = await telecharger(page, 'Exporter les factures', 'Excel (français)');
+    const { nom, octets } = await telecharger(page, t('invoices.exportInvoices'), t('exportButton.excelFr'));
 
     expect(nom).toMatch(/^factures_\d{4}-\d{2}-\d{2}\.csv$/);
 
@@ -57,7 +57,7 @@ test.describe('Export CSV', () => {
     await page.locator('select').first().selectOption('paid');
     await waitForLoaded(page);
 
-    const { octets } = await telecharger(page, 'Exporter les factures', 'Excel (français)');
+    const { octets } = await telecharger(page, t('invoices.exportInvoices'), t('exportButton.excelFr'));
     const lignes = octets.toString('utf8').slice(1).split('\r\n').filter(Boolean).slice(1);
 
     expect(lignes.length).toBeGreaterThan(0);
@@ -73,7 +73,7 @@ test.describe('Export CSV', () => {
     await page.goto('/customers');
     await waitForLoaded(page);
 
-    const { nom, octets } = await telecharger(page, 'Exporter', 'CSV standard');
+    const { nom, octets } = await telecharger(page, t('exportButton.label'), t('exportButton.csvStandard'));
 
     expect(nom).toMatch(/^clients_/);
     const lignes = octets.toString('utf8').slice(1).split('\r\n').filter(Boolean);

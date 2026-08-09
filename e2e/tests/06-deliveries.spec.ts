@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 test.describe('Bons de livraison', () => {
@@ -14,7 +14,7 @@ test.describe('Bons de livraison', () => {
     await page.goto('/deliveries');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau bl|nouveau bon/i }).click();
+    await page.getByRole('button', { name: tRegex('deliveries.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     const selects = page.locator('[role="dialog"] select');

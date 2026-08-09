@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
@@ -17,7 +17,7 @@ test.describe('Rapports', () => {
     await page.goto('/reports');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /stock/i }).click();
+    await page.getByRole('button', { name: tRegex('reports.stock') }).click();
     await waitForLoaded(page);
     errors.assert('Rapports stock');
   });
@@ -27,14 +27,14 @@ test.describe('Rapports', () => {
     await page.goto('/reports');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /ventes/i }).click();
+    await page.getByRole('button', { name: tRegex('reports.sales') }).click();
 
     const dateInputs = page.locator('input[type="date"]');
     await dateInputs.first().fill(firstOfMonth);
     await dateInputs.last().fill(today);
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/reports'));
-    await page.getByRole('button', { name: /générer/i }).click();
+    await page.getByRole('button', { name: tRegex('reports.generate') }).click();
     await responsePromise;
     await waitForLoaded(page);
     errors.assert('Rapports ventes générer');
@@ -45,8 +45,8 @@ test.describe('Rapports', () => {
     await page.goto('/reports');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /achats/i }).click();
-    await page.getByRole('button', { name: /générer/i }).click();
+    await page.getByRole('button', { name: tRegex('reports.purchases') }).click();
+    await page.getByRole('button', { name: tRegex('reports.generate') }).click();
     await waitForLoaded(page);
     errors.assert('Rapports achats générer');
   });
@@ -56,8 +56,8 @@ test.describe('Rapports', () => {
     await page.goto('/reports');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /tax|tva/i }).click();
-    await page.getByRole('button', { name: /générer/i }).click();
+    await page.getByRole('button', { name: tRegex('reports.tax') }).click();
+    await page.getByRole('button', { name: tRegex('reports.generate') }).click();
     await waitForLoaded(page);
     errors.assert('Rapports taxes générer');
   });

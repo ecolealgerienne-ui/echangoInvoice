@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 const today = new Date().toISOString().split('T')[0];
@@ -26,7 +26,7 @@ test.describe('Dépenses', () => {
     await page.goto('/expenses');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouvelle dépense/i }).click();
+    await page.getByRole('button', { name: tRegex('expenses.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await page.locator('[role="dialog"] input[name="expenseDate"]').fill(today);
@@ -35,7 +35,7 @@ test.describe('Dépenses', () => {
     await page.locator('[role="dialog"] select[name="category"]').selectOption('transport');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/expenses') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');

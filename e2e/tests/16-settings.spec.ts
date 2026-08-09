@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -13,7 +13,7 @@ import { collectErrors, waitForLoaded } from './helpers';
  * échouaient sur un produit correct.
  */
 const ongletTva = (page: import('@playwright/test').Page) =>
-  page.getByRole('button', { name: 'TVA', exact: true });
+  page.getByRole('button', { name: t('settings.tabTax'), exact: true });
 
 test.describe('Paramètres', () => {
   test('page charge et formulaire visible', async ({ page }) => {
@@ -42,7 +42,7 @@ test.describe('Paramètres', () => {
     await nameInput.fill(currentName || 'Chambre Froide Test');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/settings') && r.request().method() !== 'GET');
-    await page.getByRole('button', { name: /enregistrer|sauvegarder/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');

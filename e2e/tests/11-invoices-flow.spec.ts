@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 const today = new Date().toISOString().split('T')[0];
@@ -10,7 +10,7 @@ test.describe('Factures — flux complet', () => {
     await page.goto('/invoices');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouvelle facture/i }).click();
+    await page.getByRole('button', { name: tRegex('invoices.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await selectFirst(page, '[role="dialog"] select[name="customerId"]');
@@ -22,7 +22,7 @@ test.describe('Factures — flux complet', () => {
     await page.locator('[role="dialog"] input[name="items.0.unitPrice"]').fill('500');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/invoices') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');
@@ -87,7 +87,7 @@ test.describe('Factures — flux complet', () => {
           await page.locator('[role="dialog"] select[name="paymentMethod"]').selectOption('cash');
 
           const responsePromise = page.waitForResponse(r => r.url().includes('/payments') && r.request().method() === 'POST');
-          await page.getByRole('button', { name: /enregistrer/i }).click();
+          await page.getByRole('button', { name: tRegex('common.save') }).click();
           const response = await responsePromise;
           if (!response.ok()) {
             const body = await response.text().catch(() => '');

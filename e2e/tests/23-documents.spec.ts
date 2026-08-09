@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, t } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 /**
@@ -55,7 +55,7 @@ test.describe('Documents et identification', () => {
 
       const attente = page.waitForEvent('download');
       // Le bouton n'a qu'une icône : son intitulé est dans `title`.
-      await page.locator('tbody button[title="Télécharger PDF"]').first().click();
+      await page.locator('tbody').getByTitle(t('common.pdf'), { exact: true }).first().click();
       const fichier = await attente;
       expect(fichier.suggestedFilename()).toMatch(motif);
       expect(fichier.suggestedFilename()).toMatch(/\.pdf$/);

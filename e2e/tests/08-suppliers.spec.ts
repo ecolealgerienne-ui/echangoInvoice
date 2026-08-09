@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 test.describe('Fournisseurs', () => {
@@ -14,7 +14,7 @@ test.describe('Fournisseurs', () => {
     await page.goto('/suppliers');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau fournisseur/i }).click();
+    await page.getByRole('button', { name: tRegex('suppliers.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     errors.assert('Fournisseurs modal');
   });
@@ -24,11 +24,11 @@ test.describe('Fournisseurs', () => {
     await page.goto('/suppliers');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau fournisseur/i }).click();
+    await page.getByRole('button', { name: tRegex('suppliers.new') }).click();
     await page.locator('[role="dialog"] input[name="name"]').fill(`Fournisseur Test ${Date.now()}`);
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/suppliers') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');
@@ -65,7 +65,7 @@ test.describe('Fournisseurs', () => {
     const responsePromise = page.waitForResponse(
       r => r.url().includes('/suppliers') && r.request().method() === 'PUT',
     );
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');

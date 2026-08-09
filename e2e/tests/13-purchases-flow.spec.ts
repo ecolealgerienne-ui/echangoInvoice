@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex, t } from './base';
 import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 const today = new Date().toISOString().split('T')[0];
@@ -9,7 +9,7 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouvelle commande/i }).click();
+    await page.getByRole('button', { name: tRegex('purchases.newOrder') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await selectFirst(page, '[role="dialog"] select[name="supplierId"]');
@@ -20,7 +20,7 @@ test.describe('Achats — flux complet', () => {
     await page.locator('[role="dialog"] input[name="items.0.unitPrice"]').fill('50');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/purchase-orders') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');
@@ -40,7 +40,7 @@ test.describe('Achats — flux complet', () => {
   // bouton « Nouvelle réception » — d'où une violation du mode strict. Les
   // deux sont désormais visés par leur libellé exact.
   const ongletReceptions = (page: import('@playwright/test').Page) =>
-    page.getByRole('button', { name: 'Réceptions BL', exact: true });
+    page.getByRole('button', { name: t('purchases.receptionsTitle'), exact: true });
 
   test('onglet réceptions visible', async ({ page }) => {
     const errors = collectErrors(page);
@@ -52,7 +52,7 @@ test.describe('Achats — flux complet', () => {
 
     // Sans cette assertion, le test ne prouvait que sa capacité à cliquer.
     await expect(
-      page.getByRole('button', { name: 'Nouvelle réception', exact: true }),
+      page.getByRole('button', { name: t('purchases.newReception'), exact: true }),
     ).toBeVisible();
     errors.assert('Achats onglet réceptions');
   });
@@ -67,7 +67,7 @@ test.describe('Achats — flux complet', () => {
 
     // Plus de `if (isVisible)` : un bouton absent rendait le test vert sans
     // avoir rien ouvert.
-    await page.getByRole('button', { name: 'Nouvelle réception', exact: true }).click();
+    await page.getByRole('button', { name: t('purchases.newReception'), exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     errors.assert('Achats réception modal');
   });
