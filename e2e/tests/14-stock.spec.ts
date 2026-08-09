@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded } from './helpers';
 
 test.describe('Stock', () => {
@@ -14,7 +14,7 @@ test.describe('Stock', () => {
     await page.goto('/stock');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /alertes/i }).click();
+    await page.getByRole('button', { name: tRegex('stock.alerts') }).click();
     await waitForLoaded(page);
     errors.assert('Stock alertes');
   });

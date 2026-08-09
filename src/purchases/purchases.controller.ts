@@ -1,9 +1,11 @@
 import {
-  Controller, Get, Post, Patch, Delete, Put,
+  Controller, Get, Post, Patch, Delete, Put, Res,
   Body, Param, Query, HttpCode, HttpStatus, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PurchasesService } from './purchases.service';
+import { PurchasePdfService } from './purchase-pdf.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { ListPurchaseOrdersDto } from './dto/list-purchase-orders.dto';
 import { PatchPoStatusDto } from './dto/patch-po-status.dto';
@@ -16,16 +18,20 @@ import { PatchVendorBillStatusDto } from './dto/patch-vendor-bill-status.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('purchases')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('purchases')
 export class PurchasesController {
-  constructor(private readonly service: PurchasesService) {}
+  constructor(
+    private readonly service: PurchasesService,
+    private readonly pdfService: PurchasePdfService,
+  ) {}
 
   // ── Purchase Orders ─────────────────────────────────────────────────────────
 
@@ -38,14 +44,14 @@ export class PurchasesController {
   }
 
   @Get('purchase-orders')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List purchase orders (paginated + filters)' })
   findAllPos(@Query() query: ListPurchaseOrdersDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllPurchaseOrders(query, user.tenantId!);
   }
 
   @Get('purchase-orders/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get purchase order with items and receptions' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -100,14 +106,14 @@ export class PurchasesController {
   }
 
   @Get('reception-bls')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List reception BLs (paginated)' })
   findAllBls(@Query() query: ListReceptionBlsDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllReceptionBls(query, user.tenantId!);
   }
 
   @Get('reception-bls/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get reception BL with stock entries' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -125,14 +131,14 @@ export class PurchasesController {
   }
 
   @Get('vendor-bills')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List vendor bills (paginated + filters)' })
   findAllVendorBills(@Query() query: ListVendorBillsDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAllVendorBills(query, user.tenantId!);
   }
 
   @Get('vendor-bills/:id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get vendor bill with items and payments' })
   findOneVendorBill(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: JwtPayload) {
     return this.service.findOneVendorBill(id, user.tenantId!);
@@ -177,5 +183,58 @@ export class PurchasesController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.service.recordVendorPayment(id, dto, user.tenantId!, user.sub);
+  }
+
+  /**
+   * PDF du bon de commande — le document que le fournisseur recoit.
+   *
+   * En lecture seule pour le comptable comme pour l'agent : sortir un PDF ne
+   * modifie rien, et refuser l'impression a qui peut deja lire le bon a
+   * l'ecran n'aurait protege aucune donnee.
+   */
+  @Get('purchase-orders/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Purchase order PDF' })
+  async purchaseOrderPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generatePurchaseOrderPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
+  }
+
+  @Get('reception-bls/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Goods receipt PDF' })
+  async receptionBlPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateReceptionBlPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
+  }
+
+  /** Copie interne : l'original du fournisseur reste la piece comptable. */
+  @Get('vendor-bills/:id/pdf')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Vendor bill internal copy PDF' })
+  async vendorBillPdf(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() reply: FastifyReply,
+  ) {
+    const { buffer, filename } = await this.pdfService.generateVendorBillPdf(id, user.tenantId!);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header('Content-Disposition', `inline; filename="${filename}"`)
+      .send(buffer);
   }
 }

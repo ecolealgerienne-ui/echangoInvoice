@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -8,6 +9,8 @@ import { productsApi, suppliersApi, settingsApi , resolveApiError } from '@/lib/
 import { formatCurrency } from '@/lib/utils';
 import { useUnits } from '@/lib/useUnits';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -15,8 +18,14 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { CodesBarres } from '@/components/shared/CodesBarres';
+import { FournisseursArticle } from '@/components/shared/FournisseursArticle';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -26,6 +35,12 @@ const schema = z.object({
   defaultSalesPrice: z.coerce.number().min(0).optional(),
   lastCostPerUnit: z.coerce.number().min(0).optional(),
   alertThreshold: z.coerce.number().min(0).optional(),
+  taxRate: z.coerce.number().min(0).max(100).optional(),
+  category: z.string().max(80).optional(),
+  minStock: z.coerce.number().min(0).optional(),
+  maxStock: z.coerce.number().min(0).optional(),
+  packQuantity: z.coerce.number().min(0.01).optional(),
+  packUnit: z.string().max(50).optional(),
   supplierId: z.string().optional(),
   description: z.string().optional(),
 });
@@ -46,6 +61,12 @@ export function ProductsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'product' | 'material' | 'both'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  // Les colonnes triables sont celles de la liste blanche du service
+  // (products.service.ts) : en demander une autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<
+    'name' | 'code' | 'type' | 'unit' | 'defaultSalesPrice' | 'lastCostPerUnit'
+  >('products_sort', { sortBy: 'name', sortOrder: 'ASC' });
+
   const { visible: visibleColumns, toggle: toggleColumn, col } = useColumnVisibility<ColumnKey>(
     'products_visible_columns',
     ['type', 'name', 'code', 'unit', 'salesPrice', 'costPrice'],
@@ -59,11 +80,12 @@ export function ProductsPage() {
   const defaultUnit: string = settingsData?.data?.defaultUnit ?? '';
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, search, typeFilter],
+    queryKey: ['products', page, search, typeFilter, tri],
     queryFn: () => productsApi.list({
       page, limit: 20,
       search: search || undefined,
       type: typeFilter === 'all' ? undefined : typeFilter,
+      ...tri,
     }),
   });
 
@@ -87,8 +109,19 @@ export function ProductsPage() {
   const mutation = useMutation({
     mutationFn: (d: FormData) =>
       editing ? productsApi.update(editing.id, d) : productsApi.create(d),
-    onSuccess: () => {
+    onSuccess: (reponse: any) => {
       qc.invalidateQueries({ queryKey: ['products'] });
+
+      // Un code-barres et un fournisseur se rattachent a un article : ils ne
+      // peuvent pas etre saisis avant qu il existe. Plutot que d obliger a
+      // fermer puis rouvrir au crayon, la modale bascule en modification et
+      // les deux blocs apparaissent sous le formulaire.
+      if (!editing && reponse?.data?.id) {
+        setEditing(reponse.data);
+        toast(t('products.createdNext'), 'success');
+        return;
+      }
+
       toast(t('common.save') + ' !', 'success');
       closeModal();
     },
@@ -127,12 +160,14 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('products.title')}</h1>
+      {/* Deux actions par ligne seulement, et les deux se lisent d'une icône :
+          la liste des articles garde ses boutons directs. Replier deux gestes
+          derrière un menu coûterait un clic sans rien dégager. */}
+      <EnTetePage titre={t('products.title')} total={data?.pagination?.total} cleTotal="products.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('products.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative w-64">
@@ -144,13 +179,19 @@ export function ProductsPage() {
           {TYPE_FILTERS.map(f => (
             <button key={f}
               onClick={() => { setTypeFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 transition-colors ${typeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}>
+              className={`px-3 py-1.5 transition-colors ${typeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted'}`}>
               {t(`products.type.${f}`)}
             </button>
           ))}
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {/* « all » et « both » n'ont pas d'équivalent dans la colonne `type` :
+              on n'envoie le filtre que lorsqu'il désigne une valeur réelle. */}
+          <ExportButton
+            dataset="articles"
+            filtres={{ type: typeFilter === 'product' || typeFilter === 'material' ? typeFilter : undefined }}
+          />
           <ColumnToggleMenu
             columns={ALL_COLUMNS.map(k => ({ key: k, label: COLUMN_LABELS[k] }))}
             visible={visibleColumns}
@@ -160,56 +201,78 @@ export function ProductsPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                {col('type') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.type.label')}</th>}
-                {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.name')}</th>}
-                {col('code') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.code')}</th>}
-                {col('unit') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.unit')}</th>}
-                {col('salesPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.price')}</th>}
-                {col('costPrice') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('products.costPerUnit')}</th>}
-                {col('supplier') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.supplier')}</th>}
-                {col('description') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('products.description')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('type') && (
+                  <EnteteTriable libelle={t('products.type.label')} colonne="type" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('name') && (
+                  <EnteteTriable libelle={t('products.name')} colonne="name" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('code') && (
+                  <EnteteTriable libelle={t('products.code')} colonne="code" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('unit') && (
+                  <EnteteTriable libelle={t('products.unit')} colonne="unit" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('salesPrice') && (
+                  <EnteteTriable libelle={t('products.price')} colonne="defaultSalesPrice" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('costPrice') && (
+                  <EnteteTriable libelle={t('products.costPerUnit')} colonne="lastCostPerUnit" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('supplier') && <th className="px-3 py-2.5 text-left">{t('products.supplier')}</th>}
+                {col('description') && <th className="px-3 py-2.5 text-left">{t('products.description')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={visibleColumns.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visibleColumns.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((p: any) => (
-                <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={p.id} className="hover:bg-surface-hover transition-colors">
                   {col('type') && (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.type === 'material' ? 'bg-orange-100 text-orange-700' :
-                        p.type === 'both' ? 'bg-purple-100 text-purple-700' :
-                        'bg-blue-100 text-blue-700'
+                        p.type === 'material' ? 'bg-warning-subtle text-warning-text' :
+                        p.type === 'both' ? 'bg-info-subtle text-info-text' :
+                        'bg-info-subtle text-info-text'
                       }`}>{t(`products.type.${p.type}`)}</span>
                     </td>
                   )}
-                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>}
-                  {col('code') && <td className="px-4 py-3 font-mono text-muted-foreground">{p.code || '—'}</td>}
-                  {col('unit') && <td className="px-4 py-3 text-muted-foreground">{p.unit}</td>}
+                  {col('name') && (
+                    <td className="px-3 py-2.5 font-medium">
+                      <Link to={`/products/${p.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">{p.name}</Link>
+                    </td>
+                  )}
+                  {col('code') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{p.code || '—'}</td>}
+                  {col('unit') && <td className="px-3 py-2.5 text-muted-foreground">{p.unit}</td>}
                   {col('salesPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.defaultSalesPrice != null ? formatCurrency(p.defaultSalesPrice) : '—'}
                     </td>
                   )}
                   {col('costPrice') && (
-                    <td className="px-4 py-3 text-right text-muted-foreground">
+                    <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                       {p.lastCostPerUnit != null ? formatCurrency(p.lastCostPerUnit) : '—'}
                     </td>
                   )}
                   {col('supplier') && (
-                    <td className="px-4 py-3 text-muted-foreground">{p.supplierName || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{p.supplierName || '—'}</td>
                   )}
                   {col('description') && (
-                    <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground max-w-xs truncate">{p.description || '—'}</td>
                   )}
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
                         <Pencil className="h-4 w-4" />
@@ -223,19 +286,21 @@ export function ProductsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && (
         <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />
       )}
 
-      <Modal open={modalOpen} onClose={closeModal} title={editing ? t('common.edit') : t('products.new')}>
+      <Modal open={modalOpen} onClose={closeModal}
+        title={editing ? t('common.edit') : t('products.new')}
+        size={editing ? 'xl' : undefined}>
         <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-3">
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('products.type.label')} *</label>
             <select {...register('type')}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+              className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm">
               <option value="product">{t('products.type.product')}</option>
               <option value="material">{t('products.type.material')}</option>
               <option value="both">{t('products.type.both')}</option>
@@ -277,7 +342,7 @@ export function ProductsPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('nav.suppliers')}</label>
               <select {...register('supplierId')}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm">
                 <option value="">{t('common.select')}</option>
                 {suppliers.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -292,6 +357,49 @@ export function ProductsPage() {
             <p className="text-xs text-muted-foreground">{t('stock.thresholdHint')}</p>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.taxRate')}</label>
+              {/* En Algerie c'est 19 ou 9 selon le produit : le porter sur
+                  l'article evite de le ressaisir a chaque ligne. */}
+              <Input type="number" step="0.01" min="0" max="100" {...register('taxRate')} placeholder="19" />
+              <p className="text-xs text-muted-foreground">{t('products.taxRateHint')}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.category')}</label>
+              {/* Auto-completion sur les familles deja saisies : une liste
+                  fermee demanderait un ecran de gestion pour peu de valeur. */}
+              <Input list="familles-articles" {...register('category')} placeholder="Produits laitiers" />
+              <datalist id="familles-articles">
+                {[...new Set((data?.data ?? []).map((p: any) => p.category).filter(Boolean))]
+                  .map((c) => <option key={String(c)} value={String(c)} />)}
+              </datalist>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.minStock')}</label>
+              <Input type="number" step="0.01" min="0" {...register('minStock')} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.maxStock')}</label>
+              <Input type="number" step="0.01" min="0" {...register('maxStock')} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.packQuantity')}</label>
+              <Input type="number" step="0.01" min="0.01" {...register('packQuantity')} placeholder="12" />
+              <p className="text-xs text-muted-foreground">{t('products.packHint')}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('products.packUnit')}</label>
+              <Input {...register('packUnit')} placeholder="carton" />
+            </div>
+          </div>
+
           <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">{t('common.description')}</label>
             <Input {...register('description')} />
@@ -302,6 +410,29 @@ export function ProductsPage() {
             <Button type="submit" disabled={mutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
+
+        {/* Fournisseurs et codes-barres ne peuvent pas exister avant l'article :
+            ce sont des collections rattachees a un identifiant. Ils n'apparaissent
+            donc qu'en modification, et s'enregistrent seuls — leurs boutons sont
+            hors du formulaire au-dessus, dont ils ne dependent pas. */}
+        {!editing && (
+          <p className="mt-4 border-t border-border pt-4 text-xs text-muted-foreground">
+            {t('products.saveFirst')}
+          </p>
+        )}
+
+        {editing && (
+          <div className="mt-6 space-y-6 border-t border-border pt-5">
+            <FournisseursArticle productId={editing.id} />
+            <CodesBarres productId={editing.id} />
+            <p className="text-xs text-muted-foreground">
+              {t('products.moreOnSheet')}{' '}
+              <Link to={`/products/${editing.id}`} className="text-primary hover:underline">
+                {t('products.openSheet')}
+              </Link>
+            </p>
+          </div>
+        )}
       </Modal>
     </div>
   );

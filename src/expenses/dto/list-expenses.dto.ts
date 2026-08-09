@@ -1,10 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 
-export class ListExpensesDto {
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Type(() => Number) page?: number = 1;
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Type(() => Number) limit?: number = 20;
+export class ListExpensesDto extends ListQueryDto {
 
   @ApiPropertyOptional({ enum: ['loyer', 'utilities', 'transport', 'rh', 'maintenance', 'other'] })
   @IsOptional()

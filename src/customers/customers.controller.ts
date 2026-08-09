@@ -10,13 +10,14 @@ import { ListCustomersDto } from './dto/list-customers.dto';
 import { CreateCustomerContactDto } from './dto/create-customer-contact.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('customers')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly service: CustomersService) {}
@@ -30,14 +31,25 @@ export class CustomersController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List customers (paginated)' })
   findAll(@Query() query: ListCustomersDto, @CurrentUser() user: JwtPayload) {
     return this.service.findAll(query, user.tenantId!);
   }
 
+  /**
+   * Déclarée AVANT `:id`, qui avalerait « cities » et chercherait un client
+   * dont l'identifiant serait ce mot — un 404 sur une route pourtant écrite.
+   */
+  @Get('cities')
+  @Roles('owner', 'manager', 'agent', 'accountant')
+  @ApiOperation({ summary: 'Villes présentes dans le fichier clients' })
+  cities(@CurrentUser() user: JwtPayload) {
+    return this.service.cities(user.tenantId!);
+  }
+
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get customer with history' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -65,7 +77,7 @@ export class CustomersController {
   // ─── Contacts ─────────────────────────────────────────────────────────────
 
   @Get(':id/contacts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les contacts d\'un client' })
   listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.listContacts(id, user.tenantId!);

@@ -5,9 +5,10 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  productionApi, rawMaterialsApi, productsApi, resolveApiError,
+  productionApi, productsApi, resolveApiError,
 } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { varianteMouvement, varianteStatut } from '@/lib/statuts';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -21,36 +22,22 @@ import {
   Factory, ClipboardList, AlertTriangle, TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { TableConteneur } from '@/components/ui/DataTable';
+import { KpiCard } from '@/components/ui/KpiCard';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
-const ORDER_STATUS_VARIANT: Record<string, any> = {
-  planned: 'muted',
-  in_progress: 'info',
-  completed: 'success',
-  cancelled: 'destructive',
-};
-const NOM_STATUS_VARIANT: Record<string, any> = {
-  active: 'success',
-  inactive: 'warning',
-  archived: 'muted',
-};
-const MOV_TYPE_VARIANT: Record<string, any> = {
-  mp_consumption: 'info',
-  rejection: 'destructive',
-  mp_loss: 'warning',
-};
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 const bomLineSchema = z.object({
-  rawMaterialId: z.string().uuid({ message: 'Matière première requise' }),
-  quantityPerUnit: z.coerce.number().positive('Quantité > 0'),
-  unit: z.string().min(1, 'Unité requise'),
+  rawMaterialId: z.string().uuid({ message: 'production.materialRequired' }),
+  quantityPerUnit: z.coerce.number().positive('production.quantityPositive'),
+  unit: z.string().min(1, 'production.unitRequired'),
 });
 
 const nomenclatureSchema = z.object({
   code: z.string().min(1, 'Code requis').max(50),
   name: z.string().min(2, 'Nom requis').max(255),
-  finishedProductId: z.string().uuid({ message: 'Produit fini requis' }),
+  finishedProductId: z.string().uuid({ message: 'production.finishedProductRequired' }),
   description: z.string().optional(),
   lines: z.array(bomLineSchema).min(1, 'Au moins un composant requis'),
 });
@@ -58,7 +45,7 @@ type NomenclatureFormData = z.infer<typeof nomenclatureSchema>;
 
 const orderSchema = z.object({
   nomenclatureId: z.string().uuid({ message: 'Nomenclature requise' }),
-  quantityToProduce: z.coerce.number().positive('Quantité > 0'),
+  quantityToProduce: z.coerce.number().positive('production.quantityPositive'),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   priority: z.enum(['normal', 'urgent']).default('normal'),
@@ -67,7 +54,7 @@ const orderSchema = z.object({
 type OrderFormData = z.infer<typeof orderSchema>;
 
 const completeSchema = z.object({
-  quantityProduced: z.coerce.number().positive('Quantité produite > 0'),
+  quantityProduced: z.coerce.number().positive('production.producedPositive'),
   quantityRejected: z.coerce.number().min(0).default(0),
   notes: z.string().optional(),
 });
@@ -77,8 +64,8 @@ const movementSchema = z.object({
   type: z.enum(['mp_consumption', 'rejection', 'mp_loss']),
   rawMaterialId: z.string().optional(),
   finishedProductId: z.string().optional(),
-  quantity: z.coerce.number().positive('Quantité > 0'),
-  unit: z.string().min(1, 'Unité requise'),
+  quantity: z.coerce.number().positive('production.quantityPositive'),
+  unit: z.string().min(1, 'production.unitRequired'),
   reason: z.string().optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
@@ -109,6 +96,12 @@ export function ProductionPage() {
   const [movModalOpen, setMovModalOpen] = useState(false);
 
   // ── Data ────────────────────────────────────────────────────────────────────
+  // Indicateurs affichés au-dessus des onglets : ils valent pour les deux.
+  const { data: prodDashboardData } = useQuery({
+    queryKey: ['production-dashboard'],
+    queryFn: () => productionApi.getDashboard(),
+  });
+
   const { data: nomenclaturesData, isLoading: nomLoading } = useQuery({
     queryKey: ['production-nomenclatures', page, search],
     queryFn: () => productionApi.listNomenclatures({ page, limit: 20, search: search || undefined }),
@@ -146,17 +139,15 @@ export function ProductionPage() {
   });
   const orderNomenclature: any = orderNomenclatureData?.data ?? null;
 
-  const { data: rawMaterialsData } = useQuery({
-    queryKey: ['raw-materials-all'],
-    queryFn: () => rawMaterialsApi.list({ limit: 200 }),
-  });
-
   const { data: productsData } = useQuery({
     queryKey: ['products-all'],
     queryFn: () => productsApi.list({ limit: 200 }),
   });
 
-  const rawMaterials: any[] = rawMaterialsData?.data ?? [];
+  // `finished_products` a absorbé `raw_materials` (migration 1709981400000) :
+  // les matières sont les articles de type « material » ou « both ». La colonne
+  // `bomLine.rawMaterialId` garde son nom mais désigne un article du catalogue.
+  const rawMaterials: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'material' || p.type === 'both');
   const finishedProducts: any[] = (productsData?.data ?? []).filter((p: any) => p.type === 'product' || p.type === 'both');
   const nomenclatures: any[] = nomenclaturesData?.data ?? [];
   const allNomenclatures: any[] = allNomenclaturesData?.data ?? [];
@@ -199,7 +190,7 @@ export function ProductionPage() {
     mutationFn: (data: NomenclatureFormData) => productionApi.createNomenclature(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureCreated'), 'success');
+      toast('production.nomenclatureCreated', 'success');
       setNomModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -209,7 +200,7 @@ export function ProductionPage() {
     mutationFn: (data: NomenclatureFormData) => productionApi.updateNomenclature(editingNom.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureUpdated'), 'success');
+      toast('production.nomenclatureUpdated', 'success');
       setNomModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -219,7 +210,7 @@ export function ProductionPage() {
     mutationFn: (id: string) => productionApi.deleteNomenclature(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-nomenclatures'] });
-      toast(t('production.nomenclatureDeleted'), 'success');
+      toast('production.nomenclatureDeleted', 'success');
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
@@ -238,7 +229,7 @@ export function ProductionPage() {
     mutationFn: (data: OrderFormData) => productionApi.createOrder(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
-      toast(t('production.orderCreated'), 'success');
+      toast('production.orderCreated', 'success');
       setOrderModalOpen(false);
       orderForm.reset();
     },
@@ -250,7 +241,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderStarted'), 'success');
+      toast('production.orderStarted', 'success');
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
   });
@@ -266,7 +257,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderCompleted'), 'success');
+      toast('production.orderCompleted', 'success');
       setCompleteModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -277,7 +268,7 @@ export function ProductionPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-orders'] });
       qc.invalidateQueries({ queryKey: ['production-order', viewOrder?.id] });
-      toast(t('production.orderCancelled'), 'success');
+      toast('production.orderCancelled', 'success');
       setCancelModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -294,7 +285,7 @@ export function ProductionPage() {
     mutationFn: (data: MovementFormData) => productionApi.createMovement(viewOrder.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
-      toast(t('production.movementLogged'), 'success');
+      toast('production.movementLogged', 'success');
       setMovModalOpen(false);
       movForm.reset({ type: 'mp_consumption', quantity: 1, unit: '' });
     },
@@ -357,7 +348,7 @@ export function ProductionPage() {
     mutationFn: (items: object[]) => productionApi.createMovementBatch(viewOrder.id, items),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['production-movements', viewOrder?.id] });
-      toast(t('production.movementLogged'), 'success');
+      toast('production.movementLogged', 'success');
       setMovModalOpen(false);
     },
     onError: (e: any) => toast(resolveApiError(e, t), 'error'),
@@ -373,7 +364,7 @@ export function ProductionPage() {
         unit: l.unit,
       }));
     if (items.length === 0) {
-      toast('Aucune quantité à enregistrer', 'error');
+      toast(t('production.nothingToLog'), 'error');
       return;
     }
     batchMovMutation.mutate(items);
@@ -381,11 +372,11 @@ export function ProductionPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="flex items-center gap-2">
             <Factory className="h-6 w-6 text-primary" />
             {t('production.title')}
           </h1>
@@ -397,6 +388,47 @@ export function ProductionPage() {
           {tab === 'nomenclatures' ? t('production.newNomenclature') : t('production.newOrder')}
         </Button>
       </div>
+
+      {/* Indicateurs de production */}
+      {prodDashboardData?.data && (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Tuile
+              label={t('dashboard.production.ordersInProgress')}
+              value={prodDashboardData.data.ordersInProgress}
+            />
+            <Tuile
+              label={t('dashboard.production.ordersCompletedThisWeek')}
+              value={prodDashboardData.data.ordersCompletedThisWeek}
+            />
+            <Tuile
+              label={t('dashboard.production.averageYield')}
+              value={`${prodDashboardData.data.averageYield} %`}
+            />
+            <Tuile
+              label={t('dashboard.production.costVariance')}
+              value={`${formatCurrency(prodDashboardData.data.costVariance.amount)} (${prodDashboardData.data.costVariance.pct} %)`}
+              colorClass={prodDashboardData.data.costVariance.amount > 0 ? 'text-destructive' : 'text-success'}
+            />
+          </div>
+
+          {prodDashboardData.data.criticalStock?.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle>{t('dashboard.production.criticalStock')}</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {prodDashboardData.data.criticalStock.map((c: any) => (
+                  <div key={c.rawMaterial.id} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground truncate max-w-[50%]">{c.rawMaterial.name}</span>
+                    <Badge variant={c.available <= 0 ? 'destructive' : 'warning'}>
+                      {c.available} {c.rawMaterial.unit}
+                    </Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -433,34 +465,34 @@ export function ProductionPage() {
           ) : nomenclatures.length === 0 ? (
             <EmptyState
               icon={<ClipboardList className="h-10 w-10 text-muted-foreground" />}
-              message="Aucune nomenclature. Créez votre première BOM pour définir la recette d'un produit fini."
+              message={t('production.noNomenclature')}
             />
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.code')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.name')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Coût / unité</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.code')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.name')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.finishedProduct')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.costPerUnit')}</th>
+                    <th className="text-center px-3 py-2.5">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {nomenclatures.map((nom: any) => (
-                    <tr key={nom.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{nom.code}</td>
-                      <td className="px-4 py-3 font-medium">{nom.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(nom.estimatedCostPerUnit)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant={NOM_STATUS_VARIANT[nom.status] ?? 'muted'}>
+                    <tr key={nom.id} className="hover:bg-surface-hover transition-colors">
+                      <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{nom.code}</td>
+                      <td className="px-3 py-2.5 font-medium">{nom.name}</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(nom.estimatedCostPerUnit)}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        <Badge variant={varianteStatut(nom.status)}>
                           {String(t(`production.nomStatus.${nom.status}`, nom.status))}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => openNomEdit(nom)}>
                             <Pencil className="h-3.5 w-3.5" />
@@ -479,7 +511,7 @@ export function ProductionPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
           )}
           {nomenclaturesData?.pagination && (
             <Pagination
@@ -500,32 +532,32 @@ export function ProductionPage() {
           ) : orders.length === 0 ? (
             <EmptyState
               icon={<Factory className="h-10 w-10 text-muted-foreground" />}
-              message="Aucun ordre de production. Créez un ordre à partir d'une nomenclature existante."
+              message={t('production.noOrder')}
             />
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.ref')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.nomenclature')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.quantityToProduce')}</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('production.estimatedCost')}</th>
-                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">{t('production.yieldPct')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('production.plannedStart')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.ref')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.nomenclature')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.quantityToProduce')}</th>
+                    <th className="text-center px-3 py-2.5">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.estimatedCost')}</th>
+                    <th className="text-center px-3 py-2.5">{t('production.yieldPct')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.plannedStart')}</th>
+                    <th className="text-right px-3 py-2.5">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {orders.map((order: any) => (
-                    <tr key={order.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 font-mono font-semibold text-primary">{order.ref}</td>
-                      <td className="px-4 py-3">{order.nomenclatureName ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">{order.quantityToProduce}</td>
-                      <td className="px-4 py-3 text-center">
+                    <tr key={order.id} className="hover:bg-surface-hover transition-colors">
+                      <td className="px-3 py-2.5 font-mono font-semibold text-primary">{order.ref}</td>
+                      <td className="px-3 py-2.5">{order.nomenclatureName ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{order.quantityToProduce}</td>
+                      <td className="px-3 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Badge variant={ORDER_STATUS_VARIANT[order.status] ?? 'muted'}>
+                          <Badge variant={varianteStatut(order.status)}>
                             {String(t(`production.status.${order.status}`, order.status))}
                           </Badge>
                           {order.priority === 'urgent' && (
@@ -533,18 +565,18 @@ export function ProductionPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(order.estimatedCost)}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{formatCurrency(order.estimatedCost)}</td>
+                      <td className="px-3 py-2.5 text-center">
                         {Number(order.yieldPercentage) > 0 ? (
-                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-green-600' : Number(order.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'}`}>
+                          <span className={`font-medium ${Number(order.yieldPercentage) >= 90 ? 'text-success' : Number(order.yieldPercentage) >= 70 ? 'text-warning' : 'text-destructive'}`}>
                             {Number(order.yieldPercentage).toFixed(1)}%
                           </span>
                         ) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                      <td className="px-3 py-2.5 text-muted-foreground text-xs">
                         {order.plannedStartDate ? formatDate(order.plannedStartDate) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
                         <div className="flex items-center justify-end gap-1">
                           {order.status === 'planned' && (
                             <Button
@@ -554,7 +586,7 @@ export function ProductionPage() {
                               onClick={() => { setViewOrder(order); startOrderMutation.mutate(order.id); }}
                               disabled={startOrderMutation.isPending}
                             >
-                              <Play className="h-3.5 w-3.5 text-blue-600" />
+                              <Play className="h-3.5 w-3.5 text-info" />
                             </Button>
                           )}
                           {order.status === 'in_progress' && (
@@ -564,7 +596,7 @@ export function ProductionPage() {
                               title={t('production.completeOrder')}
                               onClick={() => { setViewOrder(order); setCompleteModalOpen(true); }}
                             >
-                              <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                              <CheckCircle className="h-3.5 w-3.5 text-success" />
                             </Button>
                           )}
                           {(order.status === 'planned' || order.status === 'in_progress') && (
@@ -591,7 +623,7 @@ export function ProductionPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
           )}
           {ordersData?.pagination && (
             <Pagination
@@ -617,13 +649,13 @@ export function ProductionPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">{t('production.code')}</label>
-              <Input {...nomForm.register('code')} placeholder="NOM-001" className="mt-1" />
-              {nomForm.formState.errors.code && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.code.message}</p>}
+              <Input {...nomForm.register('code')} placeholder={t('production.codePlaceholder')} className="mt-1" />
+              {nomForm.formState.errors.code && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.code.message ? t(nomForm.formState.errors.code.message) : ''}</p>}
             </div>
             <div>
               <label className="text-sm font-medium">{t('production.name')}</label>
-              <Input {...nomForm.register('name')} placeholder="Nom de la nomenclature" className="mt-1" />
-              {nomForm.formState.errors.name && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.name.message}</p>}
+              <Input {...nomForm.register('name')} placeholder={t('production.namePlaceholder')} className="mt-1" />
+              {nomForm.formState.errors.name && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.name.message ? t(nomForm.formState.errors.name.message) : ''}</p>}
             </div>
           </div>
 
@@ -641,7 +673,7 @@ export function ProductionPage() {
                 </Select>
               )}
             />
-            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message}</p>}
+            {nomForm.formState.errors.finishedProductId && <p className="text-xs text-destructive mt-1">{nomForm.formState.errors.finishedProductId.message ? t(nomForm.formState.errors.finishedProductId.message) : ''}</p>}
           </div>
 
           <div>
@@ -649,7 +681,7 @@ export function ProductionPage() {
             <textarea
               {...nomForm.register('description')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               placeholder="Description optionnelle..."
             />
           </div>
@@ -669,14 +701,14 @@ export function ProductionPage() {
               </Button>
             </div>
             {nomForm.formState.errors.lines?.root && (
-              <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message}</p>
+              <p className="text-xs text-destructive mb-2">{nomForm.formState.errors.lines.root.message ? t(nomForm.formState.errors.lines.root.message) : ''}</p>
             )}
             {/* En-tête colonnes */}
             <div className="grid grid-cols-12 gap-2 px-3 mb-1">
-              <div className="col-span-5 text-xs font-medium text-muted-foreground">Matière première</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground">Qté / unité</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground">Unité</div>
-              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">Coût / unité</div>
+              <div className="col-span-5 text-xs font-medium text-muted-foreground">{t('production.rawMaterial')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('production.qtyPerUnitShort')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground">{t('common.unit')}</div>
+              <div className="col-span-2 text-xs font-medium text-muted-foreground text-right">{t('production.costPerUnit')}</div>
               <div className="col-span-1" />
             </div>
             <div className="space-y-2">
@@ -706,7 +738,7 @@ export function ProductionPage() {
                     <Input
                       type="number"
                       step="0.01"
-                      placeholder="Qté"
+                      placeholder={t('common.qty')}
                       {...nomForm.register(`lines.${idx}.quantityPerUnit`)}
                     />
                   </div>
@@ -745,7 +777,7 @@ export function ProductionPage() {
               }, 0);
               return (
                 <div className="grid grid-cols-12 gap-2 px-3 pt-2 border-t border-border mt-2">
-                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">Total / unité produite</div>
+                  <div className="col-span-9 text-xs font-semibold text-muted-foreground text-right">{t('production.totalPerUnit')}</div>
                   <div className="col-span-2 text-right text-sm font-bold">{formatCurrency(totalUnit)}</div>
                   <div className="col-span-1" />
                 </div>
@@ -787,7 +819,7 @@ export function ProductionPage() {
               )}
             />
             {orderForm.formState.errors.nomenclatureId && (
-              <p className="text-xs text-destructive mt-1">{orderForm.formState.errors.nomenclatureId.message}</p>
+              <p className="text-xs text-destructive mt-1">{orderForm.formState.errors.nomenclatureId.message ? t(orderForm.formState.errors.nomenclatureId.message) : ''}</p>
             )}
           </div>
 
@@ -803,8 +835,8 @@ export function ProductionPage() {
                 name="priority"
                 render={({ field }) => (
                   <Select value={field.value} onChange={field.onChange} className="mt-1">
-                    <option value="normal">Normal</option>
-                    <option value="urgent">Urgent</option>
+                    <option value="normal">{t('production.priority.normal')}</option>
+                    <option value="urgent">{t('production.priority.urgent')}</option>
                   </Select>
                 )}
               />
@@ -827,7 +859,7 @@ export function ProductionPage() {
             <textarea
               {...orderForm.register('notes')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
@@ -848,22 +880,22 @@ export function ProductionPage() {
         size="xl"
       >
         {orderDetailLoading ? <LoadingSpinner /> : orderDetail ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* KPI cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard label={t('production.quantityToProduce')} value={orderDetail.quantityToProduce} />
-              <KpiCard label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
-              <KpiCard
+              <Tuile label={t('production.quantityToProduce')} value={orderDetail.quantityToProduce} />
+              <Tuile label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
+              <Tuile
                 label={t('production.actualCost')}
                 value={Number(orderDetail.actualCost) > 0 ? formatCurrency(orderDetail.actualCost) : '—'}
               />
-              <KpiCard
+              <Tuile
                 label={t('production.yieldPct')}
                 value={Number(orderDetail.yieldPercentage) > 0 ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
                   Number(orderDetail.yieldPercentage) === 0 ? '' :
-                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-green-600' :
-                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-yellow-600' : 'text-destructive'
+                  Number(orderDetail.yieldPercentage) >= 90 ? 'text-success' :
+                  Number(orderDetail.yieldPercentage) >= 70 ? 'text-warning' : 'text-destructive'
                 }
               />
             </div>
@@ -874,7 +906,7 @@ export function ProductionPage() {
                 <InfoRow label={t('production.nomenclature')} value={orderDetail.nomenclatureName ?? '—'} />
                 <InfoRow label={t('production.finishedProduct')} value={orderDetail.finishedProductName ?? '—'} />
                 <InfoRow label={t('common.status')}>
-                  <Badge variant={ORDER_STATUS_VARIANT[orderDetail.status] ?? 'muted'}>
+                  <Badge variant={varianteStatut(orderDetail.status)}>
                     {String(t(`production.status.${orderDetail.status}`, orderDetail.status))}
                   </Badge>
                 </InfoRow>
@@ -980,28 +1012,28 @@ export function ProductionPage() {
                   {/* Consommation MP */}
                   {consRows.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Consommation MP</p>
-                      <div className="rounded-md border border-border overflow-hidden">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{t('production.movType.mp_consumption')}</p>
+                      <TableConteneur>
                         <table className="w-full text-sm">
-                          <thead className="bg-muted/50">
+                          <thead>
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Prévu</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Consommé</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Écart</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                              <th className="text-left px-3 py-1.5">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.planned')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.consumed')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.variance')}</th>
+                              <th className="text-center px-3 py-1.5">{t('common.unit')}</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border">
+                          <tbody className="divide-y divide-border-subtle">
                             {consRows.map(([id, row]) => {
                               const planned = bomMap[id] ?? null;
                               const ecart = planned !== null ? row.consumed - planned : null;
                               return (
                                 <tr key={id}>
                                   <td className="px-3 py-1.5 font-medium">{row.name}</td>
-                                  <td className="px-3 py-1.5 text-right text-muted-foreground">{planned !== null ? planned.toFixed(2) : '—'}</td>
-                                  <td className="px-3 py-1.5 text-right font-semibold">{row.consumed.toFixed(2)}</td>
-                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-amber-600' : ecart < 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                                  <td className="px-3 py-1.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{planned !== null ? planned.toFixed(2) : '—'}</td>
+                                  <td className="px-3 py-1.5 text-right font-semibold whitespace-nowrap tabular-nums">{row.consumed.toFixed(2)}</td>
+                                  <td className={`px-3 py-1.5 text-right text-xs font-medium ${ecart === null ? '' : ecart > 0 ? 'text-warning' : ecart < 0 ? 'text-success' : 'text-muted-foreground'}`}>
                                     {ecart === null ? '—' : ecart > 0 ? `+${ecart.toFixed(2)}` : ecart.toFixed(2)}
                                   </td>
                                   <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
@@ -1010,7 +1042,7 @@ export function ProductionPage() {
                             })}
                           </tbody>
                         </table>
-                      </div>
+                      </TableConteneur>
                     </div>
                   )}
 
@@ -1018,20 +1050,20 @@ export function ProductionPage() {
                   {hasLoss && (
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pertes MP</p>
-                      <div className="rounded-md border border-amber-200 overflow-hidden">
+                      <div className="rounded-md border border-warning/30 overflow-hidden">
                         <table className="w-full text-sm">
-                          <thead className="bg-amber-50/60">
+                          <thead className="bg-warning-subtle/60">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Matière</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Total perdu</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-muted-foreground">Unité</th>
+                              <th className="text-left px-3 py-1.5">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.totalLost')}</th>
+                              <th className="text-center px-3 py-1.5">{t('common.unit')}</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border">
+                          <tbody className="divide-y divide-border-subtle">
                             {lossRows.map(([id, row]) => (
                               <tr key={id}>
                                 <td className="px-3 py-1.5 font-medium">{row.name}</td>
-                                <td className="px-3 py-1.5 text-right font-semibold text-amber-700">{row.lost.toFixed(2)}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-warning-text whitespace-nowrap tabular-nums">{row.lost.toFixed(2)}</td>
                                 <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{row.unit}</td>
                               </tr>
                             ))}
@@ -1062,36 +1094,36 @@ export function ProductionPage() {
                 {t('production.movements')}
               </h3>
               {movements.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic">Aucun mouvement enregistré.</p>
+                <p className="text-sm text-muted-foreground italic">{t('production.noMovement')}</p>
               ) : (
-                <div className="rounded-md border border-border overflow-hidden">
+                <TableConteneur>
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
+                    <thead>
                       <tr>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movementType')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">Matière / Produit</th>
-                        <th className="text-right px-3 py-2 font-medium text-muted-foreground">{t('production.quantity')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.reason')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t('production.movedAt')}</th>
+                        <th className="text-left px-3 py-2">{t('production.movementType')}</th>
+                        <th className="text-left px-3 py-2">{t('production.materialOrProduct')}</th>
+                        <th className="text-right px-3 py-2">{t('production.quantity')}</th>
+                        <th className="text-left px-3 py-2">{t('production.reason')}</th>
+                        <th className="text-left px-3 py-2">{t('production.movedAt')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-border-subtle">
                       {movements.map((mv: any) => (
                         <tr key={mv.id} className="hover:bg-muted/20">
                           <td className="px-3 py-2">
-                            <Badge variant={MOV_TYPE_VARIANT[mv.type] ?? 'muted'}>
+                            <Badge variant={varianteMouvement(mv.type)}>
                               {String(t(`production.movType.${mv.type}`, mv.type))}
                             </Badge>
                           </td>
                           <td className="px-3 py-2">{mv.rawMaterialName ?? mv.finishedProductName ?? '—'}</td>
-                          <td className="px-3 py-2 text-right font-medium">{mv.quantity} {mv.unit}</td>
+                          <td className="px-3 py-2 text-right font-medium whitespace-nowrap tabular-nums">{mv.quantity} {mv.unit}</td>
                           <td className="px-3 py-2 text-muted-foreground text-xs">{mv.reason ?? '—'}</td>
                           <td className="px-3 py-2 text-muted-foreground text-xs">{mv.movedAt ? formatDate(mv.movedAt) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </TableConteneur>
               )}
             </div>
           </div>
@@ -1109,12 +1141,12 @@ export function ProductionPage() {
       >
         <form onSubmit={completeForm.handleSubmit(data => completeOrderMutation.mutate(data))} className="space-y-4">
           <div className="p-3 bg-muted/40 rounded-md text-sm text-muted-foreground">
-            Ordre : <span className="font-semibold text-foreground">{viewOrder?.ref}</span> — Planifié : <span className="font-semibold text-foreground">{viewOrder?.quantityToProduce}</span> unités
+            {t('production.orderLabel')} <span className="font-semibold text-foreground">{viewOrder?.ref}</span> — {t('production.plannedLabel')} <span className="font-semibold text-foreground">{viewOrder?.quantityToProduce}</span> {t('production.units')}
           </div>
           <div>
             <label className="text-sm font-medium">{t('production.quantityProduced')} *</label>
             <Input type="number" step="0.01" {...completeForm.register('quantityProduced')} className="mt-1" />
-            {completeForm.formState.errors.quantityProduced && <p className="text-xs text-destructive mt-1">{completeForm.formState.errors.quantityProduced.message}</p>}
+            {completeForm.formState.errors.quantityProduced && <p className="text-xs text-destructive mt-1">{completeForm.formState.errors.quantityProduced.message ? t(completeForm.formState.errors.quantityProduced.message) : ''}</p>}
           </div>
           <div>
             <label className="text-sm font-medium">{t('production.quantityRejected')}</label>
@@ -1125,7 +1157,7 @@ export function ProductionPage() {
             <textarea
               {...completeForm.register('notes')}
               rows={2}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -1150,7 +1182,7 @@ export function ProductionPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 bg-destructive/10 rounded-md text-sm text-destructive">
             <AlertTriangle className="h-5 w-5 shrink-0" />
-            <span>Les réservations de stock seront libérées. Cette action est irréversible.</span>
+            <span>{t('production.cancelWarning')}</span>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setCancelModalOpen(false)}>{t('common.cancel')}</Button>
@@ -1208,38 +1240,38 @@ export function ProductionPage() {
           <div className="space-y-4">
             {/* Context banner */}
             <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
-              <span className="text-muted-foreground">Ordre :</span>
+              <span className="text-muted-foreground">{t('production.orderLabel')}</span>
               <span className="font-semibold">{viewOrder?.ref}</span>
-              <span className="text-muted-foreground ml-2">Qté à produire :</span>
+              <span className="text-muted-foreground ml-2">{t('production.qtyToProduce')}</span>
               <span className="font-semibold">{viewOrder?.quantityToProduce}</span>
             </div>
 
             {/* BOM lines table */}
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Composant</th>
+                    <th className="text-left px-3 py-2">Composant</th>
                     {movType === 'mp_consumption' && (
-                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Prévu</th>
+                      <th className="text-right px-3 py-2">{t('production.planned')}</th>
                     )}
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground">
-                      {movType === 'mp_loss' ? 'Total perdu' : 'Déjà consommé'}
+                    <th className="text-right px-3 py-2">
+                      {movType === 'mp_loss' ? t('production.totalLost') : t('production.alreadyConsumed')}
                     </th>
-                    <th className="text-right px-3 py-2 font-medium text-muted-foreground w-36">
-                      {movType === 'mp_loss' ? 'Nouvelle perte' : 'À consommer'}
+                    <th className="text-right px-3 py-2 font-medium  w-36 text-2xs uppercase tracking-wide text-muted-foreground">
+                      {movType === 'mp_loss' ? t('production.newLoss') : t('production.toConsume')}
                     </th>
-                    <th className="text-center px-3 py-2 font-medium text-muted-foreground w-20">Unité</th>
-                    <th className="w-8" />
+                    <th className="text-center px-3 py-2 font-medium  w-20 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                    <th className="w-8 text-2xs uppercase tracking-wide text-muted-foreground" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {consLines.map((line, idx) => {
                     const newQtyNum = Number(line.newQty) || 0;
                     const hasDeviation = movType === 'mp_consumption' && !line.isExtra &&
                       Math.abs((line.alreadyQty + newQtyNum) - line.plannedQty) > 0.001;
                     return (
-                    <tr key={idx} className={line.isExtra ? 'bg-blue-50/30' : ''}>
+                    <tr key={idx} className={line.isExtra ? 'bg-info-subtle/30' : ''}>
                       {/* Composant */}
                       <td className="px-3 py-2">
                         {line.isExtra ? (
@@ -1255,7 +1287,7 @@ export function ProductionPage() {
                               } : l));
                             }}
                           >
-                            <option value="">— Sélectionner —</option>
+                            <option value="">{t('production.selectOption')}</option>
                             {rawMaterials.map((rm: any) => (
                               <option key={rm.id} value={rm.id}>{rm.name}</option>
                             ))}
@@ -1266,12 +1298,12 @@ export function ProductionPage() {
                       </td>
                       {/* Prévu (mp_consumption only) */}
                       {movType === 'mp_consumption' && (
-                        <td className="px-3 py-2 text-right text-muted-foreground">
+                        <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                           {line.isExtra ? '—' : line.plannedQty.toFixed(2)}
                         </td>
                       )}
                       {/* Déjà consommé / Total perdu (read-only) */}
-                      <td className="px-3 py-2 text-right text-muted-foreground">
+                      <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap tabular-nums">
                         {line.isExtra ? '—' : line.alreadyQty.toFixed(2)}
                       </td>
                       {/* À consommer / Nouvelle perte (editable) */}
@@ -1282,7 +1314,7 @@ export function ProductionPage() {
                           min="0"
                           value={line.newQty}
                           onChange={e => setConsLines(prev => prev.map((l, i) => i === idx ? { ...l, newQty: e.target.value } : l))}
-                          className={`text-right ${hasDeviation ? 'border-amber-400 focus:ring-amber-400' : ''}`}
+                          className={`text-right ${hasDeviation ? 'border-warning focus:ring-warning' : ''}`}
                         />
                       </td>
                       {/* Unité */}
@@ -1311,12 +1343,12 @@ export function ProductionPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
 
             {/* Légende écart (mp_consumption only) */}
             {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
-              <p className="text-xs text-amber-600 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" /> Écart entre prévu et consommé
+              <p className="text-xs text-warning flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {t('production.varianceWarning')}
               </p>
             )}
 
@@ -1350,7 +1382,7 @@ export function ProductionPage() {
               <div>
                 <label className="text-sm font-medium">{t('production.quantity')}</label>
                 <Input type="number" step="0.01" {...movForm.register('quantity')} className="mt-1" />
-                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message}</p>}
+                {movForm.formState.errors.quantity && <p className="text-xs text-destructive mt-1">{movForm.formState.errors.quantity.message ? t(movForm.formState.errors.quantity.message) : ''}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">{t('common.unit')}</label>
@@ -1360,7 +1392,7 @@ export function ProductionPage() {
 
             <div>
               <label className="text-sm font-medium">{t('production.reason')}</label>
-              <Input {...movForm.register('reason')} placeholder="Ex: Défaut qualité, Évaporation..." className="mt-1" />
+              <Input {...movForm.register('reason')} placeholder={t('production.reasonPlaceholder')} className="mt-1" />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -1384,15 +1416,25 @@ function EmptyState({ icon, message }: { icon: React.ReactNode; message: string 
   );
 }
 
-function KpiCard({ label, value, colorClass }: { label: string; value: string | number; colorClass?: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-4 pb-3">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-lg font-bold mt-0.5 ${colorClass ?? ''}`}>{value}</p>
-      </CardContent>
-    </Card>
-  );
+/**
+ * Tuile de chiffre de la production.
+ *
+ * Elle portait le nom `KpiCard` et sa propre mise en forme, ce qui faisait deux
+ * composants homonymes dans le dépôt — celui-ci et le vrai. Elle est devenue
+ * une enveloppe : elle traduit la signature historique (`label`, `value`,
+ * `colorClass`) vers celle du composant partagé, sans obliger à retoucher les
+ * quinze appels de cette page.
+ *
+ * `colorClass` disait trois choses — vert, orange, rouge — et il n'en reste
+ * qu'une : **rouge**. C'est la règle du système, et elle vaut ici comme
+ * ailleurs : la couleur d'une valeur signale ce qui appelle un geste, pas ce
+ * qui va bien. Un rendement de 94 % écrit en vert et un écart de coût
+ * favorable écrit en vert, cela fait deux félicitations par écran — et le
+ * rouge du rendement à 40 %, noyé au milieu, ne se voit plus. Les cas
+ * favorables gardent l'encre du texte.
+ */
+function Tuile({ label, value, colorClass }: { label: string; value: string | number; colorClass?: string }) {
+  return <KpiCard titre={label} valeur={value} alerte={colorClass === 'text-destructive'} />;
 }
 
 function InfoRow({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {

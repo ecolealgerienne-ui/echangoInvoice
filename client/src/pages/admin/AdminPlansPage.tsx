@@ -2,7 +2,18 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
+/**
+ * Les trois formules d'abonnement.
+ *
+ * L'écran écrivait ses propres champs — `border rounded px-2 py-1` — et son
+ * propre bouton d'enregistrement, un `<button>` avec un fond de primaire posé à
+ * la main. Trois formules ne justifient pas un dialecte : `Card`, `Input`,
+ * `Button`, et l'écran suit les mêmes mesures que les trente-six autres.
+ */
 export function AdminPlansPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -16,49 +27,63 @@ export function AdminPlansPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-plans'] }),
   });
 
-  if (isLoading) return <div className="p-6">{t('common.loading')}</div>;
+  if (isLoading) return <div className="p-5 text-sm text-muted-foreground">{t('common.loading')}</div>;
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold text-foreground">{t('admin.plans.title')}</h1>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className="ci-page space-y-4 p-5">
+      <h1>{t('admin.plans.title')}</h1>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {plans.map((plan: any) => {
           const edit = editing[plan.id] ?? {};
+          const modifier = (champ: string, valeur: number | null) =>
+            setEditing((prev) => ({ ...prev, [plan.id]: { ...prev[plan.id], [champ]: valeur } }));
+
           return (
-            <div key={plan.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
-              <h2 className="font-semibold text-foreground">{plan.name}</h2>
-              <div className="space-y-2 text-sm">
-                <label className="block text-muted-foreground">{t('admin.plans.pricePerMonth')}</label>
-                <input
-                  type="number"
-                  defaultValue={plan.pricePerMonth}
-                  onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], pricePerMonth: parseFloat(e.target.value) } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
-                />
-                <label className="block text-muted-foreground">{t('admin.plans.invoiceLimit')}</label>
-                <input
-                  type="number"
-                  defaultValue={plan.invoiceLimit ?? ''}
-                  placeholder={t('admin.plans.unlimited')}
-                  onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], invoiceLimit: e.target.value ? parseInt(e.target.value) : null } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
-                />
-                <label className="block text-muted-foreground">{t('admin.plans.usersLimit')}</label>
-                <input
-                  type="number"
-                  defaultValue={plan.usersLimit ?? ''}
-                  placeholder={t('admin.plans.unlimited')}
-                  onChange={e => setEditing(prev => ({ ...prev, [plan.id]: { ...prev[plan.id], usersLimit: e.target.value ? parseInt(e.target.value) : null } }))}
-                  className="w-full border border-border rounded px-2 py-1 bg-background text-foreground"
-                />
-              </div>
-              <button
-                onClick={() => updatePlan.mutate({ id: plan.id, dto: edit })}
-                className="w-full py-2 text-sm bg-primary text-primary-foreground rounded"
-              >
-                {t('common.save')}
-              </button>
-            </div>
+            <Card key={plan.id}>
+              <CardHeader>
+                <CardTitle>{plan.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="block text-3xs font-medium uppercase text-tertiaire">
+                    {t('admin.plans.pricePerMonth')}
+                  </label>
+                  <Input
+                    type="number"
+                    defaultValue={plan.pricePerMonth}
+                    onChange={(e) => modifier('pricePerMonth', parseFloat(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-3xs font-medium uppercase text-tertiaire">
+                    {t('admin.plans.invoiceLimit')}
+                  </label>
+                  <Input
+                    type="number"
+                    defaultValue={plan.invoiceLimit ?? ''}
+                    placeholder={t('admin.plans.unlimited')}
+                    onChange={(e) => modifier('invoiceLimit', e.target.value ? parseInt(e.target.value, 10) : null)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-3xs font-medium uppercase text-tertiaire">
+                    {t('admin.plans.usersLimit')}
+                  </label>
+                  <Input
+                    type="number"
+                    defaultValue={plan.usersLimit ?? ''}
+                    placeholder={t('admin.plans.unlimited')}
+                    onChange={(e) => modifier('usersLimit', e.target.value ? parseInt(e.target.value, 10) : null)}
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => updatePlan.mutate({ id: plan.id, dto: edit })}
+                >
+                  {t('common.save')}
+                </Button>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

@@ -12,6 +12,7 @@ import { BatchCreateMovementsDto } from './dto/batch-create-movements.dto';
 import { ListProductionOrdersDto } from './dto/list-production-orders.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -19,7 +20,7 @@ import { ProductionModuleGuard } from './production-module.guard';
 
 @ApiTags('Production — Ordres')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard, ProductionModuleGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard, ProductionModuleGuard)
 @Controller('production/orders')
 export class ProductionOrderController {
   constructor(
@@ -28,7 +29,7 @@ export class ProductionOrderController {
   ) {}
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Liste des ordres de production' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListProductionOrdersDto, @CurrentUser() user: JwtPayload) {
@@ -36,7 +37,7 @@ export class ProductionOrderController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un ordre de production' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404, description: 'production_order_not_found' })
@@ -92,7 +93,7 @@ export class ProductionOrderController {
   // ── Movements ──────────────────────────────────────────────────────────────
 
   @Get(':id/movements')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Journal des mouvements d\'un ordre' })
   @ApiResponse({ status: 200 })
   getMovements(

@@ -15,6 +15,13 @@ interface AuthContextValue {
   isSuperAdmin: boolean;
   login: (email: string, password: string) => Promise<{ role: string }>;
   logout: () => Promise<void>;
+  /**
+   * Ouvre une session à partir d'une réponse d'authentification déjà obtenue.
+   * Sert à l'acceptation d'invitation, qui crée le compte et renvoie les mêmes
+   * jetons que la connexion : sans cela l'application resterait « déconnectée »
+   * malgré des jetons valides en mémoire.
+   */
+  setSession: (data: { accessToken: string; refreshToken: string; user: User }) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -43,6 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { role: data.user.role };
   }
 
+  function setSession(data: { accessToken: string; refreshToken: string; user: User }) {
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    setUser(data.user);
+  }
+
   async function logout() {
     try { await authApi.logout(); } catch {}
     localStorage.removeItem('accessToken');
@@ -53,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSuperAdmin = user?.role === 'superadmin';
 
   return (
-    <AuthContext.Provider value={{ user, loading, isSuperAdmin, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, isSuperAdmin, login, logout, setSession }}>
       {children}
     </AuthContext.Provider>
   );

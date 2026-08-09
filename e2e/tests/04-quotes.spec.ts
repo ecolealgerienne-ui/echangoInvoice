@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 test.describe('Devis', () => {
@@ -14,7 +14,7 @@ test.describe('Devis', () => {
     await page.goto('/quotes');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau devis/i }).click();
+    await page.getByRole('button', { name: tRegex('quotes.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // Vérifier que le select client a des options

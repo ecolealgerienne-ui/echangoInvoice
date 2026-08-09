@@ -1,17 +1,36 @@
 import {
   ConflictException, Injectable, NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Expense } from './expense.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ListExpensesDto } from './dto/list-expenses.dto';
+import { appliquerTri } from '../common/tri';
+
+/** Colonnes que le client peut demander en tri — voir common/tri.ts (R029). */
+const COLONNES_TRIABLES = ['expenseDate', 'description', 'category', 'amount', 'isApproved', 'createdAt'] as const;
 
 @Injectable()
 export class ExpensesService {
   constructor(
     @InjectRepository(Expense) private readonly repo: Repository<Expense>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * TVA récupérable d'une dépense.
+   *
+   * Sur un justificatif algérien, on lit le taux et on saisit le TTC : le
+   * montant se déduit alors du taux, `TTC × t / (100 + t)`. Un montant fourni
+   * explicitement l'emporte — c'est le cas d'une facture qui l'affiche déjà.
+   */
+  private tvaRecuperable(dto: { amount: number; vatRate?: number; vatAmount?: number }): number {
+    if (dto.vatAmount != null) return Math.round(dto.vatAmount * 100) / 100;
+    if (!dto.vatRate) return 0;
+    const t = Number(dto.vatRate);
+    return Math.round((Number(dto.amount) * t / (100 + t)) * 100) / 100;
+  }
 
   async create(dto: CreateExpenseDto, tenantId: string, userId: string) {
     const expense = this.repo.create({
@@ -21,6 +40,11 @@ export class ExpensesService {
       category: dto.category,
       amount: dto.amount,
       notes: dto.notes ?? null,
+      supplierId: dto.supplierId ?? null,
+      paymentMethod: dto.paymentMethod ?? null,
+      vatRate: dto.vatRate ?? null,
+      vatAmount: this.tvaRecuperable(dto),
+      isRecurring: dto.isRecurring ?? false,
       isApproved: false,
       createdBy: userId,
       updatedBy: userId,
@@ -43,9 +67,10 @@ export class ExpensesService {
     if (dto.dateFrom) qb.andWhere('e.expenseDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('e.expenseDate <= :dateTo', { dateTo: dto.dateTo });
 
+    appliquerTri(qb, 'e', COLONNES_TRIABLES, { colonne: 'expenseDate', sens: 'DESC' }, dto);
+
     const [data, total] = await qb
-      .orderBy('e.expenseDate', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 
@@ -55,7 +80,18 @@ export class ExpensesService {
   async findOne(id: string, tenantId: string) {
     const expense = await this.repo.findOne({ where: { id, tenantId, deletedAt: IsNull() } });
     if (!expense) throw new NotFoundException('expense_not_found');
-    return { data: expense };
+
+    // Le nom du fournisseur plutôt que son identifiant : la fiche est lue, pas
+    // interrogée.
+    let supplierName: string | null = null;
+    if (expense.supplierId) {
+      const [f] = await this.dataSource.query(
+        `SELECT name FROM partners WHERE id = $1 AND "tenantId" = $2`,
+        [expense.supplierId, tenantId],
+      );
+      supplierName = f?.name ?? null;
+    }
+    return { data: { ...expense, supplierName } };
   }
 
   async update(id: string, dto: CreateExpenseDto, tenantId: string, userId: string) {
@@ -68,6 +104,11 @@ export class ExpensesService {
     expense.category = dto.category;
     expense.amount = dto.amount;
     expense.notes = dto.notes ?? null;
+    expense.supplierId = dto.supplierId ?? null;
+    expense.paymentMethod = dto.paymentMethod ?? null;
+    expense.vatRate = dto.vatRate ?? null;
+    expense.vatAmount = this.tvaRecuperable(dto);
+    expense.isRecurring = dto.isRecurring ?? false;
     expense.updatedBy = userId;
     await this.repo.save(expense);
     return { data: expense };

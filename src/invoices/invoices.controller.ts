@@ -1,7 +1,4 @@
-import {
-  Body, Controller, Delete, Get, Header, HttpCode, Param,
-  ParseUUIDPipe, Patch, Post, Put, Query, Res, UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpException, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, ServiceUnavailableException, UseGuards } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SalesInvoicesService } from './sales-invoices.service';
@@ -11,12 +8,13 @@ import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('invoices/sales-invoices')
 export class InvoicesController {
   constructor(
@@ -32,14 +30,14 @@ export class InvoicesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les factures' })
   findAll(@Query() query: ListInvoicesDto, @CurrentUser() user: any) {
     return this.service.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'une facture' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.service.findOne(id, user.tenantId!);
@@ -76,7 +74,7 @@ export class InvoicesController {
   }
 
   @Get(':id/pdf')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Générer le PDF de la facture' })
   async pdf(
     @Param('id', ParseUUIDPipe) id: string,
@@ -95,6 +93,15 @@ export class InvoicesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer la facture par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendInvoiceEmail(id, user.tenantId!);
+    try {
+      await this.pdfService.sendInvoiceEmail(id, user.tenantId!);
+    } catch (err) {
+      // Les exceptions HTTP (facture introuvable, client sans e-mail) portent
+      // déjà leur clé — on ne les masque pas. Le reste vient du SMTP : sans
+      // clé dédiée, l'utilisateur ne voyait qu'un 500 générique sans savoir
+      // que c'est la configuration e-mail qui est en cause.
+      if (err instanceof HttpException) throw err;
+      throw new ServiceUnavailableException('email_send_failed');
+    }
   }
 }

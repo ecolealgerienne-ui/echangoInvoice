@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { quotesApi, customersApi, productsApi, settingsApi, deliveriesApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { useUnits } from '@/lib/useUnits';
+import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,14 +18,20 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, FileDown, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
+import { Plus, Trash2, Search, FileDown, FileText, RefreshCw, Pencil, Send, CheckCircle, XCircle, Truck } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { enregistrerBlob } from '@/lib/download';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', accepted: 'success',
-  rejected: 'destructive', expired: 'secondary', converted: 'warning',
-};
 
 const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
@@ -40,7 +49,16 @@ const schema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
-type FormData = z.infer<typeof schema>;
+/**
+ * `z.coerce.number()` fait diverger l'entrée de la sortie du schéma : les
+ * champs de taux et de quantité sont liés à des <Select>/<Input>, qui ne
+ * manipulent que des chaînes, et zod les convertit à la validation.
+ *
+ * On type donc le formulaire sur l'entrée (chaînes acceptées) et le
+ * callback de soumission sur la sortie (nombres garantis).
+ */
+type FormInput = z.input<typeof schema>;
+type FormData = z.output<typeof schema>;
 
 const today = new Date().toISOString().split('T')[0];
 const in30 = new Date(Date.now() + 30 * 864e5).toISOString().split('T')[0];
@@ -49,6 +67,10 @@ export function QuotesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'quoteNumber' | 'quoteDate' | 'expiryDate' | 'totalAmount' | 'status' | 'createdAt'>(
+    'quotes_sort', { sortBy: 'createdAt', sortOrder: 'DESC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -56,8 +78,8 @@ export function QuotesPage() {
   const [editing, setEditing] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['quotes', page, search, status],
-    queryFn: () => quotesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryKey: ['quotes', page, search, status, tri],
+    queryFn: () => quotesApi.list({ ...tri, page, limit: 20, search: search || undefined, status: status || undefined }),
   });
 
   const { data: customers } = useQuery({
@@ -80,16 +102,34 @@ export function QuotesPage() {
   const taxRates: { name: string; rate: number; isDefault: boolean }[] = settingsData?.data?.taxRates ?? [];
   const defaultTaxRate = parseFloat(String(taxRates.find(r => r.isDefault)?.rate ?? 19));
 
-  const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, watch: watchQ, setValue: setQValue, formState: { errors } } = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       quoteDate: today,
       expiryDate: in30,
-      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }],
+      items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }],
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { priceFor, priceListName } = useCustomerPrices(watchQ('customerId'));
+
+  const { fields, append, remove, update } = useFieldArray({ control, name: 'items' });
+
+  // Saisie par douchette, active seulement quand la modale est ouverte.
+  const scan = useScanLignes({
+    actif: modalOpen,
+    lignes: (watchQ('items') ?? []) as any[],
+    ajouter: (l) => append(l as any),
+    remplacer: (i, l) => update(i, l as any),
+    majQuantite: (i, q) => setQValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      finishedProductId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || 'unité',
+      unitPrice: Number(produit.defaultSalesPrice ?? 0),
+      taxRate1: defaultTaxRate,
+    }) as any,
+  });
 
   const createMutation = useMutation({
     mutationFn: (d: FormData) => editing ? quotesApi.update(editing.id, d) : quotesApi.create(d),
@@ -152,7 +192,23 @@ export function QuotesPage() {
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
-  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) }] }); setModalOpen(true); }
+  function openCreate() { setEditing(null); reset({ quoteDate: today, expiryDate: in30, items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate }] }); setModalOpen(true); }
+
+  /**
+   * `?nouveau=1` ouvre le formulaire de création à l'arrivée — c'est ce qui
+   * donne un sens au menu « + Nouveau » du tableau de bord. Le paramètre est
+   * retiré aussitôt lu : un rafraîchissement de page rouvrirait sinon la
+   * modale sans qu'on l'ait demandé.
+   */
+  const [parametres, setParametres] = useSearchParams();
+  useEffect(() => {
+    if (parametres.get('nouveau') !== '1') return;
+    openCreate();
+    const suite = new URLSearchParams(parametres);
+    suite.delete('nouveau');
+    setParametres(suite, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametres]);
   function openEdit(row: any) {
     quotesApi.get(row.id).then((res: any) => {
       const q = res.data ?? res;
@@ -167,7 +223,9 @@ export function QuotesPage() {
           quantity: Number(it.quantity),
           unit: it.unit,
           unitPrice: Number(it.unitPrice),
-          taxRate1: String(parseFloat(String(it.taxRate1 ?? defaultTaxRate))),
+          // parseFloat normalise le décimal renvoyé par l'API (« 19.00 » → 19)
+          // pour qu'il corresponde à la valeur d'une option du Select.
+          taxRate1: parseFloat(String(it.taxRate1 ?? defaultTaxRate)),
         })),
       });
       setModalOpen(true);
@@ -176,17 +234,29 @@ export function QuotesPage() {
   function closeModal() { setEditing(null); reset(); setModalOpen(false); }
 
   function downloadPdf(id: string, number: string) {
-    quotesApi.pdf(id).then((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${number}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(() => toast(t('errors.generic'), 'error'));
+    quotesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${number}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
+  /**
+   * La proforma est le même devis rendu comme une facture : offre chiffrée
+   * exigée pour la domiciliation bancaire d'un import et par les marchés
+   * publics. Même numéro, sans quoi elle se lirait comme une facture émise.
+   */
+  function downloadProforma(id: string, number: string) {
+    quotesApi.pdfProforma(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `PROFORMA-${number}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
   }
 
   const quotes = data?.data ?? [];
   const pagination = data?.pagination;
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « notes » est masquée par
+  // défaut mais reste activable.
+  const { visible, toggle, col } = useColumnVisibility<
+    'number' | 'customer' | 'quoteDate' | 'expiryDate' | 'total' | 'status' | 'notes'
+  >(
     'quotes_visible_columns',
     ['number', 'customer', 'quoteDate', 'expiryDate', 'total', 'status'],
   );
@@ -194,13 +264,12 @@ export function QuotesPage() {
   const productList = products?.data ?? [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('quotes.title')}</h1>
+    <div className="space-y-4">
+      <EnTetePage titre={t('quotes.title')} total={pagination?.total} cleTotal="quotes.totalCount">
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-2" />{t('quotes.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 max-w-sm">
@@ -208,7 +277,11 @@ export function QuotesPage() {
           <Input className="pl-9" placeholder={t('common.search')} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <Select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
+        {/* `Select` est `w-full` par défaut : sans largeur imposée, il prenait
+            toute la ligne et rejetait la barre d'outils sur un deuxième rang.
+            La liste des factures portait déjà `w-40` ; les deux écrans se
+            ressemblent enfin. */}
+        <Select className="w-40" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
           <option value="">{t('common.allStatuses')}</option>
           <option value="draft">{t('status.draft')}</option>
           <option value="sent">{t('status.sent')}</option>
@@ -217,16 +290,17 @@ export function QuotesPage() {
           <option value="expired">{t('status.expired')}</option>
           <option value="converted">{t('status.converted')}</option>
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="devis" filtres={{ status }} />
           <ColumnToggleMenu
             columns={[
               { key: 'number', label: t('quotes.quoteNumber') },
               { key: 'customer', label: t('customers.title') },
               { key: 'quoteDate', label: t('quotes.quoteDate') },
               { key: 'expiryDate', label: t('quotes.expiryDate') },
-              { key: 'total', label: 'Total TTC' },
+              { key: 'total', label: t('common.totalTtc') },
               { key: 'status', label: t('quotes.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -235,86 +309,105 @@ export function QuotesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteNumber')}</th>}
-                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
-                {col('quoteDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.quoteDate')}</th>}
-                {col('expiryDate') && <th className="text-left px-4 py-3 font-medium">{t('quotes.expiryDate')}</th>}
-                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
-                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
-                <th className="px-4 py-3" />
+                {col('number') && (
+                  <EnteteTriable libelle={t('quotes.quoteNumber')} colonne="quoteNumber" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('customer') && <th className="text-left px-3 py-2.5">{t('customers.title')}</th>}
+                {col('quoteDate') && (
+                  <EnteteTriable libelle={t('quotes.quoteDate')} colonne="quoteDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('expiryDate') && (
+                  <EnteteTriable libelle={t('quotes.expiryDate')} colonne="expiryDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('total') && (
+                  <EnteteTriable libelle={t('common.totalTtc')} colonne="totalAmount" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('status') && (
+                  <EnteteTriable libelle={t('quotes.status')} colonne="status" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('notes') && <th className="text-left px-3 py-2.5">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {quotes.map((q: any) => (
-                <tr key={q.id} className="border-t border-border hover:bg-muted/30">
-                  {col('number') && <td className="px-4 py-3 font-mono text-xs">{q.quoteNumber}</td>}
-                  {col('customer') && <td className="px-4 py-3">{q.customer?.name ?? '—'}</td>}
-                  {col('quoteDate') && <td className="px-4 py-3">{formatDate(q.quoteDate)}</td>}
-                  {col('expiryDate') && <td className="px-4 py-3">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(q.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[q.status] ?? 'muted'}>{t(`status.${q.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{q.notes || '—'}</td>}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end">
+                <tr key={q.id} className="border-t border-border hover:bg-surface-hover">
+                  {col('number') && (
+                    <td className="px-3 py-2.5 font-mono text-xs">
+                      <Link to={`/quotes/${q.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
+                        {q.quoteNumber}
+                      </Link>
+                    </td>
+                  )}
+                  {col('customer') && <td className="px-3 py-2.5">{q.customer?.name ?? '—'}</td>}
+                  {col('quoteDate') && <td className="px-3 py-2.5">{formatDate(q.quoteDate)}</td>}
+                  {col('expiryDate') && <td className="px-3 py-2.5">{q.expiryDate ? formatDate(q.expiryDate) : '—'}</td>}
+                  {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(q.totalAmount)}</td>}
+                  {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(q.status)}>{t(`status.${q.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{q.notes || '—'}</td>}
+                  {/* Le PDF reste dehors — c'est ce qu'on envoie au client, et
+                      donc le geste dominant d'un devis. La proforma rejoint le
+                      menu : elle est demandée par exception. */}
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button size="sm" variant="ghost" title={t('common.pdf')} onClick={() => downloadPdf(q.id, q.quoteNumber)}>
                         <FileDown className="h-4 w-4" />
                       </Button>
-                      {q.status === 'draft' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.send')} onClick={() => sendMutation.mutate(q.id)}>
-                            <Send className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'sent' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEdit(q)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.accept')} onClick={() => acceptMutation.mutate(q.id)}>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.reject')} onClick={() => rejectMutation.mutate(q.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'accepted' && (
-                        <>
-                          <Button size="sm" variant="ghost" title={t('quotes.createBl')} onClick={() => createBlMutation.mutate(q.id)}>
-                            <Truck className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title={t('quotes.convert')} onClick={() => convertMutation.mutate(q.id)}>
-                            <RefreshCw className="h-4 w-4 text-green-600" />
-                          </Button>
-                        </>
-                      )}
-                      {q.status === 'rejected' && (
-                        <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removeMutation.mutate(q.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                      <MenuActions
+                        actions={[
+                          q.status === 'sent' && {
+                            cle: 'accept', libelle: t('quotes.accept'), icone: CheckCircle,
+                            onSelect: () => acceptMutation.mutate(q.id),
+                          },
+                          q.status === 'accepted' && {
+                            cle: 'convert', libelle: t('quotes.convert'), icone: RefreshCw,
+                            onSelect: () => convertMutation.mutate(q.id),
+                          },
+                          q.status === 'accepted' && {
+                            cle: 'bl', libelle: t('quotes.createBl'), icone: Truck,
+                            onSelect: () => createBlMutation.mutate(q.id),
+                          },
+                          q.status === 'draft' && {
+                            cle: 'send', libelle: t('quotes.send'), icone: Send,
+                            onSelect: () => sendMutation.mutate(q.id),
+                          },
+                          ['draft', 'sent'].includes(q.status) && {
+                            cle: 'edit', libelle: t('common.edit'), icone: Pencil,
+                            onSelect: () => openEdit(q),
+                          },
+                          {
+                            cle: 'proforma', libelle: t('quotes.proforma'), icone: FileText,
+                            onSelect: () => downloadProforma(q.id, q.quoteNumber),
+                          },
+                          q.status === 'sent' && {
+                            cle: 'reject', libelle: t('quotes.reject'), icone: XCircle, danger: true,
+                            onSelect: () => rejectMutation.mutate(q.id),
+                          },
+                          ['draft', 'rejected'].includes(q.status) && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => removeMutation.mutate(q.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
               {quotes.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {pagination && (
@@ -333,6 +426,9 @@ export function QuotesPage() {
                 ))}
               </Select>
               {errors.customerId && <p className="text-xs text-destructive mt-1">{t('errors.required')}</p>}
+              {priceListName && (
+                <p className="text-xs text-primary mt-1">{t('priceLists.applied', { name: priceListName })}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium">{t('quotes.quoteDate')}</label>
@@ -347,8 +443,9 @@ export function QuotesPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
+              <BandeauScan onScan={scan.traiter} enCours={scan.enCours} dernier={scan.dernier} />
               <Button type="button" size="sm" variant="outline"
-                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) })}>
+                onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: defaultTaxRate })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
               </Button>
             </div>
@@ -376,7 +473,8 @@ export function QuotesPage() {
                         setQValue(`items.${i}.finishedProductId`, e.target.value);
                         const prod = (productList as any[]).find((p: any) => p.id === e.target.value);
                         if (prod?.unit) setQValue(`items.${i}.unit`, prod.unit);
-                        if (prod?.defaultSalesPrice) setQValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                        const prixPropose = prod ? priceFor(prod) : undefined;
+                        if (prixPropose != null) setQValue(`items.${i}.unitPrice`, prixPropose);
                       }}>
                       <option value="">{t('products.title')}</option>
                       {(productList as any[]).map((p: any) => (
@@ -430,7 +528,7 @@ export function QuotesPage() {
                 <div className="flex justify-end gap-6 text-sm border-t border-border pt-2 mt-2">
                   <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotalHT)}</span></span>
                   <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(totalTVA)}</span></span>
-                  <span className="font-semibold">Total TTC : {formatCurrency(subtotalHT + totalTVA)}</span>
+                  <span className="font-semibold">{t('common.totalTtc')} : {formatCurrency(subtotalHT + totalTVA)}</span>
                 </div>
               );
             })()}
@@ -439,7 +537,7 @@ export function QuotesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

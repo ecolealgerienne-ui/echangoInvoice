@@ -1,161 +1,633 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import {
+  TrendingUp, TrendingDown, FileText, Package, DollarSign,
+  AlertTriangle, Percent, Hourglass, Wallet,
+  Plus, SlidersHorizontal, RefreshCw, Check,
+  Banknote, Landmark, FileCheck, CircleDollarSign,
+} from 'lucide-react';
 import { dashboardApi } from '@/lib/api';
-import { formatCurrency, currentMonth } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { TrendingUp, FileText, Package, DollarSign, AlertTriangle, Clock } from 'lucide-react';
+import { formatCurrency, formatDate, cn } from '@/lib/utils';
+import { montantAbrege, pourcentage } from '@/lib/montants';
+import { SelecteurPeriode, periodeParDefaut, derniersJours } from '@/components/shared/SelecteurPeriode';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { KpiCard, type TonIndicateur } from '@/components/ui/KpiCard';
+import { AlertCard } from '@/components/ui/AlertCard';
+import { ChartCard } from '@/components/ui/ChartCard';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { Deroulant, EntreeDeroulant } from '@/components/shared/Deroulant';
+import { SqueletteCarte, SqueletteGraphique, SqueletteIndicateur } from '@/components/ui/Squelette';
+import { Anneau, BarresClassement, CourbeAire, Sparkline } from '@/components/ui/Graphique';
+import { useCompteurAnime } from '@/hooks/useCompteurAnime';
+import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useAuth } from '@/contexts/AuthContext';
+import { couleurSerie } from '@/lib/filieres';
+import { creneauMode, libelleMode } from '@/lib/modesReglement';
 
-function StatCard({ title, value, sub, icon: Icon, variant }: {
-  title: string; value: string; sub?: string; icon: React.ElementType; variant?: string;
+/**
+ * Tableau de bord.
+ *
+ * C'était l'écran le plus gris du produit : quatre chiffres dans quatre cadres
+ * blancs, trois listes de couples « intitulé — montant », et une courbe bleue.
+ * Rien n'y hiérarchisait quoi que ce soit, et surtout rien n'y répondait à la
+ * question qu'on se pose en l'ouvrant — *est-ce que ça va ?*
+ *
+ * Les changements qui y répondent :
+ *
+ * - **les indicateurs comptent.** Le montant monte jusqu'à sa valeur en huit
+ *   dixièmes de seconde. L'ordre de grandeur se perçoit pendant la montée, et
+ *   le regard est attiré à l'instant où le chiffre se fige. La pastille
+ *   d'icône porte le dégradé de sa filière : quatre cartes identiques ne se
+ *   distinguaient que par leur intitulé, lu de haut en bas ;
+ *
+ * - **les dépenses sont un anneau.** Six lignes de montants obligeaient à
+ *   faire la division de tête pour savoir si le loyer pesait un dixième ou un
+ *   tiers. L'arc dit la part sans calcul, le total occupe le trou du centre, et
+ *   la légende garde le montant exact ;
+ *
+ * - **les alertes cessent d'être une liste.** Chacune est un bloc teinté de sa
+ *   gravité, le nombre y est gros, et le clic mène sur la liste exactement
+ *   filtrée ;
+ *
+ * - **chaque carte dit où continuer.** Une carte montre cinq lignes sur
+ *   trois cents ; le pied de carte est l'endroit où l'on arrive en se demandant
+ *   « et le reste ? ».
+ *
+ * ── L'ordre des blocs ────────────────────────────────────────────────────
+ *
+ * La première rangée après les indicateurs rassemble les quatre **états** :
+ * où part l'argent, qui le rapporte, ce qui reste à faire, ce qui dort en
+ * stock. La seconde rassemble les trois **séries** : le chiffre d'affaires
+ * jour par jour, les encaissements par mode, les lots qui approchent de leur
+ * date. On lit d'abord une situation, ensuite un mouvement — l'inverse
+ * obligeait à interpréter une courbe avant de savoir de quoi elle parlait.
+ *
+ * Sur le chargement, des squelettes remplacent le disque qui tourne : la mise
+ * en page ne bouge plus quand les données arrivent.
+ */
+
+/**
+ * Blocs que « Personnaliser » sait masquer.
+ *
+ * Les quatre indicateurs du haut n'y sont pas : ils tiennent sur une rangée,
+ * ils sont la raison d'ouvrir l'écran, et un tableau de bord dont on peut
+ * retirer le chiffre d'affaires n'est plus un tableau de bord.
+ *
+ * Le réglage passe par `useColumnVisibility`, le hook des colonnes de tableau :
+ * c'est exactement la même mécanique — une liste de clés visibles, une bascule,
+ * un enregistrement local — et une seconde copie aurait divergé au premier
+ * ajustement.
+ */
+const BLOCS = [
+  'depenses', 'topClients', 'aTraiter', 'stockArticle',
+  'chiffreAffaires', 'encaissements', 'lots',
+] as const;
+type Bloc = (typeof BLOCS)[number];
+
+/** Icône de chaque mode de règlement, dans l'ordre de référence des modes. */
+const ICONES_MODE: Record<string, React.ElementType> = {
+  cash: Banknote,
+  bank_transfer: Landmark,
+  cheque: FileCheck,
+  other: CircleDollarSign,
+};
+
+/** Fenêtres proposées sous le graphique de chiffre d'affaires. */
+const FENETRES_COURBE = [7, 14, 30, 90] as const;
+
+/**
+ * Indicateur monétaire du tableau de bord.
+ *
+ * Une enveloppe très fine autour de `KpiCard`, et rien de plus : elle ajoute
+ * les deux choses qui appartiennent à *cet* écran et à aucun autre — le
+ * compteur qui monte jusqu'à la valeur, et la trace de tendance posée en fond.
+ * Tout le reste — mesures, pastille d'icône, forme de l'écart, hauteur
+ * minimale — vient du composant partagé, et changera partout à la fois.
+ *
+ * ── Le montant est abrégé ────────────────────────────────────────────────
+ *
+ * `20,4 M DA`, et non `20 409 086,29 DA`. Écrit en entier, il tenait sur deux
+ * lignes, poussait la carte plus haut que ses trois voisines et cassait la
+ * ligne de base de la rangée ; surtout, il se lisait chiffre par chiffre alors
+ * qu'on ne vient y chercher qu'un ordre de grandeur. Le montant exact reste à
+ * un survol, dans l'infobulle du navigateur.
+ *
+ * L'infobulle porte la **valeur d'arrivée**, jamais le compteur en cours
+ * d'animation : survoler une carte pendant sa montée doit donner le montant,
+ * pas une étape.
+ */
+function Indicateur({
+  titre, valeur, sub, icon, ton, evolution, evolutionInverse, tendance, coin,
+}: {
+  titre: string;
+  valeur: number;
+  sub?: string;
+  icon: React.ElementType;
+  ton: TonIndicateur;
+  evolution?: number | null;
+  evolutionInverse?: boolean;
+  /** Série pour la trace du bas. Omise, la carte n'en porte pas. */
+  tendance?: number[];
+  /** Mention posée dans le coin haut : fraîcheur de la donnée, rafraîchissement. */
+  coin?: React.ReactNode;
 }) {
+  const anime = useCompteurAnime(valeur);
+
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
-            {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-          </div>
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
+    <KpiCard
+      titre={titre}
+      valeur={montantAbrege(anime)}
+      titreValeur={formatCurrency(valeur)}
+      sub={sub}
+      icon={icon}
+      ton={ton}
+      evolution={evolution}
+      evolutionInverse={evolutionInverse}
+      coin={coin}
+      fond={tendance && tendance.length > 1 ? (
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-10 opacity-40">
+          <Sparkline className="h-full" valeurs={tendance} couleur={couleurSerie(0)} />
         </div>
-      </CardContent>
-    </Card>
+      ) : undefined}
+    />
   );
 }
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const [month, setMonth] = useState(currentMonth());
+  const { user } = useAuth();
+  const [periode, setPeriode] = useState(periodeParDefaut());
+  const [joursCourbe, setJoursCourbe] = useState<number>(7);
+  const { toggle: basculerBloc, col: blocVisible } = useColumnVisibility<Bloc>(
+    'dashboard_blocs', [...BLOCS],
+  );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-stats', month],
-    queryFn: () => dashboardApi.stats(month),
+    queryKey: ['dashboard-stats', periode],
+    queryFn: () => dashboardApi.stats(periode),
   });
 
-  if (isLoading) return <LoadingSpinner />;
+  const { data: salesChartData } = useQuery({
+    queryKey: ['dashboard-sales-chart', periode],
+    queryFn: () => dashboardApi.salesChart(periode),
+  });
+
+  // Le graphique de chiffre d'affaires a sa propre fenêtre : on suit les sept
+  // derniers jours pendant que les indicateurs du haut parlent du mois. C'est
+  // une deuxième requête, et non un découpage de la première : la période de
+  // l'en-tête peut être plus courte que la fenêtre demandée.
+  const periodeCourbe = useMemo(() => derniersJours(joursCourbe), [joursCourbe]);
+  const { data: courbeData } = useQuery({
+    queryKey: ['dashboard-sales-chart', periodeCourbe],
+    queryFn: () => dashboardApi.salesChart(periodeCourbe),
+  });
+
+  // Pas de période en paramètre : le stock est une photo à l'instant t.
+  const {
+    data: stockChartData, dataUpdatedAt: stockMaj, refetch: rafraichirStock, isFetching: stockEnCours,
+  } = useQuery({
+    queryKey: ['dashboard-stock-chart'],
+    queryFn: () => dashboardApi.stockChart(),
+  });
+
+  const salesChart = salesChartData?.data;
+  const stockChart = stockChartData?.data;
+  const byDate: any[] = courbeData?.data?.byDate ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1>{t('dashboard.title')}</h1>
+          <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => <SqueletteIndicateur key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => <SqueletteCarte key={i} lignes={5} />)}
+        </div>
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {[0, 1].map((i) => <SqueletteGraphique key={i} />)}
+        </div>
+      </div>
+    );
+  }
 
   const stats = data?.data;
   if (!stats) return null;
 
-  const { sales, purchases, expenses, profit, stock, alerts } = stats;
+  const { sales, purchases: _purchases, expenses, profit, stock, alerts } = stats;
+
+  const byMethod: [string, number][] = Object.entries(salesChart?.byPaymentMethod ?? {});
+  const maxMethod = byMethod.reduce((m, [, v]) => Math.max(m, v as number), 0);
+  // La part se calcule sur les encaissements de la période, pas sur le chiffre
+  // d'affaires : une facture émise en juin et réglée en juillet fausserait les
+  // deux bouts du rapport.
+  const totalEncaisse = byMethod.reduce((s, [, v]) => s + Number(v), 0);
+  const topStock: any[] = (stockChart?.byRawMaterial ?? []).slice(0, 6);
+  const expiring: any[] = stockChart?.expiringWithin30Days ?? [];
+  // Une catégorie à zéro n'a pas d'arc à montrer : elle allongeait la légende
+  // sans rien y mettre.
+  const categories = (Object.entries(expenses.byCategory) as [string, number][])
+    .filter(([, montant]) => Number(montant) > 0);
+  const tendanceCa = (salesChart?.byDate ?? []).map((d: any) => Number(d.revenue));
+
+  // Le travail en attente, dans l'ordre où il presse. Chaque entrée porte le
+  // filtre qui rendra exactement le nombre annoncé.
+  const aTraiter = [
+    {
+      cle: 'overdue',
+      libelle: t('dashboard.overdueInvoices'),
+      nombre: Number(alerts.overdueInvoicesCount ?? 0),
+      montant: Number(alerts.overdueInvoicesTotal ?? 0),
+      vers: '/invoices?status=overdue',
+      icon: AlertTriangle,
+      gravite: 'destructive' as const,
+    },
+    {
+      cle: 'sent',
+      libelle: t('dashboard.sentInvoices'),
+      nombre: Number(alerts.sentInvoicesCount ?? 0),
+      montant: Number(alerts.sentInvoicesTotal ?? 0),
+      vers: '/invoices?status=sent',
+      icon: FileText,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'partial',
+      libelle: t('dashboard.partialInvoices'),
+      nombre: Number(alerts.partialInvoicesCount ?? 0),
+      montant: Number(alerts.partialInvoicesTotal ?? 0),
+      vers: '/invoices?status=partial',
+      icon: Wallet,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'expiring',
+      libelle: t('dashboard.expiringSoon'),
+      nombre: Number(alerts.expiringStockCount ?? 0),
+      vers: '/stock?tab=alerts',
+      icon: Hourglass,
+      gravite: 'warning' as const,
+    },
+    {
+      cle: 'lowStock',
+      libelle: t('dashboard.lowStock'),
+      nombre: Number(alerts.lowStockCount ?? 0),
+      vers: '/stock?tab=alerts',
+      icon: TrendingDown,
+      gravite: 'warning' as const,
+    },
+  ].filter((l) => l.nombre > 0);
+
+  // Le prénom seul : « Bonjour Amar Amar » se lit comme un formulaire. Un compte
+  // sans nom n'a rien à saluer — l'en-tête retombe alors sur le titre de
+  // l'écran, plutôt que sur un « Bonjour  » à trou.
+  const prenom = user?.name?.trim().split(/\s+/)[0] ?? '';
+  const heureMaj = stockMaj
+    ? new Intl.DateTimeFormat('fr-DZ', {
+      // `hourCycle` explicite : selon la bibliothèque ICU du navigateur,
+      // `fr-DZ` rendait « 12:46 AM » — une heure anglo-saxonne au milieu
+      // d'une interface française.
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).format(stockMaj)
+    : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('dashboard.title')}</h1>
-        <input
-          type="month"
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
+    <div className="space-y-3">
+      {/* ── En-tête ─────────────────────────────────────────────────────────
+          La salutation remplace le titre « Tableau de bord » : sur l'écran
+          d'accueil, répéter le nom de l'écran n'apprend rien à celui qui vient
+          d'y arriver. La phrase de contexte, elle, dit ce qu'on y regarde. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1>
+            {prenom ? t('dashboard.salutation', { prenom }) : t('dashboard.title')}
+          </h1>
+          <p className="mt-1 text-xs text-tertiaire">{t('dashboard.salutationContexte')}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+
+          {/* « Personnaliser » masque et rétablit les blocs, et le choix est
+              gardé sur le poste. Ce n'est pas un bouton d'apparat : un écran
+              d'accueil dont le tiers ne sert pas à tout le monde — la
+              production, par exemple, n'est pas activée partout — se range. */}
+          <Deroulant
+            largeur="w-56"
+            declencheur={({ ouvert, basculer }) => (
+              <Button variant="outline" size="sm" onClick={basculer} aria-expanded={ouvert} aria-haspopup="menu">
+                <SlidersHorizontal className="h-4 w-4" />
+                {t('dashboard.personnaliser')}
+              </Button>
+            )}
+          >
+            <p className="px-2.5 pb-1.5 pt-1 text-2xs text-muted-foreground">
+              {t('dashboard.personnaliserAide')}
+            </p>
+            {BLOCS.map((bloc) => (
+              <button
+                key={bloc}
+                type="button"
+                onClick={() => basculerBloc(bloc)}
+                className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-start text-sm text-foreground transition-colors duration-150 hover:bg-surface-hover hover:text-foreground"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                    blocVisible(bloc) ? 'border-primary bg-primary text-primary-foreground' : 'border-input',
+                  )}
+                >
+                  {blocVisible(bloc) && <Check className="h-3 w-3" aria-hidden />}
+                </span>
+                <span className="min-w-0 truncate">{t(`dashboard.blocs.${bloc}`)}</span>
+              </button>
+            ))}
+          </Deroulant>
+
+          {/* « + Nouveau » n'invente rien : chaque entrée ouvre le formulaire de
+              création de son écran, par le paramètre `?nouveau=1` que ces
+              écrans savent lire. */}
+          <Deroulant
+            largeur="w-52"
+            declencheur={({ ouvert, basculer }) => (
+              <Button size="sm" onClick={basculer} aria-expanded={ouvert} aria-haspopup="menu">
+                <Plus className="h-4 w-4" />
+                {t('dashboard.nouveau')}
+              </Button>
+            )}
+          >
+            <EntreeDeroulant icone={FileText} to="/invoices?nouveau=1">{t('invoices.new')}</EntreeDeroulant>
+            <EntreeDeroulant icone={FileText} to="/quotes?nouveau=1">{t('quotes.new')}</EntreeDeroulant>
+            <EntreeDeroulant icone={DollarSign} to="/customers?nouveau=1">{t('customers.new')}</EntreeDeroulant>
+          </Deroulant>
+        </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          title={t('dashboard.revenue')}
-          value={formatCurrency(sales.totalRevenue)}
+      {/* ── Indicateurs ─────────────────────────────────────────────────── */}
+      <div className="echelonner grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Indicateur
+          titre={t('dashboard.revenue')}
+          valeur={Number(sales.totalRevenue)}
+          evolution={stats.evolution?.revenue}
           sub={`${sales.invoiceCount} ${t('dashboard.invoiceCount').toLowerCase()}`}
           icon={DollarSign}
+          ton="primaire"
+          tendance={tendanceCa}
         />
-        <StatCard
-          title={t('dashboard.grossMargin')}
-          value={formatCurrency(profit.grossMargin)}
-          sub={`${profit.grossMarginPercent}%`}
+        <Indicateur
+          titre={t('dashboard.grossMargin')}
+          valeur={Number(profit.grossMargin)}
+          sub={t('dashboard.partDuCa', {
+            part: pourcentage(Number(profit.grossMargin), Number(sales.totalRevenue)),
+          })}
+          icon={Percent}
+          ton="succes"
+        />
+        <Indicateur
+          titre={t('dashboard.netProfit')}
+          valeur={Number(profit.netProfit)}
+          evolution={stats.evolution?.netProfit}
+          sub={t('dashboard.partDuCa', {
+            part: pourcentage(Number(profit.netProfit), Number(sales.totalRevenue)),
+          })}
           icon={TrendingUp}
+          ton="violet"
         />
-        <StatCard
-          title={t('dashboard.netProfit')}
-          value={formatCurrency(profit.netProfit)}
-          sub={`${profit.netProfitPercent}%`}
-          icon={TrendingUp}
-        />
-        <StatCard
-          title={t('dashboard.stockValue')}
-          value={formatCurrency(stock.totalStockValue)}
+        {/* La valeur du stock est la seule des quatre à ne pas dépendre de la
+            période : c'est une photo prise à l'instant du chargement. Elle est
+            donc la seule à devoir dire **quand** elle a été prise, et à offrir
+            d'en reprendre une — les entrées de stock bougent toute la journée,
+            et rien d'autre à l'écran ne le signalerait. */}
+        <Indicateur
+          titre={t('dashboard.stockValue')}
+          valeur={Number(stock.totalStockValue)}
           icon={Package}
+          ton="primaire"
+          coin={heureMaj && (
+            <span className="flex items-center gap-1 text-3xs tracking-normal text-tertiaire">
+              <span className="hidden truncate xl:inline">
+                {t('dashboard.derniereMaj', { heure: heureMaj })}
+              </span>
+              <button
+                type="button"
+                onClick={() => rafraichirStock()}
+                disabled={stockEnCours}
+                aria-label={t('dashboard.rafraichir')}
+                title={t('dashboard.rafraichir')}
+                className="rounded p-0.5 transition-colors duration-150 hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <RefreshCw className={cn('h-3 w-3', stockEnCours && 'animate-spin')} aria-hidden />
+              </button>
+            </span>
+          )}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Expenses breakdown */}
-        <Card>
-          <CardHeader><CardTitle>{t('dashboard.expenses')}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {Object.entries(expenses.byCategory).map(([cat, amt]) => (
-              <div key={cat} className="flex justify-between text-sm">
-                <span className="text-muted-foreground capitalize">{t(`expenses.categories.${cat}`)}</span>
-                <span className="font-medium text-foreground">{formatCurrency(amt as number)}</span>
-              </div>
-            ))}
-            <div className="border-t border-border pt-2 flex justify-between text-sm font-semibold">
-              <span>{t('common.total')}</span>
-              <span>{formatCurrency(expenses.totalExpenses)}</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── Les quatre états ────────────────────────────────────────────── */}
+      <div className="echelonner grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-12">
+        {blocVisible('depenses') && (
+          <div className="lg:col-span-4">
+            <ChartCard
+              titre={t('dashboard.expenses')}
+              lienVers="/expenses"
+              lienLibelle={t('dashboard.voirDepenses')}
+            >
+              {categories.length === 0 ? (
+                <EtatVide compact texte={t('common.videTexte')} />
+              ) : (
+                /* Les catégories de dépense sont des entités fixes : chacune
+                   garde son créneau de couleur d'un mois à l'autre, comme les
+                   modes de règlement. Le créneau vient de la position dans la
+                   liste rendue par le serveur, qui est elle-même figée. */
+                <Anneau
+                  libelleTotal={t('common.total')}
+                  parts={categories.map(([cat, montant], i) => ({
+                    libelle: t(`expenses.categories.${cat}`),
+                    valeur: Number(montant),
+                    creneau: i,
+                  }))}
+                  format={(v) => montantAbrege(v)}
+                />
+              )}
+            </ChartCard>
+          </div>
+        )}
 
-        {/* Top customers */}
-        <Card>
-          <CardHeader><CardTitle>{t('dashboard.topCustomers')}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {sales.topCustomers.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t('common.noData')}</p>
-            )}
-            {sales.topCustomers.map((c: any) => (
-              <div key={c.customerId} className="flex justify-between text-sm">
-                <span className="text-muted-foreground truncate max-w-[150px]">{c.name}</span>
-                <span className="font-medium text-foreground">{formatCurrency(c.total)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {/* Top clients : un classement — teinte unique, rangs numérotés, et
+            l'écart avec la période précédente quand le serveur sait le
+            calculer. */}
+        {blocVisible('topClients') && (
+          <div className="lg:col-span-3">
+            <ChartCard
+              titre={t('dashboard.topCustomers')}
+              lienVers="/customers"
+              lienLibelle={t('dashboard.voirClients')}
+            >
+              {sales.topCustomers.length === 0 ? (
+                <EtatVide compact texte={t('common.videTexte')} />
+              ) : (
+                <BarresClassement
+                  serie={0}
+                  rangs
+                  lignes={sales.topCustomers.map((c: any) => ({
+                    libelle: c.name,
+                    valeur: Number(c.total),
+                    variation: c.evolution ?? null,
+                  }))}
+                  format={(v) => montantAbrege(v)}
+                />
+              )}
+            </ChartCard>
+          </div>
+        )}
 
-        {/* Alerts */}
-        <Card>
-          <CardHeader><CardTitle>{t('dashboard.alerts')}</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-yellow-500" />
-                <span className="text-muted-foreground">{t('dashboard.expiringSoon')}</span>
+        {blocVisible('aTraiter') && (
+          <div className="lg:col-span-2">
+            <ChartCard
+              titre={t('dashboard.toDo')}
+              lienVers="/stock?tab=alerts"
+              lienLibelle={t('dashboard.voirAlertes')}
+            >
+              <div className="space-y-2">
+                {aTraiter.length === 0 ? (
+                  <EtatVide compact texte={t('dashboard.nothingToDo')} />
+                ) : aTraiter.map((l) => (
+                  <AlertCard
+                    key={l.cle}
+                    libelle={l.libelle}
+                    nombre={l.nombre}
+                    detail={l.montant ? montantAbrege(l.montant) : undefined}
+                    vers={l.vers}
+                    icon={l.icon}
+                    gravite={l.gravite}
+                  />
+                ))}
               </div>
-              <Badge variant={alerts.expiringStockCount > 0 ? 'warning' : 'muted'}>
-                {alerts.expiringStockCount}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-red-500" />
-                <span className="text-muted-foreground">{t('dashboard.unpaidInvoices')}</span>
+            </ChartCard>
+          </div>
+        )}
+
+        {blocVisible('stockArticle') && (
+          <div className="lg:col-span-3">
+            <ChartCard
+              titre={t('dashboard.stockByProduct')}
+              lienVers="/products"
+              lienLibelle={t('dashboard.voirArticles')}
+            >
+              {topStock.length === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <BarresClassement
+                    serie={3}
+                    lignes={topStock.map((r: any) => ({
+                      libelle: r.name,
+                      valeur: Number(r.stockValue),
+                    }))}
+                    format={(v) => montantAbrege(v)}
+                  />
+                )}
+            </ChartCard>
+          </div>
+        )}
+      </div>
+
+      {/* ── Les trois séries ────────────────────────────────────────────── */}
+      <div className="echelonner grid grid-cols-1 gap-3 lg:grid-cols-12">
+        {blocVisible('chiffreAffaires') && (
+          <div className="lg:col-span-4">
+            <ChartCard
+              titre={t('dashboard.revenueByDay')}
+              action={(
+                <select
+                  value={joursCourbe}
+                  onChange={(e) => setJoursCourbe(Number(e.target.value))}
+                  aria-label={t('dashboard.fenetreCourbe')}
+                  className="h-7 shrink-0 rounded-sm border border-border bg-champ px-2 text-2xs text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/[0.12]"
+                >
+                  {FENETRES_COURBE.map((n) => (
+                    <option key={n} value={n}>{t('dashboard.derniersJours', { count: n })}</option>
+                  ))}
+                </select>
+              )}
+            >
+              {byDate.length === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <CourbeAire
+                    serie={0}
+                    compare
+                    formatComparaison={(d) => t('dashboard.vsDate', { date: d })}
+                    points={byDate.map((d: any) => ({
+                      libelle: formatDate(d.date),
+                      valeur: Number(d.revenue),
+                    }))}
+                    format={(v) => montantAbrege(v, 2)}
+                  />
+                )}
+            </ChartCard>
+          </div>
+        )}
+
+        {/* Modes de règlement : quatre entités fixes, donc quatre créneaux de
+            couleur fixes — le créneau vient de la position du mode dans sa
+            liste de référence, jamais de son rang du mois. La pastille est un
+            carré arrondi portant l'icône du moyen : sur quatre lignes, un point
+            de couleur seul obligeait à faire l'aller-retour avec la légende. */}
+        {blocVisible('encaissements') && (
+          <div className="lg:col-span-4">
+            <ChartCard titre={t('dashboard.byPaymentMethod')}>
+              {maxMethod === 0
+                ? <EtatVide compact texte={t('common.videTexte')} />
+                : (
+                  <BarresClassement
+                    teintes={byMethod.map(([mode]) => creneauMode(mode))}
+                    icones={byMethod.map(([mode]) => ICONES_MODE[mode] ?? CircleDollarSign)}
+                    lignes={byMethod.map(([method, amount]: any) => ({
+                      libelle: libelleMode(t, method),
+                      valeur: Number(amount),
+                    }))}
+                    /* Deux décimales ici, une seule sur les cartes : c'est le
+                       seul bloc où l'on met les valeurs en regard les unes des
+                       autres, et « 5,4 M » contre « 5,4 M » ne dirait plus
+                       laquelle domine. Le pourcentage répond à la question
+                       réellement posée — quelle part de ce qui est rentré. */
+                    format={(v) => `${montantAbrege(v, 2)} (${pourcentage(v, totalEncaisse)})`}
+                  />
+                )}
+            </ChartCard>
+          </div>
+        )}
+
+        {blocVisible('lots') && (
+          <div className="lg:col-span-4">
+            <ChartCard
+              titre={t('dashboard.expiringLots')}
+              lienVers="/stock"
+              lienLibelle={t('dashboard.voirLots')}
+            >
+              <div className="space-y-1.5">
+                {expiring.length === 0
+                  ? <EtatVide compact texte={t('dashboard.noExpiringLots')} />
+                  : expiring.slice(0, 6).map((e: any) => (
+                    <div
+                      key={e.stockEntryId}
+                      className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 hover:bg-surface-hover"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-foreground">{e.name}</span>
+                      <Badge point variant={e.daysUntilExpiry <= 7 ? 'destructive' : 'warning'}>
+                        {t('dashboard.inDays', { count: e.daysUntilExpiry })}
+                      </Badge>
+                    </div>
+                  ))}
               </div>
-              <Badge variant={alerts.unpaidInvoicesCount > 0 ? 'destructive' : 'muted'}>
-                {alerts.unpaidInvoicesCount}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
-                <span className="text-muted-foreground">{t('dashboard.lowStock')}</span>
-              </div>
-              <Badge variant={alerts.lowStockCount > 0 ? 'warning' : 'muted'}>
-                {alerts.lowStockCount}
-              </Badge>
-            </div>
-            {alerts.unpaidInvoicesTotal > 0 && (
-              <div className="border-t border-border pt-2 text-xs text-muted-foreground">
-                Impayé total : <span className="font-medium text-foreground">{formatCurrency(alerts.unpaidInvoicesTotal)}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </ChartCard>
+          </div>
+        )}
       </div>
     </div>
   );

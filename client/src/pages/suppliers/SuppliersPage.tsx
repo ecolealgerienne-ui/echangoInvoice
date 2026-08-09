@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
@@ -13,7 +14,15 @@ import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search, Users } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { Avatar } from '@/components/shared/Avatar';
+import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -45,6 +54,10 @@ export function SuppliersPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'name' | 'city' | 'phone' | 'email' | 'createdAt'>(
+    'suppliers_sort', { sortBy: 'name', sortOrder: 'ASC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,8 +72,8 @@ export function SuppliersPage() {
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['suppliers', page, search],
-    queryFn: () => suppliersApi.list({ page, limit: 20, search: search || undefined }),
+    queryKey: ['suppliers', page, search, tri],
+    queryFn: () => suppliersApi.list({ ...tri, page, limit: 20, search: search || undefined }),
   });
 
   const { data: contactsData, isLoading: contactsLoading } = useQuery({
@@ -121,8 +134,21 @@ export function SuppliersPage() {
     onError: () => toast(t('errors.generic'), 'error'),
   });
 
+  /**
+   * L'API renvoie `null` pour les champs texte non renseignés, mais le schéma
+   * n'accepte qu'une chaîne, une chaîne vide ou `undefined`. Charger la fiche
+   * telle quelle faisait échouer la validation **en silence** : le formulaire
+   * refusait la soumission sans qu'aucune requête ne parte. On normalise donc
+   * les nuls en chaînes vides, ce qui est aussi ce qu'attend un <input>.
+   */
+  function normaliser(s: Record<string, any>) {
+    return Object.fromEntries(
+      Object.entries(s).map(([k, v]) => [k, v === null ? '' : v]),
+    );
+  }
+
   function openCreate() { setEditing(null); reset({}); setModalOpen(true); }
-  function openEdit(s: any) { setEditing(s); reset(s); setModalOpen(true); }
+  function openEdit(s: any) { setEditing(s); reset(normaliser(s)); setModalOpen(true); }
   function closeModal() { setModalOpen(false); setEditing(null); reset({}); }
 
   function openContacts(s: any) { setContactsSupplier(s); }
@@ -133,12 +159,11 @@ export function SuppliersPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('suppliers.title')}</h1>
+      <EnTetePage titre={t('suppliers.title')} total={data?.pagination?.total} cleTotal="suppliers.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('suppliers.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex items-center gap-3">
         <div className="relative w-64">
@@ -146,7 +171,8 @@ export function SuppliersPage() {
           <Input placeholder={t('common.search')} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="fournisseurs" />
           <ColumnToggleMenu
             columns={[
               { key: 'name', label: t('suppliers.name') },
@@ -163,49 +189,68 @@ export function SuppliersPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.name')}</th>}
-                {col('nif') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.nif')}</th>}
-                {col('rc') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.rc')}</th>}
-                {col('phone') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.phone')}</th>}
-                {col('email') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.email')}</th>}
-                {col('city') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('suppliers.city')}</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('name') && (
+                  <EnteteTriable libelle={t('suppliers.name')} colonne="name" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('nif') && <th className="px-3 py-2.5 text-left">{t('suppliers.nif')}</th>}
+                {col('rc') && <th className="px-3 py-2.5 text-left">{t('suppliers.rc')}</th>}
+                {col('phone') && (
+                  <EnteteTriable libelle={t('suppliers.phone')} colonne="phone" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('email') && (
+                  <EnteteTriable libelle={t('suppliers.email')} colonne="email" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('city') && (
+                  <EnteteTriable libelle={t('suppliers.city')} colonne="city" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((s: any) => (
-                <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                  {col('name') && <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>}
-                  {col('nif') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.nif || '—'}</td>}
-                  {col('rc') && <td className="px-4 py-3 font-mono text-muted-foreground">{s.rc || '—'}</td>}
-                  {col('phone') && <td className="px-4 py-3 text-muted-foreground">{s.phone || '—'}</td>}
-                  {col('email') && <td className="px-4 py-3 text-muted-foreground">{s.email || '—'}</td>}
-                  {col('city') && <td className="px-4 py-3 text-muted-foreground">{s.city || '—'}</td>}
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title={t('suppliers.contacts')} onClick={() => openContacts(s)}>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(s.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                <tr key={s.id} className="hover:bg-surface-hover transition-colors">
+                  {col('name') && (
+                    <td className="px-3 py-2.5 font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar nom={s.name} />
+                        <Link to={`/suppliers/${s.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
+                          {s.name}
+                        </Link>
+                      </div>
+                    </td>
+                  )}
+                  {col('nif') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{s.nif || '—'}</td>}
+                  {col('rc') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{s.rc || '—'}</td>}
+                  {col('phone') && <td className="px-3 py-2.5 text-muted-foreground">{s.phone || '—'}</td>}
+                  {col('email') && <td className="px-3 py-2.5 text-muted-foreground">{s.email || '—'}</td>}
+                  {col('city') && <td className="px-3 py-2.5 text-muted-foreground">{s.city || '—'}</td>}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
+                    <div className="flex justify-end">
+                      <MenuActions
+                        actions={[
+                          { cle: 'contacts', libelle: t('suppliers.contacts'), icone: Users, onSelect: () => openContacts(s) },
+                          { cle: 'edit', libelle: t('common.edit'), icone: Pencil, onSelect: () => openEdit(s) },
+                          { cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true, onSelect: () => deleteMutation.mutate(s.id) },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}

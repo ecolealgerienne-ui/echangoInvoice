@@ -1,0 +1,98 @@
+import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { verificationApi } from '@/lib/api';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Card } from '@/components/ui/Card';
+import { CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
+
+/**
+ * Types de document reconnus. La table ne porte plus les libelles : figee au
+ * chargement du module, elle ne pouvait pas suivre la langue choisie. Un type
+ * inconnu retombe sur sa valeur brute plutot que sur une case vide.
+ */
+const TYPES_CONNUS = ['facture', 'devis', 'bl', 'avoir'];
+
+function titreDocument(t: (cle: string) => string, type: string): string {
+  return TYPES_CONNUS.includes(type) ? t(`verification.types.${type}`) : type;
+}
+
+/**
+ * Page publique atteinte en scannant le QR d'un document.
+ *
+ * Elle est vue par le **destinataire**, qui n'a pas de compte et ne connaît pas
+ * l'application : pas de menu, pas de navigation, une seule réponse à une seule
+ * question — ce papier est-il authentique.
+ *
+ * Elle n'affiche ni lignes, ni coordonnées, ni marge : le serveur ne les envoie
+ * pas, et l'écran ne doit pas donner envie de les demander.
+ */
+export function VerificationPage() {
+  const { t } = useTranslation();
+  const { type, id, signature } = useParams<{ type: string; id: string; signature: string }>();
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['verification', type, id, signature],
+    queryFn: () => verificationApi.verifier(type!, id!, signature!),
+    enabled: Boolean(type && id && signature),
+    retry: false,
+  });
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner /></div>;
+
+  if (isError || !data?.data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-5">
+        <Card ombre className="w-full max-w-md space-y-3 p-6 text-center">
+          <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
+          <h1 className="text-base font-semibold text-foreground">{t('verification.introuvable')}</h1>
+          <p className="text-sm text-muted-foreground">{t('verification.introuvableAide')}</p>
+        </Card>
+      </div>
+    );
+  }
+
+  const d = data.data;
+  const Icone = d.valide ? CheckCircle2 : XCircle;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-5">
+      <Card ombre className="w-full max-w-md overflow-hidden">
+        {/* Le bandeau prend l'aplat ténu de son verdict. Il portait
+            `bg-success-subtle dark:bg-success/30` — deux valeurs pour un seul
+            rôle, alors que `-subtle` est déjà défini dans les deux thèmes :
+            l'exception au thème sombre n'existait que parce que l'ancien
+            `success-subtle` sombre était trop discret. */}
+        <div className={`p-6 text-center ${d.valide ? 'bg-success-subtle' : 'bg-destructive-subtle'}`}>
+          <Icone className={`mx-auto h-12 w-12 ${d.valide ? 'text-success' : 'text-destructive'}`} />
+          <h1 className="mt-3 text-base font-semibold text-foreground">
+            {d.valide ? t('verification.authentique') : t('verification.annule')}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {titreDocument(t, d.type)} n° {d.numero}
+          </p>
+        </div>
+
+        <dl className="divide-y divide-border-subtle">
+          {[
+            [t('verification.emetteur'), d.emetteur],
+            ['NIF', d.emetteurNif],
+            [t('verification.destinataire'), d.destinataire],
+            [t('verification.date'), formatDate(d.date)],
+            [t('common.total'), formatCurrency(d.total)],
+          ].filter(([, v]) => v).map(([libelle, valeur]) => (
+            <div key={String(libelle)} className="flex justify-between px-5 py-3 text-sm">
+              <dt className="text-muted-foreground">{libelle}</dt>
+              <dd className="font-medium text-foreground text-right">{valeur}</dd>
+            </div>
+          ))}
+        </dl>
+
+        <p className="border-t border-border px-5 py-3 text-xs text-tertiaire">
+          {t('verification.note')}
+        </p>
+      </Card>
+    </div>
+  );
+}

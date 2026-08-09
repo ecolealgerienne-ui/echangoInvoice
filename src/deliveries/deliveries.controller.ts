@@ -1,6 +1,6 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe,
-  Patch, Post, Put, Query, Res, UseGuards,
+  Body, Controller, Delete, Get, HttpCode, HttpException, Param, ParseUUIDPipe,
+  Patch, Post, Put, Query, Res, ServiceUnavailableException, UseGuards,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -12,12 +12,13 @@ import { SignDeliveryNoteDto } from './dto/sign-delivery-note.dto';
 import { ListDeliveryNotesDto } from './dto/list-delivery-notes.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Deliveries')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('deliveries/delivery-notes')
 export class DeliveriesController {
   constructor(
@@ -33,14 +34,14 @@ export class DeliveriesController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les bons de livraison' })
   findAll(@Query() query: ListDeliveryNotesDto, @CurrentUser() user: any) {
     return this.deliveriesService.findAll(query, user.tenantId!);
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Détail d\'un bon de livraison' })
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     return this.deliveriesService.findOne(id, user.tenantId!);
@@ -87,7 +88,7 @@ export class DeliveriesController {
   }
 
   @Get(':id/pdf')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Générer le PDF du bon de livraison' })
   async pdf(
     @Param('id', ParseUUIDPipe) id: string,
@@ -113,6 +114,13 @@ export class DeliveriesController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Envoyer le BL par email au client (avec PDF en pièce jointe)' })
   async sendEmail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId!);
+    // Même traitement que pour la facture : ne pas masquer les erreurs métier,
+    // mais donner une clé exploitable quand c'est le SMTP qui échoue.
+    try {
+      await this.pdfService.sendDeliveryNoteEmail(id, user.tenantId!);
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      throw new ServiceUnavailableException('email_send_failed');
+    }
   }
 }

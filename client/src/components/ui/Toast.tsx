@@ -34,20 +34,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 w-80">
         {toasts.map(t => (
+          // Le message surgit au lieu d'apparaître : posé sans mouvement dans
+          // un coin de l'écran, il passe inaperçu — et une confirmation qu'on
+          // ne voit pas est une confirmation qui n'existe pas. La tranche
+          // colorée du côté de la lecture double la couleur du fond : sur fond
+          // ténu, c'est elle qu'on attrape du coin de l'œil.
           <div
             key={t.id}
+            role="status"
             className={cn(
-              'flex items-start gap-3 rounded-lg border p-4 shadow-lg text-sm',
-              t.variant === 'success' && 'bg-green-50 border-green-200 text-green-900',
-              t.variant === 'error' && 'bg-red-50 border-red-200 text-red-900',
-              t.variant === 'warning' && 'bg-yellow-50 border-yellow-200 text-yellow-900',
+              'surgir flex items-start gap-3 rounded-lg border border-s-4 p-4 text-sm shadow-lg',
+              t.variant === 'success' && 'border-success-border border-s-success bg-success-subtle text-success-text',
+              t.variant === 'error' && 'border-destructive-border border-s-destructive bg-destructive-subtle text-destructive-text',
+              t.variant === 'warning' && 'border-warning-border border-s-warning bg-warning-subtle text-warning-text',
             )}
           >
-            {t.variant === 'success' && <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />}
-            {t.variant === 'error' && <XCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />}
-            {t.variant === 'warning' && <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />}
+            {t.variant === 'success' && <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" />}
+            {t.variant === 'error' && <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />}
+            {t.variant === 'warning' && <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />}
             <span className="flex-1">{t.message}</span>
-            <button onClick={() => remove(t.id)} className="opacity-50 hover:opacity-100">
+            <button onClick={() => remove(t.id)} className="opacity-50 transition-opacity hover:opacity-100">
               <X className="h-3 w-3" />
             </button>
           </div>

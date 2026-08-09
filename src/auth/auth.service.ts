@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull, EntityManager } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -22,6 +15,7 @@ import { Plan } from '../admin/entities/plan.entity';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { requireEnv } from '../config/env.config';
 import { EmailService } from '../common/email.service';
+import { UsersService } from '../users/users.service';
 
 const SALT_ROUNDS = 12;
 
@@ -33,7 +27,45 @@ export class AuthService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly emailService: EmailService,
+    private readonly usersService: UsersService,
   ) {}
+
+  /**
+   * Le compte connecté, tel que l'interface a besoin de le connaître.
+   *
+   * Il se composait jusqu'ici de la seule charge utile du jeton — identifiant,
+   * espace, adresse, rôle. Le **nom** y manquait, alors que la connexion, elle,
+   * le rendait : l'application affichait donc « Bonjour Amar » juste après la
+   * saisie du mot de passe, et plus rien après un simple rafraîchissement de
+   * page. Le défaut ne se voyait pas tant que rien n'affichait le nom ; le bloc
+   * utilisateur de la barre latérale et la salutation du tableau de bord le
+   * rendent visible à chaque ouverture.
+   *
+   * Le nom ne peut pas venir du jeton : il y serait figé jusqu'à l'expiration,
+   * et quelqu'un qui corrige l'orthographe du sien attendrait la déconnexion
+   * pour la voir. Une lecture par ouverture d'application est le bon prix.
+   *
+   * Le compte introuvable — supprimé pendant que son jeton court encore — rend
+   * un 401 et non un 404 : du point de vue de l'appelant, la session n'est plus
+   * valide, et c'est la seule chose qu'il ait à en faire.
+   */
+  async moi(charge: JwtPayload) {
+    const utilisateur = await this.dataSource.manager.findOne(User, {
+      where: { id: charge.sub, deletedAt: IsNull() },
+      select: ['id', 'tenantId', 'email', 'name', 'role'],
+    });
+    if (!utilisateur) throw new UnauthorizedException('errors.invalid_credentials');
+
+    return {
+      data: {
+        id: utilisateur.id,
+        tenantId: utilisateur.tenantId,
+        email: utilisateur.email,
+        name: utilisateur.name,
+        role: utilisateur.role,
+      },
+    };
+  }
 
   async register(dto: RegisterDto) {
     const qr = this.dataSource.createQueryRunner();
@@ -221,11 +253,29 @@ export class AuthService {
     return slug;
   }
 
-  async invite(dto: InviteDto, tenantId: string, invitedBy: string): Promise<{ message: string }> {
+  async invite(
+    dto: InviteDto,
+    tenantId: string,
+    invitedBy: string,
+  ): Promise<{ inviteUrl: string; emailSent: boolean }> {
+    // UQ_users_email est GLOBAL, pas par tenant. Ne chercher que dans le tenant
+    // courant laissait passer une adresse déjà employée ailleurs : l'INSERT
+    // partait alors en violation de contrainte, donc en 500, au lieu d'un
+    // conflit explicite.
     const existing = await this.dataSource.manager.findOne(User, {
-      where: { email: dto.email, tenantId, deletedAt: IsNull() },
+      where: { email: dto.email, deletedAt: IsNull() },
     });
     if (existing) throw new ConflictException('errors.user_already_exists');
+
+    const enAttente = await this.dataSource.query(
+      `SELECT 1 FROM invitations
+       WHERE "tenantId" = $1 AND email = $2 AND "acceptedAt" IS NULL AND "expiresAt" > NOW()`,
+      [tenantId, dto.email],
+    );
+    if (enAttente.length) throw new ConflictException('errors.invite_already_pending');
+
+    // Le plan vend un nombre de postes ; jusqu'ici rien ne l'appliquait.
+    await this.usersService.assertPlaceDisponible(tenantId);
 
     const token = crypto.randomBytes(48).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
@@ -238,6 +288,7 @@ export class AuthService {
     );
 
     const inviteUrl = `${process.env.APP_URL ?? 'http://localhost:5173'}/accept-invite?token=${token}`;
+    let emailSent = false;
 
     try {
       await this.emailService.send({
@@ -253,11 +304,17 @@ export class AuthService {
           </body>
         `,
       });
+      emailSent = true;
     } catch (emailErr) {
       this.logger.error('Invite email failed', (emailErr as Error).message);
     }
 
-    return { message: 'Invitation envoyée' };
+    // Le lien est renvoyé à l'appelant, et pas seulement expédié par e-mail.
+    // L'ancienne version répondait « Invitation envoyée » même quand l'envoi
+    // avait échoué : le message mentait, et le jeton n'existait alors nulle
+    // part d'accessible — l'invitation était irrécupérable. Sans SMTP
+    // configuré, c'était systématique.
+    return { inviteUrl, emailSent };
   }
 
   async acceptInvite(dto: AcceptInviteDto): Promise<ReturnType<AuthService['authResponse']>> {
@@ -269,8 +326,11 @@ export class AuthService {
 
     const invitation = invitations[0];
 
+    // Recherche globale, comme UQ_users_email : filtrer sur le tenant laissait
+    // l'INSERT échouer en violation de contrainte si l'adresse servait déjà
+    // ailleurs — 500 au lieu d'un conflit lisible.
     const existing = await this.dataSource.manager.findOne(User, {
-      where: { email: invitation.email, tenantId: invitation.tenantId, deletedAt: IsNull() },
+      where: { email: invitation.email, deletedAt: IsNull() },
     });
     if (existing) throw new ConflictException('errors.user_already_exists');
 

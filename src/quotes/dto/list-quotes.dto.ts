@@ -1,10 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ListQueryDto } from '../../common/dto/list-query.dto';
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
-export class ListQuotesDto {
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Type(() => Number) page?: number = 1;
-  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Type(() => Number) limit?: number = 20;
+export class ListQuotesDto extends ListQueryDto {
 
   @ApiPropertyOptional({ enum: ['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted'] })
   @IsOptional()

@@ -26,10 +26,10 @@ export class User {
 
   @Column({
     type: 'enum',
-    enum: ['owner', 'manager', 'agent', 'superadmin'],
+    enum: ['owner', 'manager', 'agent', 'accountant', 'superadmin'],
     default: 'agent',
   })
-  role: 'owner' | 'manager' | 'agent' | 'superadmin';
+  role: 'owner' | 'manager' | 'agent' | 'accountant' | 'superadmin';
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;

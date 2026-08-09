@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { creditNotesApi, customersApi, invoicesApi , resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
+import { enregistrerBlob } from '@/lib/download';
 import { useUnits } from '@/lib/useUnits';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -15,13 +18,15 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, FileDown } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', issued: 'success', applied: 'info', cancelled: 'destructive',
-};
 
 const itemSchema = z.object({
   description: z.string().min(1),
@@ -120,32 +125,42 @@ export function CreditNotesPage() {
 
   const creditNotes = data?.data ?? [];
   const pagination = data?.pagination;
-  const { visible, toggle, col } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu, pas seulement celles visibles
+  // par défaut : « notes » est masquée au départ mais reste activable.
+  const { visible, toggle, col } = useColumnVisibility<
+    'number' | 'customer' | 'date' | 'reason' | 'total' | 'status' | 'notes'
+  >(
     'creditnotes_visible_columns',
     ['number', 'customer', 'date', 'reason', 'total', 'status'],
   );
   const customerList = customers?.data ?? [];
+
+  function telechargerPdf(id: string, numero: string) {
+    creditNotesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
   const invoiceList = invoicesData?.data ?? [];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('creditNotes.title')}</h1>
+    <div className="space-y-4">
+      <EnTetePage titre={t('creditNotes.title')} total={pagination?.total} cleTotal="creditNotes.totalCount">
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />{t('creditNotes.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
+        <ExportButton dataset="avoirs" />
         <ColumnToggleMenu
           columns={[
             { key: 'number', label: t('creditNotes.creditNoteNumber') },
             { key: 'customer', label: t('customers.title') },
-            { key: 'date', label: 'Date' },
+            { key: 'date', label: t('common.date') },
             { key: 'reason', label: t('creditNotes.reason') },
-            { key: 'total', label: 'Total TTC' },
+            { key: 'total', label: t('common.totalTtc') },
             { key: 'status', label: t('quotes.status') },
-            { key: 'notes', label: 'Notes' },
+            { key: 'notes', label: t('common.notes') },
           ]}
           visible={visible}
           onToggle={toggle}
@@ -153,57 +168,69 @@ export function CreditNotesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {col('number') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.creditNoteNumber')}</th>}
-                {col('customer') && <th className="text-left px-4 py-3 font-medium">{t('customers.title')}</th>}
-                {col('date') && <th className="text-left px-4 py-3 font-medium">Date</th>}
-                {col('reason') && <th className="text-left px-4 py-3 font-medium">{t('creditNotes.reason')}</th>}
-                {col('total') && <th className="text-right px-4 py-3 font-medium">Total TTC</th>}
-                {col('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {col('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
-                <th className="px-4 py-3" />
+                {col('number') && <th className="text-left px-3 py-2.5">{t('creditNotes.creditNoteNumber')}</th>}
+                {col('customer') && <th className="text-left px-3 py-2.5">{t('customers.title')}</th>}
+                {col('date') && <th className="text-left px-3 py-2.5">{t('common.date')}</th>}
+                {col('reason') && <th className="text-left px-3 py-2.5">{t('creditNotes.reason')}</th>}
+                {col('total') && <th className="text-right px-3 py-2.5">{t('common.totalTtc')}</th>}
+                {col('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
+                {col('notes') && <th className="text-left px-3 py-2.5">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {creditNotes.map((cn: any) => (
-                <tr key={cn.id} className="border-t border-border hover:bg-muted/30">
-                  {col('number') && <td className="px-4 py-3 font-mono text-xs">{cn.creditNoteNumber}</td>}
-                  {col('customer') && <td className="px-4 py-3">{cn.customer?.name ?? '—'}</td>}
-                  {col('date') && <td className="px-4 py-3">{formatDate(cn.creditNoteDate)}</td>}
-                  {col('reason') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
-                  {col('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(cn.totalAmount)}</td>}
-                  {col('status') && <td className="px-4 py-3"><Badge variant={STATUS_VARIANT[cn.status] ?? 'muted'}>{t(`status.${cn.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      {cn.status === 'draft' && (
-                        <>
-                          <Button size="sm" variant="ghost" onClick={() => issueMutation.mutate(cn.id)}>
-                            <CheckCircle className="h-4 w-4 text-success" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => removeMutation.mutate(cn.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {cn.status === 'issued' && (
-                        <Button size="sm" variant="ghost" onClick={() => cancelMutation.mutate(cn.id)}>
-                          <XCircle className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
+                <tr key={cn.id} className="border-t border-border hover:bg-surface-hover">
+                  {col('number') && (
+                    <td className="px-3 py-2.5 font-medium">
+                      <Link to={`/credit-notes/${cn.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">{cn.creditNoteNumber}</Link>
+                    </td>
+                  )}
+                  {col('customer') && <td className="px-3 py-2.5">{cn.customer?.name ?? '—'}</td>}
+                  {col('date') && <td className="px-3 py-2.5">{formatDate(cn.creditNoteDate)}</td>}
+                  {col('reason') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{cn.reason ?? '—'}</td>}
+                  {col('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(cn.totalAmount)}</td>}
+                  {col('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(cn.status)}>{t(`status.${cn.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{cn.notes ?? '—'}</td>}
+                  {/* Les trois actions du bas n'avaient même pas d'infobulle :
+                      une coche verte, une croix rouge et une corbeille, à
+                      deviner. Elles portent désormais leur nom. */}
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center justify-end gap-0.5">
+                      <Button size="sm" variant="ghost" title={t('common.pdf')}
+                        onClick={() => telechargerPdf(cn.id, cn.creditNoteNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      <MenuActions
+                        actions={[
+                          cn.status === 'draft' && {
+                            cle: 'issue', libelle: t('creditNotes.issue'), icone: CheckCircle,
+                            onSelect: () => issueMutation.mutate(cn.id),
+                          },
+                          cn.status === 'issued' && {
+                            cle: 'cancel', libelle: t('creditNotes.cancel'), icone: XCircle, danger: true,
+                            onSelect: () => cancelMutation.mutate(cn.id),
+                          },
+                          cn.status === 'draft' && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => removeMutation.mutate(cn.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
               {creditNotes.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {pagination && (
@@ -222,21 +249,21 @@ export function CreditNotesPage() {
               {errors.customerId && <p className="text-xs text-destructive mt-1">{t('errors.required')}</p>}
             </div>
             <div>
-              <label className="text-sm font-medium">Facture liée (optionnel)</label>
+              <label className="text-sm font-medium">{t('creditNotes.linkedInvoice')}</label>
               <Select {...register('salesInvoiceId')} className="mt-1 w-full">
-                <option value="">— Aucune —</option>
+                <option value="">{t('common.none')}</option>
                 {invoiceList.map((inv: any) => (
                   <option key={inv.id} value={inv.id}>{inv.invoiceNumber}</option>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Date de l'avoir</label>
+              <label className="text-sm font-medium">{t('creditNotes.date')}</label>
               <Input type="date" {...register('creditNoteDate')} className="mt-1" />
             </div>
             <div className="col-span-2">
               <label className="text-sm font-medium">{t('creditNotes.reason')}</label>
-              <Input {...register('reason')} className="mt-1" placeholder="Motif de l'avoir..." />
+              <Input {...register('reason')} className="mt-1" placeholder={t('creditNotes.reasonPlaceholder')} />
             </div>
           </div>
 
@@ -252,7 +279,7 @@ export function CreditNotesPage() {
               {fields.map((f, i) => (
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
-                    <Input placeholder="Description" {...register(`items.${i}.description`)} className="text-xs" />
+                    <Input placeholder={t('common.description')} {...register(`items.${i}.description`)} className="text-xs" />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />
@@ -284,7 +311,7 @@ export function CreditNotesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

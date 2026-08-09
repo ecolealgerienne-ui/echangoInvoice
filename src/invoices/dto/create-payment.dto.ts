@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { MONTANT_MAX } from '../../common/limits';
 
 export class CreatePaymentDto {
   @ApiProperty() @IsUUID() salesInvoiceId: string;
-  @ApiProperty() @IsNumber() @Min(0.01) amount: number;
+  @ApiProperty() @IsNumber() @Max(MONTANT_MAX) @Min(0.01) amount: number;
   @ApiProperty() @IsDateString() paymentDate: string;
 
   @ApiProperty({ enum: ['cash', 'bank_transfer', 'cheque', 'other'] })

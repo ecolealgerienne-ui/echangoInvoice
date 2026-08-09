@@ -1,25 +1,97 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { DashboardQueryDto } from './dto/dashboard-query.dto';
+import { evolution, resoudrePeriode } from './periode';
 
 @Injectable()
 export class DashboardService {
   constructor(@InjectDataSource() private readonly ds: DataSource) {}
 
-  private periodBounds(month: string) {
-    const [year, monthNum] = month.split('-').map(Number);
-    const lastDay = new Date(year, monthNum, 0).getDate();
+  /**
+   * Les trois agrégats comparables d'une période.
+   *
+   * R029 — appelé pour la période courante ET pour celle de comparaison. Deux
+   * requêtes distinctes divergeraient au premier ajustement de règle (une
+   * facture annulée exclue d'un côté et pas de l'autre), et l'écart affiché
+   * deviendrait faux sans que rien ne le signale.
+   */
+  private async chiffresPeriode(tenantId: string, dateFrom: string, dateTo: string) {
+    const [ventes, achats, depenses, coutVentes] = await Promise.all([
+      this.ds.query(
+        `SELECT COALESCE(SUM("totalAmount"),0) AS total, COUNT(*) AS nb,
+                COALESCE(AVG("totalAmount"),0) AS moyenne
+         FROM sales_invoices
+         WHERE "tenantId"=$1 AND "invoiceDate" BETWEEN $2 AND $3
+           AND status != 'cancelled' AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+      this.ds.query(
+        `SELECT COALESCE(SUM(poi.quantity * poi."unitPrice"),0) AS total,
+                COUNT(DISTINCT rbl.id) AS nb
+         FROM reception_bls rbl
+         JOIN purchase_order_items poi ON poi."purchaseOrderId" = rbl."purchaseOrderId"
+         WHERE rbl."tenantId"=$1 AND rbl."receptionDate" BETWEEN $2 AND $3
+           AND rbl."deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+      this.ds.query(
+        `SELECT COALESCE(SUM(CASE WHEN "isApproved" THEN amount ELSE 0 END),0) AS approuvees,
+                COALESCE(SUM(amount),0) AS total
+         FROM expenses
+         WHERE "tenantId"=$1 AND "expenseDate" BETWEEN $2 AND $3 AND "deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+      // Coût des marchandises vendues.
+      //
+      // `unitCost` est figé sur la ligne à l'émission ; le repli sur le coût
+      // moyen de l'article ne sert qu'aux lignes antérieures à cette règle. Un
+      // article supprimé du catalogue laisse un coût nul, ce qui surestime la
+      // marge — mieux vaut une marge trop belle qu'un chiffre inventé.
+      this.ds.query(
+        `SELECT COALESCE(SUM(sii.quantity * COALESCE(
+                  sii."unitCost",
+                  NULLIF(fp."averageCostPerUnit", 0),
+                  NULLIF(fp."lastCostPerUnit", 0),
+                  0)),0) AS total
+         FROM sales_invoice_items sii
+         JOIN sales_invoices si ON si.id = sii."salesInvoiceId"
+         LEFT JOIN finished_products fp ON fp.id = sii."finishedProductId"
+         WHERE si."tenantId"=$1 AND si."invoiceDate" BETWEEN $2 AND $3
+           AND si.status != 'cancelled' AND si."deletedAt" IS NULL`,
+        [tenantId, dateFrom, dateTo]),
+    ]);
+
+    const revenue = parseFloat(ventes[0]?.total ?? 0);
+    const purchases = parseFloat(achats[0]?.total ?? 0);
+    const expenses = parseFloat(depenses[0]?.approuvees ?? 0);
+    const cogs = parseFloat(coutVentes[0]?.total ?? 0);
+
     return {
-      dateFrom: `${year}-${String(monthNum).padStart(2, '0')}-01`,
-      dateTo: `${year}-${String(monthNum).padStart(2, '0')}-${lastDay}`,
+      revenue,
+      invoiceCount: parseInt(ventes[0]?.nb ?? 0),
+      averageInvoice: Math.round(parseFloat(ventes[0]?.moyenne ?? 0) * 100) / 100,
+      purchases,
+      receptionCount: parseInt(achats[0]?.nb ?? 0),
+      expenses,
+      totalExpenses: parseFloat(depenses[0]?.total ?? 0),
+      cogs,
+      // Résultat net = marge brute − charges. La marge brute se calcule sur ce
+      // qui a été **vendu**, pas sur ce qui a été **acheté** : un mois écoulé
+      // sans réassort affichait autrefois près de 100 % de marge, et un mois de
+      // gros approvisionnement l'aurait affichée négative.
+      netProfit: Math.round((revenue - cogs - expenses) * 100) / 100,
     };
   }
 
-  async getStats(tenantId: string, month: string) {
-    const { dateFrom, dateTo } = this.periodBounds(month);
+  async getStats(tenantId: string, demande: DashboardQueryDto = {}) {
+    const periode = resoudrePeriode(demande);
+    const { dateFrom, dateTo } = periode;
+    const [courant, precedent] = await Promise.all([
+      this.chiffresPeriode(tenantId, dateFrom, dateTo),
+      this.chiffresPeriode(tenantId, periode.comparaison.dateFrom, periode.comparaison.dateTo),
+    ]);
 
-    const [salesRows, byStatusRows, topCustomersRows, purchaseRows, stockSummaryRows,
-      stockStatusRows, expenseRows, alertInvoiceRows, alertStockRows, alertLowStockRows,
+    const [salesRows, byStatusRows, topCustomersRows, topCustomersPrevRows, purchaseRows,
+      stockSummaryRows, stockStatusRows, expenseRows, alertInvoiceRows, alertStockRows,
+      alertLowStockRows,
     ] = await Promise.all([
       // Revenus factures (hors cancelled)
       this.ds.query(`
@@ -48,6 +120,22 @@ export class DashboardService {
         GROUP BY inv."customerId", c.name
         ORDER BY total DESC LIMIT 5`,
         [tenantId, dateFrom, dateTo]),
+
+      // Les mêmes clients sur la période de comparaison.
+      //
+      // Le classement seul ne dit pas ce qui bouge : cinq noms dans le même
+      // ordre depuis six mois se lisent comme une photo, alors qu'un client à
+      // −40 % est exactement ce qu'on ouvre le tableau de bord pour voir. Le
+      // groupement porte sur **tous** les clients de la période précédente et
+      // non sur les cinq du haut : un client qui vient d'entrer dans le top
+      // avait un chiffre le mois d'avant, il n'était simplement pas cinquième.
+      this.ds.query(`
+        SELECT inv."customerId", SUM(inv."totalAmount") AS total
+        FROM sales_invoices inv
+        WHERE inv."tenantId"=$1 AND inv."invoiceDate" BETWEEN $2 AND $3
+          AND inv.status != 'cancelled' AND inv."deletedAt" IS NULL
+        GROUP BY inv."customerId"`,
+        [tenantId, periode.comparaison.dateFrom, periode.comparaison.dateTo]),
 
       // Achats (réceptions BL) — coût calculé depuis les items de PO
       this.ds.query(`
@@ -106,21 +194,36 @@ export class DashboardService {
     ]);
 
     // Assemble sales
-    const totalRevenue = parseFloat(salesRows[0]?.revenue ?? 0);
-    const invoiceCount = parseInt(salesRows[0]?.count ?? 0);
-    const avgInvoice = Math.round(parseFloat(salesRows[0]?.avg ?? 0) * 100) / 100;
+    // Les scalaires comparables viennent tous de chiffresPeriode, pour la
+    // période courante comme pour la précédente : une seule règle, un seul
+    // endroit où elle peut changer.
+    const totalRevenue = courant.revenue;
+    const invoiceCount = courant.invoiceCount;
+    const avgInvoice = courant.averageInvoice;
 
     const byStatus: Record<string, number> = { draft: 0, sent: 0, partial: 0, paid: 0, overdue: 0, cancelled: 0 };
     for (const r of byStatusRows) byStatus[r.status] = parseInt(r.count);
 
-    const topCustomers = topCustomersRows.map((r: any) => ({
-      customerId: r.customerId, name: r.name,
-      total: Math.round(parseFloat(r.total) * 100) / 100,
-    }));
+    const precedentParClient = new Map<string, number>();
+    for (const r of topCustomersPrevRows) {
+      precedentParClient.set(r.customerId, parseFloat(r.total));
+    }
+    const topCustomers = topCustomersRows.map((r: any) => {
+      const total = Math.round(parseFloat(r.total) * 100) / 100;
+      const precedentClient = precedentParClient.get(r.customerId) ?? 0;
+      return {
+        customerId: r.customerId, name: r.name, total,
+        previousTotal: Math.round(precedentClient * 100) / 100,
+        // `null` quand le client n'avait rien la période d'avant : ce n'est pas
+        // une progression infinie, c'est un client nouveau, et l'écran le
+        // laisse muet plutôt que d'inventer un pourcentage.
+        evolution: evolution(total, precedentClient),
+      };
+    });
 
     // Purchases
-    const totalPurchaseCost = parseFloat(purchaseRows[0]?.cost ?? 0);
-    const receptionCount = parseInt(purchaseRows[0]?.count ?? 0);
+    const totalPurchaseCost = courant.purchases;
+    const receptionCount = courant.receptionCount;
 
     // Stock
     const totalStockValue = Math.round(parseFloat(stockSummaryRows[0]?.value ?? 0) * 100) / 100;
@@ -139,14 +242,18 @@ export class DashboardService {
     let totalExpenses = 0, approvedExpenses = 0;
     for (const r of expenseRows) {
       byCategory[r.category] = Math.round(parseFloat(r.total) * 100) / 100;
-      totalExpenses += parseFloat(r.total ?? 0);
-      approvedExpenses += parseFloat(r.approved ?? 0);
     }
-    totalExpenses = Math.round(totalExpenses * 100) / 100;
-    approvedExpenses = Math.round(approvedExpenses * 100) / 100;
+    totalExpenses = Math.round(courant.totalExpenses * 100) / 100;
+    approvedExpenses = Math.round(courant.expenses * 100) / 100;
 
     // Profit (R008)
-    const grossMargin = Math.round((totalRevenue - totalPurchaseCost) * 100) / 100;
+    //
+    // La marge brute est le chiffre d'affaires moins le **coût des marchandises
+    // vendues**. Elle valait auparavant « CA moins achats reçus sur la
+    // période », ce qui n'est pas une marge mais une trésorerie : sur un mois
+    // à deux réceptions et vingt millions de ventes, elle affichait 93 %.
+    const costOfGoodsSold = courant.cogs;
+    const grossMargin = Math.round((totalRevenue - costOfGoodsSold) * 100) / 100;
     const netProfit = Math.round((grossMargin - approvedExpenses) * 100) / 100;
     const grossMarginPercent = totalRevenue > 0 ? Math.round((grossMargin / totalRevenue) * 10000) / 100 : 0;
     const netProfitPercent = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 10000) / 100 : 0;
@@ -154,12 +261,31 @@ export class DashboardService {
     // Alerts
     const alertByStatus: Record<string, any> = {};
     for (const r of alertInvoiceRows) alertByStatus[r.status] = { count: parseInt(r.count), total: parseFloat(r.total) };
-    const unpaidCount = (alertByStatus['sent']?.count ?? 0) + (alertByStatus['partial']?.count ?? 0);
-    const unpaidTotal = (alertByStatus['sent']?.total ?? 0) + (alertByStatus['partial']?.total ?? 0);
+
+    // `unpaidInvoicesCount` / `unpaidInvoicesTotal` retirés le 2026-08-09.
+    //
+    // Ils additionnaient `sent` + `partial`. C'est E016 : le compteur affichait
+    // un nombre qu'aucune liste ne pouvait rendre, le filtre serveur n'acceptant
+    // qu'un statut à la fois. La correction a scindé le chiffre en deux tuiles
+    // cliquables — `sentInvoicesCount` et `partialInvoicesCount` — et l'ancien
+    // champ est resté servi, sans plus aucun appelant nulle part.
+    //
+    // R022 : ce qui n'a plus d'appelant se supprime. La clé de traduction
+    // `dashboard.unpaidInvoices` part avec, dans les deux langues.
+    // Trouvé par scripts/banc-compteurs.py.
 
     return {
       data: {
-        period: { month, dateFrom, dateTo },
+        period: {
+          dateFrom, dateTo, jours: periode.jours,
+          comparaison: periode.comparaison,
+        },
+        evolution: {
+          revenue: evolution(totalRevenue, precedent.revenue),
+          purchases: evolution(totalPurchaseCost, precedent.purchases),
+          expenses: evolution(approvedExpenses, precedent.expenses),
+          netProfit: evolution(netProfit, precedent.netProfit),
+        },
         sales: {
           totalRevenue: Math.round(totalRevenue * 100) / 100,
           invoiceCount,
@@ -178,21 +304,35 @@ export class DashboardService {
           pendingExpenses: Math.round((totalExpenses - approvedExpenses) * 100) / 100,
           byCategory,
         },
-        profit: { grossMargin, grossMarginPercent, netProfit, netProfitPercent },
+        profit: {
+          grossMargin, grossMarginPercent, netProfit, netProfitPercent,
+          // Exposé pour que l'écran puisse le montrer : une marge sans son coût
+          // ne se vérifie pas.
+          costOfGoodsSold: Math.round(costOfGoodsSold * 100) / 100,
+        },
         alerts: {
           expiringStockCount: parseInt(alertStockRows[0]?.count ?? 0),
-          unpaidInvoicesCount: unpaidCount,
-          unpaidInvoicesTotal: Math.round(unpaidTotal * 100) / 100,
           lowStockCount: parseInt(alertLowStockRows[0]?.count ?? 0),
           overdueInvoicesCount: alertByStatus['overdue']?.count ?? 0,
           overdueInvoicesTotal: Math.round((alertByStatus['overdue']?.total ?? 0) * 100) / 100,
+          // Le détail par statut, et non la seule somme des impayées.
+          //
+          // Le bloc « À traiter » mène chaque ligne vers la liste filtrée, et
+          // le filtre du serveur ne connaît qu'un statut à la fois : un
+          // compteur qui additionne « envoyée » et « partielle » enverrait donc
+          // sur une liste plus courte que le nombre annoncé. Compter comme on
+          // filtre est la seule façon que le clic tienne sa promesse.
+          sentInvoicesCount: alertByStatus['sent']?.count ?? 0,
+          sentInvoicesTotal: Math.round((alertByStatus['sent']?.total ?? 0) * 100) / 100,
+          partialInvoicesCount: alertByStatus['partial']?.count ?? 0,
+          partialInvoicesTotal: Math.round((alertByStatus['partial']?.total ?? 0) * 100) / 100,
         },
       },
     };
   }
 
-  async getSalesChart(tenantId: string, month: string) {
-    const { dateFrom, dateTo } = this.periodBounds(month);
+  async getSalesChart(tenantId: string, demande: DashboardQueryDto = {}) {
+    const { dateFrom, dateTo } = resoudrePeriode(demande);
 
     const [byDateRows, byCustomerRows, byMethodRows] = await Promise.all([
       this.ds.query(`
@@ -238,7 +378,7 @@ export class DashboardService {
 
     return {
       data: {
-        period: { month, dateFrom, dateTo },
+        period: { dateFrom, dateTo },
         byDate: byDateRows.map((r: any) => ({
           date: r.date, revenue: Math.round(parseFloat(r.revenue) * 100) / 100,
           invoiceCount: parseInt(r.count),
@@ -258,7 +398,7 @@ export class DashboardService {
                SUM(se.quantity) AS total,
                SUM(se.quantity * se."costPerUnit") AS value
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status IN ('available','reserved')
         GROUP BY se."rawMaterialId", rm.name, rm.unit`,
         [tenantId]),
@@ -273,7 +413,7 @@ export class DashboardService {
                EXTRACT(DAY FROM se."expiresAt" - NOW())::int AS days,
                se.quantity * se."costPerUnit" AS estimated_value
         FROM stock_entries se
-        JOIN raw_materials rm ON rm.id = se."rawMaterialId"
+        JOIN finished_products rm ON rm.id = se."rawMaterialId"
         WHERE se."tenantId"=$1 AND se.status='available' AND se."expiresAt" IS NOT NULL
           AND se."expiresAt" <= NOW() + INTERVAL '30 days'
         ORDER BY se."expiresAt" ASC`,

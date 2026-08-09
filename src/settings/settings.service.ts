@@ -43,6 +43,16 @@ export class SettingsService {
       if (dto.invoiceNumberFormat !== undefined) setting.invoiceNumberFormat = dto.invoiceNumberFormat;
       if (dto.quoteNumberFormat !== undefined) setting.quoteNumberFormat = dto.quoteNumberFormat;
       if (dto.poNumberFormat !== undefined) setting.poNumberFormat = dto.poNumberFormat;
+      if (dto.receptionNumberFormat !== undefined) setting.receptionNumberFormat = dto.receptionNumberFormat;
+      if (dto.vendorBillNumberFormat !== undefined) setting.vendorBillNumberFormat = dto.vendorBillNumberFormat;
+      if (dto.creditNoteNumberFormat !== undefined) setting.creditNoteNumberFormat = dto.creditNoteNumberFormat;
+      if (dto.productionOrderNumberFormat !== undefined) setting.productionOrderNumberFormat = dto.productionOrderNumberFormat;
+      if (dto.nif !== undefined) setting.nif = dto.nif;
+      if (dto.rc !== undefined) setting.rc = dto.rc;
+      if (dto.ai !== undefined) setting.ai = dto.ai;
+      if (dto.nis !== undefined) setting.nis = dto.nis;
+      if (dto.rib !== undefined) setting.rib = dto.rib;
+      if (dto.pdfAccentColor !== undefined) setting.pdfAccentColor = dto.pdfAccentColor;
       if (dto.email !== undefined) setting.email = dto.email;
       if (dto.phone !== undefined) setting.phone = dto.phone;
       if (dto.address !== undefined) setting.address = dto.address;
@@ -52,6 +62,8 @@ export class SettingsService {
       if (dto.defaultUnit !== undefined) setting.defaultUnit = dto.defaultUnit;
       if (dto.defaultPaymentTermsDays !== undefined) setting.defaultPaymentTermsDays = dto.defaultPaymentTermsDays;
       if (dto.productionModuleEnabled !== undefined) setting.productionModuleEnabled = dto.productionModuleEnabled;
+      if (dto.stampDutyEnabled !== undefined) setting.stampDutyEnabled = dto.stampDutyEnabled;
+      if (dto.stampImage !== undefined) setting.stampImage = dto.stampImage;
       setting.updatedBy = userId;
 
       const saved = await qr.manager.save(Setting, setting);
@@ -98,6 +110,10 @@ export class SettingsService {
         invoiceNumberFormat: 'FAC-YY-###',
         quoteNumberFormat: 'DEV-YY-###',
         poNumberFormat: 'PO-YY-###',
+        receptionNumberFormat: 'BL-REC-YY-###',
+        vendorBillNumberFormat: 'FAC-ACH-YY-###',
+        creditNoteNumberFormat: 'AV-YY-###',
+        productionOrderNumberFormat: 'MO-YY-###',
         units: ['kg', 'g', 'tonne', 'L', 'mL', 'pcs', 'm', 'm²', 'm³', 'boîte', 'palette', 'sac'],
       });
       const saved = await qr.manager.save(Setting, setting);

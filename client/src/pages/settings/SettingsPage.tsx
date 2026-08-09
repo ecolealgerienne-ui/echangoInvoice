@@ -11,12 +11,32 @@ import { useToast } from '@/components/ui/Toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Plus, X, Trash2, Upload } from 'lucide-react';
 import { rules } from '@/lib/validation';
+import { UsersTab } from './UsersTab';
 
-type SettingsTab = 'general' | 'tax' | 'units' | 'formats';
+type SettingsTab = 'general' | 'tax' | 'units' | 'formats' | 'users';
 
 interface TaxRow { name: string; rate: string; isDefault: boolean; }
 
 const DEFAULT_UNITS = ['kg', 'g', 'tonne', 'L', 'mL', 'pcs', 'm', 'm²', 'm³', 'boîte', 'palette', 'sac'];
+
+/**
+ * Aperçu du prochain numéro tel que le serveur le composerait.
+ *
+ * Les jetons ne se devinent pas : sans exemple sous le champ, on ne sait pas
+ * si « YY » vaut l'année ou le mois, ni combien de dièses il faut. Le rendu
+ * reproduit `appliquerFormat` du serveur — YYYY avant YY, sinon les deux
+ * premiers Y seraient consommés par la règle des deux chiffres.
+ */
+function apercuNumero(format: string | undefined): string {
+  if (!format) return '';
+  const maintenant = new Date();
+  const rendu = format
+    .replace(/YYYY/g, String(maintenant.getFullYear()))
+    .replace(/YY/g, String(maintenant.getFullYear()).slice(-2))
+    .replace(/MM/g, String(maintenant.getMonth() + 1).padStart(2, '0'))
+    .replace(/#+/g, (d) => '1'.padStart(d.length, '0'));
+  return `Ex. : ${rendu}`;
+}
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -26,6 +46,7 @@ export function SettingsPage() {
 
   // Logo state
   const [logo, setLogo] = useState<string | null>(null);
+  const [cachet, setCachet] = useState<string | null>(null);
 
   // Units state
   const [units, setUnits] = useState<string[]>(DEFAULT_UNITS);
@@ -40,7 +61,7 @@ export function SettingsPage() {
     queryFn: () => settingsApi.get(),
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<any>();
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<any>();
 
   useEffect(() => {
     if (!data?.data) return;
@@ -51,6 +72,7 @@ export function SettingsPage() {
     setUnits(rawUnits.length > 0 ? rawUnits : DEFAULT_UNITS);
     setDefaultUnit(d.defaultUnit ?? '');
     setLogo(d.logo ?? null);
+    setCachet(d.stampImage ?? null);
 
     if (d.taxRates?.length > 0) {
       setTaxRates(d.taxRates.map((r: any) => ({
@@ -63,10 +85,11 @@ export function SettingsPage() {
 
   const mutation = useMutation({
     mutationFn: (formData: any) => {
-      const { id, tenantId, logo: _logo, updatedBy, createdAt, updatedAt, taxRate: _tr, taxRates: _trc, units: _u, defaultUnit: _du, ...payload } = formData;
+      const { id, tenantId, logo: _logo, stampImage: _st, updatedBy, createdAt, updatedAt, taxRate: _tr, taxRates: _trc, units: _u, defaultUnit: _du, ...payload } = formData;
       return settingsApi.update({
         ...payload,
         logo: logo ?? undefined,
+        stampImage: cachet ?? undefined,
         units,
         defaultUnit: defaultUnit || undefined,
         taxRates: taxRates.map(r => ({
@@ -120,11 +143,12 @@ export function SettingsPage() {
     { key: 'tax',     label: t('settings.tabTax') },
     { key: 'units',   label: t('settings.tabUnits') },
     { key: 'formats', label: t('settings.tabFormats') },
+    { key: 'users',   label: t('settings.tabUsers') },
   ];
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <h1 className="text-xl font-bold text-foreground">{t('settings.title')}</h1>
+      <h1>{t('settings.title')}</h1>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -136,6 +160,11 @@ export function SettingsPage() {
         ))}
       </div>
 
+      {/* Rendu hors du formulaire : les actions sur les utilisateurs
+          s'appliquent immédiatement, elles ne passent pas par « Enregistrer ». */}
+      {tab === 'users' && <UsersTab />}
+
+      {tab !== 'users' && (
       <form onSubmit={handleSubmit(d => mutation.mutate(d))} className="space-y-5">
 
         {/* ── Général ─────────────────────────────────────────────────────── */}
@@ -152,12 +181,12 @@ export function SettingsPage() {
                       <div className="relative border border-border rounded p-1 bg-muted flex items-center justify-center" style={{ minWidth: 120, minHeight: 60 }}>
                         <img src={logo} alt="logo" className="max-h-14 max-w-[120px] object-contain" />
                         <button type="button" onClick={() => setLogo(null)}
-                          className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
+                          className="absolute -top-2 -right-2 bg-surface-elevated border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
                           <X className="h-3 w-3" />
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-muted transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-surface-hover transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
                         <Upload className="h-5 w-5" />
                         <span>{t('settings.uploadLogo')}</span>
                         <input type="file" accept="image/*" className="sr-only"
@@ -172,6 +201,37 @@ export function SettingsPage() {
                       </label>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">{t('settings.logoHint')}</p>
+                  </div>
+                </div>
+
+                {/* Cachet et signature — exigés par le décret 05-468 sauf transmission télématique */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">{t('settings.stamp')}</label>
+                  <div className="flex items-start gap-4">
+                    {cachet ? (
+                      <div className="relative border border-border rounded p-1 bg-muted flex items-center justify-center" style={{ minWidth: 120, minHeight: 60 }}>
+                        <img src={cachet} alt="cachet" className="max-h-14 max-w-[120px] object-contain" />
+                        <button type="button" onClick={() => setCachet(null)}
+                          className="absolute -top-2 -right-2 bg-surface-elevated border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-surface-hover transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
+                        <Upload className="h-5 w-5" />
+                        <span>{t('settings.uploadStamp')}</span>
+                        <input type="file" accept="image/*" className="sr-only"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = ev => setCachet(ev.target?.result as string);
+                            reader.readAsDataURL(file);
+                            e.target.value = '';
+                          }} />
+                      </label>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">{t('settings.stampHint')}</p>
                   </div>
                 </div>
 
@@ -220,6 +280,47 @@ export function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Les identifiants de l'ÉMETTEUR n'existaient nulle part : les
+                PDF imprimaient « NIF : » et « RC : » vides sur chaque
+                facture, ce qui la rend irrecevable en Algérie. */}
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.legalIds')}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t('settings.legalIdsHint')}</p>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3">
+                {[
+                  ['nif', t('customers.nif')],
+                  ['rc', t('customers.rc')],
+                  ['ai', t('customers.ai')],
+                  ['nis', t('customers.nis')],
+                ].map(([champ, label]) => (
+                  <div key={champ} className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">{label}</label>
+                    <Input {...register(champ)} />
+                  </div>
+                ))}
+                <div className="space-y-1 col-span-2">
+                  <label className="text-sm font-medium text-foreground">{t('settings.rib')}</label>
+                  <Input {...register('rib')} />
+                  <p className="text-xs text-muted-foreground">{t('settings.ribHint')}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-foreground">{t('settings.accentColor')}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      className="h-9 w-12 rounded border border-input bg-surface p-1 cursor-pointer"
+                      {...register('pdfAccentColor')}
+                    />
+                    <span className="text-xs text-muted-foreground font-mono">
+                      {watch('pdfAccentColor') ?? '#1e3a5f'}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
                 <CardTitle>{t('settings.modules')}</CardTitle>
@@ -235,6 +336,26 @@ export function SettingsPage() {
                     type="checkbox"
                     className="h-4 w-4 accent-primary cursor-pointer"
                     {...register('productionModuleEnabled')}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.stampDuty')}</CardTitle>
+                <p className="text-sm text-muted-foreground">{t('settings.stampDutyHint')}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <label className="text-sm font-medium text-foreground">{t('settings.stampDutyEnabled')}</label>
+                    <p className="text-xs text-muted-foreground">{t('settings.stampDutyEnabledHint')}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary cursor-pointer"
+                    {...register('stampDutyEnabled')}
                   />
                 </div>
               </CardContent>
@@ -272,7 +393,13 @@ export function SettingsPage() {
                 )}
                 {taxRates.map((row, i) => (
                   <div key={i} className="grid grid-cols-[1fr_100px_80px_32px] gap-2 items-center">
+                    {/* name et aria-label : ces deux champs n'en avaient aucun,
+                        donc ni un lecteur d'écran ni un test ne pouvaient les
+                        désigner — seule leur position dans la grille les
+                        distinguait. */}
                     <Input
+                      name={`taxRateName-${i}`}
+                      aria-label={`${t('settings.rateName')} ${i + 1}`}
                       value={row.name}
                       onChange={e => updateTaxRow(i, 'name', e.target.value)}
                       placeholder={t('settings.rateNamePlaceholder')}
@@ -280,6 +407,8 @@ export function SettingsPage() {
                     />
                     <div className="relative">
                       <Input
+                        name={`taxRate-${i}`}
+                        aria-label={`${t('settings.ratePercent')} ${i + 1}`}
                         type="number"
                         step="0.01"
                         min="0"
@@ -382,15 +511,25 @@ export function SettingsPage() {
           <Card>
             <CardHeader><CardTitle>{t('settings.numberFormats')}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
+              {/* Les huit documents numérotés, et non quatre : les formats des
+                  réceptions, factures fournisseurs, avoirs et ordres de
+                  fabrication n'étaient réglables nulle part. */}
               {[
-                ['blNumberFormat', t('settings.blFormat')],
                 ['invoiceNumberFormat', t('settings.invoiceFormat')],
                 ['quoteNumberFormat', t('settings.quoteFormat')],
+                ['blNumberFormat', t('settings.blFormat')],
+                ['creditNoteNumberFormat', t('settings.creditNoteFormat')],
                 ['poNumberFormat', t('settings.poFormat')],
+                ['receptionNumberFormat', t('settings.receptionFormat')],
+                ['vendorBillNumberFormat', t('settings.vendorBillFormat')],
+                ['productionOrderNumberFormat', t('settings.productionOrderFormat')],
               ].map(([field, label]) => (
                 <div key={field} className="space-y-1">
                   <label className="text-sm font-medium text-foreground">{label}</label>
                   <Input {...register(field)} />
+                  <p className="text-xs text-muted-foreground font-mono">
+                    {apercuNumero(watch(field) as string)}
+                  </p>
                 </div>
               ))}
               <div className="col-span-2">
@@ -406,6 +545,7 @@ export function SettingsPage() {
           </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }

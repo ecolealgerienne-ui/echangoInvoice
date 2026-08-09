@@ -1,6 +1,14 @@
 # STATUS.md — Echango Invoice · État de l'implémentation
 
-> Dernière mise à jour : 2026-06-22
+> ⚠️ **Ce fichier n'est plus fiable.** Dernière mise à jour : 2026-06-22.
+> Plusieurs de ses lignes se sont révélées fausses en août 2026 : des routes
+> annoncées comme fonctionnelles renvoyaient 500, d'autres n'avaient aucun
+> écran. Il a conduit à des conclusions erronées avant qu'on ne vérifie dans le
+> code (R031).
+>
+> Pour l'état réel et la suite du travail : **`docs/REPRISE.md`**.
+> Pour le positionnement face au marché : **`docs/BENCHMARK.md`**.
+> En cas de doute, la source de vérité reste le code.
 
 ## Légende
 

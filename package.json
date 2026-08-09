@@ -2,6 +2,11 @@
   "name": "echango-invoice-api",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "shared",
+    "client",
+    "mobile"
+  ],
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
@@ -11,13 +16,29 @@
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "migration:run": "typeorm migration:run -d dist/config/database.config.js",
     "migration:revert": "typeorm migration:revert -d dist/config/database.config.js",
     "migration:generate": "typeorm migration:generate -d dist/config/database.config.js",
     "dev": "npx concurrently --names API,CLIENT --prefix-colors blue,green \"npm run start:dev\" \"npm --prefix client run dev\"",
     "seed": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed.ts",
-    "seed:demo": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed-demo.ts"
+    "seed:demo": "ts-node -r dotenv/config -r tsconfig-paths/register src/database/seeds/seed-demo.ts",
+    "verify:securite": "node scripts/verifier-securite.js",
+    "verify:conformite": "node scripts/verifier-conformite.js",
+    "verify": "npm run verify:securite && npm run verify:conformite && npm run verify:tri && npm run verify:periodes && npm run verify:codes-barres && npm run verify:signature && npm run verify:echeances && npm run verify:gabarit-pdf && npm run verify:i18n && npm run verify:design",
+    "verify:tri": "node scripts/verifier-tri.js",
+    "verify:periodes": "node scripts/verifier-periodes.js",
+    "verify:codes-barres": "node scripts/verifier-codes-barres.js",
+    "verify:signature": "node scripts/verifier-signature.js",
+    "verify:echeances": "node scripts/verifier-echeances.js",
+    "verify:gabarit-pdf": "node scripts/verifier-gabarit-pdf.js",
+    "verify:pdf-achats": "node scripts/verifier-pdf-achats.js",
+    "verify:i18n": "node scripts/verifier-i18n.js",
+    "verify:design": "node scripts/verifier-design.js",
+    "verify:compta": "node scripts/verifier-comptabilite.js",
+    "verify:production": "node scripts/verifier-production.js",
+    "verify:contraste": "node scripts/verifier-contraste.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",
@@ -33,6 +54,7 @@
     "@nestjs/typeorm": "^11.0.0",
     "@types/nodemailer": "^8.0.1",
     "bcrypt": "^6.0.0",
+    "bwip-js": "^4.11.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "fastify": "^5.0.0",

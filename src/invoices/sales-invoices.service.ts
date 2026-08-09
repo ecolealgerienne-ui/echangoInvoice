@@ -12,6 +12,11 @@ import { CreateSalesInvoiceDto, CreateSalesInvoiceItemDto } from './dto/create-s
 import { UpdateInvoiceStatusDto } from './dto/update-invoice-status.dto';
 import { ListInvoicesDto } from './dto/list-invoices.dto';
 import { EmailService } from '../common/email.service';
+import { calculerDroitDeTimbre, calculerNetAPayer, estSoumisAuTimbre } from '../common/droit-de-timbre';
+import { assertMontant } from '../common/limits';
+import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
+import { appliquerTri } from '../common/tri';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -26,6 +31,8 @@ interface ComputedItem {
   quantity: number;
   unit: string;
   unitPrice: number;
+  /** Coût figé au moment de l'émission — voir l'entité. */
+  unitCost: number | null;
   taxName1: string | null;
   taxRate1: number | null;
   taxAmount1: number;
@@ -35,6 +42,16 @@ interface ComputedItem {
   lineTaxTotal: number;
   lineTotal: number;
 }
+
+/**
+ * Colonnes que le client peut demander en tri (R029).
+ *
+ * `customerName` porte sur la table jointe : sa traduction en SQL est donnée à
+ * `appliquerTri`, la clé publique restant soumise à cette même liste. Sans cette
+ * table de correspondance, trier sur une jointure obligerait à laisser passer
+ * une expression venue du client.
+ */
+const COLONNES_TRIABLES = ['invoiceNumber', 'invoiceDate', 'dueDate', 'totalAmount', 'amountDue', 'status', 'createdAt', 'customerName'] as const;
 
 @Injectable()
 export class SalesInvoicesService {
@@ -46,18 +63,61 @@ export class SalesInvoicesService {
     @InjectRepository(Subscription) private readonly subRepo: Repository<Subscription>,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
+    private readonly numbering: NumberingService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
 
-  private computeItem(dto: CreateSalesInvoiceItemDto): ComputedItem {
-    const lineHT = dto.quantity * dto.unitPrice;
+  /**
+   * Coût unitaire des articles vendus, lu une fois pour toute la facture.
+   *
+   * On prend le coût moyen pondéré, et le dernier coût d'achat à défaut : un
+   * article jamais réceptionné n'a pas de moyenne. Un article introuvable donne
+   * `null`, jamais zéro implicite — la différence compte au moment de calculer
+   * la marge.
+   */
+  private async coutsUnitaires(
+    ids: string[], tenantId: string, qr?: QueryRunner,
+  ): Promise<Map<string, number>> {
+    const uniques = [...new Set(ids.filter(Boolean))];
+    if (!uniques.length) return new Map();
+    const executeur = qr ?? this.dataSource;
+    const lignes: { id: string; cout: string }[] = await executeur.query(
+      `SELECT id, COALESCE(NULLIF("averageCostPerUnit", 0), NULLIF("lastCostPerUnit", 0), 0) AS cout
+         FROM finished_products WHERE id = ANY($1) AND "tenantId" = $2`,
+      [uniques, tenantId],
+    );
+    return new Map(lignes.map((l) => [l.id, parseFloat(l.cout)]));
+  }
+
+  /**
+   * Pose le coût figé sur des lignes déjà calculées.
+   *
+   * Trois chemins mènent à une facture — saisie directe, bon de livraison,
+   * devis — et les trois doivent figer le coût. Le faire à trois endroits
+   * garantissait qu'un jour l'un des trois serait oublié, et la marge d'une
+   * facture issue d'un BL serait devenue fausse sans que rien ne le dise.
+   */
+  private async avecCouts(
+    items: ComputedItem[], tenantId: string, qr?: QueryRunner,
+  ): Promise<ComputedItem[]> {
+    const couts = await this.coutsUnitaires(
+      items.map((i) => i.finishedProductId), tenantId, qr,
+    );
+    return items.map((i) => ({ ...i, unitCost: couts.get(i.finishedProductId) ?? null }));
+  }
+
+  private computeItem(dto: CreateSalesInvoiceItemDto, cout?: number | null): ComputedItem {
+    // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
+    // peuvent produire un produit qui déborde numeric(12,2) (R021).
+    const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
     const taxAmount1 = dto.taxRate1 != null ? Math.round(lineHT * (dto.taxRate1 / 100) * 100) / 100 : 0;
     const taxAmount2 = dto.taxRate2 != null ? Math.round(lineHT * (dto.taxRate2 / 100) * 100) / 100 : 0;
     const lineTaxTotal = Math.round((taxAmount1 + taxAmount2) * 100) / 100;
     return {
       finishedProductId: dto.finishedProductId,
       quantity: dto.quantity, unit: dto.unit, unitPrice: dto.unitPrice,
+      unitCost: cout ?? null,
       taxName1: dto.taxName1 ?? null, taxRate1: dto.taxRate1 ?? null, taxAmount1,
       taxName2: dto.taxName2 ?? null, taxRate2: dto.taxRate2 ?? null, taxAmount2,
       lineTaxTotal, lineTotal: Math.round((lineHT + lineTaxTotal) * 100) / 100,
@@ -65,30 +125,44 @@ export class SalesInvoicesService {
   }
 
   private computeTotals(items: ComputedItem[]) {
-    const subtotal = Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100;
+    const subtotal = assertMontant(
+      Math.round(items.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100,
+      'subtotal',
+    );
     const taxAmount = Math.round(items.reduce((s, i) => s + i.lineTaxTotal, 0) * 100) / 100;
-    return { subtotal, taxAmount, totalAmount: Math.round((subtotal + taxAmount) * 100) / 100 };
+    const totalAmount = assertMontant(
+      Math.round((subtotal + taxAmount) * 100) / 100,
+      'totalAmount',
+    );
+    return { subtotal, taxAmount, totalAmount };
   }
 
-  // ─── Auto-numérotation FAC-YY-### (R013) ─────────────────────────────────
+  /**
+   * Droit de timbre dû sur cette facture (R008 : jamais calculé côté client).
+   * Zéro si la société ne l'a pas activé, ou si le règlement n'est pas en espèces.
+   */
+  private async computeStampDuty(
+    qr: QueryRunner, tenantId: string, paymentMode: string, totalTTC: number,
+  ): Promise<number> {
+    if (!estSoumisAuTimbre(paymentMode)) return 0;
+    const [reglages] = await qr.query(
+      `SELECT "stampDutyEnabled" FROM settings WHERE "tenantId" = $1`, [tenantId],
+    );
+    if (!reglages?.stampDutyEnabled) return 0;
+    return calculerDroitDeTimbre(totalTTC);
+  }
+
+  // ─── Auto-numérotation (R013) ────────────────────────────────────────────
+  //
+  // Le format vient des Paramètres ; la séquence vient d'un compteur dédié.
+  // La version précédente relisait le plus grand numéro existant et découpait
+  // la chaîne sur les tirets — ce qui n'a de sens que si le format ne change
+  // jamais. Un numéro émis reste consommé même si le document est supprimé :
+  // le compteur n'est jamais décrémenté, et une numérotation fiscale ne se
+  // réattribue pas.
 
   async generateInvoiceNumber(qr: QueryRunner, tenantId: string): Promise<string> {
-    await qr.query(
-      `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
-      [tenantId],
-    );
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await qr.manager
-      .createQueryBuilder(SalesInvoice, 'inv')
-      .where('inv.tenantId = :tenantId', { tenantId })
-      .andWhere('EXTRACT(YEAR FROM inv."createdAt") = :year', { year })
-      .andWhere('inv.deletedAt IS NULL')
-      .orderBy('inv.invoiceNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.invoiceNumber.split('-')[2], 10) : 0;
-    return `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'invoice');
   }
 
   // ─── Freemium check ───────────────────────────────────────────────────────
@@ -136,9 +210,10 @@ export class SalesInvoicesService {
         taxAmount1: parseFloat(r.taxAmount1 ?? 0),
         taxName2: r.taxName2 ?? null, taxRate2: r.taxRate2 ? parseFloat(r.taxRate2) : null,
         taxAmount2: parseFloat(r.taxAmount2 ?? 0),
+        unitCost: null,
         lineTaxTotal: parseFloat(r.lineTaxTotal ?? 0), lineTotal: parseFloat(r.lineTotal),
       }));
-      return { items, deliveryNoteId: dto.deliveryNoteId, quoteId: null };
+      return { items: await this.avecCouts(items, tenantId, qr), deliveryNoteId: dto.deliveryNoteId, quoteId: null };
     }
 
     if (dto.quoteId) {
@@ -154,15 +229,19 @@ export class SalesInvoicesService {
         taxAmount1: parseFloat(r.taxAmount1 ?? 0),
         taxName2: r.taxName2 ?? null, taxRate2: r.taxRate2 ? parseFloat(r.taxRate2) : null,
         taxAmount2: parseFloat(r.taxAmount2 ?? 0),
+        unitCost: null,
         lineTaxTotal: parseFloat(r.lineTaxTotal ?? 0), lineTotal: parseFloat(r.lineTotal),
       }));
-      return { items, deliveryNoteId: null, quoteId: dto.quoteId };
+      return { items: await this.avecCouts(items, tenantId, qr), deliveryNoteId: null, quoteId: dto.quoteId };
     }
 
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('invoice_items_required');
     }
-    return { items: dto.items.map((i) => this.computeItem(i)), deliveryNoteId: null, quoteId: null };
+    return {
+      items: await this.avecCouts(dto.items.map((i) => this.computeItem(i)), tenantId, qr),
+      deliveryNoteId: null, quoteId: null,
+    };
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -177,6 +256,8 @@ export class SalesInvoicesService {
       const invoiceNumber = await this.generateInvoiceNumber(qr, tenantId);
       const { items, deliveryNoteId, quoteId } = await this.resolveItems(dto, tenantId, qr);
       const totals = this.computeTotals(items);
+      const paymentMode = dto.paymentMode ?? 'other';
+      const stampDuty = await this.computeStampDuty(qr, tenantId, paymentMode, totals.totalAmount);
 
       const invoice = qr.manager.create(SalesInvoice, {
         tenantId,
@@ -188,8 +269,10 @@ export class SalesInvoicesService {
         deliveryNoteId,
         quoteId,
         ...totals,
+        paymentMode,
+        stampDuty,
         amountPaid: 0,
-        amountDue: totals.totalAmount,
+        amountDue: calculerNetAPayer(totals.totalAmount, stampDuty),
         status: 'draft',
         createdBy: userId,
         updatedBy: userId,
@@ -221,14 +304,25 @@ export class SalesInvoicesService {
       .where('inv.tenantId = :tenantId', { tenantId })
       .andWhere('inv.deletedAt IS NULL');
 
+    // La recherche porte aussi sur le nom du client : au téléphone on a le
+    // nom, rarement le numéro de facture. Le champ existait à l'écran depuis
+    // toujours, mais le DTO ne l'acceptait pas — avec forbidNonWhitelisted,
+    // toute saisie renvoyait un 400 et vidait la liste.
+    if (dto.search) {
+      qb.andWhere('(inv.invoiceNumber ILIKE :recherche OR customer.name ILIKE :recherche)', {
+        recherche: `%${dto.search}%`,
+      });
+    }
     if (dto.status) qb.andWhere('inv.status = :status', { status: dto.status });
     if (dto.customerId) qb.andWhere('inv.customerId = :customerId', { customerId: dto.customerId });
     if (dto.dateFrom) qb.andWhere('inv.invoiceDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('inv.invoiceDate <= :dateTo', { dateTo: dto.dateTo });
 
+    appliquerTri(qb, 'inv', COLONNES_TRIABLES, { colonne: 'createdAt', sens: 'DESC' }, dto,
+      { customerName: 'customer.name' });
+
     const [rows, total] = await qb
-      .orderBy('inv.createdAt', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 
@@ -260,13 +354,50 @@ export class SalesInvoicesService {
     return { data, pagination: { total, page, limit } };
   }
 
+  /**
+   * Vue complète d'une facture, pensée pour la page détail : elle doit tenir
+   * en UN appel. La découper obligerait l'écran à orchestrer cinq requêtes et
+   * à afficher un document par morceaux, ce qui est pire que pas de page du
+   * tout pour un document comptable qu'on consulte pour le vérifier.
+   */
   async findOne(id: string, tenantId: string) {
     const invoice = await this.invoiceRepo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
-      relations: ['items', 'payments'],
+      relations: ['items', 'payments', 'customer'],
     });
     if (!invoice) throw new NotFoundException('invoice_not_found');
-    return { data: invoice };
+
+    const items = await ajouterArticles(this.dataSource, invoice.items ?? [], tenantId);
+
+    // Les documents d'origine et les avoirs imputés expliquent deux chiffres
+    // que rien d'autre ne justifie à l'écran : d'où vient la facture, et
+    // pourquoi le solde a baissé sans encaissement.
+    const [origine] = await this.dataSource.query(
+      `SELECT bl."blNumber" AS "blNumber", dv."quoteNumber" AS "quoteNumber"
+       FROM sales_invoices f
+       LEFT JOIN delivery_notes bl ON bl.id = f."deliveryNoteId"
+       LEFT JOIN quotes dv ON dv.id = f."quoteId"
+       WHERE f.id = $1 AND f."tenantId" = $2`,
+      [id, tenantId],
+    );
+
+    const creditNotes = await this.dataSource.query(
+      `SELECT id, "creditNoteNumber", "creditNoteDate", "totalAmount", status, reason
+       FROM credit_notes
+       WHERE "salesInvoiceId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+       ORDER BY "creditNoteDate"`,
+      [id, tenantId],
+    );
+
+    return {
+      data: {
+        ...invoice,
+        items,
+        blNumber: origine?.blNumber ?? null,
+        quoteNumber: origine?.quoteNumber ?? null,
+        creditNotes,
+      },
+    };
   }
 
   async update(id: string, dto: CreateSalesInvoiceDto, tenantId: string, userId: string) {
@@ -295,7 +426,18 @@ export class SalesInvoicesService {
       invoice.subtotal = totals.subtotal;
       invoice.taxAmount = totals.taxAmount;
       invoice.totalAmount = totals.totalAmount;
-      invoice.amountDue = totals.totalAmount - invoice.amountPaid;
+      invoice.paymentMode = dto.paymentMode ?? invoice.paymentMode;
+      invoice.stampDuty = await this.computeStampDuty(qr, tenantId, invoice.paymentMode, totals.totalAmount);
+      // Retrancher aussi la part créditée. Un brouillon ne peut pas porter
+      // d'avoir (issue le refuse), mais la formule doit rester juste : c'est ce
+      // genre de recalcul partiel qui avait fait ressusciter du stock livré.
+      invoice.amountDue = Math.round(
+        Math.max(
+          calculerNetAPayer(totals.totalAmount, invoice.stampDuty)
+            - Number(invoice.amountPaid) - Number(invoice.creditedAmount),
+          0,
+        ) * 100,
+      ) / 100;
       invoice.updatedBy = userId;
       await qr.manager.save(SalesInvoice, invoice);
 

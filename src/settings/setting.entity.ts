@@ -34,8 +34,29 @@ export class Setting {
   @Column({ type: 'varchar', length: 30, default: 'PO-YY-###' })
   poNumberFormat: string;
 
+  // Quatre formats manquaient : leurs compteurs étaient codés en dur, si bien
+  // que la page Numérotation ne réglait que la moitié des documents émis.
+  @Column({ type: 'varchar', length: 30, default: 'BL-REC-YY-###' })
+  receptionNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'FAC-ACH-YY-###' })
+  vendorBillNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'AV-YY-###' })
+  creditNoteNumberFormat: string;
+
+  @Column({ type: 'varchar', length: 30, default: 'MO-YY-###' })
+  productionOrderNumberFormat: string;
+
   @Column({ type: 'text', nullable: true })
   logo: string | null;
+
+  /**
+   * Cachet et signature, en data-URL. Apposé sur les documents à côté de la
+   * zone de signature — le décret l'exige, et ce qui circule est un fichier.
+   */
+  @Column({ type: 'text', nullable: true })
+  stampImage: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   email: string | null;
@@ -49,6 +70,26 @@ export class Setting {
   @Column({ type: 'text', nullable: true })
   footerText: string | null;
 
+  // Identifiants légaux de l'ÉMETTEUR. Ils n'existaient nulle part : les PDF
+  // sélectionnaient `NULL AS company_nif` et imprimaient un NIF vide.
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nif: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  rc: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  ai: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nis: string | null;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  rib: string | null;
+
+  @Column({ type: 'varchar', length: 7, default: '#1e3a5f' })
+  pdfAccentColor: string;
+
   @Column({ type: 'simple-array', nullable: true })
   units: string[];
 
@@ -60,6 +101,14 @@ export class Setting {
 
   @Column({ type: 'boolean', default: false })
   productionModuleEnabled: boolean;
+
+  /**
+   * Applique le droit de timbre aux factures réglées en espèces. Faux par
+   * défaut : une société qui n'encaisse pas d'espèces ne doit pas voir
+   * apparaître une ligne qu'elle ne doit pas.
+   */
+  @Column({ type: 'boolean', default: false })
+  stampDutyEnabled: boolean;
 
   @Column({ type: 'varchar', nullable: true })
   updatedBy: string | null;

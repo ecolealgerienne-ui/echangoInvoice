@@ -4,7 +4,41 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Echango Invoice</title>
+
+    <!-- Les deux fontes sont chargées avant le premier rendu : sans ce
+         préchargement, le navigateur ne les découvre qu'après avoir lu la
+         feuille de style, et la page s'affiche d'abord dans la police système
+         puis se recompose sous les yeux de l'utilisateur. -->
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    <!--
+      Le thème doit être posé AVANT le premier pixel.
+
+      Si React s'en charge, la page s'affiche d'abord en clair puis bascule en
+      sombre au premier rendu : un éclair blanc à chaque chargement, exactement
+      ce qu'un utilisateur en mode sombre cherche à éviter. Ce script est donc
+      synchrone et volontairement placé ici, avant tout le reste.
+
+      Il duplique quelques lignes de `lib/theme.ts` — inévitable, puisqu'il
+      s'exécute avant le moindre module. Les deux doivent rester d'accord sur
+      la clé de stockage : `echango-theme`.
+    -->
+    <script>
+      (function () {
+        try {
+          var choix = localStorage.getItem('echango-theme') || 'system';
+          var sombre = choix === 'dark'
+            || (choix === 'system'
+                && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', sombre);
+          document.documentElement.style.colorScheme = sombre ? 'dark' : 'light';
+        } catch (e) {
+          /* Stockage refusé : on reste en clair, ce qui est le défaut. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

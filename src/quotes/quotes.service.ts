@@ -10,6 +10,10 @@ import { CreateQuoteDto, CreateQuoteItemDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
 import { UpdateQuoteStatusDto } from './dto/update-quote-status.dto';
 import { ListQuotesDto } from './dto/list-quotes.dto';
+import { assertMontant } from '../common/limits';
+import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
+import { appliquerTri } from '../common/tri';
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent'],
@@ -32,6 +36,16 @@ interface ComputedItem {
   lineTotal: number;
 }
 
+/**
+ * Colonnes que le client peut demander en tri (R029).
+ *
+ * `customerName` porte sur la table jointe : sa traduction en SQL est donnée à
+ * `appliquerTri`, la clé publique restant soumise à cette même liste. Sans cette
+ * table de correspondance, trier sur une jointure obligerait à laisser passer
+ * une expression venue du client.
+ */
+const COLONNES_TRIABLES = ['quoteNumber', 'quoteDate', 'expiryDate', 'totalAmount', 'status', 'createdAt', 'customerName'] as const;
+
 @Injectable()
 export class QuotesService {
   private readonly logger = new Logger(QuotesService.name);
@@ -40,12 +54,15 @@ export class QuotesService {
     @InjectRepository(Quote) private readonly quoteRepo: Repository<Quote>,
     @InjectRepository(QuoteItem) private readonly itemRepo: Repository<QuoteItem>,
     private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
   ) {}
 
   // ─── Calculs financiers (R008) ────────────────────────────────────────────
 
   private computeItem(dto: CreateQuoteItemDto): ComputedItem {
-    const lineHT = dto.quantity * dto.unitPrice;
+    // Borner chaque champ à sa colonne ne suffit pas : deux valeurs valides
+    // peuvent produire un produit qui déborde numeric(12,2) (R021).
+    const lineHT = assertMontant(dto.quantity * dto.unitPrice, 'unitPrice');
     const taxAmount1 = dto.taxRate1 != null
       ? Math.round(lineHT * (dto.taxRate1 / 100) * 100) / 100
       : 0;
@@ -78,29 +95,17 @@ export class QuotesService {
     const taxAmount = Math.round(
       items.reduce((s, i) => s + i.lineTaxTotal, 0) * 100,
     ) / 100;
-    const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
+    const totalAmount = assertMontant(
+      Math.round((subtotal + taxAmount) * 100) / 100,
+      'totalAmount',
+    );
     return { subtotal, taxAmount, totalAmount };
   }
 
   // ─── Auto-numérotation DEV-YY-### (R013) ─────────────────────────────────
 
   async generateQuoteNumber(queryRunner: QueryRunner, tenantId: string): Promise<string> {
-    await queryRunner.query(
-      `SELECT pg_advisory_xact_lock(hashtext('quote_number_' || $1))`,
-      [tenantId],
-    );
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await queryRunner.manager
-      .createQueryBuilder(Quote, 'q')
-      .where('q.tenantId = :tenantId', { tenantId })
-      .andWhere('EXTRACT(YEAR FROM q."createdAt") = :year', { year })
-      .andWhere('q.deletedAt IS NULL')
-      .orderBy('q.quoteNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.quoteNumber.split('-')[2], 10) : 0;
-    return `DEV-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(queryRunner, tenantId, 'quote');
   }
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -153,27 +158,56 @@ export class QuotesService {
       .where('q.tenantId = :tenantId', { tenantId })
       .andWhere('q.deletedAt IS NULL');
 
+    // Même défaut que sur les factures : le champ de recherche existait à
+    // l'écran, le DTO le refusait, et chaque frappe renvoyait un 400.
+    if (dto.search) {
+      qb.andWhere('(q.quoteNumber ILIKE :recherche OR customer.name ILIKE :recherche)', {
+        recherche: `%${dto.search}%`,
+      });
+    }
     if (dto.status) qb.andWhere('q.status = :status', { status: dto.status });
     if (dto.customerId) qb.andWhere('q.customerId = :customerId', { customerId: dto.customerId });
     if (dto.dateFrom) qb.andWhere('q.quoteDate >= :dateFrom', { dateFrom: dto.dateFrom });
     if (dto.dateTo) qb.andWhere('q.quoteDate <= :dateTo', { dateTo: dto.dateTo });
 
+    appliquerTri(qb, 'q', COLONNES_TRIABLES, { colonne: 'createdAt', sens: 'DESC' }, dto,
+      { customerName: 'customer.name' });
+
     const [data, total] = await qb
-      .orderBy('q.createdAt', 'DESC')
-      .skip((page - 1) * limit)
+            .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
 
     return { data, pagination: { total, page, limit } };
   }
 
+  /** Vue complète d'un devis pour la page détail — un seul appel. */
   async findOne(id: string, tenantId: string) {
     const quote = await this.quoteRepo.findOne({
       where: { id, tenantId, deletedAt: IsNull() },
-      relations: ['items'],
+      relations: ['items', 'customer'],
     });
     if (!quote) throw new NotFoundException('quote_not_found');
-    return { data: quote };
+
+    const items = await ajouterArticles(this.dataSource, quote.items ?? [], tenantId);
+
+    const [suites] = await this.dataSource.query(
+      `SELECT f."invoiceNumber" AS "invoiceNumber", bl."blNumber" AS "blNumber"
+       FROM quotes dv
+       LEFT JOIN sales_invoices f ON f.id = dv."convertedToInvoiceId"
+       LEFT JOIN delivery_notes bl ON bl.id = dv."convertedToDeliveryNoteId"
+       WHERE dv.id = $1 AND dv."tenantId" = $2`,
+      [id, tenantId],
+    );
+
+    return {
+      data: {
+        ...quote,
+        items,
+        invoiceNumber: suites?.invoiceNumber ?? null,
+        blNumber: suites?.blNumber ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateQuoteDto, tenantId: string, userId: string) {
@@ -254,26 +288,10 @@ export class QuotesService {
         throw new UnprocessableEntityException('quote_not_accepted');
       }
 
-      // Generate invoice number with advisory lock (R013)
-      await qr.query(
-        `SELECT pg_advisory_xact_lock(hashtext('invoice_number_' || $1))`,
-        [tenantId],
-      );
-      const year = new Date().getFullYear();
-      const yy = String(year).slice(-2);
-      const lastInv = await qr.manager.query(
-        `SELECT "invoiceNumber" FROM sales_invoices
-         WHERE "tenantId" = $1
-           AND EXTRACT(YEAR FROM "createdAt") = $2
-           AND "deletedAt" IS NULL
-         ORDER BY "invoiceNumber" DESC
-         LIMIT 1`,
-        [tenantId, year],
-      );
-      const lastSeq = lastInv.length > 0
-        ? parseInt(lastInv[0].invoiceNumber.split('-')[2], 10)
-        : 0;
-      const invoiceNumber = `FAC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+      // Seconde copie de la numérotation des factures, jumelle de celle qui
+      // se trouvait dans DeliveriesService : convertir un devis produisait un
+      // numéro selon le format d'origine, quel que soit le réglage.
+      const invoiceNumber = await this.numbering.prochain(qr, tenantId, 'invoice');
 
       // Create stub sales_invoice row (full module comes later)
       const [invoice] = await qr.query(

@@ -5,6 +5,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { purchasesApi, suppliersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
+import { enregistrerBlob } from '@/lib/download';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,16 +16,16 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Pencil, PackageCheck, Eye, FileDown } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
+import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
 
-const PO_STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', received: 'success', invoiced: 'warning', cancelled: 'destructive',
-};
-const REC_STATUS_VARIANT: Record<string, any> = {
-  pending: 'warning', partial: 'info', completed: 'success',
-};
 
 // ── Purchase Order form ──────────────────────────────────────────────────────
 const poItemSchema = z.object({
@@ -76,6 +78,18 @@ export function PurchasesPage() {
   const [editingPo, setEditingPo] = useState<any>(null); // null = create, object = edit
 
   // PO view modal
+  function telechargerPdfCommande(id: string, numero: string) {
+    purchasesApi.pdfOrder(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
+  function telechargerPdfReception(id: string, numero: string) {
+    purchasesApi.pdfReception(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${numero}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
+  }
+
   const [viewPoId, setViewPoId] = useState<string>('');
   const [viewPoOpen, setViewPoOpen] = useState(false);
 
@@ -137,7 +151,26 @@ export function PurchasesPage() {
     resolver: zodResolver(poSchema),
     defaultValues: { orderDate: today, expectedDeliveryDate: today, items: [{ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 }] },
   });
-  const { fields: poFields, append: poAppend, remove: poRemove } = useFieldArray({ control: poForm.control, name: 'items' });
+  const { fields: poFields, append: poAppend, remove: poRemove, update: poUpdate } =
+    useFieldArray({ control: poForm.control, name: 'items' });
+
+  // Saisie par douchette sur la commande d'achat. Le prix proposé est le coût
+  // d'achat connu, pas le prix de vente : on achète, on ne vend pas.
+  const scanPo = useScanLignes({
+    actif: poModalOpen,
+    cleProduit: 'rawMaterialId',
+    lignes: (poForm.watch('items') ?? []) as any[],
+    ajouter: (l) => poAppend(l as any),
+    remplacer: (i, l) => poUpdate(i, l as any),
+    majQuantite: (i, q) => poForm.setValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      rawMaterialId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || '',
+      unitPrice: Number(produit.lastCostPerUnit ?? 0),
+      taxRate: 0,
+    }) as any,
+  });
 
   const createPoMutation = useMutation({
     mutationFn: (d: PoFormData) => purchasesApi.createOrder(d),
@@ -291,7 +324,11 @@ export function PurchasesPage() {
   const orders = ordersData?.data ?? [];
   const receptions = receptionsData?.data ?? [];
   const pagination = tab === 'orders' ? ordersData?.pagination : receptionsData?.pagination;
-  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility(
+  // L'union couvre toutes les colonnes du menu : « notes » est masquée par
+  // défaut mais reste activable.
+  const { visible: poVisible, toggle: poToggle, col: poCol } = useColumnVisibility<
+    'poNumber' | 'supplier' | 'orderDate' | 'expectedDelivery' | 'total' | 'status' | 'notes'
+  >(
     'purchases_po_visible_columns',
     ['poNumber', 'supplier', 'orderDate', 'expectedDelivery', 'total', 'status'],
   );
@@ -306,9 +343,9 @@ export function PurchasesPage() {
   const isPending = createPoMutation.isPending || updatePoMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('purchases.title')}</h1>
+        <h1>{t('purchases.title')}</h1>
         {tab === 'orders' ? (
           <Button onClick={openCreatePo}>
             <Plus className="h-4 w-4 mr-2" />{t('purchases.newOrder')}
@@ -333,70 +370,81 @@ export function PurchasesPage() {
 
       {isLoading ? <LoadingSpinner /> : tab === 'orders' ? (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <ExportButton dataset="commandes-achat" />
             <ColumnToggleMenu
               columns={[
                 { key: 'poNumber', label: t('purchases.poNumber') },
                 { key: 'supplier', label: t('purchases.supplier') },
                 { key: 'orderDate', label: t('purchases.orderDate') },
                 { key: 'expectedDelivery', label: t('purchases.expectedDelivery') },
-                { key: 'total', label: 'Total' },
+                { key: 'total', label: t('common.total') },
                 { key: 'status', label: t('quotes.status') },
-                { key: 'notes', label: 'Notes' },
+                { key: 'notes', label: t('common.notes') },
               ]}
               visible={poVisible}
               onToggle={poToggle}
             />
           </div>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {poCol('poNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.poNumber')}</th>}
-                {poCol('supplier') && <th className="text-left px-4 py-3 font-medium">{t('purchases.supplier')}</th>}
-                {poCol('orderDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.orderDate')}</th>}
-                {poCol('expectedDelivery') && <th className="text-left px-4 py-3 font-medium">{t('purchases.expectedDelivery')}</th>}
-                {poCol('total') && <th className="text-right px-4 py-3 font-medium">Total</th>}
-                {poCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                {poCol('notes') && <th className="text-left px-4 py-3 font-medium">Notes</th>}
-                <th className="px-4 py-3" />
+                {poCol('poNumber') && <th className="text-left px-3 py-2.5">{t('purchases.poNumber')}</th>}
+                {poCol('supplier') && <th className="text-left px-3 py-2.5">{t('purchases.supplier')}</th>}
+                {poCol('orderDate') && <th className="text-left px-3 py-2.5">{t('purchases.orderDate')}</th>}
+                {poCol('expectedDelivery') && <th className="text-left px-3 py-2.5">{t('purchases.expectedDelivery')}</th>}
+                {poCol('total') && <th className="text-right px-3 py-2.5">{t('common.total')}</th>}
+                {poCol('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
+                {poCol('notes') && <th className="text-left px-3 py-2.5">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {orders.map((o: any) => (
-                <tr key={o.id} className="border-t border-border hover:bg-muted/30">
-                  {poCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{o.poNumber}</td>}
-                  {poCol('supplier') && <td className="px-4 py-3">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
-                  {poCol('orderDate') && <td className="px-4 py-3">{formatDate(o.orderDate)}</td>}
-                  {poCol('expectedDelivery') && <td className="px-4 py-3">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
-                  {poCol('total') && <td className="px-4 py-3 text-right font-medium">{formatCurrency(o.total)}</td>}
-                  {poCol('status') && <td className="px-4 py-3"><Badge variant={PO_STATUS_VARIANT[o.status] ?? 'muted'}>{t(`status.${o.status}`)}</Badge></td>}
-                  {poCol('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{o.notes || '—'}</td>}
-                  <td className="px-4 py-3">
+                <tr key={o.id} className="border-t border-border hover:bg-surface-hover">
+                  {poCol('poNumber') && (
+                    <td className="px-3 py-2.5 font-mono text-xs">
+                      <Link to={`/purchases/orders/${o.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
+                        {o.poNumber}
+                      </Link>
+                    </td>
+                  )}
+                  {poCol('supplier') && <td className="px-3 py-2.5">{suppliersMap.get(o.supplierId) ?? '—'}</td>}
+                  {poCol('orderDate') && <td className="px-3 py-2.5">{formatDate(o.orderDate)}</td>}
+                  {poCol('expectedDelivery') && <td className="px-3 py-2.5">{o.expectedDeliveryDate ? formatDate(o.expectedDeliveryDate) : '—'}</td>}
+                  {poCol('total') && <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap tabular-nums">{formatCurrency(o.total)}</td>}
+                  {poCol('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(o.status)}>{t(`status.${o.status}`)}</Badge></td>}
+                  {poCol('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{o.notes || '—'}</td>}
+                  <td className="px-3 py-2.5">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" title="Voir détail"
+                      <Button size="sm" variant="ghost" title={t('purchases.viewDetail')}
                         onClick={() => { setViewPoId(o.id); setViewPoOpen(true); }}>
                         <Eye className="h-4 w-4" />
                       </Button>
+                      <Button size="sm" variant="ghost" title={t('purchases.pdfOrder')}
+                        onClick={() => telechargerPdfCommande(o.id, o.poNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Modifier" onClick={() => openEditPo(o)}>
+                        <Button size="sm" variant="ghost" title={t('common.edit')} onClick={() => openEditPo(o)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
                       {o.status === 'draft' && (
-                        <Button size="sm" variant="ghost" title="Envoyer"
+                        <Button size="sm" variant="ghost" title={t('invoices.send')}
                           onClick={() => patchStatusMutation.mutate({ id: o.id, status: 'sent' })}>
                           <CheckCircle className="h-4 w-4 text-primary" />
                         </Button>
                       )}
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Réceptionner"
+                        <Button size="sm" variant="ghost" title={t('purchases.receive')}
                           onClick={() => openReceptionFor(o.id)}>
                           <PackageCheck className="h-4 w-4 text-success" />
                         </Button>
                       )}
                       {['draft', 'sent'].includes(o.status) && (
-                        <Button size="sm" variant="ghost" title="Supprimer" onClick={() => removePoMutation.mutate(o.id)}>
+                        <Button size="sm" variant="ghost" title={t('common.delete')} onClick={() => removePoMutation.mutate(o.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       )}
@@ -405,19 +453,20 @@ export function PurchasesPage() {
                 </tr>
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={poVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={poVisible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
-        </div>
+          </TableConteneur>
         </>
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <ExportButton dataset="receptions" />
             <ColumnToggleMenu
               columns={[
                 { key: 'blNumber', label: t('purchases.blNumber') },
-                { key: 'poNumber', label: 'Commande' },
+                { key: 'poNumber', label: t('purchases.order') },
                 { key: 'receptionDate', label: t('purchases.receptionDate') },
                 { key: 'totalReceived', label: t('purchases.totalReceived') },
                 { key: 'status', label: t('quotes.status') },
@@ -426,40 +475,52 @@ export function PurchasesPage() {
               onToggle={recToggle}
             />
           </div>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {recCol('blNumber') && <th className="text-left px-4 py-3 font-medium">{t('purchases.blNumber')}</th>}
-                {recCol('poNumber') && <th className="text-left px-4 py-3 font-medium">Commande</th>}
-                {recCol('receptionDate') && <th className="text-left px-4 py-3 font-medium">{t('purchases.receptionDate')}</th>}
-                {recCol('totalReceived') && <th className="text-right px-4 py-3 font-medium">{t('purchases.totalReceived')}</th>}
-                {recCol('status') && <th className="text-left px-4 py-3 font-medium">{t('quotes.status')}</th>}
-                <th className="px-4 py-3" />
+                {recCol('blNumber') && <th className="text-left px-3 py-2.5">{t('purchases.blNumber')}</th>}
+                {recCol('poNumber') && <th className="text-left px-3 py-2.5">{t('purchases.order')}</th>}
+                {recCol('receptionDate') && <th className="text-left px-3 py-2.5">{t('purchases.receptionDate')}</th>}
+                {recCol('totalReceived') && <th className="text-right px-3 py-2.5">{t('purchases.totalReceived')}</th>}
+                {recCol('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
+                <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {receptions.map((r: any) => (
-                <tr key={r.id} className="border-t border-border hover:bg-muted/30">
-                  {recCol('blNumber') && <td className="px-4 py-3 font-mono text-xs">{r.blNumber}</td>}
-                  {recCol('poNumber') && <td className="px-4 py-3 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
-                  {recCol('receptionDate') && <td className="px-4 py-3">{formatDate(r.receptionDate)}</td>}
-                  {recCol('totalReceived') && <td className="px-4 py-3 text-right">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
-                  {recCol('status') && <td className="px-4 py-3"><Badge variant={REC_STATUS_VARIANT[r.status] ?? 'muted'}>{t(`status.${r.status}`)}</Badge></td>}
-                  <td className="px-4 py-3">
-                    <Button size="sm" variant="ghost" title="Voir détail"
+                <tr key={r.id} className="border-t border-border hover:bg-surface-hover">
+                  {recCol('blNumber') && (
+                    <td className="px-3 py-2.5 font-mono text-xs">
+                      <Link to={`/purchases/receptions/${r.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
+                        {r.blNumber}
+                      </Link>
+                    </td>
+                  )}
+                  {recCol('poNumber') && <td className="px-3 py-2.5 font-mono text-xs">{r.poNumber ?? r.purchaseOrderId}</td>}
+                  {recCol('receptionDate') && <td className="px-3 py-2.5">{formatDate(r.receptionDate)}</td>}
+                  {recCol('totalReceived') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{Number(r.totalQuantityReceived).toFixed(2)}</td>}
+                  {recCol('status') && <td className="px-3 py-2.5"><Badge variant={varianteStatut(r.status)}>{t(`status.${r.status}`)}</Badge></td>}
+                  <td className="px-3 py-2.5">
+<div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="ghost" title={t('purchases.viewDetail')}
                       onClick={() => { setViewRecId(r.id); setViewRecOpen(true); }}>
                       <Eye className="h-4 w-4" />
                     </Button>
+                      <Button size="sm" variant="ghost" title={t('purchases.pdfReception')}
+                        onClick={() => telechargerPdfReception(r.id, r.blNumber)}>
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {receptions.length === 0 && (
-                <tr><td colSpan={recVisible.length + 1} className="px-4 py-8 text-center text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={recVisible.length + 1} className="px-4 py-2 text-center text-muted-foreground"><EtatVide /></td></tr>
               )}
             </tbody>
           </table>
-        </div>
+          </TableConteneur>
         </>
       )}
 
@@ -492,6 +553,7 @@ export function PurchasesPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">{t('common.items')}</label>
+              <BandeauScan onScan={scanPo.traiter} enCours={scanPo.enCours} dernier={scanPo.dernier} />
               <Button type="button" size="sm" variant="outline"
                 onClick={() => poAppend({ rawMaterialId: '', quantity: 1, unit: '', unitPrice: 0, taxRate: 0 })}>
                 <Plus className="h-3 w-3 mr-1" />{t('common.add')}
@@ -583,7 +645,7 @@ export function PurchasesPage() {
               <div className="flex justify-end gap-6 text-sm border-t border-border pt-2">
                 <span className="text-muted-foreground">{t('purchases.subtotal')} : <span className="font-medium text-foreground">{formatCurrency(subtotal)}</span></span>
                 <span className="text-muted-foreground">{t('purchases.taxAmount')} : <span className="font-medium text-foreground">{formatCurrency(taxAmount)}</span></span>
-                <span className="font-semibold">Total TTC : {formatCurrency(total)}</span>
+                <span className="font-semibold">{t('common.totalTtc')} : {formatCurrency(total)}</span>
               </div>
             );
           })()}
@@ -591,7 +653,7 @@ export function PurchasesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...poForm.register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">
@@ -611,20 +673,20 @@ export function PurchasesPage() {
           return (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Fournisseur :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
-                <div><span className="text-muted-foreground">Statut :</span> <Badge variant={PO_STATUS_VARIANT[d.status] ?? 'muted'} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
-                <div><span className="text-muted-foreground">Date commande :</span> {formatDate(d.orderDate)}</div>
-                <div><span className="text-muted-foreground">Livraison prévue :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
+                <div><span className="text-muted-foreground">{t('purchases.supplier')} :</span> <span className="font-medium">{suppliersMap.get(d.supplierId) ?? '—'}</span></div>
+                <div><span className="text-muted-foreground">{t('common.status')} :</span> <Badge variant={varianteStatut(d.status)} className="ml-1">{t(`status.${d.status}`)}</Badge></div>
+                <div><span className="text-muted-foreground">{t('purchases.orderDate')} :</span> {formatDate(d.orderDate)}</div>
+                <div><span className="text-muted-foreground">{t('purchases.expectedDelivery')} :</span> {d.expectedDeliveryDate ? formatDate(d.expectedDeliveryDate) : '—'}</div>
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
-                <thead className="bg-muted">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2">Produit</th>
-                    <th className="text-right px-3 py-2">Qté</th>
-                    <th className="text-left px-3 py-2">Unité</th>
-                    <th className="text-right px-3 py-2">P.U.</th>
-                    <th className="text-right px-3 py-2">Total</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.product')}</th>
+                    <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                    <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">P.U.</th>
+                    <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -633,10 +695,10 @@ export function PurchasesPage() {
                     return (
                       <tr key={idx} className="border-t border-border">
                         <td className="px-3 py-2">{prod?.name ?? it.rawMaterialId}</td>
-                        <td className="px-3 py-2 text-right">{Number(it.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{Number(it.quantity).toFixed(2)}</td>
                         <td className="px-3 py-2">{prod?.unit ?? it.unit}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(it.unitPrice)}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(Number(it.quantity) * Number(it.unitPrice))}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(it.unitPrice)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(Number(it.quantity) * Number(it.unitPrice))}</td>
                       </tr>
                     );
                   })}
@@ -658,19 +720,19 @@ export function PurchasesPage() {
           return (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-2">
-                <div><span className="text-muted-foreground">Commande :</span> <span className="font-mono">{d.poNumber ?? d.purchaseOrderId}</span></div>
-                <div><span className="text-muted-foreground">Date réception :</span> {formatDate(d.receptionDate)}</div>
+                <div><span className="text-muted-foreground">{t('purchases.order')} :</span> <span className="font-mono">{d.poNumber ?? d.purchaseOrderId}</span></div>
+                <div><span className="text-muted-foreground">{t('purchases.receptionDate')} :</span> {formatDate(d.receptionDate)}</div>
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
-                <thead className="bg-muted">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2">Produit</th>
-                    <th className="text-right px-3 py-2">Qté reçue</th>
-                    <th className="text-left px-3 py-2">Unité</th>
-                    <th className="text-right px-3 py-2">Coût/u</th>
-                    <th className="text-left px-3 py-2">N° lot</th>
-                    <th className="text-left px-3 py-2">Expiration</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.product')}</th>
+                    <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.totalReceived')}</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                    <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.unitCostShort')}</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">N° lot</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -679,9 +741,9 @@ export function PurchasesPage() {
                     return (
                       <tr key={idx} className="border-t border-border">
                         <td className="px-3 py-2">{prod?.name ?? se.rawMaterialId}</td>
-                        <td className="px-3 py-2 text-right">{Number(se.quantity).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{Number(se.quantity).toFixed(2)}</td>
                         <td className="px-3 py-2">{prod?.unit ?? '—'}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(se.costPerUnit)}</td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">{formatCurrency(se.costPerUnit)}</td>
                         <td className="px-3 py-2">{se.batchNumber ?? '—'}</td>
                         <td className="px-3 py-2">{se.expiresAt ? formatDate(se.expiresAt) : '—'}</td>
                       </tr>
@@ -699,7 +761,7 @@ export function PurchasesPage() {
         <form onSubmit={recForm.handleSubmit(d => createRecMutation.mutate(d))} className="space-y-4">
           {/* PO info — read-only when opened from a specific PO */}
           <div>
-            <label className="text-sm font-medium">Commande fournisseur</label>
+            <label className="text-sm font-medium">{t('purchases.supplierOrder')}</label>
             {recPoId ? (
               <p className="mt-1 px-3 py-2 rounded-md border border-input bg-muted text-sm font-mono">
                 {orders.find((o: any) => o.id === recPoId)?.poNumber ?? recPoId}
@@ -724,11 +786,11 @@ export function PurchasesPage() {
           {/* Articles from PO — no free selection */}
           {recFields.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              {recPoId ? 'Chargement des articles…' : 'Sélectionnez une commande pour voir les articles'}
+              {recPoId ? t('purchases.loadingItems') : t('purchases.selectOrder')}
             </p>
           ) : (
             <div>
-              <label className="text-sm font-medium mb-2 block">Articles de la commande</label>
+              <label className="text-sm font-medium mb-2 block">{t('purchases.orderItems')}</label>
               <div className="space-y-3">
                 {recFields.map((f, i) => (
                   <div key={f.id} className="border border-border rounded-md p-3 space-y-2">
@@ -740,12 +802,12 @@ export function PurchasesPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-muted-foreground">Qté reçue</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.totalReceived')}</label>
                         <Input type="number" step="0.01" min="0.01"
                           {...recForm.register(`items.${i}.quantityReceived`)} className="text-xs mt-0.5" />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Coût/unité (DA)</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.unitCostDa')}</label>
                         <Input type="number" step="0.01" min="0"
                           {...recForm.register(`items.${i}.costPerUnit`)} className="text-xs mt-0.5" />
                       </div>
@@ -755,7 +817,7 @@ export function PurchasesPage() {
                           {...recForm.register(`items.${i}.batchNumber`)} className="text-xs mt-0.5" />
                       </div>
                       <div>
-                        <label className="text-xs text-muted-foreground">Date expiration (optionnel)</label>
+                        <label className="text-xs text-muted-foreground">{t('purchases.expiryOptional')}</label>
                         <Input type="date"
                           {...recForm.register(`items.${i}.expiresAt`)} className="text-xs mt-0.5" />
                       </div>
@@ -769,7 +831,7 @@ export function PurchasesPage() {
           <div>
             <label className="text-sm font-medium">{t('quotes.notes')}</label>
             <textarea {...recForm.register('notes')} rows={2}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              className="mt-1 w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" />
           </div>
 
           <div className="flex justify-end gap-3">

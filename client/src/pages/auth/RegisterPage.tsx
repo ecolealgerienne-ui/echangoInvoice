@@ -9,6 +9,7 @@ import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { CadreAuth } from '@/components/layout/CadreAuth';
 
 const schema = z.object({
   companyName: z.string().min(2),
@@ -54,10 +55,10 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40">
-      <div className="w-full max-w-sm space-y-6 bg-background rounded-xl border border-border p-8 shadow-sm">
+    <CadreAuth>
+      <div className="space-y-4">
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Echango Invoice</h1>
+          <h1>Echango Invoice</h1>
           <p className="text-sm text-muted-foreground">{t('auth.createAccount')}</p>
         </div>
 
@@ -106,6 +107,6 @@ export function RegisterPage() {
           </Link>
         </p>
       </div>
-    </div>
+    </CadreAuth>
   );
 }

@@ -13,13 +13,14 @@ import { ListSuppliersDto } from './dto/list-suppliers.dto';
 import { CreateCustomerContactDto } from '../customers/dto/create-customer-contact.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('suppliers')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('suppliers')
 export class SuppliersController {
   constructor(private readonly service: SuppliersService) {}
@@ -33,7 +34,7 @@ export class SuppliersController {
   }
 
   @Get()
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'List suppliers (paginated)' })
   @ApiResponse({ status: 200 })
   findAll(@Query() query: ListSuppliersDto, @CurrentUser() user: JwtPayload) {
@@ -41,7 +42,7 @@ export class SuppliersController {
   }
 
   @Get(':id')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Get supplier with raw materials' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -74,7 +75,7 @@ export class SuppliersController {
   // ─── Contacts ─────────────────────────────────────────────────────────────
 
   @Get(':id/contacts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lister les contacts d\'un fournisseur' })
   listContacts(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.listContacts(id, user.tenantId!);

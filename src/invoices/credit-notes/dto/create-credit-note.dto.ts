@@ -1,17 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsArray, IsDateString, IsNumber, IsOptional, IsString, IsUUID,
-  Min, ValidateNested,
-} from 'class-validator';
+import { IsArray, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import { PRIX_MAX, QUANTITE_MAX, TAUX_MAX } from '../../../common/limits';
 
 export class CreateCreditNoteItemDto {
   @ApiProperty() @IsString() description: string;
-  @ApiProperty() @IsNumber() @Min(0) @Type(() => Number) quantity: number;
+  @ApiProperty() @IsNumber() @Max(QUANTITE_MAX) @Min(0) @Type(() => Number) quantity: number;
   @ApiPropertyOptional() @IsOptional() @IsString() unit?: string;
-  @ApiProperty() @IsNumber() @Min(0) @Type(() => Number) unitPrice: number;
+  @ApiProperty() @IsNumber() @Max(PRIX_MAX) @Min(0) @Type(() => Number) unitPrice: number;
   @ApiPropertyOptional() @IsOptional() @IsString() taxName1?: string;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @Type(() => Number) taxRate1?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Max(TAUX_MAX) @Type(() => Number) taxRate1?: number;
 }
 
 export class CreateCreditNoteDto {

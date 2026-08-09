@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 
 // Ces tests utilisent le storageState (auth connecté), puis testent logout/login invalide
 test.describe('Auth', () => {
@@ -7,7 +7,7 @@ test.describe('Auth', () => {
     await page.goto('/dashboard');
     await page.waitForLoadState('networkidle');
 
-    const logoutBtn = page.locator('button').filter({ hasText: /déconnexion|logout/i }).first();
+    const logoutBtn = page.locator('button').filter({ hasText: tRegex('auth.logout') }).first();
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
       await page.waitForURL(/login/, { timeout: 5_000 }).catch(() => {});
@@ -30,7 +30,7 @@ test.describe('Auth', () => {
     await page.waitForLoadState('networkidle');
 
     // Chercher le bouton logout dans la sidebar
-    const logoutBtn = page.locator('button').filter({ hasText: /déconnexion|logout/i }).first();
+    const logoutBtn = page.locator('button').filter({ hasText: tRegex('auth.logout') }).first();
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
       await page.waitForURL(/login/, { timeout: 5_000 });

@@ -17,6 +17,9 @@ import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { CreateVendorBillDto } from './dto/create-vendor-bill.dto';
 import { ListVendorBillsDto } from './dto/list-vendor-bills.dto';
 import { RecordVendorPaymentDto } from './dto/record-vendor-payment.dto';
+import { recomputeProductStock } from '../stock/recompute-product-stock';
+import { ajouterArticles } from '../common/document-lines';
+import { NumberingService } from '../common/numbering/numbering.service';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ['sent', 'cancelled'],
@@ -30,7 +33,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 export class PurchasesService {
   private readonly logger = new Logger(PurchasesService.name);
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly numbering: NumberingService,
+  ) {}
 
   // ─── Purchase Orders ───────────────────────────────────────────────────────
 
@@ -127,7 +133,26 @@ export class PurchasesService {
       order: { receptionDate: 'DESC' },
     });
 
-    return { data: { ...po, items, receptions } };
+    // Nom du fournisseur, libellés des articles et facture d'achat liée : sans
+    // eux la page détail n'affiche que des identifiants et des montants.
+    const [lignes, fournisseur, factures] = await Promise.all([
+      ajouterArticles(this.dataSource, items, tenantId, 'rawMaterialId'),
+      this.dataSource.query(
+        `SELECT name, nif, phone, email FROM partners WHERE id = $1 AND "tenantId" = $2`,
+        [po.supplierId, tenantId],
+      ),
+      this.dataSource.query(
+        `SELECT id, "billNumber", "billDate", "totalAmount", "amountDue", status
+         FROM vendor_bills
+         WHERE "purchaseOrderId" = $1 AND "tenantId" = $2 AND "deletedAt" IS NULL
+         ORDER BY "billDate"`,
+        [id, tenantId],
+      ),
+    ]);
+
+    return {
+      data: { ...po, items: lignes, receptions, supplier: fournisseur[0] ?? null, bills: factures },
+    };
   }
 
   async patchPoStatus(id: string, dto: PatchPoStatusDto, tenantId: string, userId: string) {
@@ -342,7 +367,21 @@ export class PurchasesService {
       order: { enteredAt: 'ASC' },
     });
 
-    return { data: { ...bl, stockEntries } };
+    // Une réception ne se lit pas seule : ce qui compte, c'est quels lots elle
+    // a créés, sous quel article, et pour quelle commande.
+    const [lots, commande] = await Promise.all([
+      ajouterArticles(this.dataSource, stockEntries, tenantId),
+      this.dataSource.query(
+        `SELECT bc.id, bc."poNumber", bc.status, bc.total, f.name AS "supplierName",
+                f.id AS "supplierId"
+         FROM purchase_orders bc
+         LEFT JOIN partners f ON f.id = bc."supplierId"
+         WHERE bc.id = $1 AND bc."tenantId" = $2`,
+        [bl.purchaseOrderId, tenantId],
+      ),
+    ]);
+
+    return { data: { ...bl, stockEntries: lots, purchaseOrder: commande[0] ?? null } };
   }
 
   // ─── Vendor Bills ──────────────────────────────────────────────────────────
@@ -451,8 +490,19 @@ export class PurchasesService {
   }
 
   async findOneVendorBill(id: string, tenantId: string) {
+    // E007 — `billDate` et `dueDate` sont des colonnes `date`. `SELECT vb.*` les
+    // rend en `Date` JavaScript à minuit LOCAL ; sérialisées en ISO, elles
+    // reculent d'un jour hors de Greenwich. Une facture au 31/01 s'affichait au
+    // 30/01, et son échéance avec.
+    //
+    // Le défaut avait été corrigé en mai dans la facturation récurrente, et
+    // ces deux-ci n'avaient pas été portées : « corriger une occurrence ne
+    // corrige pas la classe ». Trouvé par scripts/banc-dates.py, qui balaie
+    // les 31 dates de tous les documents.
     const rows = await this.dataSource.query(
-      `SELECT vb.*, s.name AS "supplierName"
+      `SELECT vb.*, s.name AS "supplierName",
+              vb."billDate"::text AS bill_date_txt,
+              vb."dueDate"::text  AS due_date_txt
        FROM vendor_bills vb
        LEFT JOIN partners s ON s.id = vb."supplierId"
        WHERE vb.id = $1 AND vb."tenantId" = $2 AND vb."deletedAt" IS NULL`,
@@ -460,10 +510,14 @@ export class PurchasesService {
     );
     if (!rows.length) throw new NotFoundException('vendor_bill_not_found');
     const bill = rows[0];
+    bill.billDate = bill.bill_date_txt;
+    bill.dueDate = bill.due_date_txt;
+    delete bill.bill_date_txt;
+    delete bill.due_date_txt;
 
-    const [items, payments] = await Promise.all([
+    const [items, payments, origine] = await Promise.all([
       this.dataSource.query(
-        `SELECT vbi.*, fp.name AS "productName"
+        `SELECT vbi.*, fp.name AS "productName", fp.code AS "productCode"
          FROM vendor_bill_items vbi
          LEFT JOIN finished_products fp ON fp.id = vbi."finishedProductId"
          WHERE vbi."vendorBillId" = $1 ORDER BY vbi."createdAt" ASC`,
@@ -473,9 +527,27 @@ export class PurchasesService {
         `SELECT * FROM vendor_payments WHERE "vendorBillId" = $1 ORDER BY "paymentDate" ASC`,
         [id],
       ),
+      // La commande et la réception d'origine : c'est ce qui permet de
+      // rapprocher la facture de ce qui a été commandé puis réellement reçu.
+      this.dataSource.query(
+        `SELECT bc."poNumber", r."blNumber" AS "receptionNumber"
+         FROM vendor_bills vb
+         LEFT JOIN purchase_orders bc ON bc.id = vb."purchaseOrderId"
+         LEFT JOIN reception_bls r ON r.id = vb."receptionBlId"
+         WHERE vb.id = $1 AND vb."tenantId" = $2`,
+        [id, tenantId],
+      ),
     ]);
 
-    return { data: { ...bill, items, payments } };
+    return {
+      data: {
+        ...bill,
+        items,
+        payments,
+        poNumber: origine[0]?.poNumber ?? null,
+        receptionNumber: origine[0]?.receptionNumber ?? null,
+      },
+    };
   }
 
   async updateVendorBill(id: string, dto: CreateVendorBillDto, tenantId: string, userId: string) {
@@ -653,92 +725,41 @@ export class PurchasesService {
 
   // ─── Private helpers ───────────────────────────────────────────────────────
 
+  // Les trois numérotations d'achat découpaient le numéro sur les tirets pour
+  // en relire la séquence — à l'indice 2 pour la commande, 3 pour la réception
+  // et la facture, parce que leurs préfixes portent un tiret de plus. Une
+  // fragilité de plus à chaque format ajouté ; le compteur dédié la supprime.
+
   private async generateVendorBillNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last: any[] = await qr.query(
-      `SELECT "billNumber" FROM vendor_bills
-       WHERE "tenantId"=$1 AND EXTRACT(YEAR FROM "createdAt")=$2 AND "deletedAt" IS NULL
-       ORDER BY "billNumber" DESC LIMIT 1`,
-      [tenantId, year],
-    );
-    const lastSeq = last.length > 0
-      ? parseInt(last[0].billNumber.split('-')[3] ?? '0', 10)
-      : 0;
-    return `FAC-ACH-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'vendor_bill');
   }
 
   private async generatePoNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await qr.manager
-      .createQueryBuilder(PurchaseOrder, 'po')
-      .where('po.tenantId = :tenantId', { tenantId })
-      .andWhere(`EXTRACT(YEAR FROM po."createdAt") = :year`, { year })
-      .withDeleted()
-      .orderBy('po.poNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.poNumber.split('-')[2] ?? '0', 10) : 0;
-    return `PO-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'purchase_order');
   }
 
   private async generateBlRecNumber(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
   ): Promise<string> {
-    const year = new Date().getFullYear();
-    const yy = String(year).slice(-2);
-    const last = await qr.manager
-      .createQueryBuilder(ReceptionBL, 'bl')
-      .where('bl.tenantId = :tenantId', { tenantId })
-      .andWhere(`EXTRACT(YEAR FROM bl."createdAt") = :year`, { year })
-      .withDeleted()
-      .orderBy('bl.blNumber', 'DESC')
-      .limit(1)
-      .getOne();
-    const lastSeq = last ? parseInt(last.blNumber.split('-')[3] ?? '0', 10) : 0;
-    return `BL-REC-${yy}-${String(lastSeq + 1).padStart(3, '0')}`;
+    return this.numbering.prochain(qr, tenantId, 'reception');
   }
 
+  /**
+   * Délègue au recalcul partagé : cette méthode en portait une copie, et c'est
+   * cette duplication qui a permis aux deux niveaux de diverger (R029).
+   */
   private async updateProductStock(
     qr: ReturnType<DataSource['createQueryRunner']>,
     tenantId: string,
     rawMaterialId: string,
   ): Promise<void> {
-    const entries = await qr.manager
-      .createQueryBuilder(StockEntry, 'se')
-      .where('se.tenantId = :tenantId', { tenantId })
-      .andWhere('se.finishedProductId = :rawMaterialId', { rawMaterialId })
-      .andWhere('se.status = :status', { status: 'available' })
-      .getMany();
-
-    const totalQuantity = entries.reduce((s, e) => s + Number(e.quantity), 0);
-    const totalValue = entries.reduce((s, e) => s + Number(e.totalCost), 0);
-    const averageCostPerUnit = totalQuantity > 0
-      ? Number((totalValue / totalQuantity).toFixed(2))
-      : 0;
-    const expirations = entries
-      .filter((e) => e.expiresAt !== null)
-      .map((e) => e.expiresAt as Date)
-      .sort((a, b) => a.getTime() - b.getTime());
-    const earliestExpirationDate = expirations[0] ?? null;
-
-    await qr.manager.query(`
-      UPDATE finished_products
-      SET "stockQuantity"          = $1,
-          "averageCostPerUnit"     = $2,
-          "totalStockValue"        = $3,
-          "earliestExpirationDate" = $4,
-          "updatedAt"              = NOW()
-      WHERE id = $5 AND "tenantId" = $6`,
-      [totalQuantity, averageCostPerUnit, totalValue, earliestExpirationDate, rawMaterialId, tenantId],
-    );
+    await recomputeProductStock(qr, tenantId, rawMaterialId);
   }
 }

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex } from './base';
 import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 const today = new Date().toISOString().split('T')[0];
@@ -10,7 +10,7 @@ test.describe('Devis — flux complet', () => {
     await page.goto('/quotes');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau devis/i }).click();
+    await page.getByRole('button', { name: tRegex('quotes.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     // Client
@@ -26,7 +26,7 @@ test.describe('Devis — flux complet', () => {
     await page.locator('[role="dialog"] input[name="items.0.unitPrice"]').fill('1000');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/quotes') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');
@@ -42,13 +42,13 @@ test.describe('Devis — flux complet', () => {
     await page.goto('/quotes');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouveau devis/i }).click();
+    await page.getByRole('button', { name: tRegex('quotes.new') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await selectFirst(page, '[role="dialog"] select[name="customerId"]');
 
     // Ajouter une 2ème ligne
-    await page.getByRole('button', { name: /ajouter/i }).click();
+    await page.getByRole('button', { name: tRegex('common.add') }).click();
     const selects = page.locator('[role="dialog"] select[name^="items."][name$=".finishedProductId"]');
     const count = await selects.count();
     expect(count, '2 lignes article').toBe(2);

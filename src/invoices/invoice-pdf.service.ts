@@ -1,88 +1,76 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { PdfService } from '../common/pdf.service';
 import { EmailService } from '../common/email.service';
+import * as bwipjs from 'bwip-js';
+import { montantEnLettres } from '../common/montant-en-lettres';
+import { TypeDocumentVerifiable, urlVerification } from '../common/verification';
+import { MENTION_TIMBRE, calculerNetAPayer } from '../common/droit-de-timbre';
+import {
+  LignePdf, jour, montant, rendreDocument,
+} from '../common/pdf/document-template';
+import {
+  CHAMPS_EMETTEUR, codeBarresNumero, lireEmetteur,
+} from '../common/pdf/emetteur';
 
 @Injectable()
 export class InvoicePdfService {
+  private readonly logger = new Logger(InvoicePdfService.name);
+
   constructor(
     @InjectDataSource() private readonly ds: DataSource,
     private readonly pdfService: PdfService,
     private readonly emailService: EmailService,
   ) {}
 
-  private formatCurrency(val: number | string) {
-    return new Intl.NumberFormat('fr-DZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(val)) + ' DA';
+  /**
+   * QR de vérification du document.
+   *
+   * Généré en data-URL : le service PDF bloque toute ressource externe, et
+   * c'est voulu — un QR chargé depuis le réseau au moment du rendu ferait
+   * dépendre une facture archivée d'un serveur encore joignable dix ans après.
+   *
+   * Un échec de génération ne doit pas empêcher la facture de sortir : le
+   * document reste valable sans son QR, l'inverse n'est pas vrai.
+   */
+  private async qrVerification(type: TypeDocumentVerifiable, documentId: string) {
+    const url = urlVerification(type, documentId);
+    try {
+      const png = await bwipjs.toBuffer({
+        bcid: 'qrcode', text: url, scale: 4, includetext: false,
+        // `eclevel` est une option propre au QR que les typages de bwip-js
+        // n'exposent pas ; elle est bien lue à l'exécution. Niveau M : lisible
+        // sur une photocopie, ce que sont la plupart des factures algériennes
+        // une fois arrivées chez le comptable.
+        eclevel: 'M',
+      } as Parameters<typeof bwipjs.toBuffer>[0]);
+      return { image: `data:image/png;base64,${Buffer.from(png).toString('base64')}`, url };
+    } catch (e) {
+      this.logger.warn(`QR de vérification non généré pour ${type} ${documentId}: ${String(e)}`);
+      return null;
+    }
   }
 
-  private formatDate(val: string | Date) {
-    if (!val) return '';
-    return new Intl.DateTimeFormat('fr-DZ', { timeZone: 'Africa/Algiers', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(val as string));
+  private lignes(items: Record<string, unknown>[]): LignePdf[] {
+    return items.map((i) => ({
+      // `product_name` vient d'une jointure sur finished_products. La facture
+      // lisait `description ?? finishedProductId` — une colonne qui n'existe
+      // pas sur ses lignes, donc l'identifiant de l'article s'imprimait.
+      libelle: (i.product_name as string) ?? '',
+      quantite: i.quantity as number,
+      unite: (i.unit as string) ?? null,
+      prixUnitaire: i.unitPrice as number,
+      tauxTva: (i.taxRate1 as number) ?? null,
+      total: i.lineTotal as number,
+    }));
   }
 
-  private baseStyles() {
-    return `
-      <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #1a1a1a; }
-        .page { padding: 20px; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 24px; }
-        .company-name { font-size: 18px; font-weight: bold; color: #1e3a5f; }
-        .company-info { font-size: 10px; color: #555; margin-top: 4px; }
-        .doc-title { text-align: right; }
-        .doc-number { font-size: 20px; font-weight: bold; color: #1e3a5f; }
-        .doc-date { font-size: 10px; color: #555; margin-top: 4px; }
-        .parties { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 20px; }
-        .party-box { flex: 1; border: 1px solid #dde; border-radius: 4px; padding: 10px; }
-        .party-label { font-size: 9px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 0.5px; }
-        .party-name { font-weight: bold; font-size: 12px; margin-bottom: 2px; }
-        .party-detail { font-size: 10px; color: #444; line-height: 1.5; }
-        .legal-ids { display: flex; gap: 12px; margin-top: 4px; }
-        .legal-id { font-size: 9px; color: #555; }
-        .legal-id span { font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        th { background: #1e3a5f; color: white; text-align: left; padding: 7px 8px; font-size: 10px; }
-        td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 10px; }
-        tr:nth-child(even) td { background: #f8f9fb; }
-        .text-right { text-align: right; }
-        .totals { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-        .totals-box { width: 260px; border: 1px solid #dde; border-radius: 4px; overflow: hidden; }
-        .total-row { display: flex; justify-content: space-between; padding: 6px 10px; font-size: 10px; border-bottom: 1px solid #eee; }
-        .total-row:last-child { border-bottom: none; background: #1e3a5f; color: white; font-weight: bold; font-size: 11px; }
-        .notes { border: 1px solid #dde; border-radius: 4px; padding: 10px; font-size: 10px; color: #444; margin-bottom: 16px; }
-        .footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #eee; padding-top: 8px; margin-top: 16px; }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold; }
-        .badge-draft { background: #f3f4f6; color: #6b7280; }
-        .badge-sent { background: #dbeafe; color: #1d4ed8; }
-        .badge-paid { background: #d1fae5; color: #065f46; }
-        .badge-partial { background: #fef3c7; color: #92400e; }
-      </style>
-    `;
-  }
-
-  private renderParty(label: string, name: string, address: string | null, nif: string | null, rc: string | null, ai: string | null) {
-    return `
-      <div class="party-box">
-        <div class="party-label">${label}</div>
-        <div class="party-name">${name}</div>
-        ${address ? `<div class="party-detail">${address}</div>` : ''}
-        <div class="legal-ids">
-          ${nif ? `<div class="legal-id">NIF : <span>${nif}</span></div>` : ''}
-          ${rc ? `<div class="legal-id">RC : <span>${rc}</span></div>` : ''}
-          ${ai ? `<div class="legal-id">AI : <span>${ai}</span></div>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  async generateInvoicePdf(invoiceId: string, tenantId: string): Promise<{ buffer: Buffer; filename: string }> {
+  async generateInvoicePdf(invoiceId: string, tenantId: string) {
     const rows = await this.ds.query(
       `SELECT si.*, c.name AS customer_name, c.address AS customer_address,
               c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
-              s."companyName" AS company_name, s.address AS company_address,
-              NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
-              s.logo AS company_logo
+              ${CHAMPS_EMETTEUR}
        FROM sales_invoices si
        JOIN partners c ON c.id = si."customerId"
        LEFT JOIN settings s ON s."tenantId" = si."tenantId"
@@ -90,96 +78,78 @@ export class InvoicePdfService {
       [invoiceId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('invoice_not_found');
-
     const inv = rows[0];
+
     const items = await this.ds.query(
-      `SELECT * FROM sales_invoice_items WHERE "salesInvoiceId" = $1`,
+      `SELECT sii.*, fp.name AS product_name
+       FROM sales_invoice_items sii
+       LEFT JOIN finished_products fp ON fp.id = sii."finishedProductId"
+       WHERE sii."salesInvoiceId" = $1
+       ORDER BY sii."createdAt"`,
       [invoiceId],
     );
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
-      <div class="page">
-        <div class="header">
-          <div style="display:flex; align-items:flex-start; gap:12px;">
-            ${inv.company_logo ? `<img src="${inv.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
-            <div>
-              <div class="company-name">${inv.company_name ?? 'Mon Entreprise'}</div>
-              <div class="company-info">${inv.company_address ?? ''}</div>
-              <div class="company-info">NIF: ${inv.company_nif ?? ''} | RC: ${inv.company_rc ?? ''}</div>
-            </div>
-          </div>
-          <div class="doc-title">
-            <div class="doc-number">FACTURE N° ${inv.invoiceNumber}</div>
-            <div class="doc-date">Date : ${this.formatDate(inv.invoiceDate)}</div>
-            ${inv.dueDate ? `<div class="doc-date">Échéance : ${this.formatDate(inv.dueDate)}</div>` : ''}
-          </div>
-        </div>
+    const credite = Number(inv.creditedAmount ?? 0);
+    const paye = Number(inv.amountPaid ?? 0);
+    // Les decimal de TypeORM reviennent en chaîne : convertir avant de comparer.
+    const timbre = Number(inv.stampDuty ?? 0);
+    const netAPayer = calculerNetAPayer(inv.totalAmount, timbre);
 
-        <div class="parties">
-          ${this.renderParty('Émetteur', inv.company_name ?? '', inv.company_address, inv.company_nif, inv.company_rc, inv.company_ai)}
-          ${this.renderParty('Destinataire', inv.customer_name, inv.customer_address, inv.customer_nif, inv.customer_rc, inv.customer_ai)}
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="width:45%">Description</th>
-              <th class="text-right" style="width:10%">Qté</th>
-              <th class="text-right" style="width:15%">P.U. HT</th>
-              <th class="text-right" style="width:10%">TVA</th>
-              <th class="text-right" style="width:20%">Total TTC</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((item: any) => `
-              <tr>
-                <td>${item.description ?? item.finishedProductId ?? ''}</td>
-                <td class="text-right">${Number(item.quantity).toFixed(2)} ${item.unit ?? ''}</td>
-                <td class="text-right">${this.formatCurrency(item.unitPrice)}</td>
-                <td class="text-right">${item.taxRate1 ? Number(item.taxRate1).toFixed(0) + '%' : '—'}</td>
-                <td class="text-right">${this.formatCurrency(item.lineTotal)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <div class="totals-box">
-            <div class="total-row"><span>Sous-total HT</span><span>${this.formatCurrency(inv.subtotal)}</span></div>
-            <div class="total-row"><span>TVA</span><span>${this.formatCurrency(inv.taxAmount)}</span></div>
-            <div class="total-row"><span>TOTAL TTC</span><span>${this.formatCurrency(inv.totalAmount)}</span></div>
-          </div>
-        </div>
-
-        ${inv.amountPaid > 0 ? `
-          <div class="totals">
-            <div class="totals-box">
-              <div class="total-row"><span>Montant payé</span><span>${this.formatCurrency(inv.amountPaid)}</span></div>
-              <div class="total-row"><span>Solde dû</span><span>${this.formatCurrency(inv.amountDue)}</span></div>
-            </div>
-          </div>
-        ` : ''}
-
-        ${inv.notes ? `<div class="notes"><strong>Notes :</strong> ${inv.notes}</div>` : ''}
-        <div class="footer">Document généré électroniquement — Echango Invoice</div>
-      </div>
-    </body></html>`;
+    const html = rendreDocument({
+      titre: 'FACTURE',
+      numero: inv.invoiceNumber,
+      entetes: [
+        { libelle: 'Date', valeur: jour(inv.invoiceDate) },
+        ...(inv.dueDate ? [{ libelle: 'Échéance', valeur: jour(inv.dueDate) }] : []),
+      ],
+      labelEmetteur: 'Émetteur',
+      labelDestinataire: 'Client',
+      emetteur: lireEmetteur(inv),
+      destinataire: {
+        name: inv.customer_name, address: inv.customer_address,
+        nif: inv.customer_nif, rc: inv.customer_rc, ai: inv.customer_ai,
+      },
+      lignes: this.lignes(items),
+      totaux: [
+        { libelle: 'Sous-total HT', montant: inv.subtotal },
+        { libelle: 'TVA', montant: inv.taxAmount },
+        // Quand un timbre s'ajoute, le TTC cesse d'être le montant à payer :
+        // il perd donc la mise en avant au profit du net à payer.
+        { libelle: 'Total TTC', montant: inv.totalAmount, fort: timbre === 0 },
+        ...(timbre > 0 ? [
+          { libelle: MENTION_TIMBRE, montant: timbre },
+          { libelle: 'NET À PAYER', montant: netAPayer, fort: true },
+        ] : []),
+        ...(paye > 0 ? [{ libelle: 'Montant payé', montant: inv.amountPaid }] : []),
+        // Sans cette ligne, une facture partiellement soldée par un avoir
+        // affiche un reste dû inférieur au total moins les encaissements,
+        // sans que rien n'explique la différence.
+        ...(credite > 0 ? [{ libelle: 'Avoirs imputés', montant: inv.creditedAmount }] : []),
+        ...(paye > 0 || credite > 0
+          ? [{ libelle: 'Solde dû', montant: inv.amountDue, fort: true }]
+          : []),
+      ],
+      notes: inv.notes,
+      montantEnLettres: `Arrêtée la présente facture à la somme de : ${montantEnLettres(netAPayer)}`,
+      // Le décret 05-468 impose la mention en diagonale : le statut en base ne
+      // suffit pas, c'est le papier qui circule.
+      filigrane: inv.status === 'cancelled' ? 'FACTURE ANNULÉE' : null,
+      qrVerification: await this.qrVerification('facture', inv.id),
+      codeBarresNumero: await codeBarresNumero(inv.invoiceNumber, this.logger),
+    });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'FACTURES',
-      filename: inv.invoiceNumber,
-      html,
+      type: 'FACTURES', tenantId, documentId: inv.id, filename: inv.invoiceNumber, html,
     });
     return { buffer, filename: `${inv.invoiceNumber}.pdf` };
   }
 
-  async generateDeliveryNotePdf(dnId: string, tenantId: string): Promise<{ buffer: Buffer; filename: string }> {
+  async generateDeliveryNotePdf(dnId: string, tenantId: string) {
     const rows = await this.ds.query(
-      `SELECT dn.*, c.name AS customer_name, c.address AS customer_address,
-              c.nif AS customer_nif, c.rc AS customer_rc,
-              s."companyName" AS company_name, s.address AS company_address,
-              NULL AS company_nif, NULL AS company_rc,
-              s.logo AS company_logo
+      `SELECT dn.*, c.name AS customer_name,
+              COALESCE(c."shippingAddress", c.address) AS customer_address,
+              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
+              ${CHAMPS_EMETTEUR}
        FROM delivery_notes dn
        JOIN partners c ON c.id = dn."customerId"
        LEFT JOIN settings s ON s."tenantId" = dn."tenantId"
@@ -187,87 +157,181 @@ export class InvoicePdfService {
       [dnId, tenantId],
     );
     if (!rows.length) throw new NotFoundException('delivery_note_not_found');
-
     const dn = rows[0];
+
     const items = await this.ds.query(
       `SELECT dni.*, fp.name AS product_name FROM delivery_note_items dni
        LEFT JOIN finished_products fp ON fp.id = dni."finishedProductId"
-       WHERE dni."deliveryNoteId" = $1`,
+       WHERE dni."deliveryNoteId" = $1 ORDER BY dni."createdAt"`,
       [dnId],
     );
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
-      <div class="page">
-        <div class="header">
-          <div style="display:flex; align-items:flex-start; gap:12px;">
-            ${dn.company_logo ? `<img src="${dn.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
-            <div>
-              <div class="company-name">${dn.company_name ?? 'Mon Entreprise'}</div>
-              <div class="company-info">${dn.company_address ?? ''}</div>
-              <div class="company-info">NIF: ${dn.company_nif ?? ''} | RC: ${dn.company_rc ?? ''}</div>
-            </div>
-          </div>
-          <div class="doc-title">
-            <div class="doc-number">BON DE LIVRAISON N° ${dn.blNumber}</div>
-            <div class="doc-date">Date : ${this.formatDate(dn.deliveryDate)}</div>
-          </div>
-        </div>
-
-        <div class="parties">
-          ${this.renderParty('Expéditeur', dn.company_name ?? '', dn.company_address, dn.company_nif, dn.company_rc, null)}
-          ${this.renderParty('Destinataire', dn.customer_name, dn.customer_address, dn.customer_nif, dn.customer_rc, null)}
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="width:50%">Produit</th>
-              <th class="text-right" style="width:15%">Quantité</th>
-              <th class="text-right" style="width:15%">P.U. HT</th>
-              <th class="text-right" style="width:20%">Total TTC</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((item: any) => `
-              <tr>
-                <td>${item.product_name ?? item.finishedProductId}</td>
-                <td class="text-right">${Number(item.quantity).toFixed(2)} ${item.unit ?? ''}</td>
-                <td class="text-right">${this.formatCurrency(item.unitPrice)}</td>
-                <td class="text-right">${this.formatCurrency(item.lineTotal)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <div class="totals-box">
-            <div class="total-row"><span>Sous-total HT</span><span>${this.formatCurrency(dn.subtotal)}</span></div>
-            <div class="total-row"><span>TVA</span><span>${this.formatCurrency(dn.taxAmount)}</span></div>
-            <div class="total-row"><span>TOTAL TTC</span><span>${this.formatCurrency(dn.total)}</span></div>
-          </div>
-        </div>
-
-        ${dn.notes ? `<div class="notes"><strong>Notes :</strong> ${dn.notes}</div>` : ''}
-
-        <div style="display:flex; justify-content:space-between; margin-top:30px;">
-          <div style="text-align:center; width:200px;">
-            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Signature expéditeur</div>
-          </div>
-          <div style="text-align:center; width:200px;">
-            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Signature destinataire</div>
-          </div>
-        </div>
-
-        <div class="footer">Document généré électroniquement — Echango Invoice</div>
-      </div>
-    </body></html>`;
+    const html = rendreDocument({
+      titre: 'BON DE LIVRAISON',
+      numero: dn.blNumber,
+      entetes: [{ libelle: 'Date', valeur: jour(dn.deliveryDate) }],
+      labelEmetteur: 'Expéditeur',
+      labelDestinataire: 'Livrer à',
+      emetteur: lireEmetteur(dn),
+      destinataire: {
+        name: dn.customer_name, address: dn.customer_address,
+        nif: dn.customer_nif, rc: dn.customer_rc, ai: dn.customer_ai,
+      },
+      lignes: this.lignes(items),
+      totaux: [
+        { libelle: 'Sous-total HT', montant: dn.subtotal },
+        { libelle: 'TVA', montant: dn.taxAmount },
+        { libelle: 'TOTAL TTC', montant: dn.total, fort: true },
+      ],
+      notes: dn.notes,
+      qrVerification: await this.qrVerification('bl', dn.id),
+      codeBarresNumero: await codeBarresNumero(dn.blNumber, this.logger),
+      signatures: ['Signature expéditeur', 'Signature destinataire'],
+    });
 
     const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'BL',
-      filename: dn.blNumber,
-      html,
+      type: 'BL', tenantId, documentId: dn.id, filename: dn.blNumber, html,
     });
     return { buffer, filename: `${dn.blNumber}.pdf` };
+  }
+
+  /**
+   * PDF d'avoir. Un avoir sans document imprimable n'a aucune valeur : ni le
+   * client ni l'émetteur ne peuvent le porter en comptabilité. La mention de
+   * rattachement à la facture d'origine est obligatoire.
+   */
+  async generateCreditNotePdf(creditNoteId: string, tenantId: string) {
+    const rows = await this.ds.query(
+      `SELECT a.*, c.name AS customer_name, c.address AS customer_address,
+              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
+              f."invoiceNumber" AS origine_numero, f."invoiceDate" AS origine_date,
+              ${CHAMPS_EMETTEUR}
+       FROM credit_notes a
+       JOIN partners c ON c.id = a."customerId"
+       LEFT JOIN sales_invoices f ON f.id = a."salesInvoiceId"
+       LEFT JOIN settings s ON s."tenantId" = a."tenantId"
+       WHERE a.id = $1 AND a."tenantId" = $2 AND a."deletedAt" IS NULL`,
+      [creditNoteId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('credit_note_not_found');
+    const a = rows[0];
+
+    const items = await this.ds.query(
+      // `credit_note_items` n'a pas d'horodatage : contrairement aux autres
+      // tables de lignes, elle ne porte ni createdAt ni rang. On trie sur l'id
+      // pour que deux générations du même avoir rendent le même ordre.
+      `SELECT * FROM credit_note_items
+       WHERE "creditNoteId" = $1 AND "tenantId" = $2 ORDER BY id`,
+      [creditNoteId, tenantId],
+    );
+
+    const html = rendreDocument({
+      titre: 'AVOIR',
+      numero: a.creditNoteNumber,
+      entetes: [{ libelle: 'Date', valeur: jour(a.creditNoteDate) }],
+      labelEmetteur: 'Émetteur',
+      labelDestinataire: 'Client',
+      emetteur: lireEmetteur(a),
+      destinataire: {
+        name: a.customer_name, address: a.customer_address,
+        nif: a.customer_nif, rc: a.customer_rc, ai: a.customer_ai,
+      },
+      lignes: this.lignes(items),
+      totaux: [
+        { libelle: 'Sous-total HT', montant: a.subtotal },
+        { libelle: 'TVA', montant: a.taxAmount },
+        { libelle: 'TOTAL AVOIR TTC', montant: a.totalAmount, fort: true },
+      ],
+      notes: a.notes,
+      montantEnLettres: `Arrêté le présent avoir à la somme de : ${montantEnLettres(a.totalAmount)}`,
+      // Mention de rattachement : sans elle, l'avoir ne s'impute à rien.
+      mention: a.origine_numero
+        ? `Avoir se rapportant à la facture n° ${a.origine_numero} du ${jour(a.origine_date)}.`
+            + (a.reason ? ` Motif : ${a.reason}` : '')
+        : (a.reason ? `Motif : ${a.reason}` : null),
+      filigrane: a.status === 'cancelled' ? 'AVOIR ANNULÉ' : null,
+      qrVerification: await this.qrVerification('avoir', a.id),
+      codeBarresNumero: await codeBarresNumero(a.creditNoteNumber, this.logger),
+    });
+
+    const { buffer } = await this.pdfService.generateAndArchive({
+      type: 'AVOIRS', tenantId, documentId: a.id, filename: a.creditNoteNumber, html,
+    });
+    return { buffer, filename: `${a.creditNoteNumber}.pdf` };
+  }
+
+  /**
+   * PDF de devis, ou sa variante **facture proforma**.
+   *
+   * Une proforma algérienne n'est pas un document comptable : c'est une offre
+   * chiffrée présentée sous forme de facture, exigée pour la domiciliation
+   * bancaire d'un import et par la plupart des marchés publics. Elle porte donc
+   * les mêmes lignes et le même numéro que le devis dont elle est le rendu —
+   * lui donner sa propre série laisserait croire à une facture émise.
+   */
+  async generateQuotePdf(quoteId: string, tenantId: string, proforma = false) {
+    const rows = await this.ds.query(
+      `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
+              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
+              ${CHAMPS_EMETTEUR}
+       FROM quotes q
+       JOIN partners c ON c.id = q."customerId"
+       LEFT JOIN settings s ON s."tenantId" = q."tenantId"
+       WHERE q.id = $1 AND q."tenantId" = $2 AND q."deletedAt" IS NULL`,
+      [quoteId, tenantId],
+    );
+    if (!rows.length) throw new NotFoundException('quote_not_found');
+    const q = rows[0];
+
+    const items = await this.ds.query(
+      `SELECT qi.*, fp.name AS product_name FROM quote_items qi
+       LEFT JOIN finished_products fp ON fp.id = qi."finishedProductId"
+       WHERE qi."quoteId" = $1 ORDER BY qi."createdAt"`,
+      [quoteId],
+    );
+
+    const html = rendreDocument({
+      titre: proforma ? 'FACTURE PROFORMA' : 'DEVIS',
+      numero: q.quoteNumber,
+      entetes: [
+        { libelle: 'Date', valeur: jour(q.quoteDate) },
+        ...(q.expiryDate ? [{ libelle: 'Valide jusqu\'au', valeur: jour(q.expiryDate) }] : []),
+      ],
+      labelEmetteur: 'Émetteur',
+      labelDestinataire: 'Client',
+      emetteur: lireEmetteur(q),
+      destinataire: {
+        name: q.customer_name, address: q.customer_address,
+        nif: q.customer_nif, rc: q.customer_rc, ai: q.customer_ai,
+      },
+      lignes: this.lignes(items),
+      totaux: [
+        { libelle: 'Sous-total HT', montant: q.subtotal },
+        { libelle: 'TVA', montant: q.taxAmount },
+        { libelle: 'TOTAL TTC', montant: q.totalAmount, fort: true },
+      ],
+      notes: q.notes,
+      qrVerification: await this.qrVerification('devis', q.id),
+      codeBarresNumero: await codeBarresNumero(q.quoteNumber, this.logger),
+      montantEnLettres: proforma
+        ? `Arrêtée la présente proforma à la somme de : ${montantEnLettres(q.totalAmount)}`
+        : null,
+      signatures: proforma
+        ? ['Signature et cachet', 'Bon pour accord']
+        : ['Signature émetteur', 'Bon pour accord'],
+      // La mention annonçait « valable 30 jours » quelle que soit la date de
+      // validité réellement enregistrée sur le devis.
+      mention: proforma
+        ? "Facture proforma — document non comptable, ne vaut pas facture."
+            + (q.expiryDate ? ` Offre valable jusqu'au ${jour(q.expiryDate)}.` : '')
+        : (q.expiryDate ? `Devis valable jusqu'au ${jour(q.expiryDate)}.` : null),
+    });
+
+    const { buffer } = await this.pdfService.generateAndArchive({
+      type: 'DEVIS', tenantId, documentId: q.id,
+      filename: proforma ? `PROFORMA-${q.quoteNumber}` : q.quoteNumber, html,
+    });
+    return { buffer, filename: `${proforma ? 'PROFORMA-' : ''}${q.quoteNumber}.pdf` };
   }
 
   async sendInvoiceEmail(invoiceId: string, tenantId: string): Promise<void> {
@@ -293,8 +357,8 @@ export class InvoicePdfService {
         companyName: inv.company_name ?? 'Mon Entreprise',
         invoiceNumber: inv.invoiceNumber,
         customerName: inv.customer_name,
-        totalAmount: this.formatCurrency(inv.totalAmount),
-        dueDate: this.formatDate(inv.dueDate),
+        totalAmount: montant(inv.totalAmount),
+        dueDate: jour(inv.dueDate),
       }),
       attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
     });
@@ -323,109 +387,9 @@ export class InvoicePdfService {
         companyName: dn.company_name ?? 'Mon Entreprise',
         blNumber: dn.blNumber,
         customerName: dn.customer_name,
-        deliveryDate: this.formatDate(dn.deliveryDate),
+        deliveryDate: jour(dn.deliveryDate),
       }),
       attachments: [{ filename, content: buffer, contentType: 'application/pdf' }],
     });
-  }
-
-  async generateQuotePdf(quoteId: string, tenantId: string): Promise<{ buffer: Buffer; filename: string }> {
-    const rows = await this.ds.query(
-      `SELECT q.*, c.name AS customer_name, c.address AS customer_address,
-              c.nif AS customer_nif, c.rc AS customer_rc, c.ai AS customer_ai,
-              s."companyName" AS company_name, s.address AS company_address,
-              NULL AS company_nif, NULL AS company_rc, NULL AS company_ai,
-              s.logo AS company_logo
-       FROM quotes q
-       JOIN partners c ON c.id = q."customerId"
-       LEFT JOIN settings s ON s."tenantId" = q."tenantId"
-       WHERE q.id = $1 AND q."tenantId" = $2 AND q."deletedAt" IS NULL`,
-      [quoteId, tenantId],
-    );
-    if (!rows.length) throw new NotFoundException('quote_not_found');
-
-    const q = rows[0];
-    const items = await this.ds.query(
-      `SELECT qi.*, fp.name AS product_name FROM quote_items qi
-       LEFT JOIN finished_products fp ON fp.id = qi."finishedProductId"
-       WHERE qi."quoteId" = $1`,
-      [quoteId],
-    );
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${this.baseStyles()}</head><body>
-      <div class="page">
-        <div class="header">
-          <div style="display:flex; align-items:flex-start; gap:12px;">
-            ${q.company_logo ? `<img src="${q.company_logo}" style="max-height:60px; max-width:140px; object-fit:contain;" alt="logo"/>` : ''}
-            <div>
-              <div class="company-name">${q.company_name ?? 'Mon Entreprise'}</div>
-              <div class="company-info">${q.company_address ?? ''}</div>
-              <div class="company-info">NIF: ${q.company_nif ?? ''} | RC: ${q.company_rc ?? ''}</div>
-            </div>
-          </div>
-          <div class="doc-title">
-            <div class="doc-number">DEVIS N° ${q.quoteNumber}</div>
-            <div class="doc-date">Date : ${this.formatDate(q.quoteDate)}</div>
-            ${q.expiryDate ? `<div class="doc-date">Valide jusqu'au : ${this.formatDate(q.expiryDate)}</div>` : ''}
-          </div>
-        </div>
-
-        <div class="parties">
-          ${this.renderParty('Émetteur', q.company_name ?? '', q.company_address, q.company_nif, q.company_rc, q.company_ai)}
-          ${this.renderParty('Destinataire', q.customer_name, q.customer_address, q.customer_nif, q.customer_rc, q.customer_ai)}
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="width:45%">Produit / Description</th>
-              <th class="text-right" style="width:10%">Qté</th>
-              <th class="text-right" style="width:15%">P.U. HT</th>
-              <th class="text-right" style="width:10%">TVA</th>
-              <th class="text-right" style="width:20%">Total TTC</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map((item: any) => `
-              <tr>
-                <td>${item.product_name ?? item.finishedProductId ?? ''}</td>
-                <td class="text-right">${Number(item.quantity).toFixed(2)} ${item.unit ?? ''}</td>
-                <td class="text-right">${this.formatCurrency(item.unitPrice)}</td>
-                <td class="text-right">${item.taxRate1 ? Number(item.taxRate1).toFixed(0) + '%' : '—'}</td>
-                <td class="text-right">${this.formatCurrency(item.lineTotal)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <div class="totals-box">
-            <div class="total-row"><span>Sous-total HT</span><span>${this.formatCurrency(q.subtotal)}</span></div>
-            <div class="total-row"><span>TVA</span><span>${this.formatCurrency(q.taxAmount)}</span></div>
-            <div class="total-row"><span>TOTAL TTC</span><span>${this.formatCurrency(q.totalAmount)}</span></div>
-          </div>
-        </div>
-
-        ${q.notes ? `<div class="notes"><strong>Notes :</strong> ${q.notes}</div>` : ''}
-
-        <div style="display:flex; justify-content:space-between; margin-top:30px;">
-          <div style="text-align:center; width:200px;">
-            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Signature émetteur</div>
-          </div>
-          <div style="text-align:center; width:200px;">
-            <div style="border-top:1px solid #333; padding-top:4px; font-size:10px;">Bon pour accord</div>
-          </div>
-        </div>
-
-        <div class="footer">Ce devis est valable 30 jours — Echango Invoice</div>
-      </div>
-    </body></html>`;
-
-    const { buffer } = await this.pdfService.generateAndArchive({
-      type: 'DEVIS' as any,
-      filename: q.quoteNumber,
-      html,
-    });
-    return { buffer, filename: `${q.quoteNumber}.pdf` };
   }
 }

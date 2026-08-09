@@ -53,7 +53,12 @@ export class PaymentsService {
       await qr.manager.save(Payment, payment);
 
       const newAmountPaid = Math.round((Number(invoice.amountPaid) + dto.amount) * 100) / 100;
-      const newAmountDue = Math.round(Math.max(Number(invoice.totalAmount) - newAmountPaid, 0) * 100) / 100;
+      // creditedAmount doit être retranché : sans lui, le premier encaissement
+      // reçu après un avoir remettrait le montant crédité à la charge du client.
+      const credited = Number(invoice.creditedAmount);
+      const newAmountDue = Math.round(
+        Math.max(Number(invoice.totalAmount) - newAmountPaid - credited, 0) * 100,
+      ) / 100;
       const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
 
       await qr.manager.update(SalesInvoice, invoice.id, {
@@ -125,9 +130,16 @@ export class PaymentsService {
       await qr.manager.softDelete(Payment, id);
 
       const newAmountPaid = Math.round(Math.max(Number(invoice.amountPaid) - Number(payment.amount), 0) * 100) / 100;
-      const newAmountDue = Math.round((Number(invoice.totalAmount) - newAmountPaid) * 100) / 100;
+      const credited = Number(invoice.creditedAmount);
+      const newAmountDue = Math.round(
+        Math.max(Number(invoice.totalAmount) - newAmountPaid - credited, 0) * 100,
+      ) / 100;
 
-      const newStatus = newAmountPaid <= 0 ? 'sent' : 'partial';
+      // Une facture éteinte par un avoir seul reste soldée après annulation du
+      // règlement : le solde, pas le montant encaissé, décide du statut.
+      const newStatus = newAmountDue <= 0
+        ? 'paid'
+        : (newAmountPaid > 0 || credited > 0 ? 'partial' : 'sent');
       await qr.manager.update(SalesInvoice, invoice.id, {
         amountPaid: newAmountPaid,
         amountDue: newAmountDue,

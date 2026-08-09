@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, tRegex, t } from './base';
 import { collectErrors, waitForLoaded, selectFirst } from './helpers';
 
 const today = new Date().toISOString().split('T')[0];
@@ -9,7 +9,7 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /nouvelle commande/i }).click();
+    await page.getByRole('button', { name: tRegex('purchases.newOrder') }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
 
     await selectFirst(page, '[role="dialog"] select[name="supplierId"]');
@@ -20,7 +20,7 @@ test.describe('Achats — flux complet', () => {
     await page.locator('[role="dialog"] input[name="items.0.unitPrice"]').fill('50');
 
     const responsePromise = page.waitForResponse(r => r.url().includes('/purchase-orders') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: /enregistrer/i }).click();
+    await page.getByRole('button', { name: tRegex('common.save') }).click();
     const response = await responsePromise;
     if (!response.ok()) {
       const body = await response.text().catch(() => '');
@@ -36,13 +36,24 @@ test.describe('Achats — flux complet', () => {
     errors.assert('Achats créer commande');
   });
 
+  // `/réception/i` désignait DEUX boutons — l'onglet « Réceptions BL » et le
+  // bouton « Nouvelle réception » — d'où une violation du mode strict. Les
+  // deux sont désormais visés par leur libellé exact.
+  const ongletReceptions = (page: import('@playwright/test').Page) =>
+    page.getByRole('button', { name: t('purchases.receptionsTitle'), exact: true });
+
   test('onglet réceptions visible', async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /réception|réceptions/i }).click();
+    await ongletReceptions(page).click();
     await waitForLoaded(page);
+
+    // Sans cette assertion, le test ne prouvait que sa capacité à cliquer.
+    await expect(
+      page.getByRole('button', { name: t('purchases.newReception'), exact: true }),
+    ).toBeVisible();
     errors.assert('Achats onglet réceptions');
   });
 
@@ -51,14 +62,13 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    await page.getByRole('button', { name: /réception|réceptions/i }).click();
+    await ongletReceptions(page).click();
     await waitForLoaded(page);
 
-    const recBtn = page.getByRole('button', { name: /nouvelle réception|réceptionner/i });
-    if (await recBtn.isVisible()) {
-      await recBtn.click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-    }
+    // Plus de `if (isVisible)` : un bouton absent rendait le test vert sans
+    // avoir rien ouvert.
+    await page.getByRole('button', { name: t('purchases.newReception'), exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
     errors.assert('Achats réception modal');
   });
 
@@ -67,15 +77,21 @@ test.describe('Achats — flux complet', () => {
     await page.goto('/purchases');
     await waitForLoaded(page);
 
-    const rows = page.locator('tbody tr');
-    if (await rows.count() > 0) {
-      const deleteBtn = rows.first().locator('button').last();
-      if (await deleteBtn.isVisible()) {
-        const responsePromise = page.waitForResponse(r => r.url().includes('/purchase-orders') && r.request().method() === 'DELETE');
-        await deleteBtn.click();
-        await responsePromise.catch(() => {});
-        await waitForLoaded(page);
-      }
+    // Le bouton de suppression n'existe que sur une commande brouillon ou
+    // envoyée. La version précédente cliquait « le dernier bouton de la
+    // première ligne » : dès que la commande en tête de liste était
+    // réceptionnée, ce dernier bouton était « Voir détail », aucun DELETE ne
+    // partait, et le test attendait 30 secondes avant d'expirer. On vise donc
+    // la première ligne qui porte réellement l'action.
+    const supprimer = page.locator('tbody tr button[title="Supprimer"]').first();
+    if (await supprimer.count() > 0) {
+      const reponse = page.waitForResponse(
+        r => r.url().includes('/purchase-orders') && r.request().method() === 'DELETE',
+        { timeout: 10_000 },
+      );
+      await supprimer.click();
+      await reponse;
+      await waitForLoaded(page);
     }
     errors.assert('Achats supprimer commande');
   });

@@ -1,11 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MONTANT_MAX } from '../../common/limits';
 
 export class RecordVendorPaymentDto {
   @ApiProperty()
   @Type(() => Number)
-  @IsNumber() @Min(0.01)
+  @IsNumber() @Max(MONTANT_MAX) @Min(0.01)
   amount: number;
 
   @ApiProperty()

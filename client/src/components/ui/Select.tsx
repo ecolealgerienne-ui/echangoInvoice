@@ -6,7 +6,14 @@ const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElem
     <select
       ref={ref}
       className={cn(
-        'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        // Mêmes mesures que `Input`, au pixel près : trente-six de haut, douze
+        // de rembourrage, le fond en creux. Un sélecteur et un champ posés côte
+        // à côte dans un formulaire doivent avoir exactement la même boîte,
+        // sinon la ligne se décale sans qu'on sache dire pourquoi.
+        'flex h-9 w-full rounded-md border border-input bg-champ px-3 text-sm text-foreground',
+        'transition-[border-color,box-shadow] duration-150 hover:border-border-strong',
+        'focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/[0.12]',
+        'disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}

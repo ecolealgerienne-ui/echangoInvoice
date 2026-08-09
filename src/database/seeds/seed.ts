@@ -48,9 +48,34 @@ async function seed() {
       [userId, realTenantId, 'admin@chambre-froide.dz', passwordHash, 'Administrateur'],
     );
 
+    // Abonnement
+    //
+    // Sans cette ligne le tenant n'avait AUCUN abonnement, et toutes les
+    // limites du plan devenaient inertes : checkFreemiumQuota sort dès que la
+    // souscription est absente, et la limite de postes faisait de même. Un
+    // espace créé par ce seed ignorait donc les quotas que register() applique
+    // à tout compte créé normalement.
+    //
+    // Plan « pro » : le jeu de démo compte 1000 factures, la limite de 30 du
+    // plan starter bloquerait la création dès la première facture saisie à la
+    // main. Pour éprouver les quotas, poser DEMO_PLAN=starter.
+    const planSlug = process.env.DEMO_PLAN ?? 'pro';
+    const [plan] = await qr.query(`SELECT id, "invoiceLimit", "usersLimit" FROM plans WHERE slug = $1`, [planSlug]);
+
+    await qr.query(
+      `INSERT INTO subscriptions
+         ("tenantId", plan, "planId", status, "invoicesThisMonth", "invoiceLimit",
+          "usersCount", "usersLimit", "createdAt", "updatedAt")
+       SELECT $1, $2, $3, 'active', 0, $4,
+              (SELECT count(*) FROM users WHERE "tenantId" = $1 AND "isActive" = true),
+              $5, NOW(), NOW()
+       WHERE NOT EXISTS (SELECT 1 FROM subscriptions WHERE "tenantId" = $1)`,
+      [realTenantId, planSlug, plan?.id ?? null, plan?.invoiceLimit ?? null, plan?.usersLimit ?? null],
+    );
+
     await qr.commitTransaction();
 
-    console.log('\n✅ Seed terminé avec succès\n');
+    console.log(`\n✅ Seed terminé avec succès — plan ${planSlug}\n`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('  Email    : admin@chambre-froide.dz');
     console.log('  Password : admin1234');

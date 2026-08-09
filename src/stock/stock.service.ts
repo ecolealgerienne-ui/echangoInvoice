@@ -6,6 +6,8 @@ import { FinishedProduct } from '../products/finished-product.entity';
 import { ListInventoryDto } from './dto/list-inventory.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { SetThresholdDto } from './dto/set-threshold.dto';
+import { consumeStockFifo, recomputeProductStock } from './recompute-product-stock';
+import { disponibilitesDe } from './stock-availability';
 
 @Injectable()
 export class StockService {
@@ -49,6 +51,12 @@ export class StockService {
       [...params, limit, offset],
     );
 
+    // Une seule requête pour toute la page : la disponibilité se calcule à
+    // partir des documents, elle n'est pas portée par une colonne.
+    const dispo = await disponibilitesDe(
+      this.ds, tenantId, rows.map((r: any) => r.rawMaterialId),
+    );
+
     const now = new Date();
     const data = rows.map((r: any) => {
       const expiry = r.earliestExpirationDate ? new Date(r.earliestExpirationDate) : null;
@@ -60,17 +68,27 @@ export class StockService {
       }
       const threshold = r.alertThreshold ? parseFloat(r.alertThreshold) : null;
       const qty = parseFloat(r.totalQuantity);
+      const d = dispo.get(r.rawMaterialId);
+      const arrondi = (n: number) => Math.round(n * 100) / 100;
       return {
         rawMaterialId: r.rawMaterialId,
         rawMaterialName: r.name,
         unit: r.unit,
+        // `totalQuantity` conservait son sens historique — le disponible —
+        // pour ne pas changer sous les pieds de ce qui le lit déjà. Le stock
+        // physique arrive à côté, sous son propre nom.
         totalQuantity: Math.round(qty * 100) / 100,
+        physicalQuantity: arrondi(d?.physique ?? qty),
+        reservedQuantity: arrondi((d?.reserveVentes ?? 0) + (d?.reserveProduction ?? 0)),
+        availableQuantity: arrondi(d?.disponible ?? qty),
+        incomingQuantity: arrondi(d?.entrant ?? 0),
         averageCostPerUnit: Math.round(parseFloat(r.averageCostPerUnit) * 100) / 100,
         totalValue: Math.round(parseFloat(r.totalValue) * 100) / 100,
         lastUpdated: r.updatedAt,
         earliestExpirationDate: r.earliestExpirationDate,
         expiryAlert,
-        lowStockAlert: threshold !== null && qty <= threshold,
+        lowStockAlert:
+          threshold !== null && (d ? d.disponible : qty) <= threshold,
         stockThreshold: threshold,
       };
     });
@@ -151,13 +169,16 @@ export class StockService {
     const avgCost = product ? (parseFloat(product.averageCostPerUnit as any) || 0) : 0;
     const lastCost = product ? (parseFloat(product.lastCostPerUnit as any) || 0) : 0;
     const costPerUnit = avgCost > 0 ? avgCost : lastCost;
-    const newTotalValue = Math.round(newQty * costPerUnit * 100) / 100;
 
     const qr = this.ds.createQueryRunner();
     await qr.connect();
     await qr.startTransaction();
     try {
-      // Audit log entry — 'available' if adding stock so FIFO can consume it
+      // Un ajustement POSITIF crée un lot disponible, que le FIFO consommera.
+      // Un ajustement NÉGATIF doit au contraire *retirer* des lots existants :
+      // se contenter d'écrire un lot 'adjusted' laissait les lots d'origine
+      // intacts, et le recalcul depuis les lots effaçait la baisse à la
+      // prochaine réception — même défaut que celui des livraisons (R015).
       const entry = qr.manager.create(StockEntry, {
         tenantId,
         rawMaterialId: dto.rawMaterialId,
@@ -171,6 +192,12 @@ export class StockService {
       });
       const saved = await qr.manager.save(StockEntry, entry);
 
+      if (delta < 0) {
+        await consumeStockFifo(
+          qr, tenantId, dto.rawMaterialId, Math.abs(delta), 'adjusted',
+        );
+      }
+
       await qr.manager.query(`
         INSERT INTO stock_adjustments
           ("tenantId","rawMaterialId","stockEntryId","quantityAdjustment","reason","notes","adjustedBy","adjustedAt")
@@ -178,15 +205,10 @@ export class StockService {
         [tenantId, dto.rawMaterialId, saved.id, delta, dto.reason, dto.notes ?? null, userId],
       );
 
-      // Set stock directly to new absolute quantity (physical inventory adjustment)
-      await qr.manager.query(`
-        UPDATE finished_products
-        SET "stockQuantity"      = $1,
-            "totalStockValue"    = $2,
-            "updatedAt"          = NOW()
-        WHERE id = $3 AND "tenantId" = $4`,
-        [newQty, newTotalValue, dto.rawMaterialId, tenantId],
-      );
+      // L'agrégat se recalcule depuis les lots, il ne s'écrit pas (R015) :
+      // l'écriture directe qui existait ici était écrasée à la réception
+      // suivante.
+      await recomputeProductStock(qr, tenantId, dto.rawMaterialId);
 
       await qr.commitTransaction();
       return {
@@ -216,6 +238,19 @@ export class StockService {
   }
 
   async listEntries(tenantId: string, rawMaterialId: string, page = 1, limit = 20) {
+    // L'appartenance de l'ARTICLE, et pas seulement celle des lots.
+    //
+    // Les lots étaient déjà filtrés par `tenantId` : rien ne sortait. Mais
+    // l'identifiant d'un article d'un autre locataire rendait `200` avec une
+    // liste vide, là où le contrat est « introuvable » — indiscernable, pour
+    // celui qui appelle, d'un article sans aucun lot. Trouvé par
+    // scripts/banc-cloisonnement.py.
+    const article = await this.productRepo.findOne({
+      where: { id: rawMaterialId, tenantId },
+      select: ['id'],
+    });
+    if (!article) throw new NotFoundException('errors.product_not_found');
+
     const [data, total] = await this.entryRepo.findAndCount({
       where: { tenantId, finishedProductId: rawMaterialId },
       order: { enteredAt: 'DESC' },

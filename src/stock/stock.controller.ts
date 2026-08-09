@@ -9,25 +9,26 @@ import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { SetThresholdDto } from './dto/set-threshold.dto';
 import { JwtGuard } from '../common/guards/jwt.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { TenantGuard } from '../common/guards/tenant.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('Stock')
 @ApiBearerAuth()
-@UseGuards(JwtGuard, RolesGuard)
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 @Controller('stock')
 export class StockController {
   constructor(private readonly service: StockService) {}
 
   @Get('inventory')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Inventaire courant par matière première' })
   getInventory(@Query() query: ListInventoryDto, @CurrentUser() user: any) {
     return this.service.getInventory(user.tenantId!, query);
   }
 
   @Get('alerts')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Alertes stock (expiration et seuil bas)' })
   getAlerts(@CurrentUser() user: any) {
     return this.service.getAlerts(user.tenantId!);
@@ -52,7 +53,7 @@ export class StockController {
   }
 
   @Get('entries/:rawMaterialId')
-  @Roles('owner', 'manager', 'agent')
+  @Roles('owner', 'manager', 'agent', 'accountant')
   @ApiOperation({ summary: 'Lots de stock pour une matière première' })
   listEntries(
     @Param('rawMaterialId', ParseUUIDPipe) rawMaterialId: string,

@@ -23,7 +23,13 @@ Mettre à jour `docs/STATUS.md` si le statut d'une feature change.
 
 ---
 
-## 1. INVARIANTS ABSOLUS (R001–R020) — Violations = rejet immédiat du code
+## 1. INVARIANTS ABSOLUS (R001–R032) — Violations = rejet immédiat du code
+
+> R001–R020 sont issus des specs initiales. **R021–R032 ont été ajoutés le
+> 2026-08-07**, adaptés de `echangopromo` — mais aucun n'est repris parce qu'il
+> existe ailleurs : chacun référence un défaut mesuré dans *ce* dépôt, cité en
+> italique. C'est ce qui permet de reconnaître un cas nouveau relevant de la
+> même règle.
 
 ---
 
@@ -162,14 +168,19 @@ await this.stockService.decrement(items); // si ça plante → stock incohérent
 
 ```typescript
 // ✅ CORRECT — AllExceptionsFilter global (src/common/filters/exception.filter.ts)
-// Format de réponse d'erreur standardisé :
+// Format de réponse d'erreur standardisé — `message` est une CLÉ i18n :
 {
   "statusCode": 409,
-  "message": "Ce numéro de BL existe déjà",
-  "field": "blNumber"   // optionnel
+  "message": "errors.duplicate_entry",
+  "field": "blNumber",                    // optionnel
+  "details": { "product": "Beurre 250g" } // optionnel — contexte du message
 }
 
-// ✅ CORRECT — les services laissent remonter ou throw explicitement
+// ✅ CORRECT — les services throw une clé, jamais une phrase
+if (!customer) throw new NotFoundException('errors.customer_not_found');
+
+// ❌ INTERDIT — message en dur : le frontend ne peut plus le traduire,
+//    et la chaîne française fuit jusqu'à l'utilisateur (R018)
 if (!customer) throw new NotFoundException(`Client ${id} introuvable`);
 
 // ❌ INTERDIT — catch silencieux dans un service
@@ -179,6 +190,17 @@ try {
   // rien → bug invisible
 }
 ```
+
+⚠️ **Toute clé levée côté backend doit exister dans `shared/src/i18n/fr.json`,
+section `errors.*`, dans le même commit.** `resolveApiError` tente `t(clé)` puis
+`t('errors.' + clé)` avant de retomber sur `errors.generic` : une clé absente
+n'échoue nulle part, elle affiche juste un message générique. La désynchronisation
+est silencieuse des deux côtés.
+
+*État au 2026-08-07 : 89 `throw` utilisent la clé nue (`'credit_note_not_found'`)
+au lieu de la clé préfixée. Ça fonctionne par le repli ci-dessus, mais la
+convention a dérivé. Et au moins un message est une phrase française en dur —
+`« Montant (…) supérieur au solde dû (…) »` dans le service de paiements.*
 
 **Frontend :**
 
@@ -294,6 +316,17 @@ GET /api/v1/customers?page=1&limit=20&search=nom
 { "results": [...], "totalPages": 3 }
 ```
 
+⚠️ **Exception à vérifier avant de paginer un endpoint existant.** Si un client
+le consomme aujourd'hui comme une **liste de référence complète** (un sélecteur,
+un cache mobile), ajouter la pagination le tronque silencieusement dès que le
+total dépasse la taille de page par défaut. Vérifier les consommateurs — web,
+mobile, autre service — avant d'activer une pagination par défaut sur un endpoint
+déjà servi.
+
+Les endpoints qui ne paginent volontairement pas : `/settings` (singleton),
+`/dashboard/*`, `/production/dashboard`, `/admin/stats` (agrégats),
+`/admin/plans` (3 lignes fixes).
+
 ---
 
 ### R011 — Soft delete : filtre WHERE deletedAt IS NULL toujours explicite
@@ -361,12 +394,53 @@ Formats par défaut (configurables dans settings) :
 
 Toutes les colonnes de numérotation ont une contrainte `UNIQUE` en base.
 
+⚠️ **Un numéro émis est consommé définitivement — la numérotation ne filtre
+JAMAIS les documents supprimés.** L'index unique porte sur `(numéro, tenantId)`
+sans exclure les lignes soft-deleted : si le générateur, lui, les exclut, il
+régénère un numéro déjà pris et l'insertion échoue en 500. C'est aussi la bonne
+sémantique comptable — une facture annulée ne libère pas son numéro.
+
+```typescript
+// ✅ CORRECT — @DeleteDateColumn filtre par défaut, il faut l'exclure explicitement
+const last = await qr.manager
+  .createQueryBuilder(DeliveryNote, 'dn')
+  .withDeleted()                                    // ← indispensable
+  .where('dn.tenantId = :tenantId', { tenantId })
+  .andWhere('EXTRACT(YEAR FROM dn."createdAt") = :year', { year })
+  .orderBy('dn.blNumber', 'DESC')
+  .limit(1).getOne();
+
+// ❌ INTERDIT — le numéro d'un document supprimé serait réattribué
+  .andWhere('dn.deletedAt IS NULL')
+```
+
+⚠️ **Retirer le `.andWhere('deletedAt IS NULL')` ne suffit pas** : toutes ces
+entités portent `@DeleteDateColumn`, donc TypeORM ajoute le filtre de lui-même.
+Sans `.withDeleted()`, le comportement reste inchangé. Les requêtes SQL brutes,
+elles, n'ont pas ce filtre implicite : il suffit de ne pas l'écrire.
+
+*Trouvé le 2026-08-07 : `BL-26-801` supprimé en douceur, générateur voyant
+`BL-26-800`, régénérant `BL-26-801` → violation de `UQ_delivery_notes_bl_number_tenant`.
+Les huit générateurs étaient concernés, sauf `PO` et `BL-REC` qui utilisaient
+déjà `.withDeleted()`.*
+
+Cette règle est la seule exception à R011, et elle est délibérée : partout
+ailleurs, le filtre `deletedAt IS NULL` reste obligatoire.
+
 ---
 
 ### R014 — PDF : archivage au chemin imposé
 
+> ⚠️ **Réécrit le 2026-08-08.** La forme précédente, sans `tenantId`, **était le
+> défaut** : voir `docs/ERREURS.md` E001.
+
 ```typescript
 // ✅ CORRECT
+`ARCHIVES/${tenantId}/${year}/${month}/${type}/${numéro}__${documentId}.pdf`
+
+// ❌ INTERDIT — le numéro est séquentiel PAR locataire (R013/R020) : sans le
+//    tenantId, deux sociétés produisent le même fichier et la seconde écrase
+//    l'archive légale de la première, sans erreur ni journal.
 const path = `ARCHIVES/${year}/${month}/${type}/${filename}.pdf`;
 // Exemples :
 // ARCHIVES/2024/06/BL/BL-24-001.pdf
@@ -397,11 +471,37 @@ const entries = await queryRunner.manager
 .orderBy('se.enteredAt', 'DESC')
 ```
 
-**Transitions de statut StockEntry :**
+**Transitions de statut StockEntry, telles qu'implémentées :**
 ```
-available → reserved  (lors de la création du DeliveryNote)
-reserved  → sold      (lors du paiement de la facture)
+available → sold      (création d'un BL — consommation FIFO)
+sold      → available (annulation/suppression du BL)
 available → adjusted  (ajustement manuel)
+```
+
+⚠️ **`stockQuantity` sur `finished_products` est un CACHE, jamais une source.**
+La vérité est dans les lots ; l'agrégat se recalcule depuis eux via
+`recomputeProductStock` (`src/stock/recompute-product-stock.ts`). Toute sortie
+doit donc **consommer des lots**, jamais décrémenter le cache directement —
+sinon la prochaine réception, qui recalcule depuis les lots, ressuscite ce qui
+est parti.
+
+*Trouvé et reproduit le 2026-08-08 : `decrementStock` faisait un
+`UPDATE finished_products SET stockQuantity` sans toucher aux lots — le
+commentaire disait « sans FIFO » quand Swagger annonçait l'inverse. Séquence
+100 reçus → 30 livrés → 50 reçus donnait **150 au lieu de 120**.*
+
+**Un lot entamé se scinde** : la part sortie devient un lot `sold` rattaché au
+BL (`reservedByDeliveryNoteId`), le reste demeure `available`. C'est ce qui rend
+l'annulation réversible et permet de savoir quel lot est parti chez qui.
+
+Le stock négatif reste toléré — le métier livre parfois avant de régulariser —
+mais il est désormais **visible** : la quantité manquante n'est prise sur aucun
+lot et un avertissement remonte.
+
+**Vérification :**
+```bash
+# Aucune écriture directe de stockQuantity hors du recalcul partagé
+grep -rn 'SET "stockQuantity"' src/ | grep -v recompute-product-stock
 ```
 
 ---
@@ -531,18 +631,272 @@ grep -rn "findOne\|find({" src/ | grep -v "tenantId"
 
 ---
 
+### R021 — Un DTO décoré n'est pas un DTO borné
+
+**Pour chaque champ, se demander : quelle valeur extrême le fait sortir de ce que
+la base, le calcul ou l'affichage savent encaisser ?** Ce que la base refuse,
+l'entrée doit le refuser d'abord — sinon Postgres lève et l'utilisateur reçoit un
+500 là où un 422 était dû.
+
+```typescript
+// ❌ TROUVÉ — colonne decimal(12,2), aucun plafond côté entrée
+@ApiProperty() @IsNumber() @Min(0) unitPrice: number;
+
+// Reproduit le 2026-08-07 :
+//   POST /invoices/sales-invoices  {"unitPrice": 1e14}
+//   → 500  QueryFailedError: numeric field overflow
+
+// ✅ CORRECT — la borne se nomme une fois, à côté de la colonne
+export const MONTANT_MAX = 9_999_999_999.99;   // decimal(12, 2)
+@ApiProperty() @IsNumber() @Min(0) @Max(MONTANT_MAX) unitPrice: number;
+```
+
+`@IsPositive` sans plafond, `@IsString` sans `@MaxLength`, `@IsArray` sans
+`@ArrayMaxSize` sont des bornes **manquantes**, pas des choix.
+
+⚠️ **`NaN` traverse toutes les comparaisons** : `NaN <= max` et `NaN > min` sont
+**tous les deux faux**. Toute comparaison numérique sur une donnée venue du
+réseau établit d'abord que c'est un nombre fini (`Number.isFinite`), jamais
+supposé d'un `@IsNumber` en amont.
+
+⚠️ **Un `@Body() dto: { reason?: string }` typé en ligne n'est pas validé du
+tout** — le type disparaît à la compilation, la validation est à l'exécution, et
+le `ValidationPipe` ne valide que les classes décorées. *Mesuré au 2026-08-07 :
+0 occurrence, la discipline est acquise ; cette règle existe pour qu'elle ne se
+relâche pas.*
+
+**Vérification :**
+```bash
+grep -rc "@IsNumber" src/ --include=*.dto.ts   # à comparer au nombre de @Max
+grep -rn "@Body()[^)]*: *{" src/               # doit rendre 0
+```
+
+---
+
+### R022 — Toute garde, tout module écrit doit être branché dans le même commit
+
+**Une méthode d'autorisation définie mais jamais appelée est un signal d'alarme,
+pas un détail.** Un module non branché donne une fausse impression de couverture
+— pire qu'une absence déclarée, parce que le code existe et que personne ne le
+cherche.
+
+*Trouvé le 2026-08-07 : le commit `0e9347e` a rendu `refresh_tokens.jti`
+obligatoire et mis à jour `auth.service.ts`, mais a laissé
+`admin/auth/admin-auth.service.ts` de côté. Tout le module admin SaaS (spec 16)
+répondait 500 au login — aucune erreur au build, aucun test pour le dire.*
+
+**Corollaire — ce que le serveur sert doit avoir un appelant.** Une route neuve
+n'est pas finie tant qu'un écran ne l'appelle pas ; ce qui n'a plus d'appelant se
+supprime. Une capacité écrite, testée et appelée nulle part ne produit pas
+d'erreur : elle produit une fonctionnalité absente que personne ne cherche.
+
+---
+
+### R023 — Polarité de protection : la route qu'on oublie est OUVERTE
+
+Chaque contrôleur pose son propre `@UseGuards` d'**authentification** ; il n'y a
+pas de `JwtGuard` global. L'oubli ne se voit donc ni à la compilation, ni à
+l'exécution, ni dans les journaux — à l'inverse d'un garde global dont on se
+retire explicitement.
+
+⚠️ **Le seul garde global est le `ThrottlerGuard`** (`app.module.ts`, fourni via
+`APP_GUARD`). *Il ne l'était pas jusqu'au 2026-08-08 : `ThrottlerModule` était
+enregistré, les `@Throttle` décoraient bien les routes d'auth, et **rien ne les
+appliquait** — 20 tentatives de login consécutives, aucun 429. Cette section
+elle-même affirmait le contraire, ce qui en faisait un état périmé au sens de
+R031.* Limites effectives, vérifiées : `register` 5/min, `login` 10/min,
+`refresh` 20/min, `admin/auth/*` 5 / 15 min, tout le reste **600/min**
+(`ThrottlerModule.forRoot([{ ttl: 60000, limit: 600 }])`, app.module.ts — cette
+section annonçait 100, relevé le 2026-08-09 en calibrant le rythme du banc de
+refus, qui envoie 481 sondes).
+
+**Conséquence directe : toute route publique est épinglée nommément ici, avec sa
+justification.** Une route publique non listée est un défaut, pas un choix.
+
+| Route publique | Pourquoi |
+|---|---|
+| `GET /api/v1/health` | sonde de connectivité mobile (spec 17 §3.2) — un token expiré ne doit pas passer pour une panne réseau |
+| `POST /api/v1/auth/login` · `register` · `refresh` | délivrent le jeton ; rate-limités par `@Throttle` (R017) |
+| `POST /api/v1/auth/accept-invite` | l'invité n'a pas encore de compte — c'est cet appel qui le crée. Protégé par un jeton de 48 octets aléatoires, à usage unique, expirant en 7 jours. **Manquait à ce tableau jusqu'au 2026-08-09** : trouvée par le banc de refus, qui exige que toute route ouverte soit épinglée |
+| `POST /api/v1/admin/auth/login` · `refresh` | idem pour le superadmin |
+| `GET /api/v1/verify/:type/:id/:signature` | vérification d'un document depuis son QR — celui qui scanne est le destinataire, il n'a pas de compte. Protégée par une signature HMAC, pas par un jeton ; rend 404 (et non 403) sur signature invalide, pour ne pas révéler qu'un document existe à cet identifiant |
+
+⚠️ **Ne jamais énumérer « les routes protégées » depuis leur garde** : l'ensemble
+contrôlé rétrécirait avec ce qu'il contrôle.
+
+**Vérification :**
+```bash
+python3 scripts/banc-refus-http.py --list     # les 169 routes, les ouvertes signalées
+python3 scripts/banc-refus-http.py            # refuse si une ouverte n'est pas épinglée ci-dessus
+```
+
+*La boucle `grep -L UseGuards` qui tenait lieu de contrôle jusqu'au 2026-08-09
+ne regardait que le **fichier** : un contrôleur gardé sur neuf routes et oublié
+sur la dixième la satisfaisait. Elle n'aurait jamais rien dit.*
+
+---
+
+### R024 — Un `@Index()` d'entité ne crée rien par lui-même
+
+`synchronize: false` est permanent (R002) : **le schéma est tenu par les seules
+migrations versionnées.** Un décorateur `@Index()` non repris dans un
+`CREATE INDEX` est un commentaire, pas un index — la base tourne sans lui, et le
+prochain `migration:generate` l'émettra dans une migration qu'on croira additive.
+
+Toute pose d'`@Index()` s'accompagne de sa migration, dans le même commit (R002,
+R016).
+
+⚠️ **La mesure de l'écart entité ↔ base, c'est un `migration:generate` qui ne
+rend RIEN.** Tant qu'il rend quelque chose, les deux ne disent pas la même chose
+— même quand « ce ne sont que des renommages ». La sortie vide est la seule
+normale.
+
+---
+
+### R025 — `migration:generate` écrit un fichier, ce n'est pas une lecture
+
+Une génération exploratoire laisse une **migration en attente**. Comme TypeORM
+enveloppe **toutes** les migrations en attente dans **une seule transaction**, un
+fichier oublié fait échouer le lot entier — et annule au passage les migrations
+légitimes appliquées dans le même `run`.
+
+Supprimer le fichier exploratoire avant tout `migration:run`. Et **ne jamais
+filtrer la sortie d'un `run` sur les seules lignes de succès** : c'est ainsi
+qu'un échec passe pour un succès.
+
+---
+
+### R026 — Bannir `Promise.all(map(async => findOne/count))`
+
+C'est un signal quasi certain de N+1. Chercher l'équivalent en une requête SQL
+agrégée (`GROUP BY`, sous-requête, `JOIN LATERAL`) **avant** d'écrire ce pattern.
+
+*Trouvé le 2026-08-07 : deux occurrences dans `production/nomenclature.service.ts`
+(résolution des lignes de nomenclature).*
+
+---
+
+### R027 — Ne jamais retourner une entité TypeORM via un spread
+
+`{...entity, extra}` transforme l'instance en objet plain et **désactive
+silencieusement les `@Exclude()`** du `ClassSerializerInterceptor`. Retourner
+l'instance de classe, ou une DTO de sortie dédiée.
+
+*Trouvé le 2026-08-07 : `customers.service.ts` renvoie `{...customer, history}`.*
+
+---
+
+### R028 — Une clé de configuration n'existe pas tant qu'elle n'est pas dans le `.env` qui tourne
+
+`.env.example` est un **document**, lu par aucun processus. Le `.env` réel vit
+**uniquement dans le clone WSL** (voir §10), n'est pas versionné, et **ne se met
+pas à jour en tirant une branche**. Ajouter une clé au seul `.env.example`
+produit l'inverse de ce qu'on croit : le dépôt annonce un réglage que
+l'environnement qui tourne ignore.
+
+Le défaut est **silencieux par construction** quand un repli existe : rien ne
+distingue « la clé est absente, je retombe sur la valeur par défaut » de « la clé
+vaut cette valeur ».
+
+**En pratique** : toute clé ajoutée l'est dans `.env.example` **et** dans le
+`.env` de WSL, dans le même geste — ce dernier étant hors dépôt, le **dire** dans
+le message de commit, sinon personne ne saura que ça reste à faire.
+
+---
+
+### R029 — Un invariant s'applique, il ne se documente pas
+
+Dès qu'un commentaire dit « même règle que X », « doit rester identique à X »,
+c'est l'aveu que **rien ne tient l'invariant à notre place** — et **un
+commentaire ne peut pas échouer**.
+
+Le critère n'est pas « ces deux bouts se ressemblent-ils » mais **« si l'un
+change, l'autre doit-il changer ? »** — oui ⇒ un seul endroit ; non ⇒ deux
+endroits et un commentaire qui dit pourquoi ; fusion trop coûteuse ⇒ **un
+contrôle exécuté**, jamais une phrase.
+
+*Trouvé le 2026-08-07 : la liste de colonnes du `ColumnToggleMenu` et l'union
+typée de `useColumnVisibility` devaient s'accorder, et rien ne l'imposait — 21
+des 31 erreurs TypeScript du build client venaient de là.*
+
+---
+
+### R030 — Un contrôle doit prouver qu'il sait refuser
+
+Un vérificateur au vert n'a montré qu'une chose : sa capacité à dire **oui**.
+Tant qu'on ne l'a pas vu **refuser**, on ne sait pas s'il regarde.
+
+*Trouvé le 2026-08-07, deux fois dans la même journée : le contrôle d'intégrité
+du seed de démo comparait `totalAmount` à `Σ lineTotal` — il bloquait un jeu de
+données correct, parce que le test était faux, pas les données. Et un test e2e
+(`07-purchases`) passait ou échouait selon les données créées par les tests
+précédents.*
+
+**Corollaires :**
+- Une **assertion qui se vérifie elle-même** ne peut pas refuser. Si ce qu'on
+  cherche peut venir du test lui-même, l'assertion ne mesure rien.
+- Une **assertion d'absence** est satisfaite par le chargement. Chercher ce qui
+  ne doit plus être là ne vaut que si l'on a d'abord établi que le reste est là.
+- Une **mesure prise trop tôt** mesure un état qui n'existe plus. Mesurer au plus
+  près du geste, jamais en préambule.
+- Une **contre-mesure fondée sur une prémisse fausse accuse le produit**, et
+  c'est le pire des faux négatifs parce qu'il est crédible. Avant d'écrire
+  « après ce geste, X doit baisser », établir que **X pouvait baisser**.
+
+---
+
+### R031 — Un état périmé est pire qu'aucun état : il fait conclure
+
+`docs/STATUS.md` et ce fichier décrivent un état à une date. **Une ligne qui a
+cessé d'être vraie ne se contente pas d'être inutile : elle fait prendre des
+décisions.** Corriger dans le même commit que le changement, ou dater et barrer.
+
+*Trouvé le 2026-08-07 : `STATUS.md` annonçait la migration
+`stock_entries.deletedAt` « non appliquée — requêtes SQL omettent ce filtre en
+attendant ». Elle était appliquée, index compris.*
+
+---
+
+### R032 — Un outil qui réécrit le dépôt ne peut pas servir de barrière
+
+Une commande de vérification portant `--fix` **modifie** au lieu de juger : elle
+fabrique le diff qu'elle devrait signaler.
+
+Pour **constater** sans écrire :
+```bash
+npx eslint "src/**/*.ts"          # jamais --fix dans un contrôle
+npm --prefix client run build     # tsc -b : doit rendre 0 erreur
+```
+
+⚠️ **État au 2026-08-07 : `npm run lint` ne tourne pas du tout.** ESLint 9 exige
+un `eslint.config.js` (flat config) qui n'existe pas — aucun lint n'a donc jamais
+été exécuté sur ce dépôt. À corriger avant de s'appuyer sur cette barrière.
+
+---
+
 ## 2. SIDE EFFECTS OBLIGATOIRES (non-négociables)
 
 Ces effets doivent toujours se produire dans une transaction (R005) :
 
-| Trigger | Side effects obligatoires |
-|---------|--------------------------|
-| `POST /purchases/reception-bls` | Crée `StockEntry` + met à jour `InventorySummary` |
-| `POST /deliveries/delivery-notes` | Décrémente stock FIFO + status entries → `reserved` |
-| `POST /invoices/sales-invoices` | Auto-calcule TVA 19% |
-| `POST /invoices/sales-invoices/:id/send-email` | Génère PDF + attache + status → `sent` |
-| `POST /invoices/payments` | `amountPaid +=`, `amountDue -=`, si `amountDue = 0` → status `paid` + entries → `sold` |
-| `POST /quotes/:id/convert-to-invoice` | Crée `SalesInvoice` + `SalesInvoiceItems` + met à jour `Quote.status → invoiced` + vérifie quota freemium |
+| Trigger | Side effects obligatoires | Mesuré |
+|---------|--------------------------|--------|
+| `POST /purchases/reception-bls` | Crée `StockEntry` + met à jour `InventorySummary` | ✅ tenu |
+| `POST /deliveries/delivery-notes` | Décrémente stock FIFO + status entries → `reserved` | ⚠️ le stock baisse ; **`reserved` n'est écrit nulle part** — E022 |
+| `POST /invoices/sales-invoices` | Auto-calcule TVA 19% | ❌ **non tenu** : sans taux fourni, la TVA vaut 0 — E022 |
+| `POST /invoices/sales-invoices/:id/send-email` | Génère PDF + attache + status → `sent` | ⚠️ PDF ✅ ; l'envoi n'est pas mesurable sans SMTP local |
+| `POST /invoices/payments` | `amountPaid +=`, `amountDue -=`, si `amountDue = 0` → status `paid` + entries → `sold` | ✅ tenu |
+| `POST /quotes/:id/convert` | Crée `SalesInvoice` + `SalesInvoiceItems` + met à jour `Quote.status → converted` + vérifie quota freemium | ✅ tenu |
+
+⚠️ **Ce tableau est exécuté** : `python3 scripts/banc-effets-de-bord.py` joue les
+six enchaînements et mesure ce qui se produit *ailleurs* dans la base. C'est le
+seul étage qui puisse voir E017 — un effet qui ne se produit pas ne lève rien.
+
+*Deux corrections de rédaction le 2026-08-09, relevées par ce banc : la route
+était nommée `/quotes/:id/convert-to-invoice`, qui n'existe pas, et le statut
+résultant `invoiced`, qui n'est pas dans l'énumération — c'est `converted`.
+Les deux lignes marquées ⚠️/❌ ne sont **pas** corrigées : elles décrivent un
+écart réel entre le contrat et le produit, que seul le métier peut trancher
+(E022).*
 
 ---
 
@@ -571,13 +925,27 @@ className="text-gray-700 bg-white border-gray-200"
 ```typescript
 // Décorateurs obligatoires sur toute route protégée
 @Roles('owner', 'manager')
-@UseGuards(JwtGuard, RolesGuard)
-
-// Matrice des permissions
-OWNER   → tout
-MANAGER → view, create, edit sur tout ; pas de delete ; approve expenses
-AGENT   → create/view DeliveryNote, SalesInvoice uniquement
+@UseGuards(JwtGuard, TenantGuard, RolesGuard)
 ```
+
+**Cinq rôles, pas trois.** Forme courte ; la version qui fait foi, avec ses
+listes nommées, est dans `docs/specs/02-auth.md` §Roles & Permissions Matrix.
+
+| Rôle | Portée |
+|---|---|
+| `owner` | tout, sauf `/admin/*` |
+| `manager` | tout, **sauf** 10 suppressions d'entités principales, `PATCH /users/:id` et `PUT /settings` |
+| `agent` | lit tout **sauf les agrégats** (`/dashboard`, `/reports`, `/export`, `/expenses/summary`, `/production/dashboard`) et `/users` ; écrit sur **10 routes** — BL, factures de vente, devis, dépenses, mouvements de production. Ne convertit ni n'expédie |
+| `accountant` | **toute lecture, aucune écriture** |
+| `superadmin` | `/admin/*` et rien d'autre — il n'a pas de locataire |
+
+⚠️ **Ce tableau est exécuté.** `scripts/banc-matrice-roles.py` transcrit la
+politique de `02-auth.md` et compare les 795 cases à chaque passage. Un `@Roles`
+modifié sans report dans la spec fait rougir le banc — c'est son objet.
+
+*La version précédente de ce bloc décrivait trois rôles et divergeait du code
+sur 68 cases (E020). Elle a été corrigée le 2026-08-09 en documentant le
+comportement réel ; aucun droit d'accès n'a été élargi.*
 
 ---
 
@@ -707,13 +1075,41 @@ API & Frontend
 [ ] R019 — zéro logique métier dans les controllers
 [ ] R020 — tenantId présent dans toutes les queries WHERE, jamais depuis URL/body
 
+Entrées & bornes
+[ ] R021 — @Max / @MaxLength / @ArrayMaxSize sur tout champ borné par la base
+[ ] R021 — Number.isFinite avant toute comparaison sur une donnée réseau
+[ ] R021 — zéro @Body typé en ligne (le ValidationPipe ne le voit pas)
+
+Branchement & protection
+[ ] R022 — toute garde/module écrit est branché dans CE commit, pas le suivant
+[ ] R022 — toute route neuve a un appelant ; tout code sans appelant est supprimé
+[ ] R023 — nouvelle route publique ⇒ épinglée dans le tableau R023 avec sa raison
+
+Schéma
+[ ] R024 — tout @Index() a sa migration CREATE INDEX dans le même commit
+[ ] R024 — `migration:generate` ne rend RIEN (sinon entité et base divergent)
+[ ] R025 — aucune migration exploratoire oubliée dans src/database/migrations/
+
+Requêtes & sérialisation
+[ ] R026 — aucun Promise.all(map(async => findOne/count)) introduit
+[ ] R027 — aucune entité retournée via spread ({...entity})
+
+Configuration
+[ ] R028 — clé ajoutée dans .env.example ET dans le .env de WSL, dit au commit
+
 Code quality
 [ ] R004 — zéro console.* dans le code backend
 [ ] R012 — createdBy/updatedBy alimentés via interceptor (jamais manuellement)
-[ ] npm run build passe sans erreur TypeScript
+[ ] R029 — aucun commentaire « doit rester identique à X » : un contrôle, ou un seul endroit
+[ ] R032 — npm run build passe sans erreur TypeScript (backend ET client)
 [ ] Pas de `any` dans le code modifié
 
+Vérification
+[ ] R030 — tout nouveau contrôle a été vu REFUSER, pas seulement passer
+[ ] R030 — aucune assertion qui se vérifie elle-même, aucune mesure prise en préambule
+
 Suivi
+[ ] R031 — toute ligne de doc devenue fausse est corrigée dans CE commit
 [ ] docs/STATUS.md mis à jour si statut feature change
 [ ] docs/ERREURS.md mis à jour si nouvelle erreur découverte
 ```
@@ -759,6 +1155,73 @@ CMD ["node", "dist/main.js"]
 [ ] Docker non-root user configuré
 [ ] Backup DB configuré
 ```
+
+---
+
+## 10. L'ENVIRONNEMENT, TEL QU'IL EST SUR CE POSTE (2026-08-07)
+
+⚠️ **Il y a DEUX clones, et c'est structurant.**
+
+| | |
+|---|---|
+| `~/projects/echangoinvoice/echangoInvoice` (**WSL Ubuntu**) | backend, base, web — **et le seul à porter `.env`** |
+| `C:\Users\amar\Desktop\shope\echangoinvoice\echangoInvoice` (**Windows**) | mobile Capacitor, build Android — **et le seul à avoir le JDK et le SDK** |
+
+**Les deux divergent dès qu'on commite d'un côté sans tirer de l'autre.** Ils ne
+communiquent que par git : `push` d'un côté, `pull` de l'autre. Aucun partage de
+fichiers, aucune synchronisation automatique.
+
+| Service | Où | Port |
+|---|---|---|
+| API NestJS | WSL | 3000 (`/api/v1`, Swagger sur `/api/docs`) |
+| Web Vite | WSL | 5173 |
+| Mobile Vite | **Windows** | 5174 |
+| PostgreSQL | conteneur `echango-invoice-db` | **5434** (5432 et 5433 sont pris par d'autres projets) |
+
+**Depuis l'émulateur Android, l'hôte est `10.0.2.2`, jamais `localhost`.**
+
+**Comptes de développement** (créés par `npm run seed` puis `npm run seed:demo`) :
+
+| Rôle | Email | Mot de passe |
+|---|---|---|
+| owner | `admin@chambre-froide.dz` | `admin1234` |
+| manager | `manager@chambre-froide.dz` | `manager1234` |
+| agent | `agent@chambre-froide.dz` | `agent1234` |
+| superadmin | `superadmin@echango.dz` | `SuperAdmin2026!` (login séparé `/admin/auth/login`) |
+
+**Quatre pièges rencontrés, tous coûteux à rediagnostiquer :**
+
+- **Node 20 est le défaut du shell, le projet exige 22** (`.nvmrc`). Faire
+  `nvm use 22` avant tout `npm run`, sinon l'échec est obscur.
+- **L'analyse HTTPS d'AVG casse Gradle** en `PKIX path building failed` : sa
+  racine est dans le magasin Windows, pas dans le truststore Java. Symptôme
+  reconnaissable — **PowerShell télécharge, Java non**. Contourné hors dépôt par
+  `%USERPROFILE%\.gradle\gradle.properties`, qui pointe un truststore dédié
+  (copie du `cacerts` du JDK + la racine AVG). ⚠️ **La racine est réémise à
+  chaque mise à jour d'AVG** — le fichier documente comment le regénérer.
+- **Android refuse le HTTP en clair depuis la version 9.** Sans
+  `network_security_config.xml`, l'app se croit hors ligne en permanence, sans
+  aucun message. Le nôtre n'ouvre que `10.0.2.2`, `localhost` et `127.0.0.1`.
+- **`npm install` sur Windows (npm 11) élague `package-lock.json`** de ~965
+  lignes par rapport à WSL (npm 10). **Ne jamais commiter le lock depuis
+  Windows** — l'install backend casserait côté Linux.
+
+---
+
+## 11. RÈGLES DE `echangopromo` VOLONTAIREMENT NON REPRISES
+
+Une exclusion non écrite est indiscernable d'un oubli.
+
+| Règle | Pourquoi pas ici |
+|---|---|
+| Enum Dart miroir de chaque enum backend | Notre mobile est en TypeScript et partage `@echango/shared` avec le web — les types viennent de la même source, le problème ne se pose pas |
+| `ConsumerWidget` / `context.mounted`, `autoDispose` Riverpod | Flutter. Notre mobile est React + TanStack Query |
+| Fichiers `.arb` trilingues, une clé dans les 3 langues | Nous sommes mono-langue (français) avec un seul `fr.json` partagé. R018 couvre le besoin ; l'arabe rouvrira la question |
+| Couleur sémantique venue du thème, `check_theme.dart` | Pas de bascule clair/sombre. §3 (charte) couvre déjà l'interdit des couleurs en dur |
+| Upload S3 pré-signé borné en taille | Stockage local (`STORAGE_TYPE=local`), pas d'URL pré-signée |
+| Compteur de tentatives + cooldown OTP | Pas de flux OTP — authentification par mot de passe uniquement |
+| Séparer cycle de vie et statut de modération | Nos `status` sont déjà mono-dimension (`draft`/`sent`/`paid`…), il n'y a pas de modération |
+| Poser les questions de structure au graphe plutôt qu'au `grep` | Suppose Graphify installé |
 
 ---
 

@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
+import { CadreAuth } from '@/components/layout/CadreAuth';
 
 const schema = z.object({
   email: z.string().email(),
@@ -40,11 +41,11 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/40">
-      <div className="w-full max-w-sm space-y-6 bg-background rounded-xl border border-border p-8 shadow-sm">
-        <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Echango Invoice</h1>
-          <p className="text-sm text-muted-foreground">{t('auth.login')}</p>
+    <CadreAuth>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('auth.login')}</h1>
+          <p className="text-sm text-muted-foreground">{t('auth.loginSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -72,6 +73,6 @@ export function LoginPage() {
           </Link>
         </p>
       </div>
-    </div>
+    </CadreAuth>
   );
 }

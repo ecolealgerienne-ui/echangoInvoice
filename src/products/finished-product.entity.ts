@@ -42,6 +42,35 @@ export class FinishedProduct {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  /**
+   * Taux de TVA de l'article. En Algérie c'est 19 % ou 9 % **selon le produit** :
+   * le saisir ligne par ligne, c'est se tromper un jour sur deux. Nul = on
+   * retombe sur le taux par défaut des réglages.
+   */
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  taxRate: number | null;
+
+  /** Famille — un texte, pas une table : voir la migration 1750033000000. */
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  category: string | null;
+
+  /** Photo en data-URL, mêmes contraintes que le logo (attribut `src`). */
+  @Column({ type: 'text', nullable: true })
+  imageUrl: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  minStock: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxStock: number | null;
+
+  /** Unités de stock dans un conditionnement de vente : 12 pour un carton. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  packQuantity: number | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  packUnit: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -6,22 +6,27 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { stockApi } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { AlertTriangle, Clock, TrendingDown, Pencil, Target } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, Pencil, Target, ChevronDown, ChevronRight } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
 
+
 const adjustSchema = z.object({
-  newQuantity: z.coerce.number().min(0, 'Quantité invalide'),
+  newQuantity: z.coerce.number().min(0, 'common.invalidQuantity'),
   reason: z.enum(REASONS),
   notes: z.string().optional(),
 });
@@ -43,15 +48,30 @@ export function StockPage() {
   const [adjustTarget, setAdjustTarget] = useState<any | null>(null);
   const [thresholdTarget, setThresholdTarget] = useState<any | null>(null);
   const [thresholdValue, setThresholdValue] = useState<string>('');
-  const { visible, toggle, col } = useColumnVisibility(
+  // Produit dont les lots sont dépliés. Un seul à la fois : les lots ne sont
+  // chargés qu'à l'ouverture, pas pour toute la page.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // « quantity » désigne le DISPONIBLE : c'est ce que la colonne affichait
+  // déjà, sous un intitulé qui ne le disait pas. La clé est conservée pour ne
+  // pas réinitialiser les préférences enregistrées dans le navigateur.
+  const { visible, toggle, col } = useColumnVisibility<
+    'name' | 'physical' | 'reserved' | 'quantity' | 'incoming'
+    | 'value' | 'expiryAlert' | 'lowStockAlert' | 'expiry'
+  >(
     'stock_visible_columns',
-    ['name', 'quantity', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
+    ['name', 'reserved', 'quantity', 'incoming', 'value', 'expiryAlert', 'lowStockAlert', 'expiry'],
   );
 
   const { data: invData, isLoading: invLoading } = useQuery({
     queryKey: ['stock-inventory', page],
     queryFn: () => stockApi.inventory({ page, limit: 20 }),
     enabled: tab === 'inventory',
+  });
+
+  const { data: entriesData, isLoading: entriesLoading } = useQuery({
+    queryKey: ['stock-entries', expandedId],
+    queryFn: () => stockApi.entries(expandedId!, { limit: 100 }),
+    enabled: !!expandedId,
   });
 
   const { data: alertData, isLoading: alertLoading } = useQuery({
@@ -117,7 +137,7 @@ export function StockPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('stock.title')}</h1>
+        <h1>{t('stock.title')}</h1>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           <Button variant={tab === 'inventory' ? 'default' : 'ghost'} size="sm" onClick={() => setTab('inventory')}>
             {t('stock.inventory')}
@@ -131,11 +151,20 @@ export function StockPage() {
       {tab === 'inventory' && (
         invLoading ? <LoadingSpinner /> : (
           <>
-            <div className="flex justify-end">
+            <div className="flex justify-end items-center gap-2">
+              {/* Deux fichiers distincts : l'inventaire agrégé se lit article
+                  par article, les lots détaillent l'origine et le coût de
+                  chaque entrée — c'est ce dernier qu'un inventaire physique
+                  demande. */}
+              <ExportButton dataset="articles" libelle={t('stock.exportInventory')} />
+              <ExportButton dataset="lots-stock" libelle={t('stock.exportLots')} />
               <ColumnToggleMenu
                 columns={[
                   { key: 'name', label: t('rawMaterials.name') },
-                  { key: 'quantity', label: t('stock.quantity') },
+                  { key: 'physical', label: t('stock.physical') },
+                  { key: 'reserved', label: t('stock.reserved') },
+                  { key: 'quantity', label: t('stock.available') },
+                  { key: 'incoming', label: t('stock.incoming') },
                   { key: 'value', label: t('stock.value') },
                   { key: 'expiryAlert', label: t('stock.expiryAlert') },
                   { key: 'lowStockAlert', label: t('stock.lowStockAlert') },
@@ -145,40 +174,76 @@ export function StockPage() {
                 onToggle={toggle}
               />
             </div>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    {col('name') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('rawMaterials.name')}</th>}
-                    {col('quantity') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.quantity')}</th>}
-                    {col('value') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('stock.value')}</th>}
-                    {col('expiryAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.expiryAlert')}</th>}
-                    {col('lowStockAlert') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('stock.lowStockAlert')}</th>}
-                    {col('expiry') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('stock.expiry')}</th>}
-                    <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.actions')}</th>
+                    {col('name') && <th className="px-3 py-2.5 text-left">{t('rawMaterials.name')}</th>}
+                    {col('physical') && <th className="px-3 py-2.5 text-right">{t('stock.physical')}</th>}
+                    {col('reserved') && <th className="px-3 py-2.5 text-right">{t('stock.reserved')}</th>}
+                    {col('quantity') && <th className="px-3 py-2.5 text-right">{t('stock.available')}</th>}
+                    {col('incoming') && <th className="px-3 py-2.5 text-right">{t('stock.incoming')}</th>}
+                    {col('value') && <th className="px-3 py-2.5 text-right">{t('stock.value')}</th>}
+                    {col('expiryAlert') && <th className="px-3 py-2.5 text-center">{t('stock.expiryAlert')}</th>}
+                    {col('lowStockAlert') && <th className="px-3 py-2.5 text-center">{t('stock.lowStockAlert')}</th>}
+                    {col('expiry') && <th className="px-3 py-2.5 text-left">{t('stock.expiry')}</th>}
+                    <th className="px-3 py-2.5 text-center">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {invData?.data?.length === 0 && (
-                    <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                    <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
-                    <tr key={item.rawMaterialId} className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
-                      {col('name') && <td className="px-4 py-3 font-medium text-foreground">{item.rawMaterialName}<span className="text-muted-foreground ml-1 text-xs">({item.unit})</span></td>}
-                      {col('quantity') && <td className="px-4 py-3 text-right text-foreground">{formatNumber(item.totalQuantity)}</td>}
-                      {col('value') && <td className="px-4 py-3 text-right text-foreground">{formatCurrency(item.totalValue)}</td>}
-                      {col('expiryAlert') && <td className="px-4 py-3 text-center">
-                        {item.expiryAlert === 'red' && <Badge variant="destructive">Urgent</Badge>}
-                        {item.expiryAlert === 'orange' && <Badge variant="warning">Bientôt</Badge>}
-                        {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
+                    <Fragment key={item.rawMaterialId}>
+                    <tr className={`hover:bg-surface-hover transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
+                      {col('name') && <td className="px-3 py-2.5 font-medium text-foreground">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 hover:text-primary"
+                          title={t('stock.showLots')}
+                          onClick={() => setExpandedId(expandedId === item.rawMaterialId ? null : item.rawMaterialId)}
+                        >
+                          {expandedId === item.rawMaterialId
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          {item.rawMaterialName}
+                        </button>
+                        <span className="text-muted-foreground ml-1 text-xs">({item.unit})</span>
                       </td>}
-                      {col('lowStockAlert') && <td className="px-4 py-3 text-center">
-                        {item.lowStockAlert
-                          ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />Bas</Badge>
+                      {col('physical') && <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap tabular-nums">{formatNumber(item.physicalQuantity)}</td>}
+                      {/* Le réservé n'est pas neutre : c'est de la marchandise
+                          présente mais déjà promise.
+
+                          Il portait `-foreground`, qui est la couleur du texte
+                          posé **sur** l'aplat d'alerte — pas sur une carte. En
+                          thème sombre, cela donnait un brun presque noir sur
+                          fond sombre : la colonne était illisible. `-text` est
+                          la couleur d'alerte prévue pour une surface. */}
+                      {col('reserved') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
+                        {item.reservedQuantity > 0
+                          ? <span className="font-medium text-warning-text">{formatNumber(item.reservedQuantity)}</span>
                           : <span className="text-muted-foreground">—</span>}
                       </td>}
-                      {col('expiry') && <td className="px-4 py-3 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
-                      <td className="px-4 py-3 text-center">
+                      {col('quantity') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatNumber(item.availableQuantity)}</td>}
+                      {col('incoming') && <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
+                        {item.incomingQuantity > 0
+                          ? <span className="text-primary">+{formatNumber(item.incomingQuantity)}</span>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>}
+                      {col('value') && <td className="px-3 py-2.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(item.totalValue)}</td>}
+                      {col('expiryAlert') && <td className="px-3 py-2.5 text-center">
+                        {item.expiryAlert === 'red' && <Badge variant="destructive">{t('stock.urgent')}</Badge>}
+                        {item.expiryAlert === 'orange' && <Badge variant="warning">{t('stock.soon')}</Badge>}
+                        {!item.expiryAlert && <span className="text-muted-foreground">—</span>}
+                      </td>}
+                      {col('lowStockAlert') && <td className="px-3 py-2.5 text-center">
+                        {item.lowStockAlert
+                          ? <Badge variant="warning"><TrendingDown className="h-3 w-3 mr-1" />{t('stock.low')}</Badge>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>}
+                      {col('expiry') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(item.earliestExpirationDate)}</td>}
+                      <td className="px-3 py-2.5 text-center">
                         <div className="flex justify-center gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openAdjust(item)} title={t('stock.adjust')}>
                             <Pencil className="h-4 w-4" />
@@ -189,10 +254,49 @@ export function StockPage() {
                         </div>
                       </td>
                     </tr>
+                    {expandedId === item.rawMaterialId && (
+                      <tr className="bg-muted/20">
+                        <td colSpan={visible.length + 1} className="px-3 py-2.5">
+                          {entriesLoading ? <LoadingSpinner size="sm" /> : (
+                            entriesData?.data?.length === 0
+                              ? <p className="text-sm text-muted-foreground py-2">{t('stock.noLots')}</p>
+                              : (
+                                <table className="w-full text-xs">
+                                  <thead><tr className="text-muted-foreground">
+                                    <th className="px-2 py-1.5 text-left">{t('stock.lotNumber')}</th>
+                                    <th className="px-2 py-1.5 text-right">{t('stock.quantity')}</th>
+                                    <th className="px-2 py-1.5 text-right">{t('stock.unitCost')}</th>
+                                    <th className="px-2 py-1.5 text-left">{t('stock.enteredAt')}</th>
+                                    <th className="px-2 py-1.5 text-left">{t('stock.expiry')}</th>
+                                    <th className="px-2 py-1.5 text-center">{t('common.status')}</th>
+                                  </tr></thead>
+                                  <tbody className="divide-y divide-border-subtle">
+                                    {entriesData?.data?.map((lot: any) => (
+                                      <tr key={lot.id}>
+                                        <td className="px-2 py-1.5 font-mono text-foreground">{lot.batchNumber || '—'}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatNumber(lot.quantity)}</td>
+                                        <td className="px-2 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">{formatCurrency(lot.costPerUnit)}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{formatDate(lot.enteredAt)}</td>
+                                        <td className="px-2 py-1.5 text-muted-foreground">{lot.expiresAt ? formatDate(lot.expiresAt) : '—'}</td>
+                                        <td className="px-2 py-1.5 text-center">
+                                          <Badge variant={varianteStatut(lot.status)}>
+                                            {t(`stock.lotStatus.${lot.status}`)}
+                                          </Badge>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
             {invData?.pagination && (
               <Pagination page={page} total={invData.pagination.total} limit={invData.pagination.limit} onChange={setPage} />
             )}
@@ -206,7 +310,7 @@ export function StockPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-yellow-500" /> {t('dashboard.expiringSoon')}
+                  <Clock className="h-4 w-4 text-warning" /> {t('dashboard.expiringSoon')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -221,7 +325,9 @@ export function StockPage() {
                         <p className="text-xs text-muted-foreground">{formatDate(a.expiresAt)} — {a.daysUntilExpiry}j</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={a.severity === 'red' ? 'destructive' : 'warning'}>{a.severity}</Badge>
+                        <Badge variant={a.severity === 'red' ? 'destructive' : 'warning'}>
+                          {t(a.severity === 'red' ? 'stock.urgent' : 'stock.low')}
+                        </Badge>
                         <p className="text-xs text-muted-foreground mt-0.5">{formatNumber(a.quantityAtRisk)}</p>
                       </div>
                     </div>
@@ -233,7 +339,7 @@ export function StockPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-500" /> {t('dashboard.lowStock')}
+                  <AlertTriangle className="h-4 w-4 text-warning" /> {t('dashboard.lowStock')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -276,14 +382,14 @@ export function StockPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 {...adjustForm.register('newQuantity')}
               />
               {adjustForm.formState.errors.newQuantity && (
-                <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message}</p>
+                <p className="text-xs text-destructive mt-1">{adjustForm.formState.errors.newQuantity.message ? t(adjustForm.formState.errors.newQuantity.message) : ''}</p>
               )}
               {delta !== 0 && (
-                <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-green-600' : 'text-destructive'}`}>
+                <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-success' : 'text-destructive'}`}>
                   {delta > 0 ? '+' : ''}{Math.round(delta * 100) / 100} {adjustTarget.unit}
                 </p>
               )}
@@ -292,7 +398,7 @@ export function StockPage() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('stock.adjustReason')}</label>
               <select
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 {...adjustForm.register('reason')}
               >
                 {REASONS.map(r => (
@@ -305,7 +411,7 @@ export function StockPage() {
               <label className="block text-sm font-medium text-foreground mb-1">{t('common.notes')}</label>
               <textarea
                 rows={2}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 {...adjustForm.register('notes')}
               />
             </div>
@@ -343,7 +449,7 @@ export function StockPage() {
                 value={thresholdValue}
                 onChange={e => setThresholdValue(e.target.value)}
                 placeholder="0"
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground mt-1">{t('stock.thresholdHint')}</p>
             </div>

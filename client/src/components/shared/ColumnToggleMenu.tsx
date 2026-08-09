@@ -3,18 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-interface ColumnDef {
-  key: string;
+interface ColumnDef<T extends string> {
+  key: T;
   label: string;
 }
 
-interface Props {
-  columns: ColumnDef[];
-  visible: string[];
-  onToggle: (key: string) => void;
+interface Props<T extends string> {
+  columns: ColumnDef<T>[];
+  visible: readonly T[];
+  onToggle: (key: T) => void;
 }
 
-export function ColumnToggleMenu({ columns, visible, onToggle }: Props) {
+/**
+ * Générique sur la clé de colonne : `onToggle` n'accepte que les clés
+ * réellement déclarées dans `columns`. Avec une signature `(key: string)`,
+ * une fonction typée sur une union plus étroite n'était pas assignable —
+ * et rien ne garantissait que le menu et le hook parlent des mêmes colonnes.
+ */
+export function ColumnToggleMenu<T extends string>({ columns, visible, onToggle }: Props<T>) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -34,12 +40,12 @@ export function ColumnToggleMenu({ columns, visible, onToggle }: Props) {
         {t('common.columns')}
       </Button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-background border border-border rounded-lg shadow-lg p-2 min-w-44">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-surface-elevated border border-border rounded-lg shadow-lg p-2 min-w-44">
           {columns.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => onToggle(key)}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted text-sm text-left transition-colors"
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-surface-hover text-sm text-left transition-colors"
             >
               <span className={`h-4 w-4 flex items-center justify-center rounded border flex-shrink-0 ${
                 visible.includes(key) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'

@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { deliveriesApi, customersApi, productsApi, settingsApi, resolveApiError } from '@/lib/api';
+import { varianteStatut } from '@/lib/statuts';
 import { useUnits } from '@/lib/useUnits';
+import { useCustomerPrices } from '@/lib/useCustomerPrices';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,13 +18,20 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Pagination } from '@/components/shared/Pagination';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt } from 'lucide-react';
+import { Plus, Trash2, Search, Send, XCircle, FileDown, Pencil, CheckCircle, Package, Receipt, Mail, PenLine } from 'lucide-react';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { useScanLignes } from '@/hooks/useScanLignes';
+import { BandeauScan } from '@/components/shared/BandeauScan';
+import { useSort } from '@/hooks/useSort';
+import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { enregistrerBlob } from '@/lib/download';
+import { EtatVide } from '@/components/shared/EtatVide';
+import { EnTetePage } from '@/components/shared/EnTetePage';
+import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
-const STATUS_VARIANT: Record<string, any> = {
-  draft: 'muted', sent: 'info', signed: 'warning', delivered: 'success', cancelled: 'secondary',
-};
 
 const itemSchema = z.object({
   finishedProductId: z.string().uuid(),
@@ -46,19 +56,30 @@ export function DeliveryNotesPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const qc = useQueryClient();
+  // Colonnes triables = liste blanche du service ; toute autre rend un 400.
+  const { tri, trierPar, ariaSort } = useSort<'blNumber' | 'deliveryDate' | 'total' | 'status' | 'createdAt'>(
+    'deliveries_sort', { sortBy: 'createdAt', sortOrder: 'DESC' },
+  );
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const { visible, toggle, col } = useColumnVisibility(
+  const [signingBl, setSigningBl] = useState<any>(null);
+  const [signName, setSignName] = useState('');
+  const [signDate, setSignDate] = useState('');
+  // L'union couvre toutes les colonnes du menu : « quote » et « notes » sont
+  // masquées par défaut mais restent activables.
+  const { visible, toggle, col } = useColumnVisibility<
+    'blNumber' | 'customer' | 'quote' | 'date' | 'amount' | 'status' | 'notes'
+  >(
     'deliveries_visible_columns',
     ['blNumber', 'customer', 'date', 'amount', 'status'],
   );
 
   const { data, isLoading } = useQuery({
-    queryKey: ['delivery-notes', page, search, status],
-    queryFn: () => deliveriesApi.list({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryKey: ['delivery-notes', page, search, status, tri],
+    queryFn: () => deliveriesApi.list({ ...tri, page, limit: 20, search: search || undefined, status: status || undefined }),
   });
 
   const { data: customers } = useQuery({
@@ -88,7 +109,25 @@ export function DeliveryNotesPage() {
       items: [{ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any }],
     },
   });
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const { fields, append, remove, update } = useFieldArray({ control, name: 'items' });
+
+  // Saisie par douchette, active seulement quand la modale est ouverte.
+  const scan = useScanLignes({
+    actif: modalOpen,
+    lignes: (watchDN('items') ?? []) as any[],
+    ajouter: (l) => append(l as any),
+    remplacer: (i, l) => update(i, l as any),
+    majQuantite: (i, q) => setDNValue(`items.${i}.quantity`, q as any),
+    construireLigne: (produit, quantite) => ({
+      finishedProductId: produit.id,
+      quantity: quantite,
+      unit: produit.unit || 'unité',
+      unitPrice: Number(produit.defaultSalesPrice ?? 0),
+      taxRate1: String(defaultTaxRate),
+    }) as any,
+  });
+
+  const { priceFor, priceListName } = useCustomerPrices(watchDN('customerId'));
 
   const saveMutation = useMutation({
     mutationFn: (d: FormData) => editing ? deliveriesApi.update(editing.id, d) : deliveriesApi.create(d),
@@ -125,6 +164,25 @@ export function DeliveryNotesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deliveriesApi.remove(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['delivery-notes'] }); toast(t('common.deleted'), 'success'); },
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: (id: string) => deliveriesApi.sendEmail(id),
+    onSuccess: () => toast(t('deliveries.emailSent'), 'success'),
+    onError: (err) => toast(resolveApiError(err, t), 'error'),
+  });
+
+  const signMutation = useMutation({
+    mutationFn: ({ id, name, date }: { id: string; name: string; date: string }) =>
+      deliveriesApi.sign(id, name, date || undefined),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['delivery-notes'] });
+      toast(t('deliveries.signed'), 'success');
+      setSigningBl(null);
+      setSignName('');
+      setSignDate(today);
+    },
     onError: (err) => toast(resolveApiError(err, t), 'error'),
   });
 
@@ -171,22 +229,18 @@ export function DeliveryNotesPage() {
   }
 
   function downloadPdf(id: string, blNumber: string) {
-    deliveriesApi.pdf(id).then((blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `${blNumber}.pdf`; a.click();
-      URL.revokeObjectURL(url);
-    }).catch(() => toast(t('errors.generic'), 'error'));
+    deliveriesApi.pdf(id)
+      .then((blob: Blob) => enregistrerBlob(blob, `${blNumber}.pdf`))
+      .catch(() => toast(t('errors.generic'), 'error'));
   }
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('deliveries.title')}</h1>
+      <EnTetePage titre={t('deliveries.title')} total={data?.pagination?.total} cleTotal="deliveries.totalCount">
         <Button onClick={openCreate} size="sm">
           <Plus className="h-4 w-4" /> {t('deliveries.new')}
         </Button>
-      </div>
+      </EnTetePage>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative w-64">
@@ -199,7 +253,8 @@ export function DeliveryNotesPage() {
             <option key={s} value={s}>{t(`deliveries.status.${s}`)}</option>
           ))}
         </Select>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ExportButton dataset="bons-livraison" filtres={{ status }} />
           <ColumnToggleMenu
             columns={[
               { key: 'blNumber', label: t('deliveries.blNumber') },
@@ -208,7 +263,7 @@ export function DeliveryNotesPage() {
               { key: 'date', label: t('common.date') },
               { key: 'amount', label: t('common.amount') },
               { key: 'status', label: t('common.status') },
-              { key: 'notes', label: 'Notes' },
+              { key: 'notes', label: t('common.notes') },
             ]}
             visible={visible}
             onToggle={toggle}
@@ -217,91 +272,108 @@ export function DeliveryNotesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                {col('blNumber') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('deliveries.blNumber')}</th>}
-                {col('customer') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.customer')}</th>}
-                {col('quote') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('quotes.title')}</th>}
-                {col('date') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t('common.date')}</th>}
-                {col('amount') && <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.amount')}</th>}
-                {col('status') && <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t('common.status')}</th>}
-                {col('notes') && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Notes</th>}
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t('common.actions')}</th>
+                {col('blNumber') && (
+                  <EnteteTriable libelle={t('deliveries.blNumber')} colonne="blNumber" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('customer') && <th className="px-3 py-2.5 text-left">{t('common.customer')}</th>}
+                {col('quote') && <th className="px-3 py-2.5 text-left">{t('quotes.title')}</th>}
+                {col('date') && (
+                  <EnteteTriable libelle={t('common.date')} colonne="deliveryDate" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} />
+                )}
+                {col('amount') && (
+                  <EnteteTriable libelle={t('common.amount')} colonne="total" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('status') && (
+                  <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
+                    onTrier={trierPar} ariaSort={ariaSort} droite />
+                )}
+                {col('notes') && <th className="px-3 py-2.5 text-left">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
-                <tr><td colSpan={visible.length + 1} className="text-center py-8 text-muted-foreground">{t('common.noData')}</td></tr>
+                <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((bl: any) => (
-                <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
-                  {col('blNumber') && <td className="px-4 py-3 font-mono font-medium text-foreground">{bl.blNumber}</td>}
-                  {col('customer') && <td className="px-4 py-3 text-foreground">{bl.customer?.name ?? '—'}</td>}
-                  {col('quote') && <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
-                  {col('date') && <td className="px-4 py-3 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
-                  {col('amount') && <td className="px-4 py-3 text-right font-medium text-foreground">{formatCurrency(bl.total)}</td>}
-                  {col('status') && <td className="px-4 py-3 text-center"><Badge variant={STATUS_VARIANT[bl.status] ?? 'muted'}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
-                  {col('notes') && <td className="px-4 py-3 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
+                <tr key={bl.id} className="hover:bg-surface-hover transition-colors">
+                  {col('blNumber') && (
+                    <td className="px-3 py-2.5 font-mono font-medium">
+                      <Link to={`/deliveries/${bl.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
+                        {bl.blNumber}
+                      </Link>
+                    </td>
+                  )}
+                  {col('customer') && <td className="px-3 py-2.5 text-foreground">{bl.customer?.name ?? '—'}</td>}
+                  {col('quote') && <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{bl.quoteNumber ?? '—'}</td>}
+                  {col('date') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(bl.deliveryDate)}</td>}
+                  {col('amount') && <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(bl.total)}</td>}
+                  {col('status') && <td className="px-3 py-2.5 text-center"><Badge variant={varianteStatut(bl.status)}>{t(`deliveries.status.${bl.status}`)}</Badge></td>}
+                  {col('notes') && <td className="px-3 py-2.5 text-muted-foreground text-xs">{bl.notes || '—'}</td>}
+                  {/* Le PDF reste dehors : le bon part avec le chauffeur, on
+                      l'imprime à chaque ligne. Le reste suit le cycle de vie du
+                      BL et se lit mieux écrit qu'en icônes — six statuts
+                      produisaient six jeux d'icônes différents dans la même
+                      colonne. */}
+                  <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">
+                    <div className="flex items-center justify-end gap-0.5">
                       <Button variant="ghost" size="icon" title={t('common.pdf')} onClick={() => downloadPdf(bl.id, bl.blNumber)}>
                         <FileDown className="h-4 w-4 text-muted-foreground" />
                       </Button>
-                      {/* brouillon : modifier, envoyer, annuler, supprimer */}
-                      {bl.status === 'draft' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('common.edit')} onClick={() => openEdit(bl)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('deliveries.send')} onClick={() => sendMutation.mutate(bl.id)}>
-                            <Send className="h-4 w-4 text-primary" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title={t('common.delete')} onClick={() => deleteMutation.mutate(bl.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {/* envoyé : livrer, facturer, annuler */}
-                      {bl.status === 'sent' && (
-                        <>
-                          <Button variant="ghost" size="icon" title={t('deliveries.markDelivered')} onClick={() => deliverMutation.mutate(bl.id)}>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          </Button>
-                          {!bl.convertedToInvoiceId && (
-                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-blue-600" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                      {/* livré : facturer, annuler */}
-                      {bl.status === 'delivered' && (
-                        <>
-                          {!bl.convertedToInvoiceId && (
-                            <Button variant="ghost" size="icon" title={t('deliveries.createInvoice')} onClick={() => createInvoiceMutation.mutate(bl.id)}>
-                              <Receipt className="h-4 w-4 text-blue-600" />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" title={t('common.cancel')} onClick={() => cancelMutation.mutate(bl.id)}>
-                            <XCircle className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
+                      <MenuActions
+                        actions={[
+                          bl.status === 'draft' && {
+                            cle: 'send', libelle: t('deliveries.send'), icone: Send,
+                            onSelect: () => sendMutation.mutate(bl.id),
+                          },
+                          // Signature : le backend n'accepte que draft et sent
+                          // (deliveries.service.ts ALLOWED sign).
+                          ['draft', 'sent'].includes(bl.status) && {
+                            cle: 'sign', libelle: t('deliveries.sign'), icone: PenLine,
+                            onSelect: () => { setSigningBl(bl); setSignName(''); setSignDate(today); },
+                          },
+                          // ALLOWED_TRANSITIONS autorise signed → delivered.
+                          ['sent', 'signed'].includes(bl.status) && {
+                            cle: 'deliver', libelle: t('deliveries.markDelivered'), icone: CheckCircle,
+                            onSelect: () => deliverMutation.mutate(bl.id),
+                          },
+                          ['sent', 'signed', 'delivered'].includes(bl.status) && !bl.convertedToInvoiceId && {
+                            cle: 'invoice', libelle: t('deliveries.createInvoice'), icone: Receipt,
+                            onSelect: () => createInvoiceMutation.mutate(bl.id),
+                          },
+                          !['draft', 'cancelled'].includes(bl.status) && {
+                            cle: 'email', libelle: t('deliveries.sendEmail'), icone: Mail,
+                            desactivee: sendEmailMutation.isPending,
+                            onSelect: () => sendEmailMutation.mutate(bl.id),
+                          },
+                          bl.status === 'draft' && {
+                            cle: 'edit', libelle: t('common.edit'), icone: Pencil,
+                            onSelect: () => openEdit(bl),
+                          },
+                          bl.status !== 'cancelled' && {
+                            cle: 'cancel', libelle: t('common.cancel'), icone: XCircle, danger: true,
+                            onSelect: () => cancelMutation.mutate(bl.id),
+                          },
+                          bl.status === 'draft' && {
+                            cle: 'delete', libelle: t('common.delete'), icone: Trash2, danger: true,
+                            onSelect: () => deleteMutation.mutate(bl.id),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
@@ -311,11 +383,14 @@ export function DeliveryNotesPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('common.customer')} *</label>
-              <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...register('customerId')}>
+              <select className="w-full rounded-md border border-input bg-surface px-3 py-2 text-sm" {...register('customerId')}>
                 <option value="">{t('common.select')}</option>
                 {customers?.data?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               {errors.customerId && <p className="text-xs text-destructive">{t('errors.required')}</p>}
+              {priceListName && (
+                <p className="text-xs text-primary">{t('priceLists.applied', { name: priceListName })}</p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium text-foreground">{t('common.date')} *</label>
@@ -326,6 +401,7 @@ export function DeliveryNotesPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t('common.items')}</label>
+              <BandeauScan onScan={scan.traiter} enCours={scan.enCours} dernier={scan.dernier} />
               <Button type="button" size="sm" variant="outline" onClick={() => append({ finishedProductId: '', quantity: 1, unit: 'unité', unitPrice: 0, taxRate1: String(defaultTaxRate) as any })}>
                 <Plus className="h-3 w-3" />
               </Button>
@@ -346,13 +422,14 @@ export function DeliveryNotesPage() {
               const lineTTC = lineHT * (1 + lineTaxRate / 100);
               return (
                 <div key={field.id} className="grid grid-cols-[2fr_70px_60px_100px_130px_110px_32px] gap-2 items-center">
-                  <select className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                  <select className="w-full rounded-md border border-input bg-surface px-2 py-1.5 text-sm"
                     {...register(`items.${i}.finishedProductId`)}
                     onChange={e => {
                       setDNValue(`items.${i}.finishedProductId`, e.target.value);
                       const prod = productList.find((p: any) => p.id === e.target.value);
                       if (prod?.unit) setDNValue(`items.${i}.unit`, prod.unit);
-                      if (prod?.defaultSalesPrice) setDNValue(`items.${i}.unitPrice`, prod.defaultSalesPrice);
+                      const prixPropose = prod ? priceFor(prod) : undefined;
+                      if (prixPropose != null) setDNValue(`items.${i}.unitPrice`, prixPropose);
                     }}>
                     <option value="">{t('common.select')}</option>
                     {productList.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -363,7 +440,7 @@ export function DeliveryNotesPage() {
                   </span>
                   <input type="hidden" {...register(`items.${i}.unit`)} />
                   <Input type="number" step="0.01" placeholder="P.U. HT" {...register(`items.${i}.unitPrice`)} className="text-xs" />
-                  <select className="w-full rounded-md border border-input bg-background px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
+                  <select className="w-full rounded-md border border-input bg-surface px-1 py-1.5 text-xs" {...register(`items.${i}.taxRate1`)}>
                     {taxRates.length > 0
                       ? taxRates.map(r => { const v = String(parseFloat(String(r.rate))); return <option key={v} value={v}>{v}%</option>; })
                       : <option value="19">19%</option>
@@ -404,6 +481,49 @@ export function DeliveryNotesPage() {
             <Button type="submit" disabled={saveMutation.isPending}>{t('common.save')}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!signingBl}
+        onClose={() => setSigningBl(null)}
+        title={t('deliveries.sign')}
+      >
+        {signingBl && (
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              signMutation.mutate({ id: signingBl.id, name: signName.trim(), date: signDate });
+            }}
+            className="space-y-4"
+          >
+            <div className="rounded-md bg-muted px-4 py-3 text-sm space-y-1">
+              <p><span className="text-muted-foreground">{t('deliveries.blNumber')} :</span> <span className="font-mono font-medium">{signingBl.blNumber}</span></p>
+              <p><span className="text-muted-foreground">{t('deliveries.customer')} :</span> <span className="font-medium">{signingBl.customer?.name ?? '—'}</span></p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('deliveries.signatureName')} *</label>
+              <Input
+                value={signName}
+                onChange={e => setSignName(e.target.value)}
+                placeholder={t('deliveries.signaturePlaceholder')}
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-foreground">{t('deliveries.signatureDate')}</label>
+              <Input type="date" value={signDate} onChange={e => setSignDate(e.target.value)} />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setSigningBl(null)}>{t('common.cancel')}</Button>
+              <Button type="submit" disabled={!signName.trim() || signMutation.isPending}>
+                {signMutation.isPending ? <LoadingSpinner size="sm" /> : t('common.save')}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

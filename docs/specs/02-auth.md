@@ -309,18 +309,117 @@ No auth required. The invitation token is validated, then the user sets their pa
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
 ```
 
-| Permission | owner | manager | agent |
-|-----------|-------|---------|-------|
-| View all resources | Yes | Yes | Partial |
-| Create invoices / BL | Yes | Yes | Yes |
-| Edit all resources | Yes | Yes | No |
-| Delete resources | Yes | No | No |
-| Approve expenses | Yes | Yes | No |
-| Manage users | Yes | No | No |
-| Change settings | Yes | No | No |
-| View dashboard / reports | Yes | Yes | No |
+> **Révisée le 2026-08-09.** La version précédente était un tableau binaire à
+> **trois** rôles ; le produit en a **cinq**, et décide route par route. Les
+> deux divergeaient sur **68 des 795 cases** — voir E020. Ce qui suit décrit le
+> comportement réel, relevé route par route par
+> `scripts/banc-matrice-roles.py`, et **aucun droit d'accès n'a été élargi**
+> pour y parvenir : c'est la politique qui a été mise au niveau du code, pas
+> l'inverse.
+>
+> ⚠️ Ce tableau n'est pas décoratif : `scripts/banc-matrice-roles.py` le
+> transcrit et compare les 795 cases à chaque passage. Toute modification d'un
+> `@Roles` qui n'est pas reportée ici fait rougir le banc — c'est précisément
+> son objet.
 
-**Agent scope:** Can only create and view `DeliveryNote` and `SalesInvoice`. All other module routes return 403.
+### La règle, par rôle
+
+| Rôle | Ce qu'il peut |
+|---|---|
+| **owner** | tout, sauf la console d'administration de la plateforme |
+| **manager** | tout, **sauf** : supprimer une entité principale, modifier un compte, changer les réglages |
+| **agent** | la **saisie de terrain** : il lit tout le référentiel et tous les documents, en crée et en modifie une partie, et **ne voit aucun agrégat** |
+| **accountant** | **toute lecture, aucune écriture** |
+| **superadmin** | la console d'administration (`/admin/*`) et **rien d'autre** — `TenantGuard` le refuse partout ailleurs, car il n'a pas de locataire |
+
+### `manager` — les trois exceptions, nommément
+
+**1. Dix suppressions réservées au propriétaire.** Ce sont les entités qui
+*portent* de l'historique : les supprimer efface une trace, sans reprise
+possible.
+
+```
+DELETE /customers/:id                      DELETE /products/:id
+DELETE /suppliers/:id                      DELETE /quotes/:id
+DELETE /deliveries/delivery-notes/:id      DELETE /invoices/sales-invoices/:id
+DELETE /invoices/credit-notes/:id          DELETE /invoices/recurring/:id
+DELETE /purchases/purchase-orders/:id      DELETE /purchases/vendor-bills/:id
+```
+
+Le manager supprime en revanche les objets **secondaires ou repris** : contacts,
+liens article-fournisseur, codes-barres, grilles tarifaires, nomenclatures,
+dépenses, invitations — et **règlements**, dont l'annulation est une suppression
+douce qui reprend le solde de la facture (`PaymentsService.cancel`). Supprimer
+ce qui se reprend n'est pas supprimer.
+
+**2. `PATCH /users/:id`** — modifier un compte reste au propriétaire. Le manager
+**lit** `/users`, `/users/quota`, `/users/invitations`, et peut inviter
+(`POST /auth/invite`) et retirer une invitation en attente. Lire et convier
+n'est pas administrer.
+
+**3. `PUT /settings`** — l'identité légale de l'émetteur, les formats de
+numérotation et le taux de TVA par défaut appartiennent au propriétaire. Le
+manager lit les réglages.
+
+### `agent` — la portée exacte
+
+**Il lit tout, sauf les agrégats et les comptes.** Seize routes lui sont
+fermées, et elles forment deux familles :
+
+```
+agrégats   /dashboard/*        /reports/*      /export  /export/:dataset
+           /expenses/summary   /production/dashboard
+comptes    /users  /users/quota  /users/invitations
+```
+
+*Pourquoi :* un agent saisit des documents ; le chiffre d'affaires, la marge et
+la balance âgée ne relèvent pas de son poste. Les 51 autres lectures lui sont
+ouvertes, parce qu'on ne saisit pas un BL sans consulter le client, l'article,
+le stock et le tarif.
+
+**Il écrit sur dix routes, et seulement celles-là :**
+
+```
+POST  /deliveries/delivery-notes          PUT   /deliveries/delivery-notes/:id
+POST  /invoices/sales-invoices            PUT   /invoices/sales-invoices/:id
+POST  /quotes                             PUT   /expenses/:id
+POST  /expenses
+POST  /production/orders/:id/movements    PATCH /deliveries/delivery-notes/:id/signature
+POST  /production/orders/:id/movements/batch
+```
+
+Trois remarques sur cette liste, parce qu'elles surprennent :
+
+- **l'édition est bornée en aval**, pas par le rôle : les services refusent
+  toute modification d'un document qui n'est plus au brouillon
+  (`invoice_cannot_update`, `delivery_note_cannot_update`). Un agent ne retouche
+  donc jamais une facture émise ;
+- **l'agent crée un devis mais ne l'édite pas** (`PUT /quotes/:id` est
+  owner + manager). L'asymétrie est réelle et non expliquée ; elle est
+  consignée telle quelle plutôt que corrigée dans un sens ou dans l'autre ;
+- **l'agent ne convertit ni n'expédie.** `create-invoice` depuis un BL et les
+  deux `send-email` lui sont fermés. L'ancienne version de ce tableau lui
+  promettait « Create invoices / BL : Yes », ce qui se lisait comme un droit
+  d'expédier. Ce n'en était pas un : **expédier au client est un acte
+  commercial, pas de la saisie.** Arbitré le 2026-08-09 en faveur du code —
+  l'accès reste fermé.
+
+### `accountant` — le rôle qui n'était écrit nulle part
+
+Il existe en base, dans l'énumération TypeScript et dans une soixantaine de
+décorateurs, mais aucune spécification ne le mentionnait. Relevé :
+
+> **Les 67 routes de lecture hors administration lui sont ouvertes. Aucune
+> route d'écriture.** Pas une exception dans un sens ni dans l'autre.
+
+C'est la politique la plus régulière des cinq, et elle n'était protégée par
+rien. Elle l'est désormais par le banc.
+
+### La grille complète
+
+`docs/methode-test/matrice-roles-observee.md` — 159 routes × 5 personas,
+groupées par module, régénérable par
+`python3 scripts/banc-matrice-roles.py --matrice`.
 
 ---
 

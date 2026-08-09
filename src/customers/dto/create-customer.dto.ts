@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEmail, IsBoolean, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean, IsUUID, MinLength, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCustomerDto {
@@ -72,4 +72,16 @@ export class CreateCustomerDto {
   @ApiProperty({ required: false, default: false })
   @IsOptional() @IsBoolean()
   isSupplier?: boolean;
+
+  /**
+   * Grille tarifaire. La chaîne vide est ramenée à null : un <select> vidé
+   * renvoie '', et @IsOptional ne filtre que undefined et null — sans cette
+   * transformation la valeur partirait en 400. Même défaut que celui déjà
+   * rencontré sur supplierId.
+   */
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
+  @IsUUID()
+  priceListId?: string | null;
 }
