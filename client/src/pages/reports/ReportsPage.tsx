@@ -169,7 +169,7 @@ export function ReportsPage() {
           <TableConteneur>
             <table className="w-full text-sm">
               <thead><tr>
-                <th className="px-3 py-2.5 text-left">N° BL</th>
+                <th className="px-3 py-2.5 text-left">{t('deliveries.blNumber')}</th>
                 <th className="px-3 py-2.5 text-left">{t('purchases.supplier')}</th>
                 <th className="px-3 py-2.5 text-left">{t('common.date')}</th>
                 <th className="px-3 py-2.5 text-right">{t('common.amount')}</th>
@@ -203,7 +203,7 @@ export function ReportsPage() {
             {[
               { label: t('reports.totalExpenses'), value: formatCurrency(data.data.summary.totalExpenses) },
               { label: t('reports.approvedAmount'), value: formatCurrency(data.data.summary.approvedExpenses) },
-              { label: 'En attente', value: formatCurrency(data.data.summary.pendingExpenses) },
+              { label: t('expenses.summary.pending'), value: formatCurrency(data.data.summary.pendingExpenses) },
               { label: t('reports.expenseCount'), value: String(data.data.summary.expenseCount) },
             ].map(s => (
               <KpiCard key={s.label} titre={s.label} valeur={s.value} />
@@ -257,8 +257,8 @@ export function ReportsPage() {
                     <td className="px-3 py-2.5 text-right font-medium text-foreground whitespace-nowrap tabular-nums">{formatCurrency(r.amount)}</td>
                     <td className="px-3 py-2.5 text-center">
                       {r.isApproved
-                        ? <Badge variant="success">Oui</Badge>
-                        : <Badge variant="warning">Non</Badge>}
+                        ? <Badge variant="success">{t('common.yes')}</Badge>
+                        : <Badge variant="warning">{t('common.no')}</Badge>}
                     </td>
                   </tr>
                 ))}
@@ -274,7 +274,7 @@ export function ReportsPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
-              { label: 'Valeur stock', value: formatCurrency(data.data.summary.totalStockValue) },
+              { label: t('dashboard.stockValue'), value: formatCurrency(data.data.summary.totalStockValue) },
               { label: t('reports.availableQty'), value: String(data.data.summary.availableEntries) },
               { label: t('reports.expiringSoon'), value: String(data.data.summary.expiringSoon) },
               { label: t('reports.lowStock'), value: String(data.data.summary.lowStockItems) },
@@ -286,9 +286,9 @@ export function ReportsPage() {
             <table className="w-full text-sm">
               <thead><tr>
                 <th className="px-3 py-2.5 text-left">{t('reports.material')}</th>
-                <th className="px-3 py-2.5 text-right">Disponible</th>
+                <th className="px-3 py-2.5 text-right">{t('stock.available')}</th>
                 <th className="px-3 py-2.5 text-right">{t('stock.reserved')}</th>
-                <th className="px-3 py-2.5 text-right">Valeur</th>
+                <th className="px-3 py-2.5 text-right">{t('stock.value')}</th>
                 <th className="px-3 py-2.5 text-center">{t('reports.lowStockQ')}</th>
               </tr></thead>
               <tbody className="divide-y divide-border-subtle">
@@ -315,7 +315,7 @@ export function ReportsPage() {
               { label: t('reports.totalHt'), value: formatCurrency(data.data.totals.totalHT) },
               { label: t('reports.totalVat'), value: formatCurrency(data.data.totals.totalTax) },
               { label: t('reports.totalTtc'), value: formatCurrency(data.data.totals.totalTTC) },
-              { label: 'Factures', value: String(data.data.totals.invoiceCount) },
+              { label: t('reports.invoiceCount'), value: String(data.data.totals.invoiceCount) },
             ].map(s => (
               <KpiCard key={s.label} titre={s.label} valeur={s.value} />
             ))}

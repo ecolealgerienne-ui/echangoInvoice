@@ -1012,7 +1012,7 @@ export function ProductionPage() {
                   {/* Consommation MP */}
                   {consRows.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Consommation MP</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{t('production.movType.mp_consumption')}</p>
                       <TableConteneur>
                         <table className="w-full text-sm">
                           <thead>
@@ -1240,7 +1240,7 @@ export function ProductionPage() {
           <div className="space-y-4">
             {/* Context banner */}
             <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-md text-sm">
-              <span className="text-muted-foreground">Ordre :</span>
+              <span className="text-muted-foreground">{t('production.orderLabel')}</span>
               <span className="font-semibold">{viewOrder?.ref}</span>
               <span className="text-muted-foreground ml-2">{t('production.qtyToProduce')}</span>
               <span className="font-semibold">{viewOrder?.quantityToProduce}</span>

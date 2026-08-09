@@ -156,7 +156,7 @@ export function CreditNotesPage() {
           columns={[
             { key: 'number', label: t('creditNotes.creditNoteNumber') },
             { key: 'customer', label: t('customers.title') },
-            { key: 'date', label: 'Date' },
+            { key: 'date', label: t('common.date') },
             { key: 'reason', label: t('creditNotes.reason') },
             { key: 'total', label: t('common.totalTtc') },
             { key: 'status', label: t('quotes.status') },
@@ -279,7 +279,7 @@ export function CreditNotesPage() {
               {fields.map((f, i) => (
                 <div key={f.id} className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-4">
-                    <Input placeholder="Description" {...register(`items.${i}.description`)} className="text-xs" />
+                    <Input placeholder={t('common.description')} {...register(`items.${i}.description`)} className="text-xs" />
                   </div>
                   <div className="col-span-2">
                     <Input type="number" step="0.01" min="0.01" placeholder={t('common.qty')} {...register(`items.${i}.quantity`)} className="text-xs" />

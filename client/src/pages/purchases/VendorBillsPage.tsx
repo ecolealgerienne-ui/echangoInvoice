@@ -557,7 +557,7 @@ export function VendorBillsPage() {
                   <th className="px-2 py-1.5 text-left text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
                   <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
                   <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.price')}</th>
-                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">TVA</th>
+                  <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.taxAmount')}</th>
                   <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                 </tr>
               </thead>

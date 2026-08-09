@@ -732,7 +732,7 @@ export function PurchasesPage() {
                     <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
                     <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.unitCostShort')}</th>
                     <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">N° lot</th>
-                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">Expiration</th>
+                    <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>
                   </tr>
                 </thead>
                 <tbody>

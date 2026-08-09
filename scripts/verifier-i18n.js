@@ -29,7 +29,7 @@ const SOURCES = path.join(RACINE, 'client', 'src');
 let echecs = 0;
 function refuser(intitule, details) {
   console.log(`  ECHEC ${intitule}`);
-  for (const d of details.slice(0, 12)) console.log(`         ${d}`);
+  for (const d of details.slice(0, 40)) console.log(`         ${d}`);
   if (details.length > 12) console.log(`         … et ${details.length - 12} autre(s)`);
   echecs += 1;
 }
@@ -85,6 +85,19 @@ if (variablesPerdues.length) refuser('variables d’interpolation divergentes', 
 else accepter('les variables d’interpolation concordent');
 
 // ── 2. Chaînes françaises écrites en dur ─────────────────────────────────
+/**
+ * Toutes les valeurs du catalogue français, pour la reconnaissance exacte.
+ *
+ * Une chaîne écrite en dur qui vaut **mot pour mot** une entrée de `fr.json`
+ * est un libellé traduisible resté dans le code : il n'y a rien à deviner. Ce
+ * jeu ferme le trou des heuristiques ci-dessous, qui ne voient le français
+ * qu'à ses accents ou à une liste de mots.
+ */
+const VALEURS_FR = new Set(
+  Object.values(fr).filter((v) => typeof v === 'string' && v.trim().length >= 2)
+    .map((v) => v.trim()),
+);
+
 const ACCENTS = /[àâäéèêëïîôöùûüÿçÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]/;
 const MOTS_FR = /\b(Voir|Nouveau|Nouvelle|Ajouter|Modifier|Supprimer|Enregistrer|Annuler|Rechercher|Valider|Envoyer|Total|Montant|Client|Fournisseur|Facture|Article|Produit|Statut|Prix|Commande|Livraison|Paiement|Stock|Utilisateur|Aucun|Aucune|Toutes|Brouillon|Urgent|Actif|Payer|Ajouter|Retour|Colonnes|Filtrer|Exporter)\b/;
 
@@ -145,11 +158,36 @@ for (const complet of fichiers) {
       // Texte entre balises, et attributs vus par l'utilisateur.
       const candidats = [];
       for (const m of ligne.matchAll(/>([^<>{}\n]{2,120})</g)) candidats.push(m[1]);
-      for (const m of ligne.matchAll(/\b(title|placeholder|label|alt|aria-label)="([^"{}]+)"/g)) candidats.push(m[2]);
+      // ⚠️ `[:=]` et les deux sortes de guillemets.
+      //
+      // Cette forme ne voyait que `placeholder="…"` — l'attribut JSX, en
+      // guillemets doubles. Un libellé posé en **propriété d'objet**,
+      // `{ label: 'CA HT', value: … }` dans un tableau de KPI, lui échappait
+      // entièrement. Cinq libellés de l'écran Rapports vivaient là.
+      for (const m of ligne.matchAll(
+        /\b(title|placeholder|label|alt|aria-label)\s*[:=]\s*['"]([^'"{}]+)['"]/g,
+      )) candidats.push(m[2]);
+
       for (const texte of candidats) {
         const t = texte.trim();
         if (t.length < 2 || !/[A-Za-z]/.test(t)) continue;
-        if (ACCENTS.test(t) || MOTS_FR.test(t)) enDur.push(`${rel}:${i + 1}  ${t}`);
+        // ── Trois raisons de refuser, et la troisième n'est pas une heuristique
+        //
+        // Les deux premières devinent si la chaîne *a l'air* française : un
+        // accent, ou un mot d'une liste. Elles laissaient passer tout le
+        // français **sans accent** — « P.U. HT », « Valeur stock »,
+        // « Factures », « En attente », « Date ». Dix-sept libellés, invisibles
+        // à un contrôle qui annonçait « aucune chaîne française en dur ».
+        //
+        // La troisième ne devine rien : **la chaîne figure-t-elle, mot pour
+        // mot, dans le catalogue de traduction ?** Si oui, c'est un libellé
+        // traduisible resté dans le code — quelle que soit son allure. Un fait,
+        // pas une ressemblance.
+        const dansLeCatalogue = VALEURS_FR.has(t);
+        if (ACCENTS.test(t) || MOTS_FR.test(t) || dansLeCatalogue) {
+          const motif = dansLeCatalogue ? ' (déjà dans fr.json)' : '';
+          enDur.push(`${rel}:${i + 1}  ${t}${motif}`);
+        }
       }
     }
 
