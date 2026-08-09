@@ -37,7 +37,8 @@
     "verify:i18n": "node scripts/verifier-i18n.js",
     "verify:design": "node scripts/verifier-design.js",
     "verify:compta": "node scripts/verifier-comptabilite.js",
-    "verify:production": "node scripts/verifier-production.js"
+    "verify:production": "node scripts/verifier-production.js",
+    "verify:contraste": "node scripts/verifier-contraste.js"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.1",

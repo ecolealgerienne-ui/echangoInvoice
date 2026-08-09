@@ -136,6 +136,44 @@ Deux réserves à tenir : ne **jamais** conditionner à l'abonnement les mention
 *légales* — NIF, RC, montant en lettres, timbre —, et rester sobre. Formulation
 retenue : « Facture émise avec Echango Invoice — echango.dz ».
 
+#### Les contrôles : lesquels tournent seuls, lesquels demandent la base
+
+`npm run verify` enchaîne **dix** contrôles qui ne dépendent de rien —
+sécurité, conformité, tri, périodes, codes-barres, signature, échéances,
+gabarit PDF, i18n, design. Ils passent sur une machine nue.
+
+**Quatre autres ne sont volontairement pas dans cette chaîne**, parce qu'ils
+exigent la base ou un navigateur. Les lancer à la main :
+
+```
+node scripts/verifier-comptabilite.js                       # base
+node scripts/verifier-production.js                         # base
+node scripts/verifier-pdf-achats.js                         # base
+node scripts/verifier-contraste.js http://localhost:5173 dark   # + serveur web
+node scripts/verifier-contraste.js http://localhost:5173 light
+```
+
+`verify:pdf-achats` et `verify:contraste` n'ont pas d'entrée dans `package.json`
+— à corriger si l'on veut les rendre découvrables.
+
+#### Reste ouvert sur la production (analyse du 2026-08-09)
+
+Deux points relevés lors de la revue du module, non traités :
+
+1. **Le coût de nomenclature est figé à l'écriture** et jamais rafraîchi
+   (`lastCostPerUnit` au moment de l'enregistrement). Six mois plus tard,
+   l'écart entre coût estimé et coût réel mesure surtout l'ancienneté de la
+   fiche. Soit on recalcule à l'affichage, soit on date le chiffre.
+2. **Deux mécanismes de réservation coexistent** : les ventes passent les lots
+   en `reserved`, la production incrémente un compteur `reservedQuantity` sur
+   l'article, et `stock.service.ts` fait la somme des deux. Ça tient, mais c'est
+   deux vérités pour une même notion.
+
+Volontairement **hors périmètre**, et à ne pas rajouter par réflexe en lisant
+Odoo : gammes et postes de charge, nomenclatures à plusieurs niveaux, coût de
+main-d'œuvre, ordres depuis commande client, planification de capacité. Le
+produit est un facturier avec du stock, pas un MES.
+
 #### Écarts assumés avec les maquettes (pour mémoire)
 
 Les maquettes du consultant font autorité sur la composition, sauf sur trois
