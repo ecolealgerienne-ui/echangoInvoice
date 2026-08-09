@@ -78,7 +78,10 @@ export function Pagination({ page, total, limit, onChange, onLimitChange }: Pagi
   const debut = (page - 1) * limit + 1;
   const fin = Math.min(page * limit, total);
 
-  const bouton = 'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs font-medium'
+  // Vingt-huit pixels de côté, six de rayon. Les boutons de page sont carrés
+  // et non rectangulaires : une rangée de « 1 2 3 … 125 » dont chaque bouton a
+  // sa largeur se lit comme une phrase, pas comme un compteur.
+  const bouton = 'inline-flex h-7 min-w-7 items-center justify-center rounded-sm px-1.5 text-xs font-medium'
     + ' transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   return (
@@ -89,7 +92,7 @@ export function Pagination({ page, total, limit, onChange, onLimitChange }: Pagi
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
           aria-label={t('common.pagination.precedent')}
-          className={cn(bouton, 'border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40')}
+          className={cn(bouton, 'border border-border text-muted-foreground hover:border-border-strong hover:bg-surface-hover hover:text-foreground disabled:pointer-events-none disabled:opacity-40')}
         >
           {/* Les chevrons se retournent en arabe : ils montrent le sens de la
               lecture, pas un côté d'écran. */}
@@ -108,9 +111,14 @@ export function Pagination({ page, total, limit, onChange, onLimitChange }: Pagi
               aria-label={t('common.pagination.page', { nombre: n })}
               className={cn(
                 bouton, 'tabular-nums',
+                // La page active est un aplat plein de la primaire. C'est l'un
+                // des trois seuls endroits de l'interface où la couleur est
+                // pleine — avec le bouton principal et l'entrée active de la
+                // barre latérale. Le fond ténu qu'elle portait la laissait se
+                // confondre avec un bouton survolé.
                 n === page
-                  ? 'border border-primary bg-primary-subtle text-primary'
-                  : 'text-muted-foreground hover:bg-muted',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
               )}
             >
               {n}
@@ -123,7 +131,7 @@ export function Pagination({ page, total, limit, onChange, onLimitChange }: Pagi
           disabled={page >= totalPages}
           onClick={() => onChange(page + 1)}
           aria-label={t('common.pagination.suivant')}
-          className={cn(bouton, 'border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40')}
+          className={cn(bouton, 'border border-border text-muted-foreground hover:border-border-strong hover:bg-surface-hover hover:text-foreground disabled:pointer-events-none disabled:opacity-40')}
         >
           <ChevronRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
         </button>
@@ -141,7 +149,7 @@ export function Pagination({ page, total, limit, onChange, onLimitChange }: Pagi
             <select
               value={limit}
               onChange={(e) => onLimitChange(Number(e.target.value))}
-              className="h-8 rounded-md border border-border bg-surface px-2 text-xs tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-7 rounded-sm border border-border bg-champ px-2 text-xs tabular-nums text-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/[0.12]"
             >
               {TAILLES.map((n) => (
                 <option key={n} value={n}>{t('common.pagination.parPageOption', { nombre: n })}</option>

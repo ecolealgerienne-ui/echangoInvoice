@@ -68,7 +68,7 @@ export function ReceptionDetailPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Bloc titre={t('purchases.supplier')}>
           {commande?.supplierId ? (
             <Link

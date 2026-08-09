@@ -3,6 +3,7 @@ import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { couleurSerie, creneauSerie } from '@/lib/filieres';
 import { abrege, ecartPourcent, pourcentage } from '@/lib/montants';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 
 export { couleurSerie };
 
@@ -103,11 +104,12 @@ function borneHaute(max: number): number {
  * La ligne dit la tendance, l'aire dit le volume. Les deux ensemble se lisent
  * d'un coup d'œil là où une ligne seule oblige à suivre du regard.
  *
- * Le trait est un **dégradé horizontal** entre deux voisins de la même famille
- * plutôt qu'un aplat : sur une courbe de trente jours, un aplat aplatit — le
- * dégradé donne au trait une progression qui redouble celle du temps. L'aire
- * descend de 30 % d'opacité à zéro : au-delà, elle concurrence la ligne ; en
- * deçà, elle ne dit plus rien du volume.
+ * Le trait est d'**une seule couleur**, à deux pixels. Il a été un dégradé
+ * horizontal entre deux voisins de la même famille, au motif qu'un aplat
+ * aplatit ; sur une courbe de trente jours, ce dégradé faisait surtout changer
+ * la courbe de teinte en cours de route, et laissait croire qu'on lisait deux
+ * séries. L'aire descend de 22 % d'opacité à zéro : au-delà, elle concurrence
+ * la ligne ; en deçà, elle ne dit plus rien du volume.
  */
 export function CourbeAire({
   points, format, hauteur = 190, className, serie = 0, compare, formatComparaison,
@@ -139,7 +141,6 @@ export function CourbeAire({
   const indexActif = survole !== null ? survole : coords.length - 1;
   const actif = coords[indexActif];
   const teinte = creneauSerie(serie);
-  const teinteFin = creneauSerie(serie + 3);
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -150,7 +151,7 @@ export function CourbeAire({
       {actif && (
         <div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums text-foreground">
+            <span className="text-2xl font-titre tabular-nums text-foreground">
               {format(actif.valeur)}
             </span>
             <span className="text-xs text-muted-foreground">{actif.libelle}</span>
@@ -161,17 +162,20 @@ export function CourbeAire({
             ) / 10;
             const Fleche = ecart > 0 ? TrendingUp : ecart < 0 ? TrendingDown : Minus;
             return (
-              <div className="mt-1 flex items-center gap-1.5">
+              <div className="mt-1.5 flex items-center gap-1.5 text-2xs">
+                {/* Texte coloré, pas pastille : la même règle que sur les
+                    cartes d'indicateur. Un écart est l'annotation d'un chiffre,
+                    pas une deuxième information à côté de lui. */}
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-2xs font-semibold',
-                    ecart >= 0 ? 'bg-success-subtle text-success-text' : 'bg-destructive-subtle text-destructive-text',
+                    'inline-flex items-center gap-1 whitespace-nowrap font-semibold tabular-nums',
+                    ecart >= 0 ? 'text-success-text' : 'text-destructive-text',
                   )}
                 >
                   <Fleche className="h-3 w-3" aria-hidden />
                   {ecartPourcent(ecart)}
                 </span>
-                <span className="text-2xs text-muted-foreground">
+                <span className="text-tertiaire">
                   {formatComparaison ? formatComparaison(coords[0].libelle) : coords[0].libelle}
                 </span>
               </div>
@@ -186,10 +190,14 @@ export function CourbeAire({
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
           {graduations.map((g) => (
             <div key={g.f} className="flex items-center gap-2">
-              <span className="w-10 shrink-0 text-right text-2xs tabular-nums text-muted-foreground">
+              {/* Dix pixels sur l'encre d'axe : une graduation se lit du coin de
+                  l'œil pendant qu'on suit la courbe, jamais frontalement. */}
+              <span className="w-10 shrink-0 text-right text-3xs tabular-nums tracking-normal text-axe">
                 {abrege(g.valeur)}
               </span>
-              <span className="h-px flex-1 bg-border/60" />
+              {/* La grille a son propre jeton, à peine au-dessus du fond de la
+                  carte : elle doit se deviner sous la courbe, pas la découper. */}
+              <span className="h-px flex-1 bg-grille" />
             </div>
           ))}
         </div>
@@ -203,21 +211,23 @@ export function CourbeAire({
           aria-label={`Évolution, maximum ${format(max)}`}
         >
           <defs>
-            {/* L'aire : de la teinte de la série vers rien. */}
+            {/* L'aire descend de 22 % à rien. Elle plafonnait à 34 % : sur le
+                fond bleu nuit, un aplat à ce niveau concurrence la ligne et
+                l'on finit par lire la surface au lieu de la courbe. */}
             <linearGradient id={`aire-${id}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={couleurSerie(teinte)} stopOpacity="0.34" />
-              <stop offset="55%" stopColor={couleurSerie(teinte)} stopOpacity="0.12" />
+              <stop offset="0%" stopColor={couleurSerie(teinte)} stopOpacity="0.22" />
+              <stop offset="60%" stopColor={couleurSerie(teinte)} stopOpacity="0.07" />
               <stop offset="100%" stopColor={couleurSerie(teinte)} stopOpacity="0" />
-            </linearGradient>
-            {/* Le trait : deux voisins de la même famille, de gauche à droite. */}
-            <linearGradient id={`trait-${id}`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={couleurSerie(teinte)} />
-              <stop offset="100%" stopColor={couleurSerie(teinteFin)} />
             </linearGradient>
           </defs>
 
           <path d={aire} fill={`url(#aire-${id})`} className="devoiler" />
-          {/* `vectorEffect` garde l'épaisseur constante malgré l'étirement du
+          {/* Le trait est d'une seule couleur, à deux pixels. Il était un
+              dégradé horizontal entre deux familles voisines — une jolie idée
+              qui, sur trente jours, faisait changer la courbe de teinte en
+              cours de route et laissait croire à un changement de série.
+
+              `vectorEffect` garde l'épaisseur constante malgré l'étirement du
               viewBox : sans lui, un graphique large donne un trait écrasé.
               `pathLength` normalise la longueur à 1, ce qui rend le tracé
               indépendant de la forme de la courbe. */}
@@ -225,8 +235,8 @@ export function CourbeAire({
             d={chemin}
             pathLength={1}
             fill="none"
-            stroke={`url(#trait-${id})`}
-            strokeWidth="2.25"
+            stroke={couleurSerie(teinte)}
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
@@ -240,12 +250,15 @@ export function CourbeAire({
         {actif && coords.length > 1 && (
           <span
             aria-hidden
-            className="pointer-events-none absolute z-10 block h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card transition-[left,top] duration-150 ease-ci"
+            /* Le point lu : rempli de la teinte, cerné de trois pixels de la
+               surface de la carte. Le contour n'est pas décoratif — sans lui,
+               sur une pente raide, le point se confond avec le trait qui le
+               traverse et l'on ne sait plus quel jour on lit. */
+            className="pointer-events-none absolute z-10 block h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-card transition-[left,top] duration-150 ease-ci"
             style={{
               left: `calc(3rem + ${actif.x}% - ${(actif.x / 100) * 3}rem)`,
               top: `${(actif.y / 100) * hauteur}px`,
               backgroundColor: couleurSerie(teinte),
-              boxShadow: `0 0 0 4px ${couleurSerie(teinte, 0.22)}`,
             }}
           />
         )}
@@ -279,7 +292,7 @@ export function CourbeAire({
       {/* Bornes de la période, seules étiquettes horizontales utiles : les
           dates intermédiaires se lisent au survol. */}
       {coords.length > 1 && (
-        <div className="flex justify-between pl-12 text-2xs text-muted-foreground">
+        <div className="flex justify-between pl-12 text-3xs tracking-normal text-axe">
           <span>{coords[0].libelle}</span>
           <span>{coords[coords.length - 1].libelle}</span>
         </div>
@@ -418,12 +431,17 @@ export function BarresClassement({
           <div key={l.libelle} className="group/barre space-y-1.5">
             <div className="flex items-baseline justify-between gap-3 text-xs">
               <span className="flex min-w-0 items-center gap-2">
+                {/* Le rang est un carré de vingt-quatre pixels sur le fond
+                    `rang`, et non plus deux chiffres gris posés devant le nom.
+                    Un classement se lit comme un podium : le numéro doit être
+                    un objet, sinon il se confond avec le début du libellé —
+                    « 01 EURL Hoggar » se lisait comme un code client. */}
                 {rangs && (
                   <span
                     aria-hidden
-                    className="shrink-0 text-2xs font-semibold tabular-nums text-muted-foreground/70"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-rang text-3xs font-semibold tabular-nums text-muted-foreground"
                   >
-                    {String(i + 1).padStart(2, '0')}
+                    {i + 1}
                   </span>
                 )}
                 {Pastille ? (
@@ -460,25 +478,16 @@ export function BarresClassement({
                 </span>
               </span>
             </div>
-            {/* La rainure porte une teinte, pas un gris : une gouttière grise
-                sous une barre colorée creuse la ligne au lieu de la porter. */}
-            <div
-              className="h-2 w-full overflow-hidden rounded-full"
-              style={{ backgroundColor: couleurSerie(creneau, 0.12) }}
-            >
-              {/* Le dégradé reste **dans la teinte** : il va d'une version
-                  atténuée vers la couleur pleine, jamais vers une autre
-                  famille. Une barre verte qui finit orange laisse croire
-                  qu'elle change de catégorie en cours de route. */}
-              <div
-                className="grandir h-full rounded-full transition-[width] duration-500 ease-ci"
-                style={{
-                  width: `${part}%`,
-                  animationDelay: `${Math.min(i, 8) * 60}ms`,
-                  backgroundImage: `linear-gradient(90deg, ${couleurSerie(creneau, 0.62)} 0%, ${couleurSerie(creneau)} 100%)`,
-                }}
-              />
-            </div>
+            {/* La barre est celle du système : cinq pixels, piste neutre,
+                aplat sans dégradé. Elle porte auparavant une rainure teintée de
+                sa propre couleur et un dégradé interne — deux raffinements qui,
+                à cinq pixels de haut, ne se lisent pas comme des raffinements
+                mais comme du bruit. */}
+            <ProgressBar
+              part={part}
+              creneau={creneau}
+              delai={Math.min(i, 8) * 60}
+            />
           </div>
         );
       })}
@@ -558,11 +567,14 @@ export function Anneau({
           role="img"
           aria-label={`${libelleTotal} ${format(total)}`}
         >
-          {/* La rainure : la même que sous les barres, pour qu'un anneau
-              presque vide reste un anneau et non un arc qui flotte. */}
+          {/* La rainure : exactement la piste des barres de progression, pour
+              qu'un anneau presque vide reste un anneau et non un arc qui
+              flotte. Rayon intérieur 63 % du rayon utile, extérieur 89 % — le
+              trou du centre doit tenir le total sans que l'anneau devienne un
+              filet. */}
           <circle
             cx="21" cy="21" r="15.9155" fill="none"
-            stroke="oklch(var(--ci-border))" strokeWidth="5.5"
+            stroke="oklch(var(--ci-piste))" strokeWidth="5.5"
           />
           {segments.map((s) => (s.part < 0.5 ? null : (
             <circle

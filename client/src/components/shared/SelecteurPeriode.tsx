@@ -96,15 +96,19 @@ export function SelecteurPeriode({ valeur, onChange }: {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex rounded-md border border-border overflow-hidden text-sm">
+      {/* Le groupe a la hauteur d'un bouton — trente-quatre pixels — et sa
+          taille de texte, douze. Il était à trente-deux et treize : posé à côté
+          de « Personnaliser » et de « + Nouveau », il faisait trois hauteurs
+          différentes sur une seule ligne de barre d'outils. */}
+      <div className="flex h-[34px] items-stretch overflow-hidden rounded-md border border-border text-xs font-medium">
         {ORDRE.map((cle) => (
           <button
             key={cle}
             type="button"
             onClick={() => { setPersonnalise(false); onChange(RACCOURCIS[cle]()); }}
             className={cn(
-              'px-3 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              actif(cle) ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted',
+              'px-3 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              actif(cle) ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-surface-hover hover:text-foreground',
             )}
           >
             {t(`dashboard.periode.${cle}`)}
@@ -115,7 +119,7 @@ export function SelecteurPeriode({ valeur, onChange }: {
           onClick={() => setPersonnalise(true)}
           className={cn(
             'px-3 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            personnalise ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-muted',
+            personnalise ? 'bg-primary text-primary-foreground' : 'bg-surface text-muted-foreground hover:bg-surface-hover hover:text-foreground',
           )}
         >
           {t('dashboard.periode.personnalisee')}

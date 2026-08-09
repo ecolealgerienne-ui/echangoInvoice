@@ -63,7 +63,7 @@ export function QuoteDetailPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Bloc titre={t('common.customer')}>
           {client ? (
             <Link to={`/customers/${client.id}`} className="text-sm font-medium text-primary hover:underline">

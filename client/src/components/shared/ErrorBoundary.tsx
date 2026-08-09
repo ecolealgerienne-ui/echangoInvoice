@@ -38,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background">
           <div className="text-center space-y-4 p-8">
-            <h1 className="text-2xl font-bold text-foreground">{traduire('errors.boundaryTitle', 'Une erreur est survenue')}</h1>
+            <h1>{traduire('errors.boundaryTitle', 'Une erreur est survenue')}</h1>
             <p className="text-muted-foreground text-sm">{this.state.error?.message}</p>
             <button
               onClick={() => window.location.reload()}

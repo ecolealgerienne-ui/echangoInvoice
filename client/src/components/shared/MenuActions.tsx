@@ -192,7 +192,7 @@ export function MenuActions({ actions, className }: { actions: Entree[]; classNa
                   'disabled:pointer-events-none disabled:opacity-50',
                   a.danger
                     ? 'text-destructive-text hover:bg-destructive-subtle'
-                    : 'text-foreground hover:bg-accent hover:text-accent-foreground',
+                    : 'text-foreground hover:bg-surface-hover hover:text-foreground',
                 )}
               >
                 <Icone className={cn('h-4 w-4 shrink-0', !a.danger && 'text-muted-foreground')} aria-hidden />

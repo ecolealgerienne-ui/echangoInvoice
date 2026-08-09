@@ -157,15 +157,15 @@ export function UsersTab() {
           <CardHeader><CardTitle>{t('users.pending')}</CardTitle></CardHeader>
           <CardContent className="p-0">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50"><tr>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('auth.email')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.role')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.expiresAt')}</th>
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+              <thead><tr>
+                <th className="px-3 py-2.5 text-left">{t('auth.email')}</th>
+                <th className="px-3 py-2.5 text-left">{t('users.role')}</th>
+                <th className="px-3 py-2.5 text-left">{t('users.expiresAt')}</th>
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr></thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border-subtle">
                 {invitationsData.data.map((inv: any) => (
-                  <tr key={inv.id} className="hover:bg-muted/30">
+                  <tr key={inv.id} className="hover:bg-surface-hover">
                     <td className="px-3 py-2.5 text-foreground">{inv.email}</td>
                     <td className="px-3 py-2.5"><Badge variant={varianteRole(inv.role)}>{t(`users.roles.${inv.role}`)}</Badge></td>
                     <td className="px-3 py-2.5">
@@ -200,17 +200,17 @@ export function UsersTab() {
         <CardContent className="p-0">
           {isLoading ? <div className="p-6"><LoadingSpinner /></div> : (
             <table className="w-full text-sm">
-              <thead className="bg-muted/50"><tr>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.name')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('auth.email')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('users.role')}</th>
-                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+              <thead><tr>
+                <th className="px-3 py-2.5 text-left">{t('users.name')}</th>
+                <th className="px-3 py-2.5 text-left">{t('auth.email')}</th>
+                <th className="px-3 py-2.5 text-left">{t('users.role')}</th>
+                <th className="px-3 py-2.5 text-center">{t('common.status')}</th>
               </tr></thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border-subtle">
                 {usersData?.data?.map((u: any) => {
                   const soiMeme = u.id === courant?.id;
                   return (
-                    <tr key={u.id} className="hover:bg-muted/30">
+                    <tr key={u.id} className="hover:bg-surface-hover">
                       <td className="px-3 py-2.5 font-medium text-foreground">
                         {u.name}
                         {soiMeme && <span className="ml-2 text-xs text-muted-foreground">({t('users.you')})</span>}

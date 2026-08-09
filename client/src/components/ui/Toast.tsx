@@ -44,9 +44,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role="status"
             className={cn(
               'surgir flex items-start gap-3 rounded-lg border border-s-4 p-4 text-sm shadow-lg',
-              t.variant === 'success' && 'border-success/30 border-s-success bg-success-subtle text-success-text',
-              t.variant === 'error' && 'border-destructive/30 border-s-destructive bg-destructive-subtle text-destructive-text',
-              t.variant === 'warning' && 'border-warning/30 border-s-warning bg-warning-subtle text-warning-text',
+              t.variant === 'success' && 'border-success-border border-s-success bg-success-subtle text-success-text',
+              t.variant === 'error' && 'border-destructive-border border-s-destructive bg-destructive-subtle text-destructive-text',
+              t.variant === 'warning' && 'border-warning-border border-s-warning bg-warning-subtle text-warning-text',
             )}
           >
             {t.variant === 'success' && <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" />}

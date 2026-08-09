@@ -28,6 +28,7 @@ import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
 import { Avatar } from '@/components/shared/Avatar';
 import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -327,16 +328,16 @@ export function CustomersPage() {
           trois lignes transforme chaque ligne en pavé. Un défilement horizontal
           se comprend ; un tableau qui se replie ne se lit plus. */}
       {isLoading ? <LoadingSpinner /> : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <TableConteneur>
           <table className="w-full min-w-[64rem] whitespace-nowrap text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('name') && (
                   <EnteteTriable libelle={t('customers.name')} colonne="name" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('nif') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.nif')}</th>}
-                {col('rc') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.rc')}</th>}
+                {col('nif') && <th className="px-3 py-2.5 text-left">{t('customers.nif')}</th>}
+                {col('rc') && <th className="px-3 py-2.5 text-left">{t('customers.rc')}</th>}
                 {col('phone') && (
                   <EnteteTriable libelle={t('customers.phone')} colonne="phone" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -354,24 +355,24 @@ export function CustomersPage() {
                     cliquable trierait vingt lignes sur mille deux cents, ce qui
                     est faux — mieux vaut ne rien promettre. */}
                 {col('revenue') && (
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2.5 text-right">
                     {t('customers.caCeMois')}
                   </th>
                 )}
                 {col('status') && (
-                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-3 py-2.5 text-left">
                     {t('common.status')}
                   </th>
                 )}
-                <th className="sticky right-0 z-10 bg-surface px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground [box-shadow:-1px_0_0_0_oklch(var(--ci-border))]">{t('common.actions')}</th>
+                <th className="sticky right-0 z-10 bg-surface px-3 py-2.5 text-right [box-shadow:-1px_0_0_0_oklch(var(--ci-border))]">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((c: any) => (
-                <tr key={c.id} className="group/ligne hover:bg-muted/30 transition-colors">
+                <tr key={c.id} className="group/ligne hover:bg-surface-hover transition-colors">
                   {/* La pastille prend le rôle de repère et rend au nom celui
                       d'identité : sans elle, vingt lignes qui commencent toutes
                       par « EURL » se relisent mot à mot. */}
@@ -382,7 +383,7 @@ export function CustomersPage() {
                         <Link
                           to={`/customers/${c.id}`}
                           title={c.name}
-                          className="min-w-0 truncate text-primary hover:underline"
+                          className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline"
                         >
                           {c.name}
                         </Link>
@@ -442,7 +443,7 @@ export function CustomersPage() {
                   {/* Aucune des trois actions ne domine — on ne consulte pas
                       les contacts d'un client dix fois par jour — donc aucune
                       ne reste dehors. */}
-                  <td className="sticky right-0 z-10 bg-surface px-3 py-2.5 text-right whitespace-nowrap tabular-nums [box-shadow:-1px_0_0_0_oklch(var(--ci-border))] group-hover/ligne:bg-muted">
+                  <td className="sticky right-0 z-10 bg-surface px-3 py-2.5 text-right whitespace-nowrap tabular-nums [box-shadow:-1px_0_0_0_oklch(var(--ci-border))] group-hover/ligne:bg-surface-hover">
                     <div className="flex justify-end">
                       <MenuActions
                         actions={[
@@ -457,7 +458,7 @@ export function CustomersPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && (

@@ -45,7 +45,7 @@ export function ColumnToggleMenu<T extends string>({ columns, visible, onToggle 
             <button
               key={key}
               onClick={() => onToggle(key)}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-muted text-sm text-left transition-colors"
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-surface-hover text-sm text-left transition-colors"
             >
               <span className={`h-4 w-4 flex items-center justify-center rounded border flex-shrink-0 ${
                 visible.includes(key) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'

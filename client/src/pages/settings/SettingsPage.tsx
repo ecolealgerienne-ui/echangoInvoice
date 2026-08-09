@@ -148,7 +148,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <h1 className="text-xl font-bold text-foreground">{t('settings.title')}</h1>
+      <h1>{t('settings.title')}</h1>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border">
@@ -186,7 +186,7 @@ export function SettingsPage() {
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-muted transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-surface-hover transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
                         <Upload className="h-5 w-5" />
                         <span>{t('settings.uploadLogo')}</span>
                         <input type="file" accept="image/*" className="sr-only"
@@ -217,7 +217,7 @@ export function SettingsPage() {
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-muted transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
+                      <label className="flex flex-col items-center justify-center border border-dashed border-border rounded p-4 cursor-pointer hover:bg-surface-hover transition-colors text-muted-foreground text-xs gap-1" style={{ minWidth: 120, minHeight: 60 }}>
                         <Upload className="h-5 w-5" />
                         <span>{t('settings.uploadStamp')}</span>
                         <input type="file" accept="image/*" className="sr-only"

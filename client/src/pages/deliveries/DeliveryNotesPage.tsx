@@ -30,6 +30,7 @@ import { enregistrerBlob } from '@/lib/download';
 import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
 import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 
 const itemSchema = z.object({
@@ -271,16 +272,16 @@ export function DeliveryNotesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('blNumber') && (
                   <EnteteTriable libelle={t('deliveries.blNumber')} colonne="blNumber" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('customer') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.customer')}</th>}
-                {col('quote') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.title')}</th>}
+                {col('customer') && <th className="px-3 py-2.5 text-left">{t('common.customer')}</th>}
+                {col('quote') && <th className="px-3 py-2.5 text-left">{t('quotes.title')}</th>}
                 {col('date') && (
                   <EnteteTriable libelle={t('common.date')} colonne="deliveryDate" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -293,19 +294,19 @@ export function DeliveryNotesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((bl: any) => (
-                <tr key={bl.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={bl.id} className="hover:bg-surface-hover transition-colors">
                   {col('blNumber') && (
                     <td className="px-3 py-2.5 font-mono font-medium">
-                      <Link to={`/deliveries/${bl.id}`} className="text-primary hover:underline">
+                      <Link to={`/deliveries/${bl.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                         {bl.blNumber}
                       </Link>
                     </td>
@@ -372,7 +373,7 @@ export function DeliveryNotesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}

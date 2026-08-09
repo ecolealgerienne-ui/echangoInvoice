@@ -63,7 +63,7 @@ export function VendorBillDetailPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Bloc titre={t('purchases.supplier')}>
           {facture.supplierId ? (
             <Link

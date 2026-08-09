@@ -38,9 +38,13 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
             className,
           )}
         >
-          <div className="flex items-center justify-between mb-4">
-            <Dialog.Title className="text-lg font-semibold text-foreground">{title}</Dialog.Title>
-            <Dialog.Close className="rounded-md p-1 -m-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {/* Le titre de modale est à quatorze pixels en semi-gras, pas à
+              seize en gras : une modale n'est pas une page, et un titre qui
+              pèse autant que celui de l'écran derrière laisse croire qu'on a
+              changé d'endroit plutôt qu'ouvert un tiroir. */}
+          <div className="mb-4 flex items-center justify-between gap-3 border-b border-border-subtle pb-3">
+            <Dialog.Title className="text-base font-semibold text-foreground">{title}</Dialog.Title>
+            <Dialog.Close className="rounded-md p-1 -m-1 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <X className="h-4 w-4" />
             </Dialog.Close>
           </div>

@@ -25,6 +25,7 @@ import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const schema = z.object({
   type: z.enum(['product', 'material', 'both']).default('product'),
@@ -200,9 +201,9 @@ export function ProductsPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('type') && (
                   <EnteteTriable libelle={t('products.type.label')} colonne="type" tri={tri}
@@ -228,17 +229,17 @@ export function ProductsPage() {
                   <EnteteTriable libelle={t('products.costPerUnit')} colonne="lastCostPerUnit" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('supplier') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.supplier')}</th>}
-                {col('description') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.description')}</th>}
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                {col('supplier') && <th className="px-3 py-2.5 text-left">{t('products.supplier')}</th>}
+                {col('description') && <th className="px-3 py-2.5 text-left">{t('products.description')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visibleColumns.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((p: any) => (
-                <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={p.id} className="hover:bg-surface-hover transition-colors">
                   {col('type') && (
                     <td className="px-3 py-2.5">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -250,7 +251,7 @@ export function ProductsPage() {
                   )}
                   {col('name') && (
                     <td className="px-3 py-2.5 font-medium">
-                      <Link to={`/products/${p.id}`} className="text-primary hover:underline">{p.name}</Link>
+                      <Link to={`/products/${p.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">{p.name}</Link>
                     </td>
                   )}
                   {col('code') && <td className="px-3 py-2.5 font-mono text-muted-foreground">{p.code || '—'}</td>}
@@ -285,7 +286,7 @@ export function ProductsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && (

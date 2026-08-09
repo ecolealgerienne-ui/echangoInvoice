@@ -66,7 +66,7 @@ export function InvoiceDetailPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Bloc titre={t('invoices.customer')}>
           {/* Le nom mène à la fiche client : c'est de là qu'on voit les autres
               factures et l'encours total avant de décider d'une relance. */}

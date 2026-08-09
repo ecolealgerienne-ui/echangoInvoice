@@ -13,17 +13,23 @@ import { useAuth } from '@/contexts/AuthContext';
 /**
  * Cadre de l'application.
  *
- * La zone de contenu ne porte plus de fond à elle : elle laisse voir celui du
- * document, qui est teinté (L 0.972 en clair, 0.175 en sombre). C'est ce qui
- * permet aux cartes, restées presque blanches, de se détacher — auparavant
- * fond de page et carte valaient tous deux blanc et l'écran n'avait aucune
- * profondeur.
+ * La zone de contenu ne porte pas de fond à elle : elle laisse voir celui du
+ * document, teinté (L 0.964 en clair, 0.167 en sombre). C'est ce qui permet aux
+ * cartes — presque blanches d'un côté, plus claires que la page de l'autre —
+ * de se détacher sans ombre.
  *
- * Par-dessus, deux lueurs très basses en opacité, ancrées en haut de la zone
- * de travail. Elles ne sont pas décoratives au sens gratuit : elles créent un
- * gradient d'ambiance qui donne un haut et un bas à une page qui, sans elles,
- * est un rectangle uniforme de deux mille pixels. Elles ne défilent pas avec
- * le contenu — une lumière qui bouge avec le texte se voit et gêne.
+ * ── Les lueurs d'ambiance ont été retirées ──────────────────────────────
+ *
+ * Deux taches radiales, une azur et une chaude, étaient posées en haut de la
+ * zone de travail pour donner un haut et un bas à un rectangle de deux mille
+ * pixels. Elles partent, et pour une raison précise : le nouveau fond est un
+ * bleu nuit à 0.026 de chroma, pas un gris. Il a déjà une teinte, une
+ * direction, et une lueur par-dessus lui n'ajoute plus qu'un voile qui fait
+ * flotter la première rangée de cartes. Le dosage — 70 % de bleu-noir, 20 % de
+ * primaire — ne laisse pas de place à une couleur qui ne dit rien.
+ *
+ * L'en-tête fait soixante-quatre pixels, comme celui de la barre latérale :
+ * c'est ce qui aligne le logo et le premier objet de la barre d'outils.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -45,29 +51,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        {/* Ambiance : une lueur azur à gauche, une lueur chaude à droite, très
-            loin dans la transparence. Fixées, sans interception d'événement. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-80"
-          style={{
-            backgroundImage:
-              'radial-gradient(60rem 22rem at 12% -20%, oklch(var(--ci-halo) / 0.10), transparent 70%),'
-              + 'radial-gradient(48rem 20rem at 92% -30%, oklch(var(--ci-halo-chaud) / 0.08), transparent 70%)',
-          }}
-        />
-
-        <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface/85 px-6 py-3 backdrop-blur-md">
+        <header className="relative z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-5">
           <RechercheGlobale />
           <div className="flex items-center gap-3">
             <SelecteurTheme />
             <SelecteurLangue />
             <button
               onClick={() => navigate('/stock?tab=alerts')}
-              className="relative rounded-md p-2 transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
+              className="relative rounded-md p-2 transition-colors duration-150 hover:bg-surface-hover hover:text-foreground"
               title={hasAlerts ? t('nav.alertesStockNombre', { count: lowStockCount }) : t('nav.alertesStock')}
             >
-              <Bell className={hasAlerts ? 'h-5 w-5 text-warning' : 'h-5 w-5 text-muted-foreground'} />
+              <Bell className={hasAlerts ? 'h-4 w-4 text-warning' : 'h-4 w-4 text-muted-foreground'} />
               {hasAlerts && (
                 <>
                   {/* Deux couches : l'anneau qui bat, le compteur qui ne bat
@@ -92,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               pixels de haut, comme les maquettes ne le montrent pas. Le plafond
               demeure : au-delà de 100 rem, une ligne de tableau devient trop
               longue pour que l'œil retrouve sa colonne en revenant à gauche. */}
-          <div className="ci-page container mx-auto max-w-[100rem] px-6 py-6">{children}</div>
+          <div className="ci-page container mx-auto max-w-[100rem] px-5 py-5">{children}</div>
         </main>
       </div>
     </div>

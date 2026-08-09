@@ -89,7 +89,7 @@ export function EntreeDeroulant({
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     danger
       ? 'text-destructive-text hover:bg-destructive-subtle'
-      : 'text-foreground hover:bg-accent hover:text-accent-foreground',
+      : 'text-foreground hover:bg-surface-hover hover:text-foreground',
   );
   const contenu = (
     <>

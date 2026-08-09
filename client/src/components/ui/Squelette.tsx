@@ -27,17 +27,25 @@ export function Squelette({ className, style }: { className?: string; style?: CS
   );
 }
 
-/** Squelette d'une carte d'indicateur : pastille, intitulé, montant, écart. */
+/**
+ * Squelette d'une carte d'indicateur.
+ *
+ * Ses mesures sont celles de `KpiCard` au pixel près — 126 de hauteur
+ * minimale, 18 de rembourrage, une pastille de 38 à 9 de rayon. C'est toute
+ * l'utilité de la chose : un squelette qui n'a pas la taille de ce qu'il
+ * remplace fait sauter la page au moment où les données arrivent, ce qui est
+ * exactement le défaut qu'il est censé corriger.
+ */
 export function SqueletteIndicateur() {
   return (
-    <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+    <div className="min-h-[126px] rounded-lg border border-border bg-card p-[18px]">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 space-y-2.5">
+        <div className="flex-1 space-y-3">
           <Squelette className="h-2.5 w-24" />
           <Squelette className="h-6 w-36" />
           <Squelette className="h-2 w-20" />
         </div>
-        <Squelette className="h-11 w-11 rounded-xl" />
+        <Squelette className="h-[38px] w-[38px] rounded-[9px]" />
       </div>
     </div>
   );
@@ -46,7 +54,7 @@ export function SqueletteIndicateur() {
 /** Squelette d'une carte de contenu : titre puis quelques lignes. */
 export function SqueletteCarte({ lignes = 4 }: { lignes?: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-3.5">
       <Squelette className="mb-4 h-3 w-32" />
       <div className="space-y-2.5">
         {Array.from({ length: lignes }).map((_, i) => (
@@ -63,7 +71,7 @@ export function SqueletteCarte({ lignes = 4 }: { lignes?: number }) {
 /** Squelette d'un graphique : la silhouette d'une courbe, pas un rectangle. */
 export function SqueletteGraphique({ hauteur = 180 }: { hauteur?: number }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card p-3.5">
       <Squelette className="mb-4 h-3 w-28" />
       <Squelette className="mb-3 h-6 w-40" />
       <div className="flex items-end gap-1.5" style={{ height: hauteur }}>

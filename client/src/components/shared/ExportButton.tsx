@@ -87,7 +87,7 @@ export function ExportButton({ dataset, filtres, libelle }: Props) {
             <button
               key={cle}
               onClick={() => telecharger(cle)}
-              className="w-full px-3 py-2 rounded hover:bg-muted text-left transition-colors"
+              className="w-full px-3 py-2 rounded hover:bg-surface-hover text-left transition-colors"
             >
               <div className="text-sm font-medium">{t(libelle)}</div>
               <div className="text-xs text-muted-foreground">{t(detail)}</div>

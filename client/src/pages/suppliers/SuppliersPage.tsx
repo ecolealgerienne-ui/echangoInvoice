@@ -22,6 +22,7 @@ import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
 import { Avatar } from '@/components/shared/Avatar';
 import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const schema = z.object({
   name: z.string().min(1),
@@ -188,16 +189,16 @@ export function SuppliersPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('name') && (
                   <EnteteTriable libelle={t('suppliers.name')} colonne="name" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('nif') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.nif')}</th>}
-                {col('rc') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.rc')}</th>}
+                {col('nif') && <th className="px-3 py-2.5 text-left">{t('suppliers.nif')}</th>}
+                {col('rc') && <th className="px-3 py-2.5 text-left">{t('suppliers.rc')}</th>}
                 {col('phone') && (
                   <EnteteTriable libelle={t('suppliers.phone')} colonne="phone" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -210,20 +211,20 @@ export function SuppliersPage() {
                   <EnteteTriable libelle={t('suppliers.city')} colonne="city" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((s: any) => (
-                <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={s.id} className="hover:bg-surface-hover transition-colors">
                   {col('name') && (
                     <td className="px-3 py-2.5 font-medium">
                       <div className="flex items-center gap-2.5">
                         <Avatar nom={s.name} />
-                        <Link to={`/suppliers/${s.id}`} className="min-w-0 truncate text-primary hover:underline">
+                        <Link to={`/suppliers/${s.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                           {s.name}
                         </Link>
                       </div>
@@ -249,7 +250,7 @@ export function SuppliersPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}

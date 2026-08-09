@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { verificationApi } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { Card } from '@/components/ui/Card';
 import { CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 
 /**
@@ -42,12 +43,12 @@ export function VerificationPage() {
 
   if (isError || !data?.data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="w-full max-w-md rounded-lg border border-border p-6 text-center space-y-3">
-          <ShieldAlert className="h-10 w-10 mx-auto text-destructive" />
-          <h1 className="text-lg font-bold text-foreground">{t('verification.introuvable')}</h1>
+      <div className="flex min-h-screen items-center justify-center bg-background p-5">
+        <Card ombre className="w-full max-w-md space-y-3 p-6 text-center">
+          <ShieldAlert className="mx-auto h-10 w-10 text-destructive" />
+          <h1 className="text-base font-semibold text-foreground">{t('verification.introuvable')}</h1>
           <p className="text-sm text-muted-foreground">{t('verification.introuvableAide')}</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -56,11 +57,16 @@ export function VerificationPage() {
   const Icone = d.valide ? CheckCircle2 : XCircle;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-6">
-      <div className="w-full max-w-md rounded-lg border border-border overflow-hidden">
-        <div className={`p-6 text-center ${d.valide ? 'bg-success-subtle dark:bg-success/30' : 'bg-destructive/10'}`}>
-          <Icone className={`h-12 w-12 mx-auto ${d.valide ? 'text-success' : 'text-destructive'}`} />
-          <h1 className="mt-3 text-lg font-bold text-foreground">
+    <div className="flex min-h-screen items-center justify-center bg-background p-5">
+      <Card ombre className="w-full max-w-md overflow-hidden">
+        {/* Le bandeau prend l'aplat ténu de son verdict. Il portait
+            `bg-success-subtle dark:bg-success/30` — deux valeurs pour un seul
+            rôle, alors que `-subtle` est déjà défini dans les deux thèmes :
+            l'exception au thème sombre n'existait que parce que l'ancien
+            `success-subtle` sombre était trop discret. */}
+        <div className={`p-6 text-center ${d.valide ? 'bg-success-subtle' : 'bg-destructive-subtle'}`}>
+          <Icone className={`mx-auto h-12 w-12 ${d.valide ? 'text-success' : 'text-destructive'}`} />
+          <h1 className="mt-3 text-base font-semibold text-foreground">
             {d.valide ? t('verification.authentique') : t('verification.annule')}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -68,7 +74,7 @@ export function VerificationPage() {
           </p>
         </div>
 
-        <dl className="divide-y divide-border">
+        <dl className="divide-y divide-border-subtle">
           {[
             [t('verification.emetteur'), d.emetteur],
             ['NIF', d.emetteurNif],
@@ -83,10 +89,10 @@ export function VerificationPage() {
           ))}
         </dl>
 
-        <p className="px-5 py-3 text-xs text-muted-foreground border-t border-border">
+        <p className="border-t border-border px-5 py-3 text-xs text-tertiaire">
           {t('verification.note')}
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

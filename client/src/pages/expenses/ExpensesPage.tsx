@@ -23,6 +23,8 @@ import { EnteteTriable } from '@/components/shared/EnteteTriable';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
+import { KpiCard } from '@/components/ui/KpiCard';
 
 const CATEGORIES = ['loyer', 'utilities', 'transport', 'rh', 'maintenance', 'other'];
 
@@ -126,22 +128,19 @@ export function ExpensesPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('expenses.title')}</h1>
+        <h1>{t('expenses.title')}</h1>
         <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" /> {t('expenses.new')}</Button>
       </div>
 
       {summaryData?.data && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
             { label: t('expenses.summary.total'), value: formatCurrency(summaryData.data.totalExpenses) },
             { label: t('expenses.summary.approved'), value: formatCurrency(summaryData.data.totalApproved) },
             { label: t('expenses.summary.pending'), value: formatCurrency(summaryData.data.totalPending) },
             { label: t('expenses.summary.perDay'), value: formatCurrency(summaryData.data.average.perDay) },
           ].map(s => (
-            <Card key={s.label}><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="text-lg font-bold text-foreground">{s.value}</p>
-            </CardContent></Card>
+            <KpiCard key={s.label} titre={s.label} valeur={s.value} />
           ))}
         </div>
       )}
@@ -178,9 +177,9 @@ export function ExpensesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('date') && (
                   <EnteteTriable libelle={t('expenses.date')} colonne="expenseDate" tri={tri}
@@ -202,20 +201,20 @@ export function ExpensesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="isApproved" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((e: any) => (
-                <tr key={e.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={e.id} className="hover:bg-surface-hover transition-colors">
                   {col('date') && <td className="px-3 py-2.5 text-muted-foreground">{formatDate(e.expenseDate)}</td>}
                   {col('description') && (
                     <td className="px-3 py-2.5">
-                      <Link to={`/expenses/${e.id}`} className="text-primary hover:underline">{e.description}</Link>
+                      <Link to={`/expenses/${e.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">{e.description}</Link>
                     </td>
                   )}
                   {col('category') && <td className="px-3 py-2.5"><Badge variant="secondary">{t(`expenses.categories.${e.category}`)}</Badge></td>}
@@ -247,7 +246,7 @@ export function ExpensesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}

@@ -92,11 +92,18 @@ export function RechercheGlobale() {
       <button
         type="button"
         onClick={() => setOuvert(true)}
-        className="flex items-center gap-2 rounded-md border border-input bg-surface px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        // Le déclencheur a exactement la boîte d'un champ de recherche —
+        // trente-six de haut, le fond en creux, douze de rembourrage — parce
+        // que c'est ce qu'il prétend être. Il en avait l'air de loin, avec
+        // trente-deux pixels de haut et le fond de la carte : posé dans un
+        // en-tête à côté de rien, il se lisait comme un bouton.
+        className="flex h-9 w-full max-w-sm items-center gap-2 rounded-md border border-input bg-champ px-3 text-sm text-axe transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/[0.12]"
       >
-        <Search className="h-4 w-4" />
-        <span className="hidden sm:inline">{t('recherche.placeholder')}</span>
-        <kbd className="hidden sm:inline rounded border border-border px-1.5 text-[10px]">Ctrl K</kbd>
+        <Search className="h-4 w-4 shrink-0" />
+        <span className="hidden truncate sm:inline">{t('recherche.placeholder')}</span>
+        <kbd className="ms-auto hidden shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-3xs tracking-normal text-tertiaire sm:inline">
+          Ctrl K
+        </kbd>
       </button>
 
       {ouvert && (
@@ -146,10 +153,10 @@ export function RechercheGlobale() {
                       onClick={() => ouvrir(r)}
                       className={cn(
                         'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
-                        i === indice ? 'bg-muted' : 'hover:bg-muted/60',
+                        i === indice ? 'bg-muted' : 'hover:bg-surface-hover',
                       )}
                     >
-                      <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium uppercase text-secondary-foreground">
+                      <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-3xs font-medium uppercase text-secondary-foreground">
                         {t(`recherche.types.${r.type}`)}
                       </span>
                       <span className="flex-1 min-w-0">

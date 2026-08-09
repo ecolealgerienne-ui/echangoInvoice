@@ -25,6 +25,7 @@ import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
 import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 
 const itemSchema = z.object({
@@ -142,7 +143,7 @@ export function CreditNotesPage() {
   const invoiceList = invoicesData?.data ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <EnTetePage titre={t('creditNotes.title')} total={pagination?.total} cleTotal="creditNotes.totalCount">
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />{t('creditNotes.new')}
@@ -167,26 +168,26 @@ export function CreditNotesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {col('number') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('creditNotes.creditNoteNumber')}</th>}
-                {col('customer') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>}
-                {col('date') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>}
-                {col('reason') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('creditNotes.reason')}</th>}
-                {col('total') && <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.totalTtc')}</th>}
-                {col('status') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.status')}</th>}
-                {col('notes') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                {col('number') && <th className="text-left px-3 py-2.5">{t('creditNotes.creditNoteNumber')}</th>}
+                {col('customer') && <th className="text-left px-3 py-2.5">{t('customers.title')}</th>}
+                {col('date') && <th className="text-left px-3 py-2.5">{t('common.date')}</th>}
+                {col('reason') && <th className="text-left px-3 py-2.5">{t('creditNotes.reason')}</th>}
+                {col('total') && <th className="text-right px-3 py-2.5">{t('common.totalTtc')}</th>}
+                {col('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
+                {col('notes') && <th className="text-left px-3 py-2.5">{t('common.notes')}</th>}
                 <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {creditNotes.map((cn: any) => (
-                <tr key={cn.id} className="border-t border-border hover:bg-muted/30">
+                <tr key={cn.id} className="border-t border-border hover:bg-surface-hover">
                   {col('number') && (
                     <td className="px-3 py-2.5 font-medium">
-                      <Link to={`/credit-notes/${cn.id}`} className="text-primary hover:underline">{cn.creditNoteNumber}</Link>
+                      <Link to={`/credit-notes/${cn.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">{cn.creditNoteNumber}</Link>
                     </td>
                   )}
                   {col('customer') && <td className="px-3 py-2.5">{cn.customer?.name ?? '—'}</td>}
@@ -229,7 +230,7 @@ export function CreditNotesPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {pagination && (

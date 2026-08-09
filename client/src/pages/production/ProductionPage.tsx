@@ -22,6 +22,8 @@ import {
   Factory, ClipboardList, AlertTriangle, TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { TableConteneur } from '@/components/ui/DataTable';
+import { KpiCard } from '@/components/ui/KpiCard';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -370,11 +372,11 @@ export function ProductionPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="flex items-center gap-2">
             <Factory className="h-6 w-6 text-primary" />
             {t('production.title')}
           </h1>
@@ -390,20 +392,20 @@ export function ProductionPage() {
       {/* Indicateurs de production */}
       {prodDashboardData?.data && (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <KpiCard
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Tuile
               label={t('dashboard.production.ordersInProgress')}
               value={prodDashboardData.data.ordersInProgress}
             />
-            <KpiCard
+            <Tuile
               label={t('dashboard.production.ordersCompletedThisWeek')}
               value={prodDashboardData.data.ordersCompletedThisWeek}
             />
-            <KpiCard
+            <Tuile
               label={t('dashboard.production.averageYield')}
               value={`${prodDashboardData.data.averageYield} %`}
             />
-            <KpiCard
+            <Tuile
               label={t('dashboard.production.costVariance')}
               value={`${formatCurrency(prodDashboardData.data.costVariance.amount)} (${prodDashboardData.data.costVariance.pct} %)`}
               colorClass={prodDashboardData.data.costVariance.amount > 0 ? 'text-destructive' : 'text-success'}
@@ -466,21 +468,21 @@ export function ProductionPage() {
               message={t('production.noNomenclature')}
             />
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.code')}</th>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.name')}</th>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.finishedProduct')}</th>
-                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.costPerUnit')}</th>
-                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.code')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.name')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.finishedProduct')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.costPerUnit')}</th>
+                    <th className="text-center px-3 py-2.5">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {nomenclatures.map((nom: any) => (
-                    <tr key={nom.id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={nom.id} className="hover:bg-surface-hover transition-colors">
                       <td className="px-3 py-2.5 font-mono text-xs text-muted-foreground">{nom.code}</td>
                       <td className="px-3 py-2.5 font-medium">{nom.name}</td>
                       <td className="px-3 py-2.5 text-muted-foreground">{nom.finishedProductName ?? '—'}</td>
@@ -509,7 +511,7 @@ export function ProductionPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
           )}
           {nomenclaturesData?.pagination && (
             <Pagination
@@ -533,23 +535,23 @@ export function ProductionPage() {
               message={t('production.noOrder')}
             />
           ) : (
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.ref')}</th>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.nomenclature')}</th>
-                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.quantityToProduce')}</th>
-                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
-                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.estimatedCost')}</th>
-                    <th className="text-center px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.yieldPct')}</th>
-                    <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.plannedStart')}</th>
-                    <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.ref')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.nomenclature')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.quantityToProduce')}</th>
+                    <th className="text-center px-3 py-2.5">{t('common.status')}</th>
+                    <th className="text-right px-3 py-2.5">{t('production.estimatedCost')}</th>
+                    <th className="text-center px-3 py-2.5">{t('production.yieldPct')}</th>
+                    <th className="text-left px-3 py-2.5">{t('production.plannedStart')}</th>
+                    <th className="text-right px-3 py-2.5">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {orders.map((order: any) => (
-                    <tr key={order.id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={order.id} className="hover:bg-surface-hover transition-colors">
                       <td className="px-3 py-2.5 font-mono font-semibold text-primary">{order.ref}</td>
                       <td className="px-3 py-2.5">{order.nomenclatureName ?? '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap tabular-nums">{order.quantityToProduce}</td>
@@ -621,7 +623,7 @@ export function ProductionPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
           )}
           {ordersData?.pagination && (
             <Pagination
@@ -878,16 +880,16 @@ export function ProductionPage() {
         size="xl"
       >
         {orderDetailLoading ? <LoadingSpinner /> : orderDetail ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* KPI cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <KpiCard label={t('production.quantityToProduce')} value={orderDetail.quantityToProduce} />
-              <KpiCard label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
-              <KpiCard
+              <Tuile label={t('production.quantityToProduce')} value={orderDetail.quantityToProduce} />
+              <Tuile label={t('production.estimatedCost')} value={formatCurrency(orderDetail.estimatedCost)} />
+              <Tuile
                 label={t('production.actualCost')}
                 value={Number(orderDetail.actualCost) > 0 ? formatCurrency(orderDetail.actualCost) : '—'}
               />
-              <KpiCard
+              <Tuile
                 label={t('production.yieldPct')}
                 value={Number(orderDetail.yieldPercentage) > 0 ? `${Number(orderDetail.yieldPercentage).toFixed(1)}%` : '—'}
                 colorClass={
@@ -1011,18 +1013,18 @@ export function ProductionPage() {
                   {consRows.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Consommation MP</p>
-                      <div className="rounded-md border border-border overflow-hidden">
+                      <TableConteneur>
                         <table className="w-full text-sm">
-                          <thead className="bg-muted/50">
+                          <thead>
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.material')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.planned')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.consumed')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.variance')}</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                              <th className="text-left px-3 py-1.5">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.planned')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.consumed')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.variance')}</th>
+                              <th className="text-center px-3 py-1.5">{t('common.unit')}</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border">
+                          <tbody className="divide-y divide-border-subtle">
                             {consRows.map(([id, row]) => {
                               const planned = bomMap[id] ?? null;
                               const ecart = planned !== null ? row.consumed - planned : null;
@@ -1040,7 +1042,7 @@ export function ProductionPage() {
                             })}
                           </tbody>
                         </table>
-                      </div>
+                      </TableConteneur>
                     </div>
                   )}
 
@@ -1052,12 +1054,12 @@ export function ProductionPage() {
                         <table className="w-full text-sm">
                           <thead className="bg-warning-subtle/60">
                             <tr>
-                              <th className="text-left px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.material')}</th>
-                              <th className="text-right px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.totalLost')}</th>
-                              <th className="text-center px-3 py-1.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.unit')}</th>
+                              <th className="text-left px-3 py-1.5">{t('production.material')}</th>
+                              <th className="text-right px-3 py-1.5">{t('production.totalLost')}</th>
+                              <th className="text-center px-3 py-1.5">{t('common.unit')}</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-border">
+                          <tbody className="divide-y divide-border-subtle">
                             {lossRows.map(([id, row]) => (
                               <tr key={id}>
                                 <td className="px-3 py-1.5 font-medium">{row.name}</td>
@@ -1094,18 +1096,18 @@ export function ProductionPage() {
               {movements.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">{t('production.noMovement')}</p>
               ) : (
-                <div className="rounded-md border border-border overflow-hidden">
+                <TableConteneur>
                   <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
+                    <thead>
                       <tr>
-                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.movementType')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.materialOrProduct')}</th>
-                        <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.quantity')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.reason')}</th>
-                        <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.movedAt')}</th>
+                        <th className="text-left px-3 py-2">{t('production.movementType')}</th>
+                        <th className="text-left px-3 py-2">{t('production.materialOrProduct')}</th>
+                        <th className="text-right px-3 py-2">{t('production.quantity')}</th>
+                        <th className="text-left px-3 py-2">{t('production.reason')}</th>
+                        <th className="text-left px-3 py-2">{t('production.movedAt')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-border-subtle">
                       {movements.map((mv: any) => (
                         <tr key={mv.id} className="hover:bg-muted/20">
                           <td className="px-3 py-2">
@@ -1121,7 +1123,7 @@ export function ProductionPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </TableConteneur>
               )}
             </div>
           </div>
@@ -1245,15 +1247,15 @@ export function ProductionPage() {
             </div>
 
             {/* BOM lines table */}
-            <div className="rounded-md border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    <th className="text-left px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">Composant</th>
+                    <th className="text-left px-3 py-2">Composant</th>
                     {movType === 'mp_consumption' && (
-                      <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('production.planned')}</th>
+                      <th className="text-right px-3 py-2">{t('production.planned')}</th>
                     )}
-                    <th className="text-right px-3 py-2 font-medium text-2xs uppercase tracking-wide text-muted-foreground">
+                    <th className="text-right px-3 py-2">
                       {movType === 'mp_loss' ? t('production.totalLost') : t('production.alreadyConsumed')}
                     </th>
                     <th className="text-right px-3 py-2 font-medium  w-36 text-2xs uppercase tracking-wide text-muted-foreground">
@@ -1263,7 +1265,7 @@ export function ProductionPage() {
                     <th className="w-8 text-2xs uppercase tracking-wide text-muted-foreground" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {consLines.map((line, idx) => {
                     const newQtyNum = Number(line.newQty) || 0;
                     const hasDeviation = movType === 'mp_consumption' && !line.isExtra &&
@@ -1341,7 +1343,7 @@ export function ProductionPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
 
             {/* Légende écart (mp_consumption only) */}
             {movType === 'mp_consumption' && consLines.some(l => !l.isExtra && Math.abs((l.alreadyQty + (Number(l.newQty) || 0)) - l.plannedQty) > 0.001) && (
@@ -1414,15 +1416,25 @@ function EmptyState({ icon, message }: { icon: React.ReactNode; message: string 
   );
 }
 
-function KpiCard({ label, value, colorClass }: { label: string; value: string | number; colorClass?: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-4 pb-3">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-lg font-bold mt-0.5 ${colorClass ?? ''}`}>{value}</p>
-      </CardContent>
-    </Card>
-  );
+/**
+ * Tuile de chiffre de la production.
+ *
+ * Elle portait le nom `KpiCard` et sa propre mise en forme, ce qui faisait deux
+ * composants homonymes dans le dépôt — celui-ci et le vrai. Elle est devenue
+ * une enveloppe : elle traduit la signature historique (`label`, `value`,
+ * `colorClass`) vers celle du composant partagé, sans obliger à retoucher les
+ * quinze appels de cette page.
+ *
+ * `colorClass` disait trois choses — vert, orange, rouge — et il n'en reste
+ * qu'une : **rouge**. C'est la règle du système, et elle vaut ici comme
+ * ailleurs : la couleur d'une valeur signale ce qui appelle un geste, pas ce
+ * qui va bien. Un rendement de 94 % écrit en vert et un écart de coût
+ * favorable écrit en vert, cela fait deux félicitations par écran — et le
+ * rouge du rendement à 40 %, noyé au milieu, ne se voit plus. Les cas
+ * favorables gardent l'encre du texte.
+ */
+function Tuile({ label, value, colorClass }: { label: string; value: string | number; colorClass?: string }) {
+  return <KpiCard titre={label} valeur={value} alerte={colorClass === 'text-destructive'} />;
 }
 
 function InfoRow({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {

@@ -59,7 +59,7 @@ export function CustomerDetailPage() {
         ]}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <Bloc titre={t('partners.detail.contact')}>
           <Champ libelle={t('customers.contactPerson')} valeur={client.contactPerson} />
           <Champ libelle={t('customers.phone')} valeur={client.phone} />

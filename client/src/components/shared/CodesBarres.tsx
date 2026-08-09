@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Star } from 'lucide-react';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const TYPES = ['EAN13', 'EAN8', 'UPCA', 'CODE128', 'INTERNE'] as const;
 
@@ -83,20 +84,20 @@ export function CodesBarres({ productId }: { productId: string }) {
       )}
 
       {codes.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur dense>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcode')}</th>
-                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodeType')}</th>
-                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodeLabel')}</th>
-                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.barcodePack')}</th>
+                <th className="px-3 py-2 text-left">{t('products.barcode')}</th>
+                <th className="px-3 py-2 text-left">{t('products.barcodeType')}</th>
+                <th className="px-3 py-2 text-left">{t('products.barcodeLabel')}</th>
+                <th className="px-3 py-2 text-right">{t('products.barcodePack')}</th>
                 <th className="px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {codes.map((c) => (
-                <tr key={c.id} className="hover:bg-muted/30">
+                <tr key={c.id} className="hover:bg-surface-hover">
                   <td className="px-3 py-2 font-mono text-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       {c.isPrimary && <Star className="h-3.5 w-3.5 fill-current text-warning" aria-label={t('products.barcodePrimary')} />}
@@ -117,7 +118,7 @@ export function CodesBarres({ productId }: { productId: string }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       <form

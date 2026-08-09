@@ -18,6 +18,7 @@ import { ExportButton } from '@/components/shared/ExportButton';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, CheckCircle, XCircle, CreditCard, Pencil, Eye, RotateCcw, FileDown } from 'lucide-react';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 
 const PAYMENT_METHODS = ['bank_transfer', 'cheque', 'cash', 'other'] as const;
@@ -246,7 +247,7 @@ export function VendorBillsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('purchases.billsTitle')}</h1>
+        <h1>{t('purchases.billsTitle')}</h1>
         <Button onClick={openCreate}>
           <Plus className="h-4 w-4 mr-1" />{t('purchases.newBill')}
         </Button>
@@ -259,28 +260,28 @@ export function VendorBillsPage() {
 
       {isLoading ? <LoadingSpinner /> : (
         <>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <TableConteneur>
             <table className="w-full text-sm">
-              <thead className="bg-muted/50">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.billNumber')}</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.name')}</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.billDate')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.amount')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.amountPaid')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.amountDue')}</th>
-                  <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
-                  <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                  <th className="px-3 py-2.5 text-left">{t('purchases.billNumber')}</th>
+                  <th className="px-3 py-2.5 text-left">{t('suppliers.name')}</th>
+                  <th className="px-3 py-2.5 text-left">{t('purchases.billDate')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('common.amount')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('purchases.amountPaid')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('purchases.amountDue')}</th>
+                  <th className="px-3 py-2.5 text-center">{t('common.status')}</th>
+                  <th className="px-3 py-2.5 text-center">{t('common.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border-subtle">
                 {data?.data?.length === 0 && (
                   <tr><td colSpan={8} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                 )}
                 {data?.data?.map((bill: any) => (
-                  <tr key={bill.id} className="hover:bg-muted/30 transition-colors">
+                  <tr key={bill.id} className="hover:bg-surface-hover transition-colors">
                     <td className="px-3 py-2.5 font-mono text-sm">
-                      <Link to={`/purchases/vendor-bills/${bill.id}`} className="text-primary hover:underline">
+                      <Link to={`/purchases/vendor-bills/${bill.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                         {bill.billNumber}
                       </Link>
                     </td>
@@ -349,7 +350,7 @@ export function VendorBillsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableConteneur>
           {data?.pagination && (
             <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />
           )}
@@ -551,7 +552,7 @@ export function VendorBillsPage() {
               {viewTarget.dueDate && <div><span className="text-muted-foreground">{t('purchases.dueDate')}:</span> {formatDate(viewTarget.dueDate)}</div>}
             </div>
             <table className="w-full text-xs border border-border rounded">
-              <thead className="bg-muted/50">
+              <thead>
                 <tr>
                   <th className="px-2 py-1.5 text-left text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
                   <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
@@ -560,7 +561,7 @@ export function VendorBillsPage() {
                   <th className="px-2 py-1.5 text-right text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border-subtle">
                 {viewTarget.items?.map((i: any, idx: number) => (
                   <tr key={idx}>
                     <td className="px-2 py-1.5">{i.productName ?? i.description ?? '—'}</td>

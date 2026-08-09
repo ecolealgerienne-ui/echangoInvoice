@@ -3,6 +3,30 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { adminApi } from '@/lib/api';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { TableConteneur } from '@/components/ui/DataTable';
+import { Pagination } from '@/components/shared/Pagination';
+import { varianteStatut } from '@/lib/statuts';
+
+/**
+ * Liste des locataires — l'écran d'administration.
+ *
+ * Il était le dernier à ne rien partager avec le reste : `<input>` et
+ * `<select>` nus, un tableau sans cadre, une pastille de statut dont la table
+ * de couleurs était écrite ici, et une pagination faite de deux chevrons en
+ * caractères d'écriture (`&lt;`, `&gt;`) qui ne disaient ni la page courante ni
+ * le total. Un écran réservé à trois personnes reste un écran : c'est
+ * précisément là qu'une divergence s'installe sans que personne ne la voie.
+ *
+ * Tout passe désormais par le système : `Input`, `Select`, `TableConteneur`,
+ * `Badge` avec `varianteStatut`, `Pagination`. Le statut d'un locataire suit
+ * donc le même code couleur qu'un statut de facture — actif en vert, essai en
+ * ambre, suspendu en gris — décidé au même endroit.
+ */
+const TAILLE = 20;
 
 export function AdminTenantsPage() {
   const { t } = useTranslation();
@@ -13,7 +37,9 @@ export function AdminTenantsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tenants', page, search, status],
-    queryFn: () => adminApi.listTenants({ page, limit: 20, search: search || undefined, status: status || undefined }),
+    queryFn: () => adminApi.listTenants({
+      page, limit: TAILLE, search: search || undefined, status: status || undefined,
+    }),
   });
 
   const patchStatus = useMutation({
@@ -25,90 +51,93 @@ export function AdminTenantsPage() {
   const pagination = data?.pagination;
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold text-foreground">{t('admin.tenants.title')}</h1>
+    <div className="ci-page space-y-4 p-5">
+      <h1>{t('admin.tenants.title')}</h1>
 
-      <div className="flex gap-3">
-        <input
-          className="border border-border rounded px-3 py-1.5 text-sm bg-surface text-foreground"
+      <div className="flex flex-wrap gap-3">
+        <Input
+          className="w-64"
           placeholder={t('common.search')}
           value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <select
-          className="border border-border rounded px-3 py-1.5 text-sm bg-surface text-foreground"
+        <Select
+          className="w-48"
           value={status}
-          onChange={e => { setStatus(e.target.value); setPage(1); }}
+          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
         >
           <option value="">{t('common.allStatuses')}</option>
           <option value="trial">{t('admin.tenants.status.trial')}</option>
           <option value="active">{t('admin.tenants.status.active')}</option>
           <option value="suspended">{t('admin.tenants.status.suspended')}</option>
-        </select>
+        </Select>
       </div>
 
       {isLoading ? (
-        <div>{t('common.loading')}</div>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       ) : (
-        <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
-          <thead className="bg-muted">
-            <tr>
-              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.customer')}</th>
-              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
-              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.date')}</th>
-              <th className="text-left p-3 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tenants.map((tenant: any) => (
-              <tr key={tenant.id} className="border-t border-border">
-                <td className="p-3 text-foreground">{tenant.name}</td>
-                <td className="p-3">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    tenant.status === 'active' ? 'bg-success-subtle text-success-text' :
-                    tenant.status === 'trial' ? 'bg-warning-subtle text-warning-text' :
-                    'bg-destructive-subtle text-destructive-text'
-                  }`}>
-                    {t(`admin.tenants.status.${tenant.status}`)}
-                  </span>
-                </td>
-                <td className="p-3 text-foreground">{new Date(tenant.createdAt).toLocaleDateString('fr-DZ')}</td>
-                <td className="p-3 flex gap-2">
-                  <Link to={`/admin/tenants/${tenant.id}`} className="text-primary underline text-xs">
-                    {t('admin.tenants.actions.detail')}
-                  </Link>
-                  {tenant.status !== 'suspended' ? (
-                    <button
-                      onClick={() => patchStatus.mutate({ id: tenant.id, s: 'suspended' })}
-                      className="text-xs text-destructive underline"
-                    >
-                      {t('admin.tenants.actions.suspend')}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => patchStatus.mutate({ id: tenant.id, s: 'active' })}
-                      className="text-xs text-success underline"
-                    >
-                      {t('admin.tenants.actions.activate')}
-                    </button>
-                  )}
-                </td>
+        <TableConteneur>
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <th className="px-3 py-2.5 text-left">{t('common.customer')}</th>
+                <th className="px-3 py-2.5 text-left">{t('common.status')}</th>
+                <th className="px-3 py-2.5 text-left">{t('common.date')}</th>
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {tenants.map((tenant: any) => (
+                <tr key={tenant.id}>
+                  <td className="px-3 py-2.5">
+                    <Link
+                      to={`/admin/tenants/${tenant.id}`}
+                      className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline"
+                    >
+                      {tenant.name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Badge point variant={varianteStatut(tenant.status)}>
+                      {t(`admin.tenants.status.${tenant.status}`)}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
+                    {new Date(tenant.createdAt).toLocaleDateString('fr-DZ')}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    {tenant.status !== 'suspended' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => patchStatus.mutate({ id: tenant.id, s: 'suspended' })}
+                      >
+                        {t('admin.tenants.actions.suspend')}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => patchStatus.mutate({ id: tenant.id, s: 'active' })}
+                      >
+                        {t('admin.tenants.actions.activate')}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableConteneur>
       )}
 
       {pagination && (
-        <div className="flex gap-2 justify-end">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 border border-border rounded text-sm disabled:opacity-50">
-            &lt;
-          </button>
-          <span className="px-3 py-1 text-sm text-foreground">{page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= pagination.total} className="px-3 py-1 border border-border rounded text-sm disabled:opacity-50">
-            &gt;
-          </button>
-        </div>
+        <Pagination
+          page={page}
+          total={pagination.total}
+          limit={TAILLE}
+          onChange={setPage}
+        />
       )}
     </div>
   );

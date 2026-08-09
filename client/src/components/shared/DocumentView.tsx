@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/Badge';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 /**
  * Briques communes aux pages détail des documents de vente.
@@ -33,7 +34,7 @@ export function DocumentEnTete({ retourVers, retourLibelle, titre, statut, actio
       </Link>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-foreground">{titre}</h1>
+          <h1>{titre}</h1>
           {statut && <Badge variant={statut.variant as never}>{statut.libelle}</Badge>}
         </div>
         {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
@@ -107,15 +108,15 @@ export function LignesDocument({ lignes, libelles }: {
   libelles: { article: string; quantite: string; prix: string; tva: string; total: string };
 }) {
   return (
-    <div className="rounded-lg border border-border overflow-x-auto">
+    <TableConteneur dense>
       <table className="w-full text-sm">
-        <thead className="bg-muted">
+        <thead>
           <tr>
-            <th className="text-left px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.article}</th>
-            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.quantite}</th>
-            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.prix}</th>
-            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.tva}</th>
-            <th className="text-right px-4 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{libelles.total}</th>
+            <th className="text-left px-4 py-2.5">{libelles.article}</th>
+            <th className="text-right px-4 py-2.5">{libelles.quantite}</th>
+            <th className="text-right px-4 py-2.5">{libelles.prix}</th>
+            <th className="text-right px-4 py-2.5">{libelles.tva}</th>
+            <th className="text-right px-4 py-2.5">{libelles.total}</th>
           </tr>
         </thead>
         <tbody>
@@ -143,7 +144,7 @@ export function LignesDocument({ lignes, libelles }: {
           ))}
         </tbody>
       </table>
-    </div>
+    </TableConteneur>
   );
 }
 

@@ -30,6 +30,7 @@ import { enregistrerBlob } from '@/lib/download';
 import { EtatVide } from '@/components/shared/EtatVide';
 import { EnTetePage } from '@/components/shared/EnTetePage';
 import { MenuActions } from '@/components/shared/MenuActions';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 
 const itemSchema = z.object({
@@ -353,16 +354,16 @@ export function InvoicesPage() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
                 {col('number') && (
                   <EnteteTriable libelle={t('invoices.number')} colonne="invoiceNumber" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
                 )}
-                {col('customer') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.customer')}</th>}
-                {col('origin') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.origin')}</th>}
+                {col('customer') && <th className="px-3 py-2.5 text-left">{t('invoices.customer')}</th>}
+                {col('origin') && <th className="px-3 py-2.5 text-left">{t('invoices.origin')}</th>}
                 {col('invoiceDate') && (
                   <EnteteTriable libelle={t('invoices.invoiceDate')} colonne="invoiceDate" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} />
@@ -375,7 +376,7 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('invoices.amount')} colonne="totalAmount" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('credited') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.credited')}</th>}
+                {col('credited') && <th className="px-3 py-2.5 text-right">{t('invoices.credited')}</th>}
                 {col('due') && (
                   <EnteteTriable libelle={t('invoices.due')} colonne="amountDue" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
@@ -384,22 +385,22 @@ export function InvoicesPage() {
                   <EnteteTriable libelle={t('common.status')} colonne="status" tri={tri}
                     onTrier={trierPar} ariaSort={ariaSort} droite />
                 )}
-                {col('notes') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                {col('notes') && <th className="px-3 py-2.5 text-left">{t('common.notes')}</th>}
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {data?.data?.length === 0 && (
                 <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
               )}
               {data?.data?.map((inv: any) => (
-                <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={inv.id} className="hover:bg-surface-hover transition-colors">
                   {/* Le numéro est le point d'entrée vers la fiche : c'est ce
                       qu'on cherche du regard, et un lien y mène sans occuper
                       une colonne d'actions déjà chargée. */}
                   {col('number') && (
                     <td className="px-3 py-2.5 font-mono font-medium">
-                      <Link to={`/invoices/${inv.id}`} className="text-primary hover:underline">
+                      <Link to={`/invoices/${inv.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                         {inv.invoiceNumber}
                       </Link>
                     </td>
@@ -478,7 +479,7 @@ export function InvoicesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {data?.pagination && <Pagination page={page} total={data.pagination.total} limit={data.pagination.limit} onChange={setPage} />}
@@ -683,21 +684,21 @@ export function InvoicesPage() {
             {paymentsLoading && <LoadingSpinner />}
 
             {!paymentsLoading && (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <TableConteneur>
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50"><tr>
-                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentDate')}</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentMethod')}</th>
-                    <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentReference')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('invoices.paymentAmount')}</th>
-                    <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                  <thead><tr>
+                    <th className="px-3 py-2.5 text-left">{t('invoices.paymentDate')}</th>
+                    <th className="px-3 py-2.5 text-left">{t('invoices.paymentMethod')}</th>
+                    <th className="px-3 py-2.5 text-left">{t('invoices.paymentReference')}</th>
+                    <th className="px-3 py-2.5 text-right">{t('invoices.paymentAmount')}</th>
+                    <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
                   </tr></thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody className="divide-y divide-border-subtle">
                     {paymentsData?.data?.length === 0 && (
                       <tr><td colSpan={5} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                     )}
                     {paymentsData?.data?.map((p: any) => (
-                      <tr key={p.id} className="hover:bg-muted/30">
+                      <tr key={p.id} className="hover:bg-surface-hover">
                         <td className="px-3 py-2.5 text-muted-foreground">{formatDate(p.paymentDate)}</td>
                         <td className="px-3 py-2.5 text-foreground">{t(`invoices.methods.${p.paymentMethod}`)}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{p.reference || '—'}</td>
@@ -713,7 +714,7 @@ export function InvoicesPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TableConteneur>
             )}
 
             <div className="flex justify-end pt-2">

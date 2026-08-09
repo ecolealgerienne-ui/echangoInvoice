@@ -42,7 +42,7 @@ export function LoginPage() {
 
   return (
     <CadreAuth>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('auth.login')}</h1>
           <p className="text-sm text-muted-foreground">{t('auth.loginSubtitle')}</p>

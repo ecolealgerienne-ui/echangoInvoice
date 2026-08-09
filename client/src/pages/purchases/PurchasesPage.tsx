@@ -24,6 +24,7 @@ import { Link } from 'react-router-dom';
 import { ColumnToggleMenu } from '@/components/shared/ColumnToggleMenu';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 
 // ── Purchase Order form ──────────────────────────────────────────────────────
@@ -342,9 +343,9 @@ export function PurchasesPage() {
   const isPending = createPoMutation.isPending || updatePoMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">{t('purchases.title')}</h1>
+        <h1>{t('purchases.title')}</h1>
         {tab === 'orders' ? (
           <Button onClick={openCreatePo}>
             <Plus className="h-4 w-4 mr-2" />{t('purchases.newOrder')}
@@ -385,26 +386,26 @@ export function PurchasesPage() {
               onToggle={poToggle}
             />
           </div>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {poCol('poNumber') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.poNumber')}</th>}
-                {poCol('supplier') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.supplier')}</th>}
-                {poCol('orderDate') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.orderDate')}</th>}
-                {poCol('expectedDelivery') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.expectedDelivery')}</th>}
-                {poCol('total') && <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.total')}</th>}
-                {poCol('status') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.status')}</th>}
-                {poCol('notes') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.notes')}</th>}
+                {poCol('poNumber') && <th className="text-left px-3 py-2.5">{t('purchases.poNumber')}</th>}
+                {poCol('supplier') && <th className="text-left px-3 py-2.5">{t('purchases.supplier')}</th>}
+                {poCol('orderDate') && <th className="text-left px-3 py-2.5">{t('purchases.orderDate')}</th>}
+                {poCol('expectedDelivery') && <th className="text-left px-3 py-2.5">{t('purchases.expectedDelivery')}</th>}
+                {poCol('total') && <th className="text-right px-3 py-2.5">{t('common.total')}</th>}
+                {poCol('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
+                {poCol('notes') && <th className="text-left px-3 py-2.5">{t('common.notes')}</th>}
                 <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {orders.map((o: any) => (
-                <tr key={o.id} className="border-t border-border hover:bg-muted/30">
+                <tr key={o.id} className="border-t border-border hover:bg-surface-hover">
                   {poCol('poNumber') && (
                     <td className="px-3 py-2.5 font-mono text-xs">
-                      <Link to={`/purchases/orders/${o.id}`} className="text-primary hover:underline">
+                      <Link to={`/purchases/orders/${o.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                         {o.poNumber}
                       </Link>
                     </td>
@@ -456,7 +457,7 @@ export function PurchasesPage() {
               )}
             </tbody>
           </table>
-        </div>
+          </TableConteneur>
         </>
       ) : (
         <>
@@ -474,24 +475,24 @@ export function PurchasesPage() {
               onToggle={recToggle}
             />
           </div>
-          <div className="rounded-lg border border-border overflow-hidden">
+          <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
-                {recCol('blNumber') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.blNumber')}</th>}
-                {recCol('poNumber') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.order')}</th>}
-                {recCol('receptionDate') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.receptionDate')}</th>}
-                {recCol('totalReceived') && <th className="text-right px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.totalReceived')}</th>}
-                {recCol('status') && <th className="text-left px-3 py-2.5 font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('quotes.status')}</th>}
+                {recCol('blNumber') && <th className="text-left px-3 py-2.5">{t('purchases.blNumber')}</th>}
+                {recCol('poNumber') && <th className="text-left px-3 py-2.5">{t('purchases.order')}</th>}
+                {recCol('receptionDate') && <th className="text-left px-3 py-2.5">{t('purchases.receptionDate')}</th>}
+                {recCol('totalReceived') && <th className="text-right px-3 py-2.5">{t('purchases.totalReceived')}</th>}
+                {recCol('status') && <th className="text-left px-3 py-2.5">{t('quotes.status')}</th>}
                 <th className="px-3 py-2.5 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
             <tbody>
               {receptions.map((r: any) => (
-                <tr key={r.id} className="border-t border-border hover:bg-muted/30">
+                <tr key={r.id} className="border-t border-border hover:bg-surface-hover">
                   {recCol('blNumber') && (
                     <td className="px-3 py-2.5 font-mono text-xs">
-                      <Link to={`/purchases/receptions/${r.id}`} className="text-primary hover:underline">
+                      <Link to={`/purchases/receptions/${r.id}`} className="text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline">
                         {r.blNumber}
                       </Link>
                     </td>
@@ -519,7 +520,7 @@ export function PurchasesPage() {
               )}
             </tbody>
           </table>
-        </div>
+          </TableConteneur>
         </>
       )}
 
@@ -679,7 +680,7 @@ export function PurchasesPage() {
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
-                <thead className="bg-muted">
+                <thead>
                   <tr>
                     <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.product')}</th>
                     <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.qty')}</th>
@@ -724,7 +725,7 @@ export function PurchasesPage() {
               </div>
               {d.notes && <p className="text-muted-foreground italic">{d.notes}</p>}
               <table className="w-full border border-border rounded-md overflow-hidden text-xs">
-                <thead className="bg-muted">
+                <thead>
                   <tr>
                     <th className="text-left px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('common.product')}</th>
                     <th className="text-right px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground">{t('purchases.totalReceived')}</th>

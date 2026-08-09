@@ -4,35 +4,43 @@ import { cn } from '@/lib/utils';
 /**
  * Carte.
  *
- * En clair, l'élévation vient de l'ombre et de l'écart de clarté avec la page
- * — le fond est désormais teinté à L 0.972 quand la carte reste à 0.999, alors
- * que les deux valaient pratiquement blanc auparavant. En sombre, elle vient
- * de la clarté seule : la carte est de 7 % plus claire que le fond. C'est le
- * même composant, mais le signal de profondeur change de nature avec le thème,
- * et c'est le jeton qui s'en charge.
+ * C'est la surface de base du système : `bg-card`, une bordure d'un pixel, dix
+ * pixels de rayon, quatorze de rembourrage. Rien d'autre — et surtout pas
+ * d'ombre par défaut.
  *
- * Deux réglages ont été ajoutés avec la direction « Azur & Ambre » :
+ * L'absence d'ombre est une décision, pas un oubli. Le détachement vient de
+ * trois choses qui suffisent : la carte est plus claire que la page en sombre
+ * (L 0.202 contre 0.167) et plus claire encore en clair (0.999 contre 0.964),
+ * elle porte une bordure, et l'espacement autour d'elle est franc. Une ombre
+ * par-dessus tout cela n'ajoute que du flou — et en sombre, une ombre noire sur
+ * un fond presque noir n'existe simplement pas. `ombre` la rend là où une carte
+ * flotte réellement au-dessus d'une autre.
  *
- * - `vivante` — la carte se soulève de deux pixels au survol et son ombre
- *   s'ouvre. Réservée aux cartes sur lesquelles on peut agir : une carte
- *   d'information qui bouge sous le curseur promet un clic qui n'existe pas.
+ * Un réglage reste, `vivante` : la carte est cliquable, et sa bordure
+ * s'éclaircit au survol. **Elle ne se déplace pas** — une grille de douze
+ * cartes dont la moitié se soulève au passage du curseur donne l'impression
+ * que la page respire mal. Le mouvement appartient au bouton, seul objet qu'on
+ * vise vraiment.
  *
- * - `voile` — un dégradé de marque à 5 % posé en diagonale depuis le coin
- *   haut. Assez pour que la surface ait une direction et ne soit plus une
- *   plaque, trop peu pour se lire comme une couleur.
+ * Un troisième réglage a été retiré : `voile`, un dégradé de marque à 5 % posé
+ * en diagonale depuis le coin haut. Il donnait une direction à une surface qui
+ * n'en avait pas, quand la carte était un blanc parfait posé sur un blanc
+ * presque identique. Le nouveau fond de carte porte sa propre teinte, et le
+ * voile n'ajoutait plus qu'un lavis bleu dans un coin.
  */
 interface ProprietesCarte extends HTMLAttributes<HTMLDivElement> {
   vivante?: boolean;
-  voile?: boolean;
+  /** Ombre de carte, pour les surfaces réellement superposées. */
+  ombre?: boolean;
 }
 
 const Card = forwardRef<HTMLDivElement, ProprietesCarte>(
-  ({ className, vivante, voile, ...props }, ref) => (
+  ({ className, vivante, ombre, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        'relative rounded-lg border border-border bg-card text-card-foreground shadow-sm',
-        voile && 'voile-marque',
+        'relative rounded-lg border border-border bg-card text-card-foreground',
+        ombre && 'shadow-md',
         vivante && 'carte-vivante',
         className,
       )}
@@ -44,21 +52,29 @@ Card.displayName = 'Card';
 
 const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('flex flex-col space-y-1 p-4', className)} {...props} />
+    <div ref={ref} className={cn('flex flex-col space-y-1 p-3.5', className)} {...props} />
   ),
 );
 CardHeader.displayName = 'CardHeader';
 
+/**
+ * Titre de carte : douze pixels, semi-gras, encre pleine.
+ *
+ * Il était à treize et de la même graisse que le corps qu'il surmonte, ce qui
+ * revenait à ne pas avoir de titre. La hiérarchie ne passe pas par la couleur
+ * ici — un titre gris sur une carte grise se perd — mais par le couple
+ * taille + graisse, le seul qui tienne dans les deux thèmes.
+ */
 const CardTitle = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-sm font-semibold leading-none text-foreground', className)} {...props} />
+    <h3 ref={ref} className={cn('text-xs font-semibold leading-none text-foreground', className)} {...props} />
   ),
 );
 CardTitle.displayName = 'CardTitle';
 
 const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-4 pt-0', className)} {...props} />
+    <div ref={ref} className={cn('p-3.5 pt-0', className)} {...props} />
   ),
 );
 CardContent.displayName = 'CardContent';

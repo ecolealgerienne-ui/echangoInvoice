@@ -39,9 +39,12 @@ export function EnTetePage({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold text-foreground">{titre}</h1>
+        <h1>{titre}</h1>
+        {/* Le total est un sous-titre, pas une donnée : douze pixels sur
+            l'encre tertiaire. En encre secondaire, il pesait presque autant que
+            le titre, qui n'est qu'à deux crans au-dessus. */}
         {total !== null && total !== undefined && (
-          <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+          <p className="mt-1 text-xs tabular-nums text-tertiaire">
             {t(cleTotal, { nombre: formatEntier(total) })}
           </p>
         )}

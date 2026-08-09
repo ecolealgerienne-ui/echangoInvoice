@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Star } from 'lucide-react';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 interface Lien {
   id: string;
@@ -87,20 +88,20 @@ export function FournisseursArticle({ productId }: { productId: string }) {
       )}
 
       {liens.length > 0 && (
-        <div className="rounded-lg border border-border overflow-x-auto">
+        <TableConteneur dense>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('suppliers.title')}</th>
-                <th className="px-3 py-2 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.supplierRef')}</th>
-                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.purchasePrice')}</th>
-                <th className="px-3 py-2 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.leadTime')}</th>
+                <th className="px-3 py-2 text-left">{t('suppliers.title')}</th>
+                <th className="px-3 py-2 text-left">{t('products.supplierRef')}</th>
+                <th className="px-3 py-2 text-right">{t('products.purchasePrice')}</th>
+                <th className="px-3 py-2 text-right">{t('products.leadTime')}</th>
                 <th className="px-3 py-2 text-2xs uppercase tracking-wide text-muted-foreground" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {liens.map((l) => (
-                <tr key={l.id} className="hover:bg-muted/30">
+                <tr key={l.id} className="hover:bg-surface-hover">
                   <td className="px-3 py-2 text-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       {l.isPreferred && (
@@ -123,7 +124,7 @@ export function FournisseursArticle({ productId }: { productId: string }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       <form

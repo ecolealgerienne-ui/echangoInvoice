@@ -15,8 +15,14 @@ import { cn } from '@/lib/utils';
  * douzaine de pastilles pleines dans un tableau de trente lignes attire l'œil
  * partout, donc nulle part. La couleur doit signaler l'exception.
  */
+/**
+ * Trois pixels de haut, huit de large, six de rayon, dix pixels de texte en
+ * semi-gras : *petit*, et c'est la moitié de l'intention. Une pastille de
+ * statut qui pèse autant qu'un montant fait de la colonne « Statut » la colonne
+ * principale, alors qu'on la consulte en dernier — une fois la ligne trouvée.
+ */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-2xs font-medium leading-none transition-colors whitespace-nowrap',
+  'inline-flex items-center gap-1 rounded-sm border px-2 py-[3px] text-3xs font-semibold leading-none transition-colors whitespace-nowrap',
   {
     variants: {
       variant: {

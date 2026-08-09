@@ -30,7 +30,7 @@ export function SelecteurTheme() {
     <div
       role="radiogroup"
       aria-label={t('theme.label')}
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-md border border-border bg-champ p-0.5"
     >
       {OPTIONS.map(({ valeur, icone: Icone, cle }) => {
         const actif = theme === valeur;
@@ -44,11 +44,11 @@ export function SelecteurTheme() {
             title={t(cle)}
             onClick={() => definirTheme(valeur)}
             className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+              'flex h-7 w-7 items-center justify-center rounded-sm transition-colors duration-150',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               actif
-                ? 'bg-surface text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'bg-surface text-foreground'
+                : 'text-tertiaire hover:bg-surface-hover hover:text-foreground',
             )}
           >
             <Icone className="h-3.5 w-3.5" aria-hidden />

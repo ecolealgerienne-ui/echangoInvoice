@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Pencil, Trash2, Tags, Search, RotateCcw } from 'lucide-react';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 /**
  * Grilles tarifaires.
@@ -120,7 +121,7 @@ export function PriceListsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+        <h1 className="flex items-center gap-2">
           <Tags className="h-5 w-5 text-primary" /> {t('priceLists.title')}
         </h1>
         <Button onClick={ouvrirCreation} size="sm">
@@ -131,21 +132,21 @@ export function PriceListsPage() {
       <p className="text-sm text-muted-foreground">{t('priceLists.hint')}</p>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50"><tr>
-              <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.name')}</th>
-              <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.description')}</th>
-              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.itemCount')}</th>
-              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.customerCount')}</th>
-              <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+            <thead><tr>
+              <th className="px-3 py-2.5 text-left">{t('priceLists.name')}</th>
+              <th className="px-3 py-2.5 text-left">{t('common.description')}</th>
+              <th className="px-3 py-2.5 text-right">{t('priceLists.itemCount')}</th>
+              <th className="px-3 py-2.5 text-right">{t('priceLists.customerCount')}</th>
+              <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
             </tr></thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {listsData?.data?.length === 0 && (
                 <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">{t('priceLists.empty')}</td></tr>
               )}
               {listsData?.data?.map((g: any) => (
-                <tr key={g.id} className={`hover:bg-muted/30 ${gridId === g.id ? 'bg-muted/40' : ''}`}>
+                <tr key={g.id} className={`hover:bg-surface-hover ${gridId === g.id ? 'bg-muted/40' : ''}`}>
                   <td className="px-3 py-2.5">
                     <button
                       type="button"
@@ -177,7 +178,7 @@ export function PriceListsPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       {gridId && (
@@ -205,12 +206,12 @@ export function PriceListsPage() {
             <div className="max-h-[28rem] overflow-y-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 sticky top-0"><tr>
-                  <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('products.name')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.basePrice')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.gridPrice')}</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('priceLists.delta')}</th>
+                  <th className="px-3 py-2.5 text-left">{t('products.name')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('priceLists.basePrice')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('priceLists.gridPrice')}</th>
+                  <th className="px-3 py-2.5 text-right">{t('priceLists.delta')}</th>
                 </tr></thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {produitsFiltres.map((p: any) => {
                     const base = Number(p.defaultSalesPrice ?? 0);
                     const valeur = prix[p.id] ?? '';
@@ -219,7 +220,7 @@ export function PriceListsPage() {
                       ? Math.round(((saisi - base) / base) * 1000) / 10
                       : null;
                     return (
-                      <tr key={p.id} className="hover:bg-muted/30">
+                      <tr key={p.id} className="hover:bg-surface-hover">
                         <td className="px-3 py-2 text-foreground">
                           {p.name} <span className="text-xs text-muted-foreground">({p.unit})</span>
                         </td>

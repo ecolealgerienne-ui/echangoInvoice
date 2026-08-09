@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Trash2, Play, Pause, Zap } from 'lucide-react';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const FREQUENCES = ['weekly', 'monthly', 'quarterly', 'yearly'] as const;
 const MODES = ['other', 'cash', 'bank_transfer', 'cheque'] as const;
@@ -144,32 +145,32 @@ export function RecurringInvoicesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">{t('recurring.title')}</h1>
+          <h1>{t('recurring.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('recurring.subtitle')}</p>
         </div>
         <Button onClick={ouvrir} size="sm"><Plus className="h-4 w-4" /> {t('recurring.new')}</Button>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="rounded-lg border border-border overflow-x-auto">
+        <TableConteneur>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead>
               <tr>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.label')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('customers.title')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.frequency')}</th>
-                <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.nextRun')}</th>
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('recurring.generated')}</th>
-                <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
-                <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                <th className="px-3 py-2.5 text-left">{t('recurring.label')}</th>
+                <th className="px-3 py-2.5 text-left">{t('customers.title')}</th>
+                <th className="px-3 py-2.5 text-left">{t('recurring.frequency')}</th>
+                <th className="px-3 py-2.5 text-left">{t('recurring.nextRun')}</th>
+                <th className="px-3 py-2.5 text-right">{t('recurring.generated')}</th>
+                <th className="px-3 py-2.5 text-center">{t('common.status')}</th>
+                <th className="px-3 py-2.5 text-right">{t('common.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border-subtle">
               {abonnements.length === 0 && (
                 <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">{t('recurring.empty')}</td></tr>
               )}
               {abonnements.map((a: any) => (
-                <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={a.id} className="hover:bg-surface-hover transition-colors">
                   <td className="px-3 py-2.5 font-medium text-foreground">{a.label}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{a.customerName}</td>
                   <td className="px-3 py-2.5 text-muted-foreground">{t(`recurring.freq.${a.frequency}`)}</td>
@@ -208,7 +209,7 @@ export function RecurringInvoicesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
 
       <p className="text-xs text-muted-foreground">

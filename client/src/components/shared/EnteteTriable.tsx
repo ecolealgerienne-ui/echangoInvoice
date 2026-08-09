@@ -24,7 +24,11 @@ export function EnteteTriable({
   return (
     <th
       aria-sort={ariaSort(colonne)}
-      className={cn('px-4 py-3 font-medium text-muted-foreground', droite ? 'text-right' : 'text-left')}
+      // La taille, la graisse, les majuscules et la couleur viennent de la
+      // règle `thead th` de `globals.css` : les en-têtes écrits à la main dans
+      // les pages en héritent aussi, et deux colonnes voisines — l'une triable,
+      // l'autre non — ne peuvent plus diverger.
+      className={cn('px-3 py-2.5', droite ? 'text-right' : 'text-left')}
     >
       <button
         type="button"

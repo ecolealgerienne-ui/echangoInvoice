@@ -1,5 +1,7 @@
 import { ReactNode } from 'react';
 import { formatCurrency } from '@/lib/utils';
+import { TableConteneur } from '@/components/ui/DataTable';
+import { KpiCard } from '@/components/ui/KpiCard';
 
 /**
  * Tableau d'historique d'une fiche tiers, et bandeau de chiffres clés.
@@ -31,9 +33,9 @@ export function Historique<T extends { id: string }>({ titre, lignes, colonnes, 
           {vide}
         </p>
       ) : (
-        <div className="rounded-lg border border-border overflow-x-auto">
+        <TableConteneur dense>
           <table className="w-full text-sm">
-            <thead className="bg-muted">
+            <thead>
               <tr>
                 {colonnes.map((c) => (
                   <th
@@ -60,15 +62,27 @@ export function Historique<T extends { id: string }>({ titre, lignes, colonnes, 
               ))}
             </tbody>
           </table>
-        </div>
+        </TableConteneur>
       )}
     </div>
   );
 }
 
 /**
- * Bandeau de chiffres clés. `alerte` met la valeur en rouge — réservé à ce
- * qui appelle une action : un encours échu, une dette en retard.
+ * Bandeau de chiffres clés d'une fiche tiers.
+ *
+ * Il dessinait ses propres cartes — un libellé à douze pixels, un montant à
+ * seize en gras, seize de rembourrage — et se retrouvait donc à côté des cartes
+ * d'indicateur du tableau de bord sans leur ressembler : deux objets qui
+ * répondent à la même question, avec deux hauteurs, deux tailles de valeur et
+ * deux façons d'écrire le libellé.
+ *
+ * Il passe par `KpiCard`, sans pastille : quatre montants d'un même client — CA
+ * facturé, encaissé, encours, dont échu — n'ont pas d'icône qui les distingue,
+ * et quatre pastilles identiques ne feraient qu'occuper la place du chiffre.
+ *
+ * `alerte` met la valeur en rouge, et seulement si elle est non nulle : « 0,00
+ * DA » en rouge annonce un problème qui n'existe pas.
  */
 export function Chiffres({ items }: {
   items: { libelle: string; montant: number; alerte?: boolean }[];
@@ -76,12 +90,12 @@ export function Chiffres({ items }: {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {items.map(({ libelle, montant, alerte }) => (
-        <div key={libelle} className="rounded-lg border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground">{libelle}</p>
-          <p className={`text-lg font-bold ${alerte && montant > 0 ? 'text-destructive' : 'text-foreground'}`}>
-            {formatCurrency(montant)}
-          </p>
-        </div>
+        <KpiCard
+          key={libelle}
+          titre={libelle}
+          valeur={formatCurrency(montant)}
+          alerte={alerte && montant > 0}
+        />
       ))}
     </div>
   );

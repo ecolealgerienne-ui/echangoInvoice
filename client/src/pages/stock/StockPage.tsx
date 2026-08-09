@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { EtatVide } from '@/components/shared/EtatVide';
+import { TableConteneur } from '@/components/ui/DataTable';
 
 const REASONS = ['physical_count', 'correction', 'loss', 'breakage', 'other'] as const;
 
@@ -136,7 +137,7 @@ export function StockPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">{t('stock.title')}</h1>
+        <h1>{t('stock.title')}</h1>
         <div className="flex gap-1 p-1 bg-muted rounded-lg">
           <Button variant={tab === 'inventory' ? 'default' : 'ghost'} size="sm" onClick={() => setTab('inventory')}>
             {t('stock.inventory')}
@@ -173,29 +174,29 @@ export function StockPage() {
                 onToggle={toggle}
               />
             </div>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <TableConteneur>
               <table className="w-full text-sm">
-                <thead className="bg-muted/50">
+                <thead>
                   <tr>
-                    {col('name') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('rawMaterials.name')}</th>}
-                    {col('physical') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.physical')}</th>}
-                    {col('reserved') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.reserved')}</th>}
-                    {col('quantity') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.available')}</th>}
-                    {col('incoming') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.incoming')}</th>}
-                    {col('value') && <th className="px-3 py-2.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.value')}</th>}
-                    {col('expiryAlert') && <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiryAlert')}</th>}
-                    {col('lowStockAlert') && <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.lowStockAlert')}</th>}
-                    {col('expiry') && <th className="px-3 py-2.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>}
-                    <th className="px-3 py-2.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.actions')}</th>
+                    {col('name') && <th className="px-3 py-2.5 text-left">{t('rawMaterials.name')}</th>}
+                    {col('physical') && <th className="px-3 py-2.5 text-right">{t('stock.physical')}</th>}
+                    {col('reserved') && <th className="px-3 py-2.5 text-right">{t('stock.reserved')}</th>}
+                    {col('quantity') && <th className="px-3 py-2.5 text-right">{t('stock.available')}</th>}
+                    {col('incoming') && <th className="px-3 py-2.5 text-right">{t('stock.incoming')}</th>}
+                    {col('value') && <th className="px-3 py-2.5 text-right">{t('stock.value')}</th>}
+                    {col('expiryAlert') && <th className="px-3 py-2.5 text-center">{t('stock.expiryAlert')}</th>}
+                    {col('lowStockAlert') && <th className="px-3 py-2.5 text-center">{t('stock.lowStockAlert')}</th>}
+                    {col('expiry') && <th className="px-3 py-2.5 text-left">{t('stock.expiry')}</th>}
+                    <th className="px-3 py-2.5 text-center">{t('common.actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border-subtle">
                   {invData?.data?.length === 0 && (
                     <tr><td colSpan={visible.length + 1} className="text-center py-2 text-muted-foreground"><EtatVide /></td></tr>
                   )}
                   {invData?.data?.map((item: any) => (
                     <Fragment key={item.rawMaterialId}>
-                    <tr className={`hover:bg-muted/30 transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
+                    <tr className={`hover:bg-surface-hover transition-colors${item.totalQuantity === 0 ? ' opacity-60' : ''}`}>
                       {col('name') && <td className="px-3 py-2.5 font-medium text-foreground">
                         <button
                           type="button"
@@ -262,14 +263,14 @@ export function StockPage() {
                               : (
                                 <table className="w-full text-xs">
                                   <thead><tr className="text-muted-foreground">
-                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.lotNumber')}</th>
-                                    <th className="px-2 py-1.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.quantity')}</th>
-                                    <th className="px-2 py-1.5 text-right font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.unitCost')}</th>
-                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.enteredAt')}</th>
-                                    <th className="px-2 py-1.5 text-left font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('stock.expiry')}</th>
-                                    <th className="px-2 py-1.5 text-center font-medium text-2xs uppercase tracking-wide text-muted-foreground">{t('common.status')}</th>
+                                    <th className="px-2 py-1.5 text-left">{t('stock.lotNumber')}</th>
+                                    <th className="px-2 py-1.5 text-right">{t('stock.quantity')}</th>
+                                    <th className="px-2 py-1.5 text-right">{t('stock.unitCost')}</th>
+                                    <th className="px-2 py-1.5 text-left">{t('stock.enteredAt')}</th>
+                                    <th className="px-2 py-1.5 text-left">{t('stock.expiry')}</th>
+                                    <th className="px-2 py-1.5 text-center">{t('common.status')}</th>
                                   </tr></thead>
-                                  <tbody className="divide-y divide-border">
+                                  <tbody className="divide-y divide-border-subtle">
                                     {entriesData?.data?.map((lot: any) => (
                                       <tr key={lot.id}>
                                         <td className="px-2 py-1.5 font-mono text-foreground">{lot.batchNumber || '—'}</td>
@@ -295,7 +296,7 @@ export function StockPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </TableConteneur>
             {invData?.pagination && (
               <Pagination page={page} total={invData.pagination.total} limit={invData.pagination.limit} onChange={setPage} />
             )}
